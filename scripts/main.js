@@ -96,10 +96,10 @@
     }
   });
 
-  // ---- The front door (#screen-start): four tiles, one per world ----
+  // ---- The front door (#screen-start): five tiles, one per world ----
   // The app opens here. Each tile navigates DIRECTLY to its world — no name
   // gates (removed by request 2026-07): Josh's 200 games, 华丽's 40, the fort,
-  // and 🕳️ Gobble Hole (2026-09).
+  // 🕳️ Gobble Hole (2026-09) and 🎲 Game Night (2026-10).
   function initStart() {
     const screen = document.getElementById("screen-start");
     if (!screen) return;
@@ -119,6 +119,7 @@
     wire("start-hl", "#hl-home");
     wire("start-td", "#td-home");
     wire("start-hole", "#hole-home");
+    wire("start-board", "#board-home");
     wire("home-door", ""); // 🚪 on Josh's home returns to the front door
   }
 
@@ -498,6 +499,11 @@
       try { if (window.GobbleHole && window.GobbleHole.onLeave) window.GobbleHole.onLeave(); } catch (e) { /* ignore */ }
     }
 
+    // …and 🎲 Game Night likewise: leaving parks its game in progress.
+    if (id.indexOf("board-") !== 0) {
+      try { if (window.GameNight && window.GameNight.onLeave) window.GameNight.onLeave(); } catch (e) { /* ignore */ }
+    }
+
     // 🏰 the fort (Dad's TD world, opened from the front door — no gate).
     // JonTD.route handles every known td-* hash; an unknown one falls through
     // to the front door. Leaving the fort pauses its game loop and drops the
@@ -519,6 +525,17 @@
       try {
         if (window.GobbleHole && window.GobbleHole.route && window.GobbleHole.route(id)) return;
       } catch (e) { /* a Gobble failure must never break Josh's site */ }
+      location.hash = "";
+      return;
+    }
+
+    // 🎲 Game Night (board games, PLAN_BOARD.md): GameNight.route handles
+    // every known board-* hash; an unknown one falls through to the front
+    // door. Isolated: its failure can never break Josh's site.
+    if (id.indexOf("board-") === 0) {
+      try {
+        if (window.GameNight && window.GameNight.route && window.GameNight.route(id)) return;
+      } catch (e) { /* a Game Night failure must never break Josh's site */ }
       location.hash = "";
       return;
     }

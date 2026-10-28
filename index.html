@@ -64,7 +64,7 @@
   </header>
 
   <main id="screens">
-    <!-- The front door: the app opens here — four big tiles, one per world.
+    <!-- The front door: the app opens here — five big tiles, one per world.
          No name gates: each tile navigates straight to its world. -->
     <section id="screen-start" class="screen start">
       <h1 class="start__title">Who's playing? 👇</h1>
@@ -86,6 +86,12 @@
         <button id="start-hole" class="start-tile start-tile--hole tap" type="button" role="listitem" aria-label="Gobble Hole">
           <span class="start-tile__art art-fill" aria-hidden="true">🕳️</span>
           <span class="start-tile__label">Gobble Hole</span>
+        </button>
+        <!-- 🎲 Game Night: board games for Josh and a friend (PLAN_BOARD.md),
+             right below Gobble Hole — the wide door across the bottom. -->
+        <button id="start-board" class="start-tile start-tile--board tap" type="button" role="listitem" aria-label="Game Night">
+          <span class="start-tile__icon" aria-hidden="true">🎲</span>
+          <span class="start-tile__label">Game Night</span>
         </button>
       </div>
     </section>
@@ -136,6 +142,10 @@
   <script src="scripts/hole-logic.js?v=__BUILD__" defer></script>
   <script src="scripts/hole-render.js?v=__BUILD__" defer></script>
   <script src="scripts/hole-main.js?v=__BUILD__" defer></script>
+  <script src="scripts/board-data.js?v=__BUILD__" defer></script>
+  <script src="scripts/board-logic.js?v=__BUILD__" defer></script>
+  <script src="scripts/board-render.js?v=__BUILD__" defer></script>
+  <script src="scripts/board-main.js?v=__BUILD__" defer></script>
   <script src="scripts/main.js?v=__BUILD__" defer></script>
 </body>
 </html>

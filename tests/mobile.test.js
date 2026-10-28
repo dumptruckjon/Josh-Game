@@ -156,19 +156,24 @@ test("the viewport meta opts into safe areas", async () => {
   assert.match(content, /viewport-fit=cover/);
 });
 
-test("the front door: four giant world tiles, all ABOVE THE FOLD, marks equally weighted", async () => {
+test("the front door: five giant world tiles, all ABOVE THE FOLD, marks equally weighted", async () => {
   // This test ran at a fixed 780px height, which is exactly why it never saw
   // the defect: measured on the shipped build, the THIRD door was 152px below
   // the fold at 320x568, 42px at 360x640, 15px at 375x667 and 63px in
   // landscape at 844x390 — with nothing on screen hinting the 🏰 world exists.
   // A world you have to scroll to find is a world a four-year-old does not
   // know about, on the ONLY screen that leads anywhere.
-  for (const [w, h] of [[390, 780], [320, 780], [320, 568], [375, 667], [844, 390], [810, 1080]]) {
+  // 🎲 Game Night made it FIVE (2026-10): two columns with Game Night as a
+  // wide door across the bottom (five across in landscape). One column of
+  // five measured 42-134px past the fold on phones, so the layout changed
+  // rather than the doors shrinking; 360x640, 667x375 and 834x1112 joined
+  // the list because they are where that measurement was taken.
+  for (const [w, h] of [[390, 780], [320, 780], [320, 568], [360, 640], [375, 667], [844, 390], [667, 375], [810, 1080], [834, 1112], [1024, 768]]) {
     await page.setViewportSize({ width: w, height: h });
     await showScreen(page, "#start", "#screen-start");
     // 🕳️ Gobble Hole joined as the fourth door (2026-09): four tiles, not
     // three, must now fit above the fold at every size in this list.
-    assert.equal(await page.locator(".start-tile").count(), 4, "four world tiles");
+    assert.equal(await page.locator(".start-tile").count(), 5, "five world tiles");
     await noOverflow(page, `start@${w}x${h}`);
     await auditActiveScreen(page, `start@${w}x${h}`);
     const m = await page.evaluate(() => {
@@ -179,13 +184,112 @@ test("the front door: four giant world tiles, all ABOVE THE FOLD, marks equally 
         // to differ (Josh's SVG portrait inks 56x77 where 👵🏻 inks 58x63 and
         // 🏰 inks 72x70), so the doors did not read as peers.
         offsets: ts.map((t) => Math.round(t.querySelector(".start-tile__label").getBoundingClientRect().top - t.getBoundingClientRect().top)),
+        // …and every label fits its door on ONE line, with room. Two columns
+        // made the doors narrow (112px of content at 320 wide), and one label
+        // that wraps makes its whole ROW taller, so the label beside it — centred
+        // in a taller door — drops 10px ("Josh's Games" did at 320x780). Measured
+        // in the page's font AND in DejaVu Sans, keeping the wider: CI's real
+        // WebKit renders system-ui as DejaVu, about 10% wider than the sandbox's
+        // Inter (the Gobble door lesson, "Chocolate" fitting by half a pixel).
+        room: (() => {
+          const c = document.createElement("canvas").getContext("2d");
+          let best = { px: Infinity, name: "" };
+          for (const t of ts) {
+            const l = t.querySelector(".start-tile__label"), cs = getComputedStyle(l), bs = getComputedStyle(t);
+            const measure = (fam) => { c.font = cs.fontWeight + " " + cs.fontSize + " " + fam; return c.measureText(l.textContent).width; };
+            const wide = Math.max(measure(cs.fontFamily), measure('"DejaVu Sans", ' + cs.fontFamily));
+            const box = t.getBoundingClientRect().width - parseFloat(bs.paddingLeft) - parseFloat(bs.paddingRight);
+            if (box - wide < best.px) best = { px: Math.round((box - wide) * 10) / 10, name: l.textContent };
+          }
+          return best;
+        })(),
         vh: innerHeight,
       };
     });
     assert.ok(m.last <= m.vh,
-      `all four doors must be reachable without scrolling at ${w}x${h} — the last one ends ${Math.round(m.last - m.vh)}px past the fold`);
+      `all five doors must be reachable without scrolling at ${w}x${h} — the last one ends ${Math.round(m.last - m.vh)}px past the fold`);
+    assert.ok(m.room.px >= 3,
+      `every door's name must fit on one line with room at ${w}x${h} — "${m.room.name}" has ${m.room.px}px to spare`);
     assert.ok(Math.max(...m.offsets) - Math.min(...m.offsets) <= 4,
       `the doors must carry equally-weighted marks at ${w}x${h} — label offsets ${m.offsets.join("/")}`);
+  }
+});
+
+test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, every tap big and apart, and play never scrolls", async () => {
+  // Kid laws fully ON. The board is sized FROM the space between the bar and
+  // the pads, so the play screen must never scroll in portrait, and a phone on
+  // its side must still fit (landscape is not a design target, but it must
+  // keep working) — opened fresh at every size here, and TURNED mid-game below.
+  for (const [w, h] of [[390, 844], [320, 568], [375, 667], [834, 1112], [844, 390], [667, 375]]) {
+    await page.setViewportSize({ width: w, height: h });
+    // the fullest shelf: three boxes, one with a game waiting on it
+    await page.evaluate(() => {
+      window.__BOARD.reset({ introSeen: true, done: { moon: 2 } });
+      const s = window.BoardLogic.create({ board: "moon", seats: [{ who: "josh" }, { who: "viraj", cpu: true }], seed: 4, first: 0 });
+      const raw = JSON.parse(localStorage.getItem("josh-board-v1"));
+      raw.games.moon = { st: s, at: Date.now() };
+      localStorage.setItem("josh-board-v1", JSON.stringify(raw));
+    });
+    await page.reload({ waitUntil: "load" });
+    for (const [hash, sel, lbl] of [["#board-home", "#screen-board-home", "shelf"], ["#board-who-moon", "#screen-board-who", "who"],
+      ["#board-pick-moon-cpu", "#screen-board-pick", "pick-cpu"], ["#board-pick-moon-here", "#screen-board-pick", "pick-here"]]) {
+      await showScreen(page, hash, sel);
+      await noOverflow(page, `board-${lbl}@${w}x${h}`);
+      await auditActiveScreen(page, `board-${lbl}@${w}x${h}`);
+    }
+    for (const [box, who, cpu] of [["moon", "river", true], ["rainbow", "dad", false]]) {
+      await page.evaluate((a) => window.__BOARD.start(a[0], a[1], a[2], 3, 0), [box, who, cpu]);
+      await page.locator("#screen-board-play").waitFor({ state: "visible" });
+      await page.waitForTimeout(300);
+      await noOverflow(page, `board-${box}@${w}x${h}`);
+      await auditActiveScreen(page, `board-${box}@${w}x${h}`);
+      const fit = await page.evaluate(() => {
+        const b = document.querySelector(".bn-board").getBoundingClientRect();
+        const pads = [...document.querySelectorAll(".bn-pad")].map((p) => p.getBoundingClientRect());
+        return { sh: document.documentElement.scrollHeight, vh: innerHeight, cell: b.width / 6, padBottom: Math.max(...pads.map((p) => p.bottom)),
+          overlap: pads.some((p) => p.left < b.right && p.right > b.left && p.top < b.bottom && p.bottom > b.top) };
+      });
+      assert.ok(fit.sh <= fit.vh + 1, `[${box}@${w}x${h}] the play screen scrolls: ${fit.sh} in ${fit.vh}`);
+      assert.ok(fit.padBottom <= fit.vh + 1, `[${box}@${w}x${h}] a pad sits below the fold (${Math.round(fit.padBottom)} of ${fit.vh})`);
+      assert.ok(!fit.overlap, `[${box}@${w}x${h}] a pad covers the board`);
+      // the smallest board still has squares a child can tell apart; a
+      // portrait phone gets a real board, not a postage stamp
+      assert.ok(fit.cell >= (h > w ? 38 : 30), `[${box}@${w}x${h}] squares only ${fit.cell.toFixed(1)}px`);
+    }
+    // the party: both buttons on screen, big and apart
+    assert.ok(await page.evaluate(() => {
+      const s = window.BoardLogic.create({ board: "moon", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
+      s.seats.forEach((x) => { x.pos = 36; x.home = true; }); s.phase = "done"; s.order = [0, 1];
+      return window.__BOARD.load("moon", s);
+    }), "fixture: a finished game loads");
+    await page.locator(".bn-party").waitFor({ state: "visible" });
+    await page.waitForTimeout(300);
+    await noOverflow(page, `board-party@${w}x${h}`);
+    await auditActiveScreen(page, `board-party@${w}x${h}`);
+    const pb = await page.evaluate(() => Math.max(...[...document.querySelectorAll(".bn-party button")].map((b) => b.getBoundingClientRect().bottom)));
+    assert.ok(pb <= h + 1, `[party@${w}x${h}] the party's buttons end at ${Math.round(pb)}, below the fold`);
+  }
+  // A ROTATION mid-game, and a tall window made short: the board must follow
+  // the space it is given down as well as up. Every size above opened FRESH,
+  // which a board sitting in the page's flow also passes — it held the field
+  // at its old size, so turning the phone on its side scrolled 88px.
+  try {
+    await page.setViewportSize({ width: 834, height: 1112 });
+    await page.evaluate(() => window.__BOARD.start("moon", "river", true, 3, 0));
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    for (const [w, h] of [[834, 1112], [320, 568], [390, 844], [844, 390], [390, 844]]) {
+      await page.setViewportSize({ width: w, height: h });
+      await page.waitForTimeout(300);
+      const f = await page.evaluate(() => {
+        const fl = document.querySelector(".bn-field").getBoundingClientRect(), b = document.querySelector(".bn-board").getBoundingClientRect();
+        return { sh: document.documentElement.scrollHeight, vh: innerHeight, l: b.left - fl.left, r: fl.right - b.right, t: b.top - fl.top, bt: fl.bottom - b.bottom };
+      });
+      assert.ok(f.sh <= f.vh + 1, `[turned to ${w}x${h}] the play screen scrolls: ${f.sh} in ${f.vh}`);
+      assert.ok(f.l >= -1 && f.r >= -1 && f.t >= -1 && f.bt >= -1, `[turned to ${w}x${h}] the board leaves its field: ${JSON.stringify(f)}`);
+      assert.ok(Math.abs(f.l - f.r) <= 2 && Math.abs(f.t - f.bt) <= 2, `[turned to ${w}x${h}] the board is not centred in its field: ${JSON.stringify(f)}`);
+    }
+  } finally {
+    await page.setViewportSize({ width: 390, height: 844 });
   }
 });
 

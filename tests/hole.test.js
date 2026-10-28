@@ -72,10 +72,10 @@ async function field() {
   return { ...b, cx: b.x + b.width / 2, cy: b.y + b.height / 2 };
 }
 
-test("the front door's FOURTH door opens Gobble Hole, and 🚪 comes back", async () => {
+test("the front door's Gobble Hole door opens it, and 🚪 comes back", async () => {
   await page.evaluate(() => { location.hash = ""; });
   await page.locator("#screen-start").waitFor({ state: "visible" });
-  assert.equal(await page.locator(".start-tile").count(), 4, "four world doors");
+  assert.equal(await page.locator(".start-tile").count(), 5, "five world doors (🎲 Game Night joined after Gobble Hole)");
   const order = await page.evaluate(() => [...document.querySelectorAll(".start-tile")].map((t) => t.id));
   assert.equal(order.indexOf("start-hole"), order.indexOf("start-td") + 1, "the new door comes right after the fort's");
   const tile = page.locator("#start-hole");

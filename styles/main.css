@@ -204,16 +204,17 @@ body {
 }
 .start-grid {
   display: grid; /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
-  grid-template-columns: minmax(0, 100%);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--pad);
 }
-/* FOUR doors now (🕳️ Gobble Hole joined below 🏰, 2026-09). On a phone they
-   stay one column, so the new door is literally below the fort — which means
-   four tiles, not three, have to fit above the fold. Measured: at the old
-   150px (really 166 — the content outgrew the min-height) the fourth door
-   ended 36px past the fold at 390x780, so a phone's door is a little shorter
-   and its mark 84px. A tablet gets them 2x2 (portrait) or 4 across
-   (landscape) below — an even grid, never a 3+1 orphan. */
+/* FIVE doors (🎲 Game Night joined below 🕳️ Gobble Hole, 2026-10). Two
+   columns everywhere in portrait — Josh | 华丽, the fort | Gobble Hole — and
+   Game Night as a WIDE door across the bottom, so no row is ragged. Measured
+   before choosing: a fifth door in the old single column ran 42-134px past the
+   fold on every phone, and shrinking five doors to fit made them 69px tall on
+   a 320x568 phone, under the 75px floor; two columns leave every row 125px+ at
+   320x568. Landscape (below) puts all five in one row. */
+.start-tile--board { grid-column: 1 / -1; }
 .start-tile {
   position: relative;
   min-height: 136px;
@@ -240,7 +241,11 @@ body {
   width: 84px; height: 84px; font-size: 3.8rem; line-height: 1;
 }
 .start-tile__art svg { width: 100%; height: 100%; display: block; }
-.start-tile__label { font-size: 1.15rem; font-weight: 800; color: #4a5568; text-align: center; }
+/* The size follows the door's WIDTH: two columns leave a 320px phone 112px of
+   label room, and "Josh's Games" at a flat 1.15rem wrapped there — one
+   wrapped label makes its row taller and drops the label beside it. Sized to
+   fit with room in CI's wider DejaVu Sans as well as here. */
+.start-tile__label { font-size: clamp(0.8rem, 4.2vw, 1.15rem); font-weight: 800; color: #4a5568; text-align: center; }
 .start-tile--josh { background: linear-gradient(135deg, #d9f3ff, #9fdcff); }
 .start-tile--josh .start-tile__label { color: #12507a; }
 .start-tile--hl { background: linear-gradient(135deg, #ffe9c9, #ffcf9e); }
@@ -249,6 +254,8 @@ body {
 .start-tile--td .start-tile__label { color: #2c3e6b; }
 .start-tile--hole { background: linear-gradient(135deg, #f1e6ff, #d6c2ff); }
 .start-tile--hole .start-tile__label { color: #4b2a86; }
+.start-tile--board { background: linear-gradient(135deg, #fff0d6, #ffd2a6); }
+.start-tile--board .start-tile__label { color: #7a2e10; }
 
 /* ---------- Home launcher ---------- */
 .home__title {
@@ -2704,15 +2711,16 @@ body.hl-mode .brand { color: #ffe9b0; }
   .tile--cat .tile__label { font-size: 1.25rem; }
   .tile__badge { font-size: 1.9rem; }
   .sticker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-  /* Four doors: an even 2x2 in portrait (a 3+1 row would orphan the new one),
-     one row of four in landscape, where the height is what runs out. */
+  /* Five doors: 2x2 plus Game Night's wide door in portrait, one row of five
+     in landscape, where the height is what runs out. */
   .start-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .start-tile { display: grid; min-height: 260px; padding: 16px 12px; gap: 8px; }
   .start-tile__icon, .start-tile__art { width: 148px; height: 148px; font-size: 6rem; }
   .start-tile__label { font-size: 1.4rem; }
 }
 @media (min-width: 600px) and (orientation: landscape) {
-  .start-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .start-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .start-tile--board { grid-column: auto; }
 }
 
 /* ---------- Short screens: every door above the fold ----------
@@ -2726,12 +2734,20 @@ body.hl-mode .brand { color: #ffe9b0; }
   .start__title { margin: 2px 0 8px; font-size: 1.1rem; }
   .start-tile { display: grid; min-height: 100px; padding: 8px 12px; gap: 4px; }
   .start-tile__icon, .start-tile__art { width: 60px; height: 60px; font-size: 2.8rem; }
-  .start-tile__label { font-size: 1rem; }
+  .start-tile__label { font-size: clamp(0.8rem, 4.2vw, 1rem); }
 }
 /* …and the smallest phones (320x568) need one more step for FOUR doors. */
 @media (max-height: 600px) {
   .start-tile { min-height: 88px; padding: 6px 12px; }
   .start-tile__icon, .start-tile__art { width: 52px; height: 52px; font-size: 2.4rem; }
+}
+/* Five doors in ONE row (landscape): each door is (100vw - 96px) / 5 wide, so
+   the label follows THAT width — a phone on its side leaves a door only ~90px
+   of room, where a flat 1rem "Josh's Games" ran 28px past its edge. After the
+   short-screen block on purpose, so it wins on a short landscape screen too. */
+@media (min-width: 600px) and (orientation: landscape) {
+  .start-tile { padding-left: 6px; padding-right: 6px; }
+  .start-tile__label { font-size: clamp(0.7rem, calc((100vw - 96px) * 0.02), 1.4rem); }
 }
 
 /* ---------- 🕳️ Gobble Hole (PLAN_GOBBLE.md) ----------
@@ -3077,4 +3093,264 @@ body.in-game .screen.hole-play { flex: 1 1 auto; display: flex; flex-direction: 
   .hole-door:active { transform: none; }
   .hole-land:active { transform: none; }
   .hole-door--new .hole-door__icon { animation: none; }
+}
+
+/* ---------- 🎲 Game Night (PLAN_BOARD.md) ----------
+   Board games for Josh and a friend (or the computer). Josh's kid laws are
+   fully ON: every control >= 75px and 16px apart, grid gap only (flex gap is
+   dropped on iOS 14.0), nothing fails, nothing times out on him. The board is
+   ONE svg sized by board-main.js to the space left between the bar and the
+   pads, so the play screen never scrolls in portrait. */
+body.board-mode { background: linear-gradient(165deg, #fff3e2 0%, #ffeef6 55%, #eef1ff 100%); background-attachment: fixed; }
+.bn-bar { margin-bottom: var(--pad); }
+.bn-title { color: #7a2e10; }
+
+/* the shelf: one big door per box, a full-width row each */
+.bn-boxes { display: grid; grid-template-columns: minmax(0, 100%); gap: var(--pad); }
+.bn-box {
+  position: relative;
+  min-height: 120px;
+  border: none;
+  border-bottom: 8px solid #3b4cc0;   /* the box's own colour, set inline */
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: var(--card-shadow);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  text-align: left;
+}
+.bn-box:active { transform: scale(0.97); }
+.bn-box__pic { font-size: 3.6rem; line-height: 1; }
+.bn-box__label { font-size: 1.4rem; font-weight: 800; color: #2e2a55; }
+/* a game waiting on the box: its two players peek out of the lid */
+.bn-box__wait { display: grid; grid-auto-flow: column; gap: 4px; }
+.bn-box__peek { display: block; width: 40px; height: 40px; }
+.bn-box__peek svg, .bn-keep__face svg, .bn-person__face svg, .bn-pad__face svg, .bn-token__face svg, .bn-party__face svg { width: 100%; height: 100%; display: block; }
+.bn-emoji { display: grid; place-items: center; width: 100%; height: 100%; font-size: 2rem; line-height: 1; }
+
+/* who's playing: carry on (if a game waits), then a friend in the iPad or here */
+.bn-keep {
+  display: grid;
+  grid-auto-flow: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 100px;
+  margin-bottom: var(--pad);
+  border: none;
+  border-radius: 28px;
+  background: #e3f7e8;
+  box-shadow: var(--card-shadow);
+}
+.bn-keep__go { font-size: 2.6rem; color: #1d6b35; }
+.bn-keep__face { display: block; width: 64px; height: 64px; }
+.bn-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); }
+.bn-mode {
+  min-height: 160px;
+  border: none;
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: var(--card-shadow);
+  display: grid;
+  grid-template-columns: minmax(0, 100%);
+  justify-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 12px 8px;
+}
+.bn-mode__pic { font-size: 3.6rem; line-height: 1; }
+.bn-mode__label { font-size: 1rem; font-weight: 800; color: #2e2a55; text-align: center; }
+/* a friend "in the iPad" is drawn inside a little tablet: a dark bezel */
+.bn-tablet { display: inline-grid; place-items: center; padding: 5px; border-radius: 12px; background: #2b2b3a; }
+.bn-mode__pic .bn-tablet { width: 84px; height: 72px; font-size: 2.8rem; }
+
+/* the people: 3 across, an even grid (3 friends, or 6 people) */
+.bn-people { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); }
+.bn-person {
+  min-height: 120px;
+  border: none;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: var(--card-shadow);
+  display: grid;
+  grid-template-columns: minmax(0, 100%);
+  justify-items: center;
+  align-content: center;
+  gap: 6px;
+  padding: 10px 4px;
+}
+.bn-person__face { display: block; width: 64px; height: 64px; }
+.bn-person__face.bn-tablet { width: 72px; height: 64px; }
+.bn-person__label { font-size: 1rem; font-weight: 800; color: #2e2a55; }
+
+/* the board and its two tokens */
+body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; position: relative; }
+/* The field takes what is LEFT, and the board is sized FROM the field. So the
+   board must never feed the field's size back: it is POSITIONED (Gobble
+   Hole's canvas rule). In the flow it held the field at its old size, so
+   turning a phone on its side mid-game, or making a tall window short, left
+   the play screen scrolling — and in landscape, where the field is a grid row,
+   no flex rule on the field could stop it. layout() centres it. */
+.bn-field { position: relative; flex: 1 1 0; min-height: 0; }
+.bn-board { position: absolute; left: 0; top: 0; }
+.bn-svgwrap { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+.bn-svg { display: block; width: 100%; height: 100%; }
+.bn-token {
+  position: absolute;
+  z-index: 1;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  border: 4px solid #e23636;   /* the player's own colour, set inline */
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  transition: left 0.24s ease, top 0.24s ease;
+  pointer-events: none;
+}
+.bn-token__face { display: block; width: 100%; height: 100%; }
+/* the token on the move this turn wears a halo: a ring, not a colour */
+.bn-token--on { z-index: 2; box-shadow: 0 0 0 3px #2b2b3a, 0 0 0 7px #ffd24d, 0 3px 7px rgba(0, 0, 0, 0.4); }
+.bn-token--hop .bn-token__face { animation: bnHop 0.24s ease-out; }
+/* two tokens on one square stand side by side, a little smaller, so both
+   faces show and neither hangs off the board's edge */
+.bn-token--shared { transform: translate(-50%, -50%) scale(0.8); }
+@keyframes bnHop { 0% { transform: translateY(0); } 45% { transform: translateY(-22%); } 100% { transform: translateY(0); } }
+
+/* the pads: each player's own big button — the die, or the card pile */
+.bn-tray { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); margin-top: 12px; }
+.bn-pad {
+  position: relative;
+  min-height: 112px;
+  border: 5px solid #e23636;   /* the player's own colour, set inline */
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: var(--card-shadow);
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  justify-items: center;
+  gap: 6px;
+  padding: 8px;
+}
+.bn-pad__face { display: block; width: 48px; height: 48px; }
+.bn-pad__face.bn-tablet { width: 48px; height: 44px; }
+.bn-pad__stars { position: absolute; right: 10px; bottom: 6px; font-size: 0.9rem; font-weight: 800; color: #5a4300; }
+/* whose turn: the active pad is ringed, the waiting one dimmed — a shape and
+   a lightness, never a hue alone */
+.bn-pad--on { box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200, var(--card-shadow); }
+/* the waiting pad dims its PICTURES only: its ⭐ count is text and keeps full
+   contrast (a whole-pad opacity put it at ~2.4:1) */
+.bn-pad--wait .bn-pad__face, .bn-pad--wait .bn-pad__act { opacity: 0.45; }
+.bn-pad--wait { border-style: dashed; }
+.bn-die {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  width: 64px;
+  height: 64px;
+  padding: 7px;
+  border: 3px solid #2b2b3a;
+  border-radius: 14px;
+  background: #ffffff;
+}
+.bn-dot { display: block; border-radius: 50%; background: #1d1d3b; }
+.bn-dot--none { background: transparent; }
+.bn-dot--used { opacity: 0.16; }
+/* not rolled yet: just a big die to tap, no empty frame */
+.bn-die--cue { display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: minmax(0, 100%); place-items: center; padding: 0; border: none; background: none; }
+.bn-die__cue { font-size: 3.4rem; line-height: 1; }
+.bn-card { display: grid; place-items: center; width: 66px; height: 66px; border: 3px solid #2b2b3a; border-radius: 12px; background: #ffffff; font-size: 2.6rem; line-height: 1; }
+.bn-card svg { width: 100%; height: 100%; display: block; }
+.bn-card--back { background: linear-gradient(135deg, #ff9fb5, #ffe08a 35%, #9be7a8 65%, #9cc8ff); font-size: 2.2rem; }
+.bn-wiggle { animation: bnWiggle 0.4s ease; }
+@keyframes bnWiggle { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+/* the hand that shows how (the first time, and on 👂) */
+.bn-hand { position: absolute; z-index: 4; margin: -10px 0 0 -18px; font-size: 3rem; line-height: 1; pointer-events: none; text-shadow: 0 3px 8px rgba(0, 0, 0, 0.28); animation: bnPoke 1s ease-in-out infinite; }
+@keyframes bnPoke { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(10px); } }
+
+/* everyone home: one party for both */
+.bn-party {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  border-radius: 20px;
+  background: rgba(40, 20, 80, 0.45);
+}
+.bn-party__box { display: grid; justify-items: center; gap: var(--pad); padding: 20px 18px; border-radius: 28px; background: #ffffff; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32); }
+.bn-party__faces { display: grid; grid-auto-flow: column; gap: var(--pad); }
+.bn-party__face { display: block; width: 96px; height: 96px; animation: bnDance 0.8s ease-in-out infinite alternate; }
+.bn-party__face + .bn-party__face { animation-delay: 0.4s; }
+@keyframes bnDance { from { transform: translateY(0) rotate(-6deg); } to { transform: translateY(-10px) rotate(6deg); } }
+/* Two big buttons side by side: .btn-big's own 140px minimum made the pair
+   356px wide with the box's padding, 40px past a 320px phone. They share the
+   row instead — still 100px+ each at 320. */
+.bn-party__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
+.bn-party .btn-big { min-width: 0; padding: 0 12px; }
+
+@media (min-width: 600px) {
+  .bn-box { min-height: 170px; }
+  .bn-box__pic { font-size: 5rem; }
+  .bn-box__label { font-size: 1.8rem; }
+  .bn-box__peek { width: 56px; height: 56px; }
+  .bn-mode { min-height: 220px; }
+  .bn-mode__pic { font-size: 5rem; }
+  .bn-mode__label { font-size: 1.3rem; }
+  .bn-person { min-height: 170px; }
+  .bn-person__face { width: 96px; height: 96px; }
+  .bn-person__face.bn-tablet { width: 104px; height: 96px; }
+  .bn-person__label { font-size: 1.3rem; }
+  .bn-pad { min-height: 150px; grid-template-columns: 72px minmax(0, 1fr); }
+  .bn-pad__face { width: 72px; height: 72px; }
+  .bn-pad__face.bn-tablet { width: 72px; height: 66px; }
+  .bn-die { display: grid; width: 96px; height: 96px; padding: 10px; gap: 5px; }
+  .bn-die__cue { font-size: 5rem; }
+  .bn-card { width: 96px; height: 96px; font-size: 3.6rem; }
+}
+/* A short phone: the pads and the doors give way a little, the board keeps
+   what is left (still 75px+ targets, still 16px apart). */
+@media (max-height: 700px) {
+  .bn-box { min-height: 96px; }
+  .bn-box__pic { font-size: 2.8rem; }
+  .bn-mode { min-height: 130px; }
+  .bn-mode__pic { font-size: 2.8rem; }
+  .bn-mode__pic .bn-tablet { width: 64px; height: 56px; font-size: 2.2rem; }
+  .bn-person { min-height: 100px; }
+  .bn-person__face { width: 52px; height: 52px; }
+  .bn-pad { min-height: 92px; }
+  .bn-die { width: 56px; height: 56px; padding: 6px; }
+  .bn-die__cue { font-size: 2.8rem; }
+  .bn-card { width: 56px; height: 56px; font-size: 2.2rem; }
+}
+/* Short LANDSCAPE (a phone on its side): the top bar steps aside while
+   playing, and the pads stand in a column beside the board. Landscape is not
+   a design target, but it must stay playable. */
+@media (max-height: 500px) and (orientation: landscape) {
+  body.board-mode.in-game .topbar { display: none; }
+}
+@media (orientation: landscape) and (max-height: 700px) {
+  body.in-game .screen.bn-play { display: grid; grid-template-columns: minmax(0, 1fr) 190px; grid-template-rows: auto minmax(0, 1fr); column-gap: var(--pad); }
+  .bn-play .bn-bar { grid-column: 1 / -1; }
+  .bn-play .bn-field { grid-column: 1; grid-row: 2; min-height: 0; }
+  .bn-play .bn-tray { grid-column: 2; grid-row: 2; grid-template-columns: minmax(0, 100%); align-content: center; margin-top: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bn-token { transition: none; }
+  .bn-token--hop .bn-token__face { animation: none; }
+  .bn-wiggle { animation: none; }
+  .bn-hand { animation: none; }
+  .bn-party__face { animation: none; }
+  .bn-box:active { transform: none; }
 }

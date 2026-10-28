@@ -3459,6 +3459,24 @@ test("CONTRAST: every ACTIVE text run in Josh's and 华丽's worlds clears AA", 
     await look("#hl-home", "#screen-hl-home", "hl home");
     await look("#hl-stickers", "#screen-hl-stickers", "hl book");
     await look("#hole-home", "#screen-hole-home", "gobble home");   // 🕳️ the fourth world's picker
+    // 🎲 Game Night (the fifth world): its shelf, who's playing, both pickers,
+    // and a game of each kind on the board
+    await pg.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }));
+    await look("#board-home", "#screen-board-home", "game night shelf");
+    await look("#board-who-moon", "#screen-board-who", "game night who");
+    await look("#board-pick-moon-cpu", "#screen-board-pick", "game night pick cpu");
+    await look("#board-pick-moon-here", "#screen-board-pick", "game night pick here");
+    // mid-game, both players holding ⭐s, so the WAITING pad's star count is
+    // on screen to be scored (a fresh game has none, and could not fail)
+    await pg.evaluate(() => {
+      const s = window.BoardLogic.create({ board: "moon", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
+      s.seats[0].pos = 15; s.seats[0].stars = 2; s.seats[1].pos = 20; s.seats[1].stars = 1;
+      window.__BOARD.load("moon", s);
+    });
+    await look("#board-play", "#screen-board-play", "game night moon");
+    assert.ok(await pg.evaluate(() => /⭐ 1/.test(document.querySelector(".bn-pad--1 .bn-pad__stars").textContent)), "fixture: the waiting pad shows its ⭐ count");
+    await pg.evaluate(() => window.__BOARD.start("rainbow", "mom", false, 3, 0));
+    await look("#board-play", "#screen-board-play", "game night rainbow");
     // DERIVED from the live registry, so a 241st game is audited the day it lands
     const ids = await pg.evaluate(() => (window.JoshGames || []).map((g) => g.id));
     assert.ok(ids.length >= 200, `only ${ids.length} games registered — the walk would be near-vacuous`);
