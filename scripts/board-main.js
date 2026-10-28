@@ -723,7 +723,9 @@
     if (!ev.length) return;
     game.hopUntil = now() + T.hop;
     hideHand();
-    if (!save.intro.spin && !st.seats[st.turn].cpu) { save.intro.spin = true; persist(); }
+    // the TAPPER's seat, read off the event: a pick that ends the turn has
+    // already handed st.turn to the other player (hopOnce reads it the same way)
+    if (!save.intro.spin && !st.seats[ev[0].seat].cpu) { save.intro.spin = true; persist(); }
     playEvents(ev);
   }
   function cpuPick() {
@@ -1006,6 +1008,9 @@
 
   function leavePlay() {
     clearLater();
+    // the spin's own timer just died, so it can never end its tumble: left
+    // set, the pad would come back showing a spinning 🐦 that was never spun
+    if (game) game.tumbling = false;
     hideHand();
     hidePop();
     hideMark();

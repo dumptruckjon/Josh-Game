@@ -633,6 +633,43 @@ test("🍎 the bird joins from his THIRD Apple game, and it carries one apple ba
   assert.equal((await st()).turn, 1, "a bird is the whole turn");
 });
 
+test("🍎 the first-time hand goes once he has picked, even when that one pick ENDS his turn", async () => {
+  // the pick that ends a turn has already handed st.turn to the computer, so
+  // the shell must ask whose tap it WAS, not whose turn it is now
+  await page.evaluate(() => window.__BOARD.reset());
+  const s = L.create({ board: "apple", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
+  s.seats[0].bag = [1, 2, 3, 4, 1, 2];      // his spin is a 1: one apple, then the turn passes
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("apple", x), s), "fixture: the game loads");
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).intro.spin, false, "fixture: he has never spun");
+  await page.locator(".bn-pad--0").click();
+  await page.waitForFunction(() => window.__BOARD.state().phase === "pick" && !window.__BOARD.busy(), null, { timeout: 8000 });
+  assert.equal((await st()).left, 1, "fixture: one apple to pick");
+  await page.locator(".bn-pad--0").click();
+  await page.waitForFunction(() => window.__BOARD.state().turn === 1, null, { timeout: 8000 });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).intro.spin, true, "he has picked: the spinner is learned");
+});
+
+test("🍎 leaving in the middle of a spin never comes back still spinning", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await slow();
+  await startGame("apple", "raegar", false, 6, 0);
+  await page.locator(".bn-pad--0").click();
+  await page.locator(".bn-pad--0 .bn-spin--tumble").waitFor({ state: "visible", timeout: 4000 });
+  await page.evaluate(() => { location.hash = "#board-home"; });     // mid-tumble: its timer dies
+  await page.locator("#screen-board-home").waitFor({ state: "visible" });
+  await page.evaluate(() => { location.hash = "#board-play"; });
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(900);                                     // longer than a whole tumble
+  assert.equal(await page.locator(".bn-spin--tumble").count(), 0, "no pad is still spinning");
+  const x = await st();
+  assert.equal(x.phase, "pick", "fixture: the spin had already happened in the engine");
+  assert.equal(await page.locator(".bn-pad--0 .bn-spin--bird").count(), 0, "and no phantom 🐦 sits on his pad");
+  await page.locator(".bn-pad--0").click();
+  await page.waitForFunction((p) => window.__BOARD.state().seats[0].pos === p + 1, x.seats[0].pos, { timeout: 4000 });
+});
+
 // ---- The batch-1 audit -----------------------------------------------------------
 test("with the sound OFF he can still count: each hop pops the square's number, each apple the basket's count", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));

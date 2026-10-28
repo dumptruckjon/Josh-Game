@@ -10369,6 +10369,18 @@ portrait's spare room and lengthen the game, but it drops squares to 30px on a
 everyone. The spare room went to bigger pads on tall phones instead. Four
 boxes on the shelf stand two by two, because four rows put the last box below
 the fold of a small phone.
+(6) **A review whose verifiers died left three claims; all three were real.**
+A turn that ENDS inside a call has already moved `st.turn` by the time the
+caller reads it, so "whose tap was it" must come off the event (`ev[0].seat`),
+as hopOnce already did: the first-time spin hand stayed for ever when his first
+pick ended his turn. A flag a timer clears must also be cleared where timers are
+cancelled: leaving mid-spin came back showing a spinning 🐦 nobody spun. And a
+restore check must match what the rules ALLOW, not just what the engine can
+write: a birds-off bag of birds got past it and could make a spin hand one out.
+The waiting bird was also carried into a fresh bag that already had its own, so
+one bag could hold two. The sweep could not reach that case, so it has a direct
+test. Two guards (startTurn and leavePlay) both reset the tumble, and removing
+either one alone stayed green, so the startTurn one was deleted.
 
 ---
 

@@ -219,9 +219,11 @@
     let face = draw(seat, make), guard = 0;
     // a 🐦 that may not come now goes to the BACK of the bag, never away:
     // the bag stays fair, it only waits
+    // (a bird that was the LAST in its bag needs no carrying: the fresh bag
+    // has its own, and carrying it too would put two in one bag)
     while (face === 0 && !birdOK(st, seat) && guard++ < 20) {
       if (!seat.bag.length) seat.bag = make();
-      seat.bag.push(0);
+      else seat.bag.push(0);
       face = draw(seat, make);
     }
     const ev = [{ type: "spin", seat: st.turn, mover: st.mover, face }];
@@ -287,14 +289,17 @@
   }
   // What is left of a bag: a die bag is distinct faces 1..6, a card bag at
   // most one full deal of cards this board can deal
-  function okBag(board, bag) {
+  function okBag(board, bag, birds) {
     if (board.game === "dice") {
       return bag.length <= 6 && bag.every((n) => int(n) && n >= 1 && n <= 6) && new Set(bag).size === bag.length;
     }
     if (board.game === "spin") {
-      // faces the spinner has (0 is the 🐦), at most one bag and a waiting bird
+      // faces the spinner has, at most one bag's worth, and a 🐦 (face 0)
+      // only when birds are on — at most one. A bag of birds with birds off
+      // would hand out a bird the rules refuse.
       const faces = board.spinner.concat([0]);
-      return bag.length <= board.spinner.length + 2 && bag.every((n) => int(n) && faces.indexOf(n) >= 0);
+      const birdsIn = bag.filter((n) => n === 0).length;
+      return bag.length <= board.spinner.length + 1 && birdsIn <= (birds ? 1 : 0) && bag.every((n) => int(n) && faces.indexOf(n) >= 0);
     }
     return bag.length <= DATA.COLOURS.length + 2 && bag.every((c) => okCard(board, c));
   }
@@ -333,7 +338,7 @@
         if (!int(s.stars) || s.stars < 0 || !int(s.rng)) return null;
         // home is exactly standing on the last square
         if (s.home !== (s.pos === board.size)) return null;
-        if (!Array.isArray(s.bag) || !okBag(board, s.bag)) return null;
+        if (!Array.isArray(s.bag) || !okBag(board, s.bag, snap.birds)) return null;
       }
       // the order they got home in names exactly the seats that are home
       const homeAt = [0, 1].filter((i) => snap.seats[i].home);

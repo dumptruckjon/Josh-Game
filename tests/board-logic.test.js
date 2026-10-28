@@ -362,8 +362,14 @@ test("RESTORE takes back EVERY state a real game passes through, and refuses eac
     ["a spin face the spinner does not have", { ...g(apple), die: 6, left: 1 }],
     ["a spinner bag with a 5", seat(apple, 0, { bag: [5] })],
     ["a bird flag that is not a boolean", seat(apple, 0, { bird: 1 })],
+    // birds off, so a bird in the bag is one the rules refuse — and a bag of
+    // nothing else would let spin() hand it out after its guard ran out
+    ["a bird in the bag when birds are off", { ...seat(apple, 0, { bag: [0] }), birds: false }],
+    ["two birds in one bag", { ...seat(apple, 0, { bag: [0, 1, 0] }), birds: true }],
   );
   assert.ok(L.restore(g(dice)) && L.restore(g(card)) && L.restore(g(apple)), "the real states restore (or the refusals prove nothing)");
+  // the control: ONE bird in a bag is a real state when birds are on
+  assert.ok(L.restore({ ...seat(apple, 0, { bag: [3, 0, 1] }), birds: true }), "one 🐦 in a bag, birds on, restores");
   for (const [why, h] of bad) assert.equal(L.restore(h), null, `restore must refuse ${why}`);
 });
 
@@ -472,6 +478,14 @@ test("🍎 THE BIRD is gentle: never on a player's two spins running, never from
   const ev = L.spin(d);
   assert.equal(ev[0].face, 3, "the bird never comes on a player's two spins running");
   assert.deepEqual(d.seats[0].bag, [0], "…it waits at the back of the bag instead");
+  // a refused bird that was the LAST in its bag is not carried: the fresh bag
+  // has its own, and carrying it too would put two birds in one bag
+  for (let seed = 1; seed <= 40; seed++) {
+    const f = L.create({ board: "apple", seats: SEATS, seed, birds: true });
+    f.seats[0].pos = 5; f.seats[0].bird = true; f.seats[0].bag = [0];
+    assert.ok(L.spin(f)[0].face > 0, `seed ${seed}: the refused bird does not come`);
+    assert.ok(f.seats[0].bag.filter((n) => n === 0).length <= 1, `seed ${seed}: never two birds in one bag (${f.seats[0].bag})`);
+  }
   const e = L.create({ board: "apple", seats: SEATS, seed: 2, birds: true });
   e.seats[0].bag = [0, 2];
   assert.equal(L.spin(e)[0].face, 2, "the bird never comes to an empty basket");
