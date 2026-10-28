@@ -2415,7 +2415,13 @@ test("§22: a reset in one tab holds against a tab left open from before — eve
     await page.evaluate(() => window.__HOLE.autoplay(240));
     await B.evaluate(() => { location.hash = "#hole-play"; });
     await B.locator("#screen-hole-play").waitFor({ state: "visible" });
-    await B.evaluate(() => { window.__HOLE.start("toyroom"); window.__HOLE.autoplay(240); });
+    // tab B must really WRITE its toy room, so it eats until it does (a fixed
+    // 240 steps can eat nothing on a slow runner, and then no toy-room run is
+    // ever stored and the "kept too" clause below fails on working code — CI
+    // run #524 did exactly that)
+    await B.evaluate(() => window.__HOLE.start("toyroom"));
+    assert.ok((await eatMore(B)) > 0, "fixture: tab B ate in the toy room");
+    assert.ok((await disk(B)).runs.toyroom, "fixture: tab B's toy room is stored before tab A writes again");
     const mine = await page.evaluate(() => window.__HOLE.state().eaten);
     await page.bringToFront();
     const mine2 = await eatMore(page);
