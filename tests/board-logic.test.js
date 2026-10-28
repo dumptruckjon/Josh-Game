@@ -29,8 +29,11 @@ test("data: every box opens a real board, every board is a real grid, every pers
     if (b.unlockAfter) assert.ok(DATA.box(b.unlockAfter.box), `${b.id} unlocks after a real box`);
   }
   for (const board of DATA.BOARDS) {
-    assert.equal(board.size, board.cols * board.rows, `${board.id} fills its grid exactly`);
-    assert.ok(["dice", "cards"].indexOf(board.game) >= 0, `${board.id} is a dice or a card game`);
+    // a track fills its grid exactly; Apple Spin's grid is only the shape of
+    // its picture, and its size is the TEN-FRAME basket
+    if (board.game === "spin") assert.equal(board.size, 10, `${board.id}: a basket is a ten-frame`);
+    else assert.equal(board.size, board.cols * board.rows, `${board.id} fills its grid exactly`);
+    assert.ok(["dice", "cards", "spin"].indexOf(board.game) >= 0, `${board.id} is a dice, card or spinner game`);
     assert.ok(DATA.BOXES.some((b) => b.board === board.id), `${board.id} is on the shelf (no dead board)`);
   }
   for (const p of [DATA.JOSH, ...DATA.PEOPLE]) {
@@ -125,8 +128,10 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
     turns.sort((a, b) => a - b);
     const med = turns[turns.length >> 1], p95 = turns[Math.floor(turns.length * 0.95)];
     // About 8-9 turns each (a minute and a half to three at a child's pace),
-    // and never a slog: the long tail is short too.
-    assert.ok(med >= 12 && med <= 22, `${board.id}: median ${med} turns in all`);
+    // and never a slog: the long tail is short too. Apple Spin is shorter in
+    // turns (about five spins each) because every spin is up to four TAPS.
+    const lo = board.game === "spin" ? 8 : 12;
+    assert.ok(med >= lo && med <= 22, `${board.id}: median ${med} turns in all`);
     assert.ok(p95 <= 30, `${board.id}: p95 ${p95} turns — a game can drag`);
     assert.ok(turns[turns.length - 1] <= 45, `${board.id}: the longest game took ${turns[turns.length - 1]} turns`);
   }
@@ -194,7 +199,7 @@ test("THE HELPER RULE: once a player is home, their turns move their friend, tur
         if (last !== null) assert.notEqual(t, last, "turns always alternate, even after someone is home");
         last = t;
         const ev = L.autoTurn(st);
-        const moved = ev.filter((e) => e.type === "hop" || e.type === "card").map((e) => (e.type === "hop" ? e.seat : e.mover));
+        const moved = ev.filter((e) => e.type === "hop" || e.type === "card" || e.type === "pick").map((e) => (e.type === "card" ? e.mover : e.seat));
         const wasHome = st.seats[t].home && !ev.some((e) => e.type === "home" && e.seat === t);
         for (const m of moved) {
           // a player already home never moves their own token: their turn is their friend's
@@ -222,10 +227,11 @@ test("FIRST PLAYER: Josh starts (seat 0 by default), the other seat can start, a
     const N = 2000;
     for (let seed = 1; seed <= N; seed++) {
       const a = play(board, seed);
-      assert.equal(a.ev.find((e) => e.type === "roll" || e.type === "card").seat, 0, "seat 0 goes first by default");
+      const firstMove = (g) => g.ev.find((e) => e.type === "roll" || e.type === "card" || e.type === "spin").seat;
+      assert.equal(firstMove(a), 0, "seat 0 goes first by default");
       if (a.st.order[0] === 0) first0++;
       const b = play(board, seed, 1);
-      assert.equal(b.ev.find((e) => e.type === "roll" || e.type === "card").seat, 1, "first: 1 starts the other seat");
+      assert.equal(firstMove(b), 1, "first: 1 starts the other seat");
       if (b.st.order[0] === 1) firstOther++;
     }
     for (const [k, n] of [["seat 0 starting", first0], ["seat 1 starting", firstOther]]) {
@@ -261,6 +267,7 @@ test("RESTORE: a saved game comes back exactly, and a broken one is dropped, nev
     const st = L.create({ board, seats: SEATS, seed: 11 });
     for (let k = 0; k < 5; k++) L.autoTurn(st);
     if (st.game === "dice") L.roll(st);
+    if (st.game === "spin") L.spin(st);
     const snap = JSON.parse(JSON.stringify(L.snapshot(st)));
     const back = L.restore(snap);
     assert.deepEqual(back, st, `${board}: the round trip is exact`);
@@ -295,7 +302,7 @@ test("RESTORE takes back EVERY state a real game passes through, and refuses eac
   let snaps = 0;
   for (const board of DATA.BOARDS.map((b) => b.id)) {
     for (let seed = 1; seed <= 60; seed++) {
-      const st = L.create({ board, seats: SEATS, seed, first: seed % 2 });
+      const st = L.create({ board, seats: SEATS, seed, first: seed % 2, birds: seed % 3 === 0 });
       const check = () => {
         snaps++;
         const back = L.restore(JSON.parse(JSON.stringify(L.snapshot(st))));
@@ -307,6 +314,8 @@ test("RESTORE takes back EVERY state a real game passes through, and refuses eac
       while (st.phase !== "done" && guard++ < 500) {
         if (st.game === "cards") L.drawCard(st);
         else if (st.phase === "roll") L.roll(st);
+        else if (st.phase === "spin") L.spin(st);
+        else if (st.phase === "pick") L.pick(st);
         else L.hop(st);
         check();
       }
@@ -340,8 +349,21 @@ test("RESTORE takes back EVERY state a real game passes through, and refuses eac
     ["over with nobody home", { ...g(card), phase: "done" }],
     ["a mover moverFor would not name", { ...g(card), mover: 1 - g(card).mover }],
     ["a cpu flag that is not a boolean", seat(card, 1, { cpu: "yes" })],
+    ["a track token below square 1", seat(card, 0, { pos: 0 })],
   ];
-  assert.ok(L.restore(g(dice)) && L.restore(g(card)), "the two real states restore (or the refusals prove nothing)");
+  const apple = L.create({ board: "apple", seats: SEATS, seed: 3, birds: true });
+  L.spin(apple);                        // mid-pick, with apples left
+  bad.push(
+    ["a pick turn with no apples left", { ...g(apple), left: 0 }],
+    ["a spin turn with apples left", { ...g(apple), phase: "spin" }],
+    ["a pie that is not a count", { ...g(apple), pie: -1 }],
+    ["a birds flag that is not a boolean", { ...g(apple), birds: "yes" }],
+    ["a basket with eleven apples", seat(apple, 0, { pos: 11 })],
+    ["a spin face the spinner does not have", { ...g(apple), die: 6, left: 1 }],
+    ["a spinner bag with a 5", seat(apple, 0, { bag: [5] })],
+    ["a bird flag that is not a boolean", seat(apple, 0, { bird: 1 })],
+  );
+  assert.ok(L.restore(g(dice)) && L.restore(g(card)) && L.restore(g(apple)), "the real states restore (or the refusals prove nothing)");
   for (const [why, h] of bad) assert.equal(L.restore(h), null, `restore must refuse ${why}`);
 });
 
@@ -370,4 +392,104 @@ test("the WORDS: every line has a speaker's words (no picture), and none of them
   }
   for (const p of [DATA.JOSH, ...DATA.PEOPLE]) assert.ok(!/\p{Extended_Pictographic}/u.test(p.say), `${p.id}'s spoken name is words`);
   for (const c of DATA.COLOURS) assert.ok(/^[a-z]+$/.test(c.name) && /^[a-z]+$/.test(c.shape), `${c.id} is said as words`);
+});
+
+// ---- 🍎 Apple Spin -----------------------------------------------------------
+const playApple = (seed, birds, first) => {
+  const st = L.create({ board: "apple", seats: SEATS, seed, birds, first });
+  const ev = [];
+  let turns = 0;
+  while (st.phase !== "done" && turns < 400) { ev.push(...L.autoTurn(st)); turns++; }
+  return { st, ev, turns };
+};
+
+test("🍎 FAIR SPINNER: each player's spins come from their own bag of the spinner's faces, the computer's too", () => {
+  const faces = DATA.board("apple").spinner.slice().sort();
+  for (let seed = 1; seed <= 300; seed++) {
+    const { ev } = playApple(seed, false);
+    for (const seat of [0, 1]) {
+      const mine = ev.filter((e) => e.type === "spin" && e.seat === seat).map((e) => e.face);
+      for (let k = 0; k + faces.length <= mine.length; k += faces.length) {
+        assert.deepEqual(mine.slice(k, k + faces.length).sort(), faces, `seed ${seed} seat ${seat}: a bag is every face once`);
+      }
+    }
+    assert.ok(ev.every((e) => e.type !== "spin" || e.face > 0), "no 🐦 until the birds are on");
+  }
+});
+
+test("🍎 THE BASKET: one tap, one apple; a basket holds exactly ten; a full basket's spare apples go into the PIE", () => {
+  let pies = 0;
+  for (let seed = 1; seed <= 2000; seed++) {
+    const { st, ev } = playApple(seed, seed % 2 === 0);
+    assert.equal(st.phase, "done");
+    assert.ok(st.seats.every((s) => s.pos === 10 && s.home), `seed ${seed}: both baskets are full`);
+    // every pick adds ONE apple, and a basket never passes ten
+    const count = [0, 0];
+    let pie = 0;
+    for (const e of ev) {
+      if (e.type === "pick") { assert.equal(e.to, count[e.seat] + 1, "one tap, one apple"); count[e.seat] = e.to; assert.ok(e.to <= 10); }
+      if (e.type === "bird") { assert.equal(e.to, count[e.seat] - 1, "a bird puts back ONE"); count[e.seat] = e.to; }
+      if (e.type === "pie") { assert.ok(e.n > 0 && e.n <= 3, "a pie gets the spare apples of one spin"); pie += e.n; pies++; }
+    }
+    assert.equal(st.pie, pie, "the pie holds exactly the spare apples");
+    // nothing is lost: every apple spun is in a basket or the pie, less the birds
+    const spun = ev.filter((e) => e.type === "spin").reduce((a, e) => a + e.face, 0);
+    const birds = ev.filter((e) => e.type === "bird").length;
+    assert.equal(spun, 20 + st.pie + birds, `seed ${seed}: every apple spun is in a basket or the pie`);
+  }
+  assert.ok(pies > 500, `fixture: spare apples really reach the pie (${pies})`);
+});
+
+test("🍎 THE BIRD is gentle: never on a player's two spins running, never from an empty basket, never once a basket is full", () => {
+  let birds = 0;
+  for (let seed = 1; seed <= 2000; seed++) {
+    const st = L.create({ board: "apple", seats: SEATS, seed, birds: true });
+    const last = [false, false];
+    let guard = 0;
+    while (st.phase !== "done" && guard++ < 400) {
+      const t = st.turn, mover = L.moverFor(st, t);
+      const before = st.seats[mover].pos, anyFull = st.seats.some((s) => s.home);
+      const ev = L.autoTurn(st);
+      const spin = ev.find((e) => e.type === "spin");
+      const bird = spin.face === 0;
+      if (bird) {
+        birds++;
+        assert.ok(!last[t], `seed ${seed}: the bird came on two spins running`);
+        assert.ok(before > 0, `seed ${seed}: the bird took from an empty basket`);
+        assert.ok(!anyFull, `seed ${seed}: the bird came after a basket was full`);
+      }
+      last[t] = bird;
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ends with the birds on`);
+  }
+  assert.ok(birds > 1000, `fixture: the bird really comes (${birds})`);
+  // The bag holds ONE bird, so in play a bird twice running needs it last in
+  // one bag and first in the next — rare enough that the sweep above cannot
+  // feel the rule. Driven directly: a bird that may not come waits at the
+  // BACK of the bag (it is never thrown away), and the next face comes now.
+  const d = L.create({ board: "apple", seats: SEATS, seed: 2, birds: true });
+  d.seats[0].pos = 5; d.seats[0].bird = true; d.seats[0].bag = [0, 3];
+  const ev = L.spin(d);
+  assert.equal(ev[0].face, 3, "the bird never comes on a player's two spins running");
+  assert.deepEqual(d.seats[0].bag, [0], "…it waits at the back of the bag instead");
+  const e = L.create({ board: "apple", seats: SEATS, seed: 2, birds: true });
+  e.seats[0].bag = [0, 2];
+  assert.equal(L.spin(e)[0].face, 2, "the bird never comes to an empty basket");
+  // the box turns the birds on from his THIRD Apple game, exactly as comets
+  assert.equal(DATA.box("apple").birdsAfter, 2, "the 🐦 joins from his third Apple game");
+});
+
+test("🍎 a tap that is not a move does nothing: no pick before a spin, no second spin, no pick past the spin", () => {
+  const st = L.create({ board: "apple", seats: SEATS, seed: 4 });
+  assert.deepEqual(L.pick(st), [], "no pick before the spin");
+  assert.deepEqual(L.roll(st), [], "no dice in Apple Spin");
+  assert.deepEqual(L.drawCard(st), [], "no cards in Apple Spin");
+  assert.equal(L.spin(st).length, 1);
+  assert.deepEqual(L.spin(st), [], "no second spin while picking");
+  const face = st.die;
+  let picks = 0;
+  for (let k = 0; k < 10; k++) picks += L.pick(st).filter((e) => e.type === "pick").length;
+  assert.equal(picks, face, `${picks} picks on a ${face}`);
+  const m = L.create({ board: "moon", seats: SEATS, seed: 4 });
+  assert.deepEqual(L.spin(m), [], "no spinner in a dice game");
 });

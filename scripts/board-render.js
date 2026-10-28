@@ -135,5 +135,79 @@
     return { x, y };
   }
 
-  global.BoardRender = { boardSVG, shapeSVG, faceHTML, spot, centre, CELL };
+  // ---- 🍎 Apple Spin: the orchard ------------------------------------------
+  // One square picture (600 x 600 units, the boards' own shape, so layout()
+  // sizes it exactly as it sizes a board): seat 0's tree and basket on the
+  // left, seat 1's on the right, the shared pie between the trees. The apples
+  // that MOVE are DOM elements over it (board-main.js), placed by these spots.
+  const ORCH = 600;
+  const ORCHARD = {
+    tree: [{ x: 150, y: 140 }, { x: 450, y: 140 }],
+    face: [{ x: 150, y: 368 }, { x: 450, y: 368 }],
+    pie: { x: 300, y: 318, r: 66 },
+  };
+  // slot k (0..9) of seat i's ten-frame: two rows of five, filled left to
+  // right along the top row first, the way a ten-frame is counted
+  function slotOf(i, k) {
+    const x0 = i ? 316 : 16;
+    return { x: x0 + 27 + 54 * (k % 5), y: 458 + 56 * Math.floor(k / 5) };
+  }
+  // where the k-th apple of the pie sits (a ring, then the middle)
+  function pieSpot(k) {
+    const P = ORCHARD.pie;
+    if (k >= 8) return { x: P.x + ((k - 8) % 3 - 1) * 20, y: P.y + (Math.floor((k - 8) / 3) % 2 ? 12 : -10) };
+    const a = -Math.PI / 2 + k * Math.PI / 4;
+    return { x: P.x + 38 * Math.cos(a), y: P.y + 38 * Math.sin(a) };
+  }
+  // where the apples on each tree hang (the tree is never bare: it is big)
+  const HANG = [[-62, -38], [-8, -72], [52, -46], [-70, 18], [0, -14], [64, 10], [-34, 54], [34, 52]];
+  function treeSpot(i, k) {
+    const t = ORCHARD.tree[i], h = HANG[((k % HANG.length) + HANG.length) % HANG.length];
+    return { x: t.x + h[0], y: t.y + h[1] };
+  }
+  function orchardSVG() {
+    let s = '<svg class="bn-svg" viewBox="0 0 ' + ORCH + " " + ORCH + '" preserveAspectRatio="none" aria-hidden="true" focusable="false">';
+    s += '<rect x="0" y="0" width="600" height="600" rx="22" fill="#dff4d2"/>';
+    s += '<rect x="0" y="380" width="600" height="220" rx="22" fill="#b9e3a2"/>';
+    for (const t of ORCHARD.tree) {
+      s += '<rect x="' + (t.x - 18) + '" y="' + (t.y + 70) + '" width="36" height="128" rx="10" fill="#8a5a33" stroke="#5c3a1e" stroke-width="3"/>';
+      s += '<circle cx="' + t.x + '" cy="' + t.y + '" r="118" fill="#3fa34d" stroke="#226b2c" stroke-width="5"/>';
+      s += '<circle cx="' + (t.x - 40) + '" cy="' + (t.y - 40) + '" r="44" fill="#57b862" opacity="0.8"/>';
+      for (let k = 0; k < HANG.length; k++) {
+        const a = { x: t.x + HANG[k][0], y: t.y + HANG[k][1] };
+        s += '<circle cx="' + a.x + '" cy="' + a.y + '" r="17" fill="#e5394b" stroke="#8f1a26" stroke-width="2.5"/>';
+        s += '<path d="M' + a.x + " " + (a.y - 16) + " l4 -9" + '" stroke="#5c3a1e" stroke-width="3" stroke-linecap="round"/>';
+      }
+    }
+    // the pie dish between the trees: crust ring and a filling
+    const P = ORCHARD.pie;
+    s += '<circle cx="' + P.x + '" cy="' + P.y + '" r="' + P.r + '" fill="#e8b46a" stroke="#9a6224" stroke-width="5"/>';
+    s += '<circle cx="' + P.x + '" cy="' + P.y + '" r="' + (P.r - 14) + '" fill="#f7dfb0"/>';
+    // each basket: a wicker tray with a handle, holding a TEN-FRAME
+    for (let i = 0; i < 2; i++) {
+      const x0 = i ? 316 : 16;
+      s += '<path d="M' + (x0 + 60) + " 436 Q" + (x0 + 134) + " 384 " + (x0 + 208) + ' 436" fill="none" stroke="#9a6224" stroke-width="9" stroke-linecap="round"/>';
+      s += '<rect x="' + x0 + '" y="426" width="268" height="148" rx="22" fill="#d9a35f" stroke="#9a6224" stroke-width="5"/>';
+      for (let k = 0; k < 10; k++) {
+        const c = slotOf(i, k);
+        s += '<rect x="' + (c.x - 23) + '" y="' + (c.y - 24) + '" width="46" height="48" rx="10" fill="#fff6e3" stroke="#9a6224" stroke-width="2.5"/>';
+      }
+    }
+    return s + "</svg>";
+  }
+  // The spinner on a pad, before a spin: a wheel to tap (four wedges, a pointer)
+  function spinnerSVG() {
+    const cols = ["#e5394b", "#ffc21a", "#22a352", "#2f7fe0"];
+    let s = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">';
+    for (let k = 0; k < 4; k++) {
+      const a0 = (k * Math.PI) / 2, a1 = a0 + Math.PI / 2;
+      s += '<path d="M50 52 L' + (50 + 42 * Math.cos(a0)).toFixed(1) + " " + (52 + 42 * Math.sin(a0)).toFixed(1) +
+        " A42 42 0 0 1 " + (50 + 42 * Math.cos(a1)).toFixed(1) + " " + (52 + 42 * Math.sin(a1)).toFixed(1) + ' Z" fill="' + cols[k] + '" stroke="#1d1d2b" stroke-width="2"/>';
+    }
+    s += '<circle cx="50" cy="52" r="8" fill="#ffffff" stroke="#1d1d2b" stroke-width="2"/>';
+    s += '<path d="M50 52 L50 18" stroke="#1d1d2b" stroke-width="6" stroke-linecap="round"/>';
+    return s + "</svg>";
+  }
+
+  global.BoardRender = { boardSVG, shapeSVG, faceHTML, spot, centre, CELL, orchardSVG, spinnerSVG, slotOf, pieSpot, treeSpot, ORCHARD, ORCH };
 })(typeof window !== "undefined" ? window : globalThis);

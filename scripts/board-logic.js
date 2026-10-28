@@ -42,6 +42,12 @@
     if (lm.length) bag.push({ kind: "pic", at: lm[Math.floor(next(seat) * lm.length)].at });
     return shuffle(seat, bag);
   }
+  // 🍎 a spinner bag: the board's faces, plus a 🐦 (face 0) once birds are on
+  function spinBag(seat, board, birds) {
+    const bag = board.spinner.slice();
+    if (birds) bag.push(0);
+    return shuffle(seat, bag);
+  }
   function draw(seat, make) {
     if (!seat.bag.length) seat.bag = make();
     return seat.bag.shift();
@@ -70,8 +76,11 @@
   }
 
   // Once anyone is home there are no more comets (the end is gentle), and a
-  // long game switches them off too, so every game ends in minutes.
-  const COMET_CAP = 40;   // rolls in total
+  // long game switches them off too, so every game ends in minutes. The 🐦 in
+  // Apple Spin keeps the same rules.
+  const COMET_CAP = 40;   // rolls (or spins) in total
+  // Where a token STARTS: square 1 of a track, or an EMPTY basket
+  const startOf = (board) => (board.game === "spin" ? 0 : 1);
 
   // ---- A new game -----------------------------------------------------------
   // opts: { board, seats: [{ who, cpu }], seed, first }
@@ -79,19 +88,27 @@
     const board = DATA.board(opts.board);
     if (!board) throw new Error("no such board: " + opts.board);
     const seed = (opts.seed >>> 0) || 1;
-    const seats = (opts.seats || []).slice(0, 2).map((s, i) => ({
-      who: s.who, cpu: !!s.cpu, pos: 1, home: false, stars: 0, bag: [],
-      rng: (seed * (i + 7) + 0x9E3779B9 * (i + 1)) | 0,
-    }));
+    const spin = board.game === "spin";
+    const seats = (opts.seats || []).slice(0, 2).map((s, i) => {
+      const seat = {
+        who: s.who, cpu: !!s.cpu, pos: startOf(board), home: false, stars: 0, bag: [],
+        rng: (seed * (i + 7) + 0x9E3779B9 * (i + 1)) | 0,
+      };
+      if (spin) seat.bird = false;   // did the 🐦 visit this player's last spin?
+      return seat;
+    });
     if (seats.length !== 2) throw new Error("a game needs two seats");
     const first = opts.first === 1 ? 1 : 0;
-    return {
+    const st = {
       v: 1, board: board.id, game: board.game, seed,
       seats, turn: first, mover: first,
-      phase: board.game === "cards" ? "draw" : "roll",
+      phase: firstPhase(board.game),
       die: 0, left: 0, card: null, rolls: 0, order: [],
     };
+    if (spin) { st.pie = 0; st.birds = !!opts.birds; }
+    return st;
   }
+  function firstPhase(game) { return game === "cards" ? "draw" : game === "spin" ? "spin" : "roll"; }
 
   const anyHome = (st) => st.seats.some((s) => s.home);
   const other = (i) => (i === 0 ? 1 : 0);
@@ -116,7 +133,7 @@
     }
     st.turn = other(st.turn);
     st.mover = moverFor(st, st.turn);
-    st.phase = st.game === "cards" ? "draw" : "roll";
+    st.phase = firstPhase(st.game);
     ev.push({ type: "turn", seat: st.turn, mover: st.mover });
   }
 
@@ -186,12 +203,75 @@
     return ev;
   }
 
+  // ---- 🍎 Apple Spin: spin, then one apple per tap ---------------------------
+  // The 🐦 is gentle: never from an empty basket, never on a player's two
+  // spins running, never once anyone's basket is full, never in a long game.
+  function birdOK(st, seat) {
+    return st.birds && !anyHome(st) && st.rolls <= COMET_CAP && !seat.bird && st.seats[st.mover].pos > 0;
+  }
+  function spin(st) {
+    if (st.game !== "spin" || st.phase !== "spin") return [];
+    const board = DATA.board(st.board);
+    const seat = st.seats[st.turn];
+    st.mover = moverFor(st, st.turn);
+    st.rolls += 1;
+    const make = () => spinBag(seat, board, st.birds);
+    let face = draw(seat, make), guard = 0;
+    // a 🐦 that may not come now goes to the BACK of the bag, never away:
+    // the bag stays fair, it only waits
+    while (face === 0 && !birdOK(st, seat) && guard++ < 20) {
+      if (!seat.bag.length) seat.bag = make();
+      seat.bag.push(0);
+      face = draw(seat, make);
+    }
+    const ev = [{ type: "spin", seat: st.turn, mover: st.mover, face }];
+    seat.bird = face === 0;
+    st.die = face;
+    if (face === 0) {
+      const s = st.seats[st.mover];
+      s.pos -= 1;
+      ev.push({ type: "bird", seat: st.mover, to: s.pos });
+      endTurn(st, ev);
+      return ev;
+    }
+    st.left = face;
+    st.phase = "pick";
+    return ev;
+  }
+  function pick(st) {
+    if (st.game !== "spin" || st.phase !== "pick" || st.left <= 0) return [];
+    const board = DATA.board(st.board);
+    const i = st.mover, s = st.seats[i];
+    const ev = [];
+    s.pos += 1;
+    st.left -= 1;
+    ev.push({ type: "pick", seat: i, to: s.pos, left: st.left });
+    if (s.pos >= board.size) {
+      arrive(st, i, ev);
+      // the apples still to pick go into the shared pie — a full basket is
+      // never a wasted spin
+      if (st.left > 0) {
+        st.pie += st.left;
+        ev.push({ type: "pie", seat: i, n: st.left, pie: st.pie });
+      }
+      endTurn(st, ev);
+      return ev;
+    }
+    if (st.left === 0) endTurn(st, ev);
+    return ev;
+  }
+
   // One whole turn for the computer (and the tests' bot)
   function autoTurn(st) {
     if (st.phase === "done") return [];
     if (st.game === "cards") return drawCard(st);
-    const ev = roll(st);
     let guard = 0;
+    if (st.game === "spin") {
+      const ev = spin(st);
+      while (st.phase === "pick" && guard++ < 20) ev.push(...pick(st));
+      return ev;
+    }
+    const ev = roll(st);
     while (st.phase === "hop" && guard++ < 20) ev.push(...hop(st));
     return ev;
   }
@@ -211,6 +291,11 @@
     if (board.game === "dice") {
       return bag.length <= 6 && bag.every((n) => int(n) && n >= 1 && n <= 6) && new Set(bag).size === bag.length;
     }
+    if (board.game === "spin") {
+      // faces the spinner has (0 is the 🐦), at most one bag and a waiting bird
+      const faces = board.spinner.concat([0]);
+      return bag.length <= board.spinner.length + 2 && bag.every((n) => int(n) && faces.indexOf(n) >= 0);
+    }
     return bag.length <= DATA.COLOURS.length + 2 && bag.every((c) => okCard(board, c));
   }
   // A saved game comes back only if every field is one this engine could have
@@ -221,21 +306,29 @@
       const board = DATA.board(snap.board);
       if (!board || snap.game !== board.game) return null;
       if (!Array.isArray(snap.seats) || snap.seats.length !== 2) return null;
-      const okPhase = board.game === "cards" ? ["draw", "done"] : ["roll", "hop", "done"];
+      const spinning = board.game === "spin";
+      const okPhase = board.game === "cards" ? ["draw", "done"] : spinning ? ["spin", "pick", "done"] : ["roll", "hop", "done"];
       if (okPhase.indexOf(snap.phase) < 0) return null;
+      const moving = spinning ? "pick" : "hop";
+      if (spinning) {
+        if (!int(snap.pie) || snap.pie < 0 || typeof snap.birds !== "boolean") return null;
+        if (!int(snap.die) || snap.die < 0 || snap.die > Math.max(...board.spinner)) return null;
+      }
       if (!int(snap.turn) || snap.turn < 0 || snap.turn > 1) return null;
       if (!int(snap.mover) || snap.mover < 0 || snap.mover > 1) return null;
       if (!int(snap.left) || snap.left < 0 || snap.left > 6) return null;
       if (!int(snap.die) || snap.die < 0 || snap.die > 6) return null;
-      // hops are left exactly while hopping: a "hop" turn with none left
-      // would be stuck for good (hop() refuses, nothing ends the turn)
-      if ((snap.phase === "hop") !== (snap.left > 0)) return null;
-      if (snap.phase === "hop" && snap.left > snap.die) return null;
+      // hops (or apples) are left exactly while hopping (picking): a "hop"
+      // turn with none left would be stuck for good (hop() refuses, nothing
+      // ends the turn)
+      if ((snap.phase === moving) !== (snap.left > 0)) return null;
+      if (snap.phase === moving && snap.left > snap.die) return null;
       if (!int(snap.rolls) || snap.rolls < 0) return null;
       if (snap.card !== null && !okCard(board, snap.card)) return null;
       for (const s of snap.seats) {
         if (!s || typeof s.who !== "string" || !DATA.person(s.who)) return null;
-        if (!int(s.pos) || s.pos < 1 || s.pos > board.size) return null;
+        if (!int(s.pos) || s.pos < startOf(board) || s.pos > board.size) return null;
+        if (spinning && typeof s.bird !== "boolean") return null;
         if (typeof s.home !== "boolean" || typeof s.cpu !== "boolean") return null;
         if (!int(s.stars) || s.stars < 0 || !int(s.rng)) return null;
         // home is exactly standing on the last square
@@ -255,8 +348,8 @@
   }
 
   const BoardLogic = {
-    create, roll, hop, drawCard, autoTurn, snapshot, restore,
-    cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, COMET_CAP,
+    create, roll, hop, drawCard, spin, pick, autoTurn, snapshot, restore,
+    cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, COMET_CAP,
   };
   global.BoardLogic = BoardLogic;
   if (typeof module !== "undefined" && module.exports) module.exports = BoardLogic;

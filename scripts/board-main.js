@@ -24,7 +24,7 @@
   const KEEP_MS = 24 * 60 * 60 * 1000;
   // The pace of everything that is NOT his finger: the dice tumbling, a hop,
   // a ride, the hand-over, and the computer friend's turn.
-  const T = { tumble: 700, hop: 240, autoHop: 480, cpuThink: 900, cpuHop: 560, ride: 900, card: 520, glide: 300, handoff: 700 };
+  const T = { tumble: 700, hop: 240, autoHop: 480, cpuThink: 900, cpuHop: 560, ride: 900, card: 520, glide: 300, handoff: 700, pop: 700 };
   const now = () => (global.performance && global.performance.now ? global.performance.now() : Date.now());
   const $ = (sel, root) => (root || doc).querySelector(sel);
   const fill = (line, o) => String(line).replace(/\{(\w+)\}/g, (m, k) => (o && o[k] != null ? o[k] : m));
@@ -35,7 +35,7 @@
   // box · intro: whether he has been shown how (dice / cards) · auto: the
   // grown-up "hop by itself" switch · next: who starts the next two-person
   // game per box · last: the last box and its players.
-  function freshSave() { return { v: 1, games: {}, done: {}, intro: { dice: false, cards: false }, auto: false, next: {}, last: null }; }
+  function freshSave() { return { v: 1, games: {}, done: {}, intro: { dice: false, cards: false, spin: false }, auto: false, next: {}, last: null }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
   function coerce(text) {
     const s = freshSave();
@@ -51,7 +51,7 @@
       }
     }
     if (isObj(raw.done)) for (const [box, n] of Object.entries(raw.done)) if (DATA.box(box) && Number.isInteger(n) && n > 0) s.done[box] = n;
-    if (isObj(raw.intro)) { s.intro.dice = raw.intro.dice === true; s.intro.cards = raw.intro.cards === true; }
+    if (isObj(raw.intro)) { s.intro.dice = raw.intro.dice === true; s.intro.cards = raw.intro.cards === true; s.intro.spin = raw.intro.spin === true; }
     s.auto = raw.auto === true;
     if (isObj(raw.next)) for (const [box, n] of Object.entries(raw.next)) if (DATA.box(box) && (n === 0 || n === 1)) s.next[box] = n;
     if (isObj(raw.last) && DATA.box(raw.last.box) && DATA.person(raw.last.who) && typeof raw.last.cpu === "boolean") {
@@ -78,6 +78,7 @@
     for (const [box, n] of Object.entries(disk.done)) save.done[box] = Math.max(save.done[box] || 0, n + (added[box] || 0));
     save.intro.dice = save.intro.dice || disk.intro.dice;
     save.intro.cards = save.intro.cards || disk.intro.cards;
+    save.intro.spin = save.intro.spin || disk.intro.spin;
   }
   function persist() {
     syncSave();
@@ -93,6 +94,7 @@
     return id;
   }
   function clearLater() { for (const id of timers) global.clearTimeout(id); timers.clear(); }
+  function cancelLater(id) { if (id != null) { global.clearTimeout(id); timers.delete(id); } }
 
   // ---- Sound: every note and line through JoshAudio (mute-gated) -------------
   function audioOK() { const a = global.JoshAudio; return !!a && !a.isMuted(); }
@@ -111,11 +113,15 @@
     whoosh: () => tone(392, { type: "sine", duration: 0.25, gain: 0.08 }),
     home: () => notes([[523.25, 0], [659.25, 120], [783.99, 240], [1046.5, 360, { duration: 0.6 }]]),
     wiggle: () => tone(246.94, { type: "sine", duration: 0.18, gain: 0.12 }),
+    plop: (k) => tone(392 * Math.pow(2, (k % 10) / 12), { type: "sine", duration: 0.14, gain: 0.16 }),
+    tweet: () => notes([[1568, 0, { type: "sine", duration: 0.08 }], [1976, 90, { type: "sine", duration: 0.08 }], [1568, 180, { type: "sine", duration: 0.1 }]]),
+    pie: () => notes([[659.25, 0], [880, 100, { duration: 0.25 }]]),
   };
 
   // ---- The screens -----------------------------------------------------------
   let shelf = null, who = null, pick = null, play = null;
   let boardEl = null, svgWrap = null, tokens = [null, null], pads = [null, null], hand = null, party = null;
+  let applesEl = null, popEl = null, markEl = null;
   let whoBox = null, pickMode = null;   // which box the who/pick screens are for
 
   const bar = (cls, backLabel, backIcon, title) =>
@@ -184,8 +190,15 @@
       '<div class="bn-field">' +
         '<div class="bn-board" role="img">' +
           '<div class="bn-svgwrap"></div>' +
+          // 🌈 the square a card sends you to, ringed until you get there
+          '<div class="bn-mark" aria-hidden="true" hidden></div>' +
+          // 🍎 the apples that move (in the baskets, the pie, and flying)
+          '<div class="bn-apples" aria-hidden="true"></div>' +
           '<div class="bn-token bn-token--0" aria-hidden="true"><span class="bn-token__face"></span></div>' +
           '<div class="bn-token bn-token--1" aria-hidden="true"><span class="bn-token__face"></span></div>' +
+          // the number of the square just reached (or the apples in the
+          // basket): he counts with it when the sound is off
+          '<div class="bn-pop" aria-hidden="true" hidden></div>' +
         "</div>" +
         '<div class="bn-party" role="dialog" aria-label="Everyone is home!" hidden>' +
           '<div class="bn-party__box">' +
@@ -198,8 +211,8 @@
         "</div>" +
       "</div>" +
       '<div class="bn-tray">' +
-        '<button class="bn-pad bn-pad--0" type="button" data-seat="0"><span class="bn-pad__face" aria-hidden="true"></span><span class="bn-pad__act" aria-hidden="true"></span><span class="bn-pad__stars" aria-hidden="true"></span></button>' +
-        '<button class="bn-pad bn-pad--1" type="button" data-seat="1"><span class="bn-pad__face" aria-hidden="true"></span><span class="bn-pad__act" aria-hidden="true"></span><span class="bn-pad__stars" aria-hidden="true"></span></button>' +
+        '<button class="bn-pad bn-pad--0" type="button" data-seat="0"><span class="bn-pad__face" aria-hidden="true"></span><span class="bn-pad__act" aria-hidden="true"></span><span class="bn-pad__stars" aria-hidden="true"></span><span class="bn-pad__help" aria-hidden="true" hidden></span></button>' +
+        '<button class="bn-pad bn-pad--1" type="button" data-seat="1"><span class="bn-pad__face" aria-hidden="true"></span><span class="bn-pad__act" aria-hidden="true"></span><span class="bn-pad__stars" aria-hidden="true"></span><span class="bn-pad__help" aria-hidden="true" hidden></span></button>' +
       "</div>" +
       '<div class="bn-hand" aria-hidden="true" hidden>👆</div>');
     boardEl = play.querySelector(".bn-board");
@@ -208,6 +221,9 @@
     pads = [...play.querySelectorAll(".bn-pad")];
     hand = play.querySelector(".bn-hand");
     party = play.querySelector(".bn-party");
+    applesEl = play.querySelector(".bn-apples");
+    popEl = play.querySelector(".bn-pop");
+    markEl = play.querySelector(".bn-mark");
     play.querySelector(".bn-playback").addEventListener("click", () => { location.hash = "#board-home"; });
     play.querySelector(".bn-hear").addEventListener("click", () => { hint(true); });
     party.querySelector(".bn-again").addEventListener("click", () => { if (game) newGame(game.box, game.friend, game.cpu); });
@@ -242,8 +258,12 @@
   function paintShelf() {
     const list = shelf.querySelector(".bn-boxes");
     list.innerHTML = "";
-    for (const b of DATA.BOXES) {
-      if (!boxOpen(b)) continue;
+    const open = DATA.BOXES.filter(boxOpen);
+    // An even shelf of four or more stands in two columns: four full-width
+    // rows put the last box below the fold of a 320x568 phone. An odd shelf
+    // keeps one column, so no row is ragged.
+    list.dataset.cols = open.length >= 4 && open.length % 2 === 0 ? "2" : "1";
+    for (const b of open) {
       const btn = doc.createElement("button");
       btn.className = "bn-box tap";
       btn.type = "button";
@@ -314,7 +334,9 @@
     const first = cpu ? 0 : (save.next[box] || 0);
     if (!cpu) save.next[box] = first ? 0 : 1;
     const seed = (Date.now() ^ Math.floor(now() * 1000)) >>> 0;
-    const st = L.create({ board: b.board, seats: [{ who: "josh" }, { who: friend, cpu }], seed, first });
+    // the 🐦 joins Apple Spin from his third game there (as the comets do)
+    const birds = b.birdsAfter != null && (save.done[box] || 0) >= b.birdsAfter;
+    const st = L.create({ board: b.board, seats: [{ who: "josh" }, { who: friend, cpu }], seed, first, birds });
     save.last = { box, who: friend, cpu };
     save.games[box] = { st: L.snapshot(st), at: Date.now() };
     own.add(box);
@@ -341,7 +363,11 @@
     play.querySelector(".bn-title").textContent = DATA.box(box).name;
     play.dataset.game = board.game;
     play.dataset.box = box;
-    svgWrap.innerHTML = R.boardSVG(board);
+    svgWrap.innerHTML = board.game === "spin" ? R.orchardSVG() : R.boardSVG(board);
+    applesEl.innerHTML = "";
+    hidePop();
+    hideMark();
+    endRides();
     for (let i = 0; i < 2; i++) {
       const p = seatPerson(i);
       tokens[i].querySelector(".bn-token__face").innerHTML = R.faceHTML(p);
@@ -372,10 +398,26 @@
     boardEl.style.left = Math.max(0, Math.round((w - cell * b.cols) / 2)) + "px";
     boardEl.style.top = Math.max(0, Math.round((h - cell * b.rows) / 2)) + "px";
     for (const t of tokens) { t.style.width = Math.round(cell * 0.62) + "px"; t.style.height = Math.round(cell * 0.62) + "px"; }
+    // the pop and the apples scale with the board (an apple fills its slot)
+    popEl.style.fontSize = Math.max(18, Math.round(cell * 0.5)) + "px";
+    applesEl.style.fontSize = Math.round(cell * 0.4) + "px";
   }
 
+  // 🍎 a face badge stands between each tree and its basket: whose is whose,
+  // and (with the halo) whose basket this turn fills
+  function orchardFrac(p) { return { x: p.x / R.ORCH, y: p.y / R.ORCH }; }
   function placeTokens() {
     const st = game.st, b = game.board;
+    if (b.game === "spin") {
+      for (let i = 0; i < 2; i++) {
+        const sp = orchardFrac(R.ORCHARD.face[i]);
+        tokens[i].classList.remove("bn-token--shared");
+        tokens[i].style.left = (sp.x * 100) + "%";
+        tokens[i].style.top = (sp.y * 100) + "%";
+        tokens[i].dataset.pos = String(game.shown[i]);
+      }
+      return;
+    }
     const shared = st.seats[0].pos === st.seats[1].pos;
     for (let i = 0; i < 2; i++) {
       const sp = R.spot(b, st.seats[i].pos, i, shared);
@@ -407,13 +449,20 @@
 
   function paintAll() {
     game.shown = game.st.seats.map((s) => s.pos);
+    game.shownPie = game.st.pie || 0;
     if (game.showTurn == null) { game.showTurn = game.st.turn; game.showMover = game.st.mover; }
     placeTokens();
+    paintApples();
     paintPads();
     paintBoardLabel();
   }
   function paintBoardLabel() {
     const st = game.st;
+    if (game.board.game === "spin") {
+      boardEl.setAttribute("aria-label", st.seats.map((s, i) => nameOf(i) + " has " + game.shown[i] + (game.shown[i] === 1 ? " apple" : " apples")).join(". ") +
+        ". " + game.shownPie + " in the pie.");
+      return;
+    }
     boardEl.setAttribute("aria-label", st.seats.map((s, i) => nameOf(i) + (s.home ? " is home" : " is on " + game.shown[i])).join(". "));
   }
 
@@ -441,6 +490,13 @@
         pad.querySelector(".bn-pad__stars").textContent = s.stars ? "⭐ " + s.stars : "";
         const hopping = active && st.phase === "hop" && st.turn === i;
         pad.setAttribute("aria-label", nameOf(i) + (active ? (hopping ? ": tap to hop, " + st.left + " to go" : ": tap to roll the dice") : ": wait for your turn") + (s.home ? ", home" : ""));
+      } else if (game.board.game === "spin") {
+        if (active && game.tumbleFace != null && game.tumbling) act.innerHTML = spinHTML(game.tumbleFace, game.tumbleFace, true);
+        else if (active && game.rolled) act.innerHTML = spinHTML(st.die, st.phase === "pick" && st.turn === i ? st.left : 0);
+        else act.innerHTML = '<span class="bn-spinner">' + R.spinnerSVG() + "</span>";
+        pad.querySelector(".bn-pad__stars").textContent = "";
+        const picking = active && st.phase === "pick" && st.turn === i;
+        pad.setAttribute("aria-label", nameOf(i) + (active ? (picking ? ": tap to pick, " + st.left + " to go" : ": tap to spin") : ": wait for your turn") + (s.home ? ", basket full" : ""));
       } else {
         const c = active && game.cardShown ? game.cardShown : null;
         act.innerHTML = c ? cardHTML(c) : '<span class="bn-card bn-card--back">🌈</span>';
@@ -448,6 +504,16 @@
         pad.setAttribute("aria-label", nameOf(i) + (active ? ": tap to flip a card" : ": wait for your turn") + (s.home ? ", home" : ""));
       }
       pad.classList.toggle("bn-pad--home", s.home);
+      // Home first, this player now HELPS: the friend's face sits on their
+      // pad, so with the sound off he can still see whose token his tap moves
+      const help = pad.querySelector(".bn-pad__help"), friend = 1 - i;
+      const helping = s.home && !st.seats[friend].home;
+      help.hidden = !helping;
+      if (helping) {
+        if (help.dataset.who !== st.seats[friend].who) { help.innerHTML = R.faceHTML(seatPerson(friend)); help.dataset.who = st.seats[friend].who; }
+        help.style.borderColor = seatPerson(friend).colour;
+        pad.setAttribute("aria-label", pad.getAttribute("aria-label") + ", helping " + nameOf(friend));
+      }
     }
   }
   // A die: up to nine dot places, `n` dots, the first `lit` of them lit
@@ -464,6 +530,14 @@
       const cls = idx < 0 ? "bn-dot bn-dot--none" : idx >= on.length - lit ? "bn-dot" : "bn-dot bn-dot--used";
       s += '<span class="' + cls + '"></span>';
     }
+    return s + "</span>";
+  }
+  // 🍎 a spin's result on the pad: that many apples, picked ones going pale
+  // (the die's dots), or the silly bird
+  function spinHTML(n, lit, tumbling) {
+    if (n === 0) return '<span class="bn-spin bn-spin--bird' + (tumbling ? " bn-spin--tumble" : "") + '" data-n="0">🐦</span>';
+    let s = '<span class="bn-spin' + (tumbling ? " bn-spin--tumble" : "") + '" data-n="' + n + '">';
+    for (let k = 0; k < n; k++) s += '<span class="bn-spin__apple' + (k >= n - lit ? "" : " bn-spin__apple--used") + '">🍎</span>';
     return s + "</span>";
   }
   function cardHTML(card) {
@@ -485,7 +559,7 @@
     game.tumbleFace = 0;
     game.showTurn = st.turn;
     game.showMover = st.mover;
-    game.rolled = st.phase === "hop";   // a game restored mid-hop shows its die
+    game.rolled = st.phase === "hop" || st.phase === "pick";   // a game restored mid-move shows its die / spin
     paintPads();
     persistGame();
     const i = st.turn;
@@ -495,12 +569,15 @@
       return;
     }
     // his turn: the line, and — the first time ever — the hand that shows how
-    const first = game.board.game === "dice" ? !save.intro.dice : !save.intro.cards;
+    const first = !save.intro[game.board.game];
     if (st.phase === "hop") sayPlay(SAY.hopFirst);
-    else sayPlay(fill(SAY.turn, { n: nameOf(i) }) + (first ? " " + (game.board.game === "dice" ? SAY.rollFirst : SAY.flipFirst) : ""));
+    else if (st.phase === "pick") sayPlay(SAY.pickFirst);
+    else sayPlay(fill(SAY.turn, { n: nameOf(i) }) + (first ? " " + firstLine() : ""));
     if (first) showHand(i);
     if (st.phase === "hop" && save.auto) autoHops();
+    if (st.phase === "pick" && save.auto) autoPicks();
   }
+  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" ? SAY.spinFirst : SAY.flipFirst; }
 
   function padTap(i) {
     if (!game || !playVisible()) return;
@@ -519,6 +596,8 @@
     if (game.board.game === "cards") return flipCard();
     if (st.phase === "roll") return rollDice();
     if (st.phase === "hop" && !save.auto) return hopOnce();
+    if (st.phase === "spin") return spinApples();
+    if (st.phase === "pick" && !save.auto) return pickOnce();
   }
   function wiggle(el) {
     SFX.wiggle();
@@ -595,7 +674,105 @@
     if (st.phase === "done" || !st.seats[st.turn].cpu) return;
     if (game.board.game === "cards") return flipCard();
     if (st.phase === "roll") return rollDice();
+    if (st.phase === "spin") return spinApples();
+    if (st.phase === "pick") return cpuPick();
     cpuHop();
+  }
+
+  // ---- 🍎 Apple Spin: spin, then one apple per tap ------------------------------
+  function spinApples() {
+    game.busy = true;
+    hideHand();
+    const ev = L.spin(game.st);
+    if (!ev.length) { game.busy = false; return; }
+    game.rolled = true;
+    game.showMover = game.st.mover;
+    game.tumbling = true;
+    let k = 0;
+    const faces = [2, 4, 1, 3];
+    const go = () => {
+      game.tumbleFace = faces[k++ % faces.length];
+      SFX.tick();
+      paintPads();
+      if (k * 100 < T.tumble) later(go, 100);
+    };
+    go();
+    later(() => {
+      game.tumbling = false;
+      game.tumbleFace = 0;
+      SFX.thunk();
+      game.busy = false;
+      paintPads();
+      const st = game.st;
+      // a 🐦 is the whole turn: show it, then the turn passes
+      if (ev[0].face === 0) { playEvents(ev.slice(1)); return; }
+      persistGame();
+      if (st.seats[st.turn].cpu) { later(cpuPick, T.cpuHop); return; }
+      if (!save.intro.spin) { sayPlay(SAY.pickFirst); showHand(st.turn); }
+      if (save.auto) autoPicks();
+    }, T.tumble);
+  }
+  function autoPicks() {
+    if (!game || game.st.phase !== "pick") return;
+    later(() => { if (game && game.st.phase === "pick" && !game.busy) { pickOnce(); autoPicks(); } }, T.autoHop);
+  }
+  function pickOnce() {
+    const st = game.st;
+    if (now() < game.hopUntil) return;
+    const ev = L.pick(st);
+    if (!ev.length) return;
+    game.hopUntil = now() + T.hop;
+    hideHand();
+    if (!save.intro.spin && !st.seats[st.turn].cpu) { save.intro.spin = true; persist(); }
+    playEvents(ev);
+  }
+  function cpuPick() {
+    if (!game || game.st.phase !== "pick") return;
+    const ev = L.pick(game.st);
+    if (!ev.length) return;
+    playEvents(ev, () => { if (game && game.st.phase === "pick") later(cpuPick, T.cpuHop); });
+  }
+
+  // The apples that move: every apple in a basket or the pie is drawn from
+  // game.shown / game.shownPie. `fly` brings ONE apple in from where it was
+  // picked (a tree, a basket), so the eye follows it into its slot.
+  function paintApples(fly) {
+    if (!game || game.board.game !== "spin") return;
+    let html = "";
+    const at = (p, cls, extra) => {
+      const f = orchardFrac(p);
+      return '<span class="bn-apple' + (cls || "") + '" style="left:' + (f.x * 100).toFixed(2) + "%;top:" + (f.y * 100).toFixed(2) + '%"' + (extra || "") + ">🍎</span>";
+    };
+    for (let i = 0; i < 2; i++) {
+      for (let k = 0; k < game.shown[i]; k++) html += at(R.slotOf(i, k), "", ' data-seat="' + i + '" data-k="' + k + '"');
+    }
+    for (let k = 0; k < Math.min(game.shownPie, 14); k++) html += at(R.pieSpot(k), " bn-apple--pie", ' data-pie="' + k + '"');
+    applesEl.innerHTML = html;
+    if (!fly) return;
+    const el = fly.pie != null ? applesEl.querySelector('[data-pie="' + fly.pie + '"]')
+      : applesEl.querySelector('[data-seat="' + fly.seat + '"][data-k="' + fly.k + '"]');
+    if (!el) return;
+    const from = orchardFrac(fly.from), to = { left: el.style.left, top: el.style.top };
+    el.style.transitionDuration = "0ms";
+    el.style.left = (from.x * 100) + "%";
+    el.style.top = (from.y * 100) + "%";
+    void el.offsetWidth;
+    el.style.transitionDuration = (fly.ms || T.hop) + "ms";
+    el.style.left = to.left;
+    el.style.top = to.top;
+  }
+  // an apple the 🐦 carries BACK up the tree: a loose apple that flies and goes
+  function flyAway(from, to, ms) {
+    const el = doc.createElement("span");
+    el.className = "bn-apple bn-apple--away";
+    const a = orchardFrac(from), b = orchardFrac(to);
+    el.style.left = (a.x * 100) + "%"; el.style.top = (a.y * 100) + "%";
+    el.textContent = "🐦";
+    applesEl.appendChild(el);
+    void el.offsetWidth;
+    el.style.transitionDuration = ms + "ms";
+    el.style.left = (b.x * 100) + "%"; el.style.top = (b.y * 100) + "%";
+    later(() => el.remove(), ms + 40);
   }
 
   function flipCard() {
@@ -612,9 +789,10 @@
   // next turn starts (unless `then` takes over).
   function playEvents(ev, then) {
     let t = 0;
-    // Anything more than a plain hop holds the board until the next turn
-    // starts: no pad may act while a ride, a card or the hand-over plays.
-    if (ev.some((e) => e.type !== "hop")) game.busy = true;
+    // Anything more than a plain hop (or one picked apple) holds the board
+    // until the next turn starts: no pad may act while a ride, a card, the
+    // pie or the hand-over plays.
+    if (ev.some((e) => e.type !== "hop" && e.type !== "pick")) game.busy = true;
     const at = (ms, fn) => { t += ms; later(fn, t); };
     let turnEnded = false;
     for (const e of ev) {
@@ -623,18 +801,58 @@
         paintPads();
         SFX.hop(e.to);
         sayPlay(String(e.to));
+        popOnSquare(e.to, String(e.to));
         paintBoardLabel();
+      } else if (e.type === "pick") {
+        // one apple from the tree into the next slot of the ten-frame
+        game.shown[e.seat] = e.to;
+        paintApples({ seat: e.seat, k: e.to - 1, from: R.treeSpot(e.seat, e.to - 1) });
+        paintPads();
+        SFX.plop(e.to);
+        sayPlay(String(e.to));
+        popAt(orchardFrac(R.slotOf(e.seat, e.to - 1)), String(e.to));
+        paintBoardLabel();
+      } else if (e.type === "pie") {
+        at(T.hop + 200, () => {
+          game.shownPie = e.pie;
+          paintApples({ pie: Math.min(e.pie, 14) - 1, from: R.slotOf(e.seat, 9), ms: T.ride });
+          SFX.pie();
+          sayPlay(fill(SAY.pie, { k: e.n }));
+          popAt(orchardFrac(R.ORCHARD.pie), "+" + e.n);
+          paintBoardLabel();
+        });
+        at(T.ride, () => {});
+      } else if (e.type === "bird") {
+        at(T.hop, () => {
+          const from = R.slotOf(e.seat, e.to);
+          game.shown[e.seat] = e.to;
+          paintApples();
+          flyAway(from, R.treeSpot(e.seat, e.to), T.ride);
+          SFX.tweet();
+          sayPlay(fill(SAY.bird, { to: e.to }));
+          popAt(orchardFrac(R.slotOf(e.seat, Math.max(0, e.to - 1))), String(e.to));
+          paintPads();
+          paintBoardLabel();
+        });
+        at(T.ride, () => {});
       } else if (e.type === "card") {
         game.cardShown = e.card;
         game.showMover = e.mover;
         paintPads();
         SFX.flip();
         sayPlay(cardLine(e.card));
+        // the square the card sends him to lights up, so the match of card
+        // and square is SEEN before the token sets off
+        showMark(e.to);
         at(T.card, () => {});
         for (const n of e.path) at(T.glide, () => { moveToken(e.mover, n, T.glide); SFX.glide(); });
-        at(0, () => { sayPlay(String(e.to)); paintBoardLabel(); });
+        at(0, () => { hideMark(); sayPlay(String(e.to)); popOnSquare(e.to, String(e.to)); paintBoardLabel(); });
       } else if (e.type === "ride") {
         at(T.hop + 120, () => {
+          // a ride is a RIDE: the token grows and glows on the way, and lands
+          // with its star
+          tokens[e.seat].classList.add("bn-token--ride");
+          later(() => { tokens[e.seat].classList.remove("bn-token--ride"); popOnSquare(e.to, "⭐"); }, T.ride);
           moveToken(e.seat, e.to, T.ride);
           if (e.kind === "boost") {
             SFX.boost();
@@ -650,7 +868,7 @@
       } else if (e.type === "home") {
         at(T.hop, () => {
           SFX.home();
-          sayPlay(fill(game.board.game === "dice" ? SAY.homeMoon : SAY.homeTrail, { n: nameOf(e.seat) }));
+          sayPlay(fill(endLine("home"), { n: nameOf(e.seat) }));
           paintPads();
           try { if (global.JoshEffects && playVisible()) global.JoshEffects.stars(); } catch (err) { /* ignore */ }
         });
@@ -712,11 +930,56 @@
     for (let i = 0; i < 2; i++) faces[i].innerHTML = R.faceHTML(seatPerson(i));
     party.hidden = false;
     party.__shownAt = now();
-    sayPlay(game.board.game === "dice" ? SAY.endMoon : SAY.endTrail);
+    sayPlay(endLine("end"));
+    if (game.board.game === "spin") popAt(orchardFrac(R.ORCHARD.pie), String(20 + (game.st.pie || 0)));
     try { if (global.JoshAudio && !global.JoshAudio.isMuted() && playVisible()) global.JoshAudio.winCue(); } catch (e) { /* ignore */ }
     try { if (global.JoshEffects && playVisible()) global.JoshEffects.confetti(); } catch (e) { /* ignore */ }
   }
   function hideParty() { if (party) party.hidden = true; }
+  // The line a box says when someone gets home ("home") or everyone is ("end")
+  function endLine(kind) {
+    const g = game.board.game;
+    if (g === "spin") return kind === "home" ? SAY.full : fill(SAY.endApple, { k: 20 + (game.st.pie || 0) });
+    if (g === "dice") return kind === "home" ? SAY.homeMoon : SAY.endMoon;
+    return kind === "home" ? SAY.homeTrail : SAY.endTrail;
+  }
+
+  // ---- The number that pops (counting with the sound off) ------------------------
+  // The plan's "the square's number pops up and is said": with the sound OFF
+  // (the default) the voice says nothing, so the number has to be SEEN.
+  function popAt(f, text) {
+    if (!popEl) return;
+    popEl.textContent = text;
+    popEl.style.left = (f.x * 100) + "%";
+    popEl.style.top = (f.y * 100) + "%";
+    popEl.hidden = false;
+    popEl.classList.remove("bn-pop--go");
+    void popEl.offsetWidth;
+    popEl.classList.add("bn-pop--go");
+    cancelLater(popEl.__t);
+    popEl.__t = later(hidePop, T.pop);
+  }
+  function popOnSquare(n, text) {
+    const c = R.centre(game.board, n);
+    popAt({ x: c.x / (game.board.cols * R.CELL), y: (c.y - R.CELL * 0.42) / (game.board.rows * R.CELL) }, text);
+  }
+  function hidePop() { if (popEl) { popEl.hidden = true; popEl.classList.remove("bn-pop--go"); } }
+  // 🌈 the target square's ring
+  function showMark(n) {
+    if (!markEl || game.board.game !== "cards") return;
+    const b = game.board, c = L.cellOf(b, n);
+    markEl.style.left = (c.col / b.cols * 100) + "%";
+    markEl.style.top = ((b.rows - 1 - c.row) / b.rows * 100) + "%";
+    markEl.style.width = (100 / b.cols) + "%";
+    markEl.style.height = (100 / b.rows) + "%";
+    markEl.dataset.n = String(n);
+    markEl.hidden = false;
+  }
+  function hideMark() { if (markEl) markEl.hidden = true; }
+  // A ride's glow is taken off by a timer, and clearLater() cancels timers: so
+  // whatever cancels them (a new game, leaving) takes the glow off itself, or
+  // the next game opens with a token grown over the numbers.
+  function endRides() { for (const t of tokens) if (t) t.classList.remove("bn-token--ride"); }
 
   // ---- The hand that shows how (first time, and on 👂) ---------------------------
   function showHand(i) {
@@ -731,12 +994,12 @@
   function hint() {
     if (!game) return;
     const st = game.st;
-    if (st.phase === "done") { say(game.board.game === "dice" ? SAY.endMoon : SAY.endTrail); return; }
+    if (st.phase === "done") { say(endLine("end")); return; }
     const i = st.turn;
     if (st.seats[i].cpu) { say(fill(SAY.turn, { n: nameOf(i) })); return; }
-    if (game.board.game === "cards") say(fill(SAY.turn, { n: nameOf(i) }) + " " + SAY.flipFirst);
-    else if (st.phase === "hop") say(SAY.hopFirst);
-    else say(fill(SAY.turn, { n: nameOf(i) }) + " " + SAY.rollFirst);
+    if (st.phase === "hop") say(SAY.hopFirst);
+    else if (st.phase === "pick") say(SAY.pickFirst);
+    else say(fill(SAY.turn, { n: nameOf(i) }) + " " + firstLine());
     showHand(i);
     later(hideHand, 2600);
   }
@@ -744,6 +1007,9 @@
   function leavePlay() {
     clearLater();
     hideHand();
+    hidePop();
+    hideMark();
+    endRides();
     if (game) {
       game.busy = false;
       persistGame();
@@ -822,7 +1088,7 @@
       game = null; pending = null;
       save = freshSave();
       own.clear(); added = {};
-      if (opts && opts.introSeen) { save.intro.dice = true; save.intro.cards = true; }
+      if (opts && opts.introSeen) { save.intro.dice = true; save.intro.cards = true; save.intro.spin = true; }
       if (opts && opts.done) Object.assign(save.done, opts.done);
       // a reset WRITES, it does not fold: persist() keeps the larger of each
       // finished-games count and ORs "has been shown how", so a reset through
@@ -832,9 +1098,9 @@
     },
     // Start a game with a chosen seed (so a test knows the dice), as the who
     // screen would.
-    start(box, friend, cpu, seed, first) {
+    start(box, friend, cpu, seed, first, birds) {
       const b = DATA.box(box);
-      const st = L.create({ board: b.board, seats: [{ who: "josh" }, { who: friend, cpu: !!cpu }], seed: seed || 1, first: first || 0 });
+      const st = L.create({ board: b.board, seats: [{ who: "josh" }, { who: friend, cpu: !!cpu }], seed: seed || 1, first: first || 0, birds: !!birds });
       save.games[box] = { st: L.snapshot(st), at: Date.now() };
       save.last = { box, who: friend, cpu: !!cpu };
       own.add(box);

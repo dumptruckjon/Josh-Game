@@ -89,14 +89,18 @@ test("the shelf: Moon Race and Rainbow Trail first; Comet Moon arrives after TWO
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await go("#board-home", "#screen-board-home");
   const boxes = () => page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-box")].map((b) => b.dataset.box));
-  assert.deepEqual(await boxes(), ["moon", "rainbow"], "a fresh shelf: two boxes, no locked third");
+  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple"], "a fresh shelf: three boxes, no locked fourth");
+  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "1", "an odd shelf keeps one column (no ragged row)");
   assert.equal(await page.locator("#screen-board-home [aria-disabled], #screen-board-home .bn-box[disabled]").count(), 0, "nothing on the shelf is locked or greyed");
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 1 } }));
   await go("#board-home", "#screen-board-home");
-  assert.deepEqual(await boxes(), ["moon", "rainbow"], "one Moon game is not enough");
+  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple"], "one Moon game is not enough");
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }));
   await go("#board-home", "#screen-board-home");
-  assert.deepEqual(await boxes(), ["moon", "comet", "rainbow"], "after two, Comet Moon is on the shelf, beside Moon Race");
+  assert.deepEqual(await boxes(), ["moon", "comet", "rainbow", "apple"], "after two, Comet Moon is on the shelf, beside Moon Race");
+  // four rows of boxes put the last one below the fold of a small phone, so
+  // an even shelf stands in two columns
+  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "2", "four boxes stand two by two");
   // a deep link to a box that is not on the shelf yet goes nowhere
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await page.evaluate(() => { location.hash = "#board-who-comet"; });
@@ -563,6 +567,161 @@ test("two tabs keep each other's games, and two games finished in two tabs count
     stored = await page.evaluate(() => JSON.parse(localStorage.getItem("josh-board-v1")));
     assert.equal(stored.done.moon, 2, "a game finished in each tab is two finished games, not one");
   } finally { await other.close(); }
+});
+
+// ---- 🍎 Apple Spin -------------------------------------------------------------
+test("🍎 a whole Apple Spin against the computer: spin, ONE tap ONE apple into his ten-frame, spare apples into the pie, one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+    await startGame("apple", "river", true, 5, 0);
+    assert.equal(await page.locator(".bn-board .bn-svg").count(), 1, "the orchard is drawn");
+    const basket = (seat) => page.evaluate((i) => document.querySelectorAll('.bn-apple[data-seat="' + i + '"]').length, seat);
+    let spins = 0, picks = 0;
+    for (let guard = 0; guard < 300; guard++) {
+      await untilTap(0);
+      const s = await st();
+      if (s.phase === "done") break;
+      const mover = s.mover;
+      if (s.phase === "spin") {
+        spins++;
+        await page.locator(".bn-pad--0").click();
+        await page.waitForFunction(() => window.__BOARD.state().phase !== "spin" || window.__BOARD.state().turn !== 0);
+        continue;
+      }
+      picks++;
+      const before = await basket(mover);
+      assert.equal(before, s.seats[mover].pos, "the ten-frame shows exactly the apples in the basket");
+      await page.locator(".bn-pad--0").click();
+      await page.waitForTimeout(60);
+      const after = await st();
+      assert.equal(after.seats[mover].pos, s.seats[mover].pos + 1, "one tap, one apple");
+      assert.equal(await basket(mover), after.seats[mover].pos, "and the apple is in its slot");
+    }
+    const end = await st();
+    assert.equal(end.phase, "done", "the game ends");
+    assert.ok(end.seats.every((x) => x.pos === 10 && x.home), "both baskets are full — nobody loses");
+    assert.ok(spins > 2 && picks >= spins, `he spun (${spins}) and picked (${picks})`);
+    await page.locator(".bn-party").waitFor({ state: "visible" });
+    assert.equal(await page.locator(".bn-apple--pie").count(), Math.min(end.pie, 14), "the pie shows its spare apples");
+    assert.equal(await page.locator(".bn-pop").textContent(), String(20 + end.pie), "the party counts the pie: ten, twenty, and the spares");
+    const sv = await page.evaluate(() => window.__BOARD.save());
+    assert.equal(sv.done.apple, 1, "a finished game counts once");
+  } finally { await slow(); }
+});
+
+test("🍎 the bird joins from his THIRD Apple game, and it carries one apple back to the tree", async () => {
+  for (const [done, birds] of [[1, false], [2, true]]) {
+    await page.evaluate((d) => window.__BOARD.reset({ introSeen: true, done: { apple: d } }), done);
+    await go("#board-pick-apple-cpu", "#screen-board-pick");
+    await page.locator('.bn-person[data-who="raegar"]').click();
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    assert.equal((await st()).birds, birds, `after ${done} Apple game(s) the bird is ${birds ? "on" : "off"}`);
+  }
+  // a bird turn, driven: Josh has 3 apples and his spinner bag holds only the bird
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  const s = L.create({ board: "apple", seats: [{ who: "josh" }, { who: "dad" }], seed: 3, first: 0, birds: true });
+  s.seats[0].pos = 3; s.seats[0].bag = [0];
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("apple", x), s), "fixture: the game loads");
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  assert.equal(await page.locator('.bn-apple[data-seat="0"]').count(), 3, "three apples in his basket");
+  await page.locator(".bn-pad--0").click();
+  await page.waitForFunction(() => window.__BOARD.state().seats[0].pos === 2, null, { timeout: 8000 });
+  await page.locator(".bn-pad--0 .bn-spin--bird").waitFor({ state: "visible", timeout: 4000 });
+  await page.waitForFunction(() => document.querySelectorAll('.bn-apple[data-seat="0"]').length === 2, null, { timeout: 8000 });
+  assert.equal((await st()).turn, 1, "a bird is the whole turn");
+});
+
+// ---- The batch-1 audit -----------------------------------------------------------
+test("with the sound OFF he can still count: each hop pops the square's number, each apple the basket's count", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await startGame("moon", "river", true, 20, 0);   // his first roll is a 3
+  await page.locator(".bn-pad--0").click();
+  await page.waitForFunction(() => window.__BOARD.state().phase === "hop" && !window.__BOARD.busy());
+  assert.equal(await page.locator(".bn-pop").isHidden(), true, "nothing pops before a hop");
+  for (const n of ["2", "3"]) {
+    await page.locator(".bn-pad--0").click();
+    await page.locator(".bn-pop").waitFor({ state: "visible" });
+    assert.equal(await page.locator(".bn-pop").textContent(), n, `the hop to ${n} pops ${n}`);
+    // it pops ABOVE the square it names, not somewhere else on the board
+    const r = await page.evaluate((k) => {
+      const p = document.querySelector(".bn-pop").getBoundingClientRect(), c = document.querySelector('.bn-cell[data-n="' + k + '"]').getBoundingClientRect();
+      return { px: p.left + p.width / 2, cl: c.left, cr: c.right, pb: p.bottom, ct: c.top, cb: c.bottom };
+    }, n);
+    assert.ok(r.px > r.cl && r.px < r.cr, `the ${n} pops over its own column`);
+    assert.ok(r.pb > r.ct - 40 && r.pb < r.cb, `the ${n} pops at its own square`);
+    await page.waitForTimeout(320);
+  }
+  await page.waitForFunction(() => document.querySelector(".bn-pop").hidden, null, { timeout: 4000 });
+  // an apple pops the basket's count
+  const a = L.create({ board: "apple", seats: [{ who: "josh" }, { who: "dad" }], seed: 3, first: 0 });
+  a.seats[0].pos = 4; a.seats[0].bag = [2];
+  await page.evaluate((x) => window.__BOARD.load("apple", x), a);
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  await page.locator(".bn-pad--0").click();
+  await page.waitForFunction(() => window.__BOARD.state().phase === "pick" && !window.__BOARD.busy());
+  await page.locator(".bn-pad--0").click();
+  await page.locator(".bn-pop").waitFor({ state: "visible" });
+  assert.equal(await page.locator(".bn-pop").textContent(), "5", "the fifth apple pops 5 (counting ON from the basket)");
+});
+
+test("🌈 a card lights the square it sends him to BEFORE the token sets off, and the light goes when he arrives", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await startGame("rainbow", "dad", false, 3, 0);
+  assert.equal(await page.locator(".bn-mark").isHidden(), true, "nothing is lit before a card");
+  await page.locator(".bn-pad--0").click();
+  await page.locator(".bn-mark").waitFor({ state: "visible", timeout: 2000 });
+  const s = await st();
+  const to = s.seats[0].pos;
+  assert.equal(await page.locator(".bn-mark").getAttribute("data-n"), String(to), "the lit square is where the card sends him");
+  assert.notEqual(await page.locator(".bn-token--0").getAttribute("data-pos"), String(to), "…and it is lit before he gets there");
+  const r = await page.evaluate((n) => {
+    const m = document.querySelector(".bn-mark").getBoundingClientRect(), c = document.querySelector('.bn-cell[data-n="' + n + '"]').getBoundingClientRect();
+    return Math.abs((m.left + m.width / 2) - (c.left + c.width / 2)) + Math.abs((m.top + m.height / 2) - (c.top + c.height / 2));
+  }, to);
+  assert.ok(r < 4, `the light sits on its square (off by ${r.toFixed(1)}px)`);
+  await page.waitForFunction((n) => document.querySelector(".bn-token--0").dataset.pos === String(n), to, { timeout: 15000 });
+  await page.waitForFunction(() => document.querySelector(".bn-mark").hidden, null, { timeout: 4000 });
+});
+
+test("a booster ride is a RIDE: the token grows and glows on the way and lands with its ⭐", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await startGame("moon", "river", true, 20, 0);   // 3 hops to the rocket at 4
+  await page.locator(".bn-pad--0").click();
+  await page.waitForFunction(() => window.__BOARD.state().phase === "hop" && !window.__BOARD.busy());
+  for (let k = 0; k < 3; k++) { await page.locator(".bn-pad--0").click(); await page.waitForTimeout(320); }
+  await page.waitForFunction(() => document.querySelector(".bn-token--0").classList.contains("bn-token--ride"), null, { timeout: 4000 });
+  await page.waitForFunction(() => { const p = document.querySelector(".bn-pop"); return !p.hidden && p.textContent === "⭐"; }, null, { timeout: 6000 });
+  assert.equal(await page.locator(".bn-token--0").getAttribute("class").then((c) => c.includes("bn-token--ride")), false, "the glow ends when he lands");
+  // …and a ride cut short (a new game, or leaving, mid-ride) never carries its
+  // glow on: the timer that takes it off is one clearLater() cancels
+  await startGame("moon", "river", true, 20, 0);
+  await page.locator(".bn-pad--0").click();
+  await page.waitForFunction(() => window.__BOARD.state().phase === "hop" && !window.__BOARD.busy());
+  for (let k = 0; k < 3; k++) { await page.locator(".bn-pad--0").click(); await page.waitForTimeout(320); }
+  await page.waitForFunction(() => document.querySelector(".bn-token--0").classList.contains("bn-token--ride"), null, { timeout: 4000 });
+  await startGame("moon", "river", true, 3, 0);
+  assert.equal(await page.locator(".bn-token--ride").count(), 0, "a new game opens with no token still riding");
+});
+
+test("home first, now HELPING: the friend's face sits on the helper's pad (only while helping)", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  const s = L.create({ board: "moon", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("moon", x), s), "fixture: loads");
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator(".bn-pad--0 .bn-pad__help").isHidden(), true, "nobody is home: no helper badge");
+  const h = L.create({ board: "moon", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
+  h.seats[0].pos = 36; h.seats[0].home = true; h.order = [0]; h.mover = 1;
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("moon", x), h), "fixture: Josh home, his turn");
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator(".bn-pad--0 .bn-pad__help").isVisible(), true, "Josh is home: his pad wears River's face");
+  assert.equal(await page.locator(".bn-pad--0 .bn-pad__help").getAttribute("data-who"), "river");
+  assert.equal(await page.locator(".bn-pad--1 .bn-pad__help").isHidden(), true, "River is not home: no badge on hers");
+  assert.match(await page.locator(".bn-pad--0").getAttribute("aria-label"), /helping River/, "and the pad says so");
 });
 
 test("no uncaught page errors in Game Night", () => {

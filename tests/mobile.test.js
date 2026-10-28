@@ -222,7 +222,7 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
   // keep working) — opened fresh at every size here, and TURNED mid-game below.
   for (const [w, h] of [[390, 844], [320, 568], [375, 667], [834, 1112], [844, 390], [667, 375]]) {
     await page.setViewportSize({ width: w, height: h });
-    // the fullest shelf: three boxes, one with a game waiting on it
+    // the fullest shelf: four boxes (two by two), one with a game waiting on it
     await page.evaluate(() => {
       window.__BOARD.reset({ introSeen: true, done: { moon: 2 } });
       const s = window.BoardLogic.create({ board: "moon", seats: [{ who: "josh" }, { who: "viraj", cpu: true }], seed: 4, first: 0 });
@@ -236,8 +236,15 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
       await showScreen(page, hash, sel);
       await noOverflow(page, `board-${lbl}@${w}x${h}`);
       await auditActiveScreen(page, `board-${lbl}@${w}x${h}`);
+      // every box on the first screen of a phone held upright: four rows ran
+      // the fourth box below the fold of a 320x568 phone
+      if (lbl === "shelf" && h > w) {
+        const last = await page.evaluate(() => Math.max(...[...document.querySelectorAll(".bn-box")].map((b) => b.getBoundingClientRect().bottom)));
+        assert.ok(last <= h, `[shelf@${w}x${h}] the last box ends at ${Math.round(last)}, below the fold`);
+        assert.equal(await page.locator(".bn-box").count(), 4, "fixture: the shelf holds four boxes");
+      }
     }
-    for (const [box, who, cpu] of [["moon", "river", true], ["rainbow", "dad", false]]) {
+    for (const [box, who, cpu] of [["moon", "river", true], ["rainbow", "dad", false], ["apple", "viraj", true]]) {
       await page.evaluate((a) => window.__BOARD.start(a[0], a[1], a[2], 3, 0), [box, who, cpu]);
       await page.locator("#screen-board-play").waitFor({ state: "visible" });
       await page.waitForTimeout(300);
@@ -255,6 +262,12 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
       // the smallest board still has squares a child can tell apart; a
       // portrait phone gets a real board, not a postage stamp
       assert.ok(fit.cell >= (h > w ? 38 : 30), `[${box}@${w}x${h}] squares only ${fit.cell.toFixed(1)}px`);
+      // a tall phone gives the pads the room the square board leaves: the die
+      // (the card, the spinner) grows past its small-phone size
+      if (h >= 780 && w < 600) {
+        const act = await page.evaluate(() => document.querySelector(".bn-pad--0 .bn-pad__act > *").getBoundingClientRect().width);
+        assert.ok(act >= 80, `[${box}@${w}x${h}] the pad's die/card/spinner is only ${Math.round(act)}px on a tall phone`);
+      }
     }
     // the party: both buttons on screen, big and apart
     assert.ok(await page.evaluate(() => {

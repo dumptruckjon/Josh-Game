@@ -92,6 +92,18 @@
         { at: 28, pic: "🏰", say: "Castle land" },
       ],
     },
+    {
+      // 🍎 Apple Spin (Hi-Ho Cherry-O's mechanic): no track at all. Each
+      // player fills their own TEN-FRAME basket from a big tree; `size` is the
+      // basket. A spin says how many apples to pick (one tap, one apple); a
+      // full basket's spare apples go into the shared pie, and the one who
+      // fills first helps fill the friend's basket. `spinner` is each player's
+      // fair bag (small numbers, so he sees them at a glance); from his third
+      // Apple game a silly 🐦 joins it (`bird`, the comet's gentle cousin).
+      id: "apple", box: "apple", game: "spin", name: "Apple Spin",
+      cols: 6, rows: 6, size: 10,
+      spinner: [1, 1, 2, 2, 3, 4],
+    },
   ];
 
   // ---- The shelf: one box per game, in order ------------------------------
@@ -103,6 +115,8 @@
     { id: "moon", board: "moon", name: "Moon Race", pic: "🚀", colour: "#3b4cc0" },
     { id: "comet", board: "comet", name: "Comet Moon", pic: "☄️", colour: "#6a3fb8", unlockAfter: { box: "moon", games: 2 } },
     { id: "rainbow", board: "rainbow", name: "Rainbow Trail", pic: "🌈", colour: "#e0569b" },
+    // the 🐦 joins from his THIRD Apple game, exactly as the comets do
+    { id: "apple", board: "apple", name: "Apple Spin", pic: "🍎", colour: "#d63b3b", birdsAfter: 2 },
   ];
 
   // ---- Every line the game says ------------------------------------------
@@ -131,6 +145,12 @@
     cardTwo: "Two {c} {s}s!",
     cardPic: "{p}! Zoom!",
     keepGoing: "Keep playing!",
+    spinFirst: "Tap to spin!",
+    pickFirst: "Tap to pick! One tap, one apple.",
+    full: "{n}'s basket is full! Ten apples!",
+    pie: "{k} more for the pie!",
+    bird: "Tweet! A silly bird put one back. {to} in the basket.",
+    endApple: "Ten, twenty! {k} apples in the pie! Yum!",
   };
 
   const BoardData = { JOSH, FRIENDS, PEOPLE, COLOURS, BOARDS, BOXES, SAY };
