@@ -3334,7 +3334,9 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
 }
 @keyframes bnMark { from { transform: scale(0.92); } to { transform: scale(1.04); } }
 /* a booster or comet ride: the token grows and glows on the way */
-.bn-token--ride { z-index: 3; transform: translate(-50%, -50%) scale(1.35); box-shadow: 0 0 0 4px #fff1c4, 0 0 22px 8px rgba(255, 159, 67, 0.85); }
+/* (a dark band first: on the token's own white a pale ring alone is 1.13:1,
+   the state-ring law's lesson — the turn halo is built the same way) */
+.bn-token--ride { z-index: 3; transform: translate(-50%, -50%) scale(1.35); box-shadow: 0 0 0 3px #2b2b3a, 0 0 0 7px #ffb347, 0 0 22px 8px rgba(255, 159, 67, 0.85); }
 /* home first, now helping: the friend's face on the helper's pad */
 .bn-pad__help {
   position: absolute;
@@ -3366,7 +3368,7 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
    (width-limited here) loses nothing */
 @media (orientation: portrait) and (min-height: 780px) and (max-width: 599px) {
   .bn-pad { min-height: 140px; }
-  .bn-die { width: 84px; height: 84px; padding: 9px; gap: 4px; }
+  .bn-die { display: grid; width: 84px; height: 84px; padding: 9px; gap: 4px; }
   .bn-die__cue { font-size: 4.2rem; }
   .bn-card, .bn-spin, .bn-spinner { width: 84px; height: 84px; }
   .bn-card { font-size: 3.2rem; }
