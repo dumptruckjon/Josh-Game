@@ -24,7 +24,7 @@
   const KEEP_MS = 24 * 60 * 60 * 1000;
   // The pace of everything that is NOT his finger: the dice tumbling, a hop,
   // a ride, the hand-over, and the computer friend's turn.
-  const T = { tumble: 700, hop: 240, autoHop: 480, cpuThink: 900, cpuHop: 560, ride: 900, card: 520, glide: 300, handoff: 700, pop: 700 };
+  const T = { tumble: 700, hop: 240, autoHop: 480, cpuThink: 900, cpuHop: 560, ride: 900, card: 520, glide: 300, handoff: 700, pop: 700, cheer: 1400, tip: 1000 };
   const now = () => (global.performance && global.performance.now ? global.performance.now() : Date.now());
   const $ = (sel, root) => (root || doc).querySelector(sel);
   const fill = (line, o) => String(line).replace(/\{(\w+)\}/g, (m, k) => (o && o[k] != null ? o[k] : m));
@@ -202,7 +202,11 @@
         "</div>" +
         '<div class="bn-party" role="dialog" aria-label="Everyone is home!" hidden>' +
           '<div class="bn-party__box">' +
-            '<div class="bn-party__faces" aria-hidden="true"><span class="bn-party__face"></span><span class="bn-party__face"></span></div>' +
+            // each player dances over the ⭐ they collected on the way
+            '<div class="bn-party__faces" aria-hidden="true">' +
+              '<span class="bn-party__who"><span class="bn-party__face"></span><span class="bn-party__haul"></span></span>' +
+              '<span class="bn-party__who"><span class="bn-party__face"></span><span class="bn-party__haul"></span></span>' +
+            "</div>" +
             '<div class="bn-party__row">' +
               '<button class="btn-big bn-again" type="button" aria-label="Play again">🔁</button>' +
               '<button class="btn-big bn-shelf" type="button" aria-label="Back to the games">🏠</button>' +
@@ -211,8 +215,8 @@
         "</div>" +
       "</div>" +
       '<div class="bn-tray">' +
-        '<button class="bn-pad bn-pad--0" type="button" data-seat="0"><span class="bn-pad__face" aria-hidden="true"></span><span class="bn-pad__act" aria-hidden="true"></span><span class="bn-pad__stars" aria-hidden="true"></span><span class="bn-pad__help" aria-hidden="true" hidden></span></button>' +
-        '<button class="bn-pad bn-pad--1" type="button" data-seat="1"><span class="bn-pad__face" aria-hidden="true"></span><span class="bn-pad__act" aria-hidden="true"></span><span class="bn-pad__stars" aria-hidden="true"></span><span class="bn-pad__help" aria-hidden="true" hidden></span></button>' +
+        '<button class="bn-pad bn-pad--0" type="button" data-seat="0"><span class="bn-pad__face" aria-hidden="true"></span><span class="bn-pad__act" aria-hidden="true"></span><span class="bn-pad__stars" aria-hidden="true"></span><span class="bn-pad__help" aria-hidden="true" hidden></span><span class="bn-pad__cheer" aria-hidden="true" hidden>🎉</span></button>' +
+        '<button class="bn-pad bn-pad--1" type="button" data-seat="1"><span class="bn-pad__face" aria-hidden="true"></span><span class="bn-pad__act" aria-hidden="true"></span><span class="bn-pad__stars" aria-hidden="true"></span><span class="bn-pad__help" aria-hidden="true" hidden></span><span class="bn-pad__cheer" aria-hidden="true" hidden>🎉</span></button>' +
       "</div>" +
       '<div class="bn-hand" aria-hidden="true" hidden>👆</div>');
     boardEl = play.querySelector(".bn-board");
@@ -270,9 +274,11 @@
       btn.setAttribute("role", "listitem");
       btn.dataset.box = b.id;
       btn.style.borderBottomColor = b.colour;
-      const g = save.games[b.id];
-      btn.setAttribute("aria-label", b.name + (g ? ", a game is waiting" : ""));
+      const g = save.games[b.id], played = save.done[b.id] || 0;
+      btn.setAttribute("aria-label", b.name + (played ? ", played " + played + (played === 1 ? " time" : " times") : "") + (g ? ", a game is waiting" : ""));
       btn.innerHTML = '<span class="bn-box__pic" aria-hidden="true">' + b.pic + "</span>" +
+        // every game finished here earns the box a 🏆 — he sees the pile grow
+        (played ? '<span class="bn-box__won" aria-hidden="true">🏆 ' + played + "</span>" : "") +
         '<span class="bn-box__label">' + b.name + "</span>" +
         // a game waiting on this box shows its two players peeking out
         (g ? '<span class="bn-box__wait" aria-hidden="true">' + g.st.seats.map((s) => '<span class="bn-box__peek">' + R.faceHTML(DATA.person(s.who)) + "</span>").join("") + "</span>" : "");
@@ -368,6 +374,7 @@
     hidePop();
     hideMark();
     endRides();
+    endCheer();
     for (let i = 0; i < 2; i++) {
       const p = seatPerson(i);
       tokens[i].querySelector(".bn-token__face").innerHTML = R.faceHTML(p);
@@ -450,6 +457,11 @@
   function paintAll() {
     game.shown = game.st.seats.map((s) => s.pos);
     game.shownPie = game.st.pie || 0;
+    game.tipped = 0;
+    // the ⭐ on each pad: the engine counts a ride's star the moment it is
+    // decided, the pad the moment the token LANDS (a star that arrived before
+    // the ride did gave the ending away)
+    game.shownStars = game.st.seats.map((s) => s.stars);
     if (game.showTurn == null) { game.showTurn = game.st.turn; game.showMover = game.st.mover; }
     placeTokens();
     paintApples();
@@ -487,11 +499,15 @@
         if (active && game.tumbleFace) act.innerHTML = dieHTML(game.tumbleFace, game.tumbleFace);
         else if (active && game.rolled) act.innerHTML = dieHTML(st.die, st.phase === "hop" && st.turn === i ? st.left : 0);
         else act.innerHTML = dieHTML(0, 0);
-        pad.querySelector(".bn-pad__stars").textContent = s.stars ? "⭐ " + s.stars : "";
+        pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
         const hopping = active && st.phase === "hop" && st.turn === i;
         pad.setAttribute("aria-label", nameOf(i) + (active ? (hopping ? ": tap to hop, " + st.left + " to go" : ": tap to roll the dice") : ": wait for your turn") + (s.home ? ", home" : ""));
       } else if (game.board.game === "spin") {
-        if (active && game.tumbleFace != null && game.tumbling) act.innerHTML = spinHTML(game.tumbleFace, game.tumbleFace, true);
+        // while it spins, the WHEEL spins (it used to tilt and flash apples):
+        // drawn once, so its turning is never restarted mid-spin
+        if (active && game.tumbling) {
+          if (!act.querySelector(".bn-spinner--go")) act.innerHTML = '<span class="bn-spinner bn-spinner--go" style="animation-duration:' + T.tumble + 'ms">' + R.spinnerSVG() + "</span>";
+        }
         else if (active && game.rolled) act.innerHTML = spinHTML(st.die, st.phase === "pick" && st.turn === i ? st.left : 0);
         else act.innerHTML = '<span class="bn-spinner">' + R.spinnerSVG() + "</span>";
         pad.querySelector(".bn-pad__stars").textContent = "";
@@ -499,8 +515,11 @@
         pad.setAttribute("aria-label", nameOf(i) + (active ? (picking ? ": tap to pick, " + st.left + " to go" : ": tap to spin") : ": wait for your turn") + (s.home ? ", basket full" : ""));
       } else {
         const c = active && game.cardShown ? game.cardShown : null;
-        act.innerHTML = c ? cardHTML(c) : '<span class="bn-card bn-card--back">🌈</span>';
-        pad.querySelector(".bn-pad__stars").textContent = "";
+        // a card just drawn FLIPS over (once: a later repaint shows it still)
+        act.innerHTML = c ? cardHTML(c, game.cardFresh) : '<span class="bn-card bn-card--back">🌈</span>';
+        if (c) game.cardFresh = false;
+        // a zoom earns a ⭐, counted on the pad as Moon Race counts its rides
+        pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
         pad.setAttribute("aria-label", nameOf(i) + (active ? ": tap to flip a card" : ": wait for your turn") + (s.home ? ", home" : ""));
       }
       pad.classList.toggle("bn-pad--home", s.home);
@@ -534,19 +553,19 @@
   }
   // 🍎 a spin's result on the pad: that many apples, picked ones going pale
   // (the die's dots), or the silly bird
-  function spinHTML(n, lit, tumbling) {
-    if (n === 0) return '<span class="bn-spin bn-spin--bird' + (tumbling ? " bn-spin--tumble" : "") + '" data-n="0">🐦</span>';
-    let s = '<span class="bn-spin' + (tumbling ? " bn-spin--tumble" : "") + '" data-n="' + n + '">';
+  function spinHTML(n, lit) {
+    if (n === 0) return '<span class="bn-spin bn-spin--bird" data-n="0">🐦</span>';
+    let s = '<span class="bn-spin" data-n="' + n + '">';
     for (let k = 0; k < n; k++) s += '<span class="bn-spin__apple' + (k >= n - lit ? "" : " bn-spin__apple--used") + '">🍎</span>';
     return s + "</span>";
   }
-  function cardHTML(card) {
-    const b = game.board;
+  function cardHTML(card, flip) {
+    const b = game.board, f = flip ? " bn-card--flip" : "";
     if (card.kind === "pic") {
       const lm = (b.landmarks || []).find((l) => l.at === card.at);
-      return '<span class="bn-card bn-card--pic">' + (lm ? lm.pic : "⭐") + "</span>";
+      return '<span class="bn-card bn-card--pic' + f + '">' + (lm ? lm.pic : "⭐") + "</span>";
     }
-    return '<span class="bn-card">' + R.shapeSVG(card.c, { two: card.kind === "two" }) + "</span>";
+    return '<span class="bn-card' + f + '">' + R.shapeSVG(card.c, { two: card.kind === "two" }) + "</span>";
   }
 
   // ---- The turn routine ---------------------------------------------------------
@@ -689,11 +708,10 @@
     game.showMover = game.st.mover;
     game.tumbling = true;
     let k = 0;
-    const faces = [2, 4, 1, 3];
+    paintPads();
     const go = () => {
-      game.tumbleFace = faces[k++ % faces.length];
+      k++;
       SFX.tick();
-      paintPads();
       if (k * 100 < T.tumble) later(go, 100);
     };
     go();
@@ -762,6 +780,33 @@
     el.style.transitionDuration = (fly.ms || T.hop) + "ms";
     el.style.left = to.left;
     el.style.top = to.top;
+  }
+  // 🍎 the finale: basket i tips its ten apples into the pie. Each apple
+  // flies from its slot to the dish; the pie keeps (up to) the apples it can
+  // show, and the count pops: 10, then 20.
+  function tipBasket(i) {
+    if (!game || game.board.game !== "spin") return;
+    const n = game.shown[i];
+    // the basket empties as its apples leave (drawn first: a repaint clears
+    // the flying ones), and the pie fills as they land
+    game.shown[i] = 0;
+    paintApples();
+    for (let k = 0; k < n; k++) {
+      const el = doc.createElement("span");
+      el.className = "bn-apple bn-apple--tip";
+      const a = orchardFrac(R.slotOf(i, k)), b = orchardFrac(R.pieSpot(k % 14));
+      el.style.left = (a.x * 100) + "%"; el.style.top = (a.y * 100) + "%";
+      el.textContent = "🍎";
+      applesEl.appendChild(el);
+      void el.offsetWidth;
+      el.style.transitionDuration = (T.tip * 0.6) + "ms";
+      el.style.transitionDelay = (k * 30) + "ms";
+      el.style.left = (b.x * 100) + "%"; el.style.top = (b.y * 100) + "%";
+    }
+    game.tipped = (game.tipped || 0) + n;
+    later(() => { if (game) { game.shownPie += n; paintApples(); paintBoardLabel(); } }, T.tip * 0.6 + n * 30 + 20);
+    SFX.pie();
+    popAt(orchardFrac(R.ORCHARD.pie), String(game.tipped));
   }
   // an apple the 🐦 carries BACK up the tree: a loose apple that flies and goes
   function flyAway(from, to, ms) {
@@ -839,6 +884,7 @@
         at(T.ride, () => {});
       } else if (e.type === "card") {
         game.cardShown = e.card;
+        game.cardFresh = true;
         game.showMover = e.mover;
         paintPads();
         SFX.flip();
@@ -847,22 +893,38 @@
         // and square is SEEN before the token sets off
         showMark(e.to);
         at(T.card, () => {});
-        for (const n of e.path) at(T.glide, () => { moveToken(e.mover, n, T.glide); SFX.glide(); });
-        at(0, () => { hideMark(); sayPlay(String(e.to)); popOnSquare(e.to, String(e.to)); paintBoardLabel(); });
+        if (e.zoom) {
+          // a picture card AHEAD is a ZOOM: one swoop, grown and glowing like a
+          // booster ride, landing with its ⭐. Square by square it crawled:
+          // up to 26 squares at a glide each, about eight seconds of nothing
+          at(0, () => {
+            tokens[e.mover].classList.add("bn-token--ride");
+            moveToken(e.mover, e.to, T.ride);
+            SFX.boost();
+            cheer(e.mover);
+          });
+          at(T.ride, () => {
+            tokens[e.mover].classList.remove("bn-token--ride");
+            hideMark();
+            popOnSquare(e.to, "⭐");
+            landStar(e.mover);
+            paintBoardLabel();
+          });
+          at(T.hop, () => {});
+        } else {
+          for (const n of e.path) at(T.glide, () => { moveToken(e.mover, n, T.glide); SFX.glide(); });
+          at(0, () => { hideMark(); sayPlay(String(e.to)); popOnSquare(e.to, String(e.to)); paintBoardLabel(); });
+        }
       } else if (e.type === "ride") {
         at(T.hop + 120, () => {
           // a ride is a RIDE: the token grows and glows on the way, and lands
           // with its star
           tokens[e.seat].classList.add("bn-token--ride");
-          later(() => { tokens[e.seat].classList.remove("bn-token--ride"); popOnSquare(e.to, "⭐"); }, T.ride);
+          later(() => { tokens[e.seat].classList.remove("bn-token--ride"); popOnSquare(e.to, "⭐"); landStar(e.seat); }, T.ride);
           moveToken(e.seat, e.to, T.ride);
-          if (e.kind === "boost") {
-            SFX.boost();
-            sayPlay(fill(SAY.boost, { to: e.to }));
-            // the computer friend cheers HIM on (a friend, not an opponent)
-            if (game.cpu && e.seat === 0) sayPlay(fill(SAY.cpuCheer, { n: nameOf(0) }));
-          }
+          if (e.kind === "boost") { SFX.boost(); sayPlay(fill(SAY.boost, { to: e.to })); }
           else { SFX.comet(); sayPlay(fill(SAY.comet, { to: e.to })); }
+          cheer(e.seat);
           paintPads();
           paintBoardLabel();
         });
@@ -872,6 +934,7 @@
           SFX.home();
           sayPlay(fill(endLine("home"), { n: nameOf(e.seat) }));
           paintPads();
+          cheer(e.seat, true);
           try { if (global.JoshEffects && playVisible()) global.JoshEffects.stars(); } catch (err) { /* ignore */ }
         });
         at(900, () => {});
@@ -884,6 +947,13 @@
       } else if (e.type === "end") {
         turnEnded = true;
         countFinish();
+        // 🍎 both baskets TIP into the pie, counting by tens — "ten, twenty!"
+        // — then the spare apples on top: the plan's finale (§6), which had
+        // only ever been the total, popped once
+        if (game.board.game === "spin") {
+          for (const i of [0, 1]) at(T.tip, () => tipBasket(i));
+          if (game.st.pie > 0) at(T.tip, () => { popAt(orchardFrac(R.ORCHARD.pie), String(20 + game.st.pie)); SFX.pie(); });
+        }
         at(T.handoff, () => { finishGame(); });
       }
     }
@@ -928,8 +998,16 @@
   }
   function showParty() {
     paintPads();
-    const faces = party.querySelectorAll(".bn-party__face");
-    for (let i = 0; i < 2; i++) faces[i].innerHTML = R.faceHTML(seatPerson(i));
+    const faces = party.querySelectorAll(".bn-party__face"), hauls = party.querySelectorAll(".bn-party__haul");
+    // the haul: every ⭐ a ride or a zoom gave (Apple Spin's haul is the pie)
+    const stars = game.st.seats.map((s) => s.stars);
+    const any = game.board.game !== "spin" && stars.some((n) => n > 0);
+    for (let i = 0; i < 2; i++) {
+      faces[i].innerHTML = R.faceHTML(seatPerson(i));
+      hauls[i].textContent = any ? "⭐ " + stars[i] : "";
+      hauls[i].hidden = !any;
+    }
+    party.setAttribute("aria-label", "Everyone is home!" + (any ? " " + [0, 1].map((i) => nameOf(i) + " has " + stars[i] + (stars[i] === 1 ? " star" : " stars")).join(", ") + "." : ""));
     party.hidden = false;
     party.__shownAt = now();
     sayPlay(endLine("end"));
@@ -949,11 +1027,12 @@
   // ---- The number that pops (counting with the sound off) ------------------------
   // The plan's "the square's number pops up and is said": with the sound OFF
   // (the default) the voice says nothing, so the number has to be SEEN.
-  function popAt(f, text) {
+  function popAt(f, text, below) {
     if (!popEl) return;
     popEl.textContent = text;
     popEl.style.left = (f.x * 100) + "%";
     popEl.style.top = (f.y * 100) + "%";
+    popEl.classList.toggle("bn-pop--below", !!below);
     popEl.hidden = false;
     popEl.classList.remove("bn-pop--go");
     void popEl.offsetWidth;
@@ -961,9 +1040,13 @@
     cancelLater(popEl.__t);
     popEl.__t = later(hidePop, T.pop);
   }
+  // Above the square, where it grows out of the number — except on the TOP
+  // row, where "above" is off the board and over the bar (on an iPad it sat on
+  // the 🏠 button): there it pops BELOW the square instead.
   function popOnSquare(n, text) {
-    const c = R.centre(game.board, n);
-    popAt({ x: c.x / (game.board.cols * R.CELL), y: (c.y - R.CELL * 0.42) / (game.board.rows * R.CELL) }, text);
+    const b = game.board, c = R.centre(b, n), top = L.cellOf(b, n).row === b.rows - 1;
+    const y = top ? c.y + R.CELL * 0.42 : c.y - R.CELL * 0.42;
+    popAt({ x: c.x / (b.cols * R.CELL), y: y / (b.rows * R.CELL) }, text, top);
   }
   function hidePop() { if (popEl) { popEl.hidden = true; popEl.classList.remove("bn-pop--go"); } }
   // 🌈 the target square's ring
@@ -982,6 +1065,39 @@
   // whatever cancels them (a new game, leaving) takes the glow off itself, or
   // the next game opens with a token grown over the numbers.
   function endRides() { for (const t of tokens) if (t) t.classList.remove("bn-token--ride"); }
+  function landStar(i) {
+    if (!game || !game.shownStars) return;
+    game.shownStars[i] = Math.min(game.st.seats[i].stars, game.shownStars[i] + 1);
+    paintPads();
+  }
+
+  // ---- The friend cheers (a friend, not an opponent) -----------------------------
+  // A big moment for one player — a ride, a zoom, home, a full basket — and the
+  // OTHER player's face on their pad throws up a 🎉 and bounces. The computer
+  // friend also says it ("Whoa, Josh!"), but the sound is OFF by default, so
+  // the cheer has to be SEEN: before, it was a voice line and nothing else.
+  function cheer(i, quiet) {
+    if (!game || !playVisible()) return;
+    const f = 1 - i, pad = pads[f];
+    const b = pad && pad.querySelector(".bn-pad__cheer");
+    if (!b) return;
+    b.hidden = false;
+    b.classList.remove("bn-cheer--go");
+    void b.offsetWidth;
+    b.classList.add("bn-cheer--go");
+    pad.classList.add("bn-pad--cheer");
+    cancelLater(b.__t);
+    b.__t = later(endCheer, T.cheer);
+    if (!quiet && game.st.seats[f].cpu) sayPlay(fill(SAY.cpuCheer, { n: nameOf(i) }));
+  }
+  function endCheer() {
+    for (const p of pads) {
+      if (!p) continue;
+      p.classList.remove("bn-pad--cheer");
+      const b = p.querySelector(".bn-pad__cheer");
+      if (b) { b.hidden = true; b.classList.remove("bn-cheer--go"); }
+    }
+  }
 
   // ---- The hand that shows how (first time, and on 👂) ---------------------------
   function showHand(i) {
@@ -1015,6 +1131,7 @@
     hidePop();
     hideMark();
     endRides();
+    endCheer();
     if (game) {
       game.busy = false;
       persistGame();

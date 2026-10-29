@@ -44,10 +44,10 @@ async function go(hash, sel) {
 // The pace of the turn routine, made quick: the timings are presentation,
 // never rules, and a whole game at full pace takes minutes.
 async function quick() {
-  await page.evaluate(() => Object.assign(window.__BOARD.T, { tumble: 60, hop: 30, autoHop: 40, cpuThink: 40, cpuHop: 30, ride: 40, card: 30, glide: 20, handoff: 40 }));
+  await page.evaluate(() => Object.assign(window.__BOARD.T, { tumble: 60, hop: 30, autoHop: 40, cpuThink: 40, cpuHop: 30, ride: 40, card: 30, glide: 20, handoff: 40, cheer: 60, tip: 40 }));
 }
 async function slow() {
-  await page.evaluate(() => Object.assign(window.__BOARD.T, { tumble: 700, hop: 240, autoHop: 480, cpuThink: 900, cpuHop: 560, ride: 900, card: 520, glide: 300, handoff: 700 }));
+  await page.evaluate(() => Object.assign(window.__BOARD.T, { tumble: 700, hop: 240, autoHop: 480, cpuThink: 900, cpuHop: 560, ride: 900, card: 520, glide: 300, handoff: 700, cheer: 1400, tip: 1000 }));
 }
 const st = () => page.evaluate(() => window.__BOARD.state());
 // Wait until it is a person's move (his pad waits for a tap), or the game is over.
@@ -656,13 +656,13 @@ test("🍎 leaving in the middle of a spin never comes back still spinning", asy
   await slow();
   await startGame("apple", "raegar", false, 6, 0);
   await page.locator(".bn-pad--0").click();
-  await page.locator(".bn-pad--0 .bn-spin--tumble").waitFor({ state: "visible", timeout: 4000 });
+  await page.locator(".bn-pad--0 .bn-spinner--go").waitFor({ state: "visible", timeout: 4000 });
   await page.evaluate(() => { location.hash = "#board-home"; });     // mid-tumble: its timer dies
   await page.locator("#screen-board-home").waitFor({ state: "visible" });
   await page.evaluate(() => { location.hash = "#board-play"; });
   await page.locator("#screen-board-play").waitFor({ state: "visible" });
   await page.waitForTimeout(900);                                     // longer than a whole tumble
-  assert.equal(await page.locator(".bn-spin--tumble").count(), 0, "no pad is still spinning");
+  assert.equal(await page.locator(".bn-spinner--go").count(), 0, "no pad is still spinning");
   const x = await st();
   assert.equal(x.phase, "pick", "fixture: the spin had already happened in the engine");
   assert.equal(await page.locator(".bn-pad--0 .bn-spin--bird").count(), 0, "and no phantom 🐦 sits on his pad");
@@ -759,6 +759,264 @@ test("home first, now HELPING: the friend's face sits on the helper's pad (only 
   assert.equal(await page.locator(".bn-pad--0 .bn-pad__help").getAttribute("data-who"), "river");
   assert.equal(await page.locator(".bn-pad--1 .bn-pad__help").isHidden(), true, "River is not home: no badge on hers");
   assert.match(await page.locator(".bn-pad--0").getAttribute("aria-label"), /helping River/, "and the pad says so");
+});
+
+test("a TOP-ROW square's number pops below it, on the board, never up over the bar (it sat on the 🏠 on an iPad)", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  const sizes = [[834, 1112], [390, 844]];
+  try {
+    for (const [w, h] of sizes) {
+      await page.setViewportSize({ width: w, height: h });
+      // Josh on 30 with one hop to go: the hop lands on 31, the top row
+      const s = L.create({ board: "moon", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
+      s.seats[0].pos = 30; s.phase = "hop"; s.die = 1; s.left = 1; s.rolls = 6;
+      assert.ok(await page.evaluate((x) => window.__BOARD.load("moon", x), s), "fixture: a hop to the top row loads");
+      await page.locator("#screen-board-play").waitFor({ state: "visible" });
+      await page.waitForTimeout(400);
+      await page.locator(".bn-pad--0").click();
+      await page.locator(".bn-pop").waitFor({ state: "visible" });
+      await page.waitForTimeout(250);   // the pop's own animation has settled
+      const r = await page.evaluate(() => {
+        const p = document.querySelector(".bn-pop").getBoundingClientRect(), b = document.querySelector(".bn-board").getBoundingClientRect();
+        const c = document.querySelector('.bn-cell[data-n="31"]').getBoundingClientRect();
+        const home = document.querySelector("#screen-board-play .bn-playback").getBoundingClientRect();
+        return { text: document.querySelector(".bn-pop").textContent, pt: p.top, pb: p.bottom, pl: p.left, pr: p.right, bt: b.top, ct: c.top, cb: c.bottom, cl: c.left, cr: c.right,
+          overHome: p.left < home.right && p.right > home.left && p.top < home.bottom && p.bottom > home.top };
+      });
+      assert.equal(r.text, "31", `[${w}x${h}] the hop pops 31`);
+      assert.ok(r.pt >= r.bt - 1, `[${w}x${h}] the top-row pop starts at ${Math.round(r.pt)}, above the board (${Math.round(r.bt)})`);
+      assert.ok(!r.overHome, `[${w}x${h}] the top-row pop covers the 🏠 button`);
+      const mid = (r.pl + r.pr) / 2;
+      assert.ok(mid > r.cl && mid < r.cr && r.pt > r.ct && r.pt < r.cb + 4, `[${w}x${h}] it pops at square 31, not somewhere else`);
+    }
+  } finally {
+    await page.setViewportSize({ width: 390, height: 844 });
+  }
+});
+
+test("🌈 a picture card AHEAD is a ZOOM: one swoop that grows and glows, lands with its ⭐ — and the friend cheers", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  // Josh on 2, his next card the rocket at 19: seventeen squares away. Square
+  // by square at a glide each it crawled for five seconds; a zoom is one ride.
+  const s = L.create({ board: "rainbow", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
+  s.seats[0].pos = 2; s.seats[0].bag = [{ kind: "pic", at: 19 }];
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("rainbow", x), s), "fixture: loads");
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  const t0 = Date.now();
+  await page.locator(".bn-pad--0").click();
+  await page.waitForFunction(() => document.querySelector(".bn-token--0").classList.contains("bn-token--ride"), null, { timeout: 3000 });
+  // the friend cheers on HER pad (seen: the sound is off by default)
+  const cheers = await page.evaluate(() => [0, 1].map((i) => {
+    const p = document.querySelector(".bn-pad--" + i), b = p.querySelector(".bn-pad__cheer");
+    return p.classList.contains("bn-pad--cheer") && !b.hidden && b.offsetWidth > 20;   // offsetWidth: the bubble pops in from scale 0.4
+  }));
+  assert.deepEqual(cheers, [false, true], "River's pad cheers him on, and his own pad does not cheer for himself");
+  // it goes STRAIGHT to the landmark: never set down on a square in between
+  const seen = await page.evaluate(() => new Promise((res) => {
+    const t = document.querySelector(".bn-token--0"), got = new Set([t.dataset.pos]);
+    const mo = new MutationObserver(() => got.add(t.dataset.pos));
+    mo.observe(t, { attributes: true, attributeFilter: ["data-pos"] });
+    setTimeout(() => { mo.disconnect(); res([...got]); }, 1500);
+  }));
+  assert.deepEqual(seen.filter((p) => p !== "2" && p !== "19"), [], `the zoom set the token down on ${seen}`);
+  assert.equal(await page.locator(".bn-token--0").getAttribute("data-pos"), "19", "it zooms to the rocket");
+  await page.waitForFunction(() => { const p = document.querySelector(".bn-pop"); return !p.hidden && p.textContent === "⭐"; }, null, { timeout: 4000 });
+  assert.ok(Date.now() - t0 < 4000, "a zoom is quick, not a crawl");
+  await page.waitForFunction(() => !document.querySelector(".bn-token--0").classList.contains("bn-token--ride"), null, { timeout: 4000 });
+  assert.equal((await st()).seats[0].stars, 1, "the zoom earned a star");
+  assert.match(await page.locator(".bn-pad--0 .bn-pad__stars").textContent(), /⭐ 1/, "and his pad counts it");
+});
+
+test("a ride's ⭐ lands on the pad when the token LANDS, not the moment the dice decide it", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await slow();
+  try {
+    await startGame("moon", "river", true, 20, 0);   // 3 hops to the rocket at 4
+    await page.locator(".bn-pad--0").click();
+    await page.waitForFunction(() => window.__BOARD.state().phase === "hop" && !window.__BOARD.busy(), null, { timeout: 6000 });
+    for (let k = 0; k < 3; k++) { await page.locator(".bn-pad--0").click(); await page.waitForTimeout(320); }
+    await page.waitForFunction(() => document.querySelector(".bn-token--0").classList.contains("bn-token--ride"), null, { timeout: 4000 });
+    assert.equal((await st()).seats[0].stars, 1, "fixture: the engine has already counted the star");
+    assert.equal(await page.locator(".bn-pad--0 .bn-pad__stars").textContent(), "", "mid-ride, the pad has no star yet");
+    await page.waitForFunction(() => document.querySelector(".bn-pad--0 .bn-pad__stars").textContent === "⭐ 1", null, { timeout: 4000 });
+  } finally { await quick(); }
+});
+
+test("🍎 the finale: both baskets TIP into the pie, counting by tens — 10, 20 — then the spare apples, then the party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  // Josh's basket full (he is the helper), River's at 8 with a 3 to spin: two
+  // apples fill it and one goes in the pie — the game ends on 20 + 1
+  const s = L.create({ board: "apple", seats: [{ who: "josh" }, { who: "river" }], seed: 3, first: 0 });
+  s.seats[0].pos = 10; s.seats[0].home = true; s.order = [0]; s.mover = 1;
+  s.seats[1].pos = 8; s.seats[0].bag = [3];
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("apple", x), s), "fixture: loads");
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  // record every number the pie pops, and how full the baskets look at each
+  await page.evaluate(() => {
+    window.__pops = [];
+    const p = document.querySelector(".bn-pop");
+    new MutationObserver(() => { if (!p.hidden) window.__pops.push([p.textContent, document.querySelectorAll(".bn-apple[data-seat]").length]); })
+      .observe(p, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
+  });
+  await page.locator(".bn-pad--0").click();
+  await page.waitForFunction(() => window.__BOARD.state().phase === "pick" && !window.__BOARD.busy(), null, { timeout: 6000 });
+  for (let k = 0; k < 3; k++) {
+    if ((await st()).phase !== "pick") break;
+    await page.locator(".bn-pad--0").click(); await page.waitForTimeout(320);
+  }
+  await page.locator(".bn-party").waitFor({ state: "visible", timeout: 10000 });
+  const rec = await page.evaluate(() => window.__pops);
+  const pops = rec.map((x) => x[0]);
+  const at10 = pops.indexOf("10", pops.lastIndexOf("+1")), at20 = pops.indexOf("20", at10), at21 = pops.indexOf("21", at20);
+  assert.ok(at10 >= 0 && at20 > at10 && at21 > at20, `the pie counts 10, then 20, then 21 (popped: ${pops.join(" ")})`);
+  // a tipping basket is EMPTY while its apples fly: never ten in the basket
+  // and ten more in the air (it showed twenty apples where ten should be)
+  assert.equal(rec[at10][1], 10, `as the pie says 10, only the other basket still holds apples (saw ${rec[at10][1]} in baskets)`);
+  assert.equal(rec[at20][1], 0, `as the pie says 20, both baskets are empty (saw ${rec[at20][1]})`);
+  // the baskets really tip: once the pie has counted, no apple is left in a basket
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator(".bn-apple[data-seat]").count(), 0, "both baskets are empty: their apples are in the pie");
+  assert.ok(await page.locator(".bn-apple[data-pie]").count() >= 10, "and the pie is full of apples");
+  assert.match(await page.locator(".bn-board").getAttribute("aria-label"), /21 in the pie/, "the board says what is in the pie");
+});
+
+test("🍎 the spinner's WHEEL spins and 🌈 a drawn card FLIPS over — and neither moves under reduced motion", async () => {
+  for (const motion of ["no-preference", "reduce"]) {
+    await page.emulateMedia({ reducedMotion: motion });
+    try {
+      await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+      await slow();
+      await startGame("apple", "raegar", false, 6, 0);
+      await page.locator(".bn-pad--0").click();
+      await page.locator(".bn-pad--0 .bn-spinner--go").waitFor({ state: "visible", timeout: 3000 });
+      const spin = await page.evaluate(() => {
+        const svg = document.querySelector(".bn-pad--0 .bn-spinner--go svg");
+        return { anims: svg.getAnimations().map((a) => a.animationName), wheel: !!svg.querySelector("path") };
+      });
+      assert.ok(spin.wheel, `[${motion}] it is the wheel that spins`);
+      assert.deepEqual(spin.anims, motion === "reduce" ? [] : ["bnSpin"], `[${motion}] the wheel's animation`);
+      // it lands on a face: the spinning wheel goes and the apples it says show
+      await page.waitForFunction(() => !document.querySelector(".bn-spinner--go") && document.querySelector(".bn-pad--0 .bn-spin"), null, { timeout: 3000 });
+      await startGame("rainbow", "dad", false, 3, 0);
+      await page.locator(".bn-pad--0").click();
+      await page.locator(".bn-pad--0 .bn-card--flip").waitFor({ state: "attached", timeout: 3000 });
+      const flip = await page.evaluate(() => document.querySelector(".bn-pad--0 .bn-card--flip").getAnimations().map((a) => a.animationName));
+      assert.deepEqual(flip, motion === "reduce" ? [] : ["bnFlip"], `[${motion}] the card's flip`);
+    } finally {
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await quick();
+    }
+  }
+});
+
+test("the party shows each player's ⭐ haul; Apple Spin (whose haul is the pie) and a starless game show none", async () => {
+  const party = async (box, stars) => {
+    const b = { moon: "moon", comet: "comet", rainbow: "rainbow", apple: "apple" }[box];
+    const s = L.create({ board: b, seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
+    const size = b === "apple" ? 10 : 36;
+    s.seats.forEach((x, i) => { x.pos = size; x.home = true; x.stars = stars[i]; }); s.phase = "done"; s.order = [0, 1];
+    assert.ok(await page.evaluate((a) => window.__BOARD.load(a[0], a[1]), [box, s]), `fixture: a finished ${box} loads`);
+    await page.locator(".bn-party").waitFor({ state: "visible" });
+    return page.evaluate(() => ({
+      hauls: [...document.querySelectorAll(".bn-party__haul")].map((h) => (h.hidden ? null : h.textContent)),
+      label: document.querySelector(".bn-party").getAttribute("aria-label"),
+    }));
+  };
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }));
+  let r = await party("comet", [5, 2]);
+  assert.deepEqual(r.hauls, ["⭐ 5", "⭐ 2"], "Comet Moon: each dances over their stars");
+  assert.match(r.label, /Josh has 5 stars, River has 2 stars/, "and the party says it in words");
+  r = await party("rainbow", [1, 0]);
+  assert.deepEqual(r.hauls, ["⭐ 1", "⭐ 0"], "one player's zoom: both show their count");
+  r = await party("moon", [0, 0]);
+  assert.deepEqual(r.hauls, [null, null], "no stars at all: no ⭐ 0 to count");
+  r = await party("apple", [0, 0]);
+  assert.deepEqual(r.hauls, [null, null], "Apple Spin: the pie is the haul");
+});
+
+test("every finished game earns its box a 🏆 on the shelf, counted — and a fresh box has none", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 3 } }));
+  await go("#board-home", "#screen-board-home");
+  const won = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll(".bn-box")].map((b) => {
+    const w = b.querySelector(".bn-box__won");
+    return [b.dataset.box, w ? w.textContent : null];
+  })));
+  assert.deepEqual(await won(), { moon: "🏆 3", comet: null, rainbow: null, apple: null }, "three Moon games: 🏆 3; the rest none yet");
+  assert.match(await page.locator('.bn-box[data-box="moon"]').getAttribute("aria-label"), /played 3 times/);
+  // the trophy pill sits in the corner, never on the box's name
+  const clear = await page.evaluate(() => {
+    const b = document.querySelector('.bn-box[data-box="moon"]'), w = b.querySelector(".bn-box__won").getBoundingClientRect(), l = b.querySelector(".bn-box__label").getBoundingClientRect(), r = b.getBoundingClientRect();
+    return { overLabel: w.bottom > l.top && w.top < l.bottom && w.right > l.left && w.left < l.right, inside: w.left >= r.left && w.right <= r.right && w.top >= r.top };
+  });
+  assert.ok(!clear.overLabel && clear.inside, "the 🏆 sits inside its box and clear of the name");
+  // finishing a game here, for real, puts one more on the pile
+  const s = L.create({ board: "rainbow", seats: [{ who: "josh" }, { who: "dad" }], seed: 3, first: 0 });
+  s.seats[1].pos = 36; s.seats[1].home = true; s.order = [1]; s.seats[0].pos = 35; s.mover = 0;
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("rainbow", x), s), "fixture: one card from home");
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  await page.locator(".bn-pad--0").click();
+  await page.locator(".bn-party").waitFor({ state: "visible", timeout: 8000 });
+  await go("#board-home", "#screen-board-home");
+  assert.equal((await won()).rainbow, "🏆 1", "his first Rainbow Trail game: 🏆 1");
+});
+
+test("🌈 a whole Rainbow Trail against the computer: one tap, one card, every move forward to its colour, one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+    await startGame("rainbow", "raegar", true, 5, 0);
+    const b = await page.evaluate(() => window.BoardData.board("rainbow"));
+    let cards = 0;
+    for (let guard = 0; guard < 200; guard++) {
+      await untilTap(0);
+      const s = await st();
+      if (s.phase === "done") break;
+      const mover = s.mover, from = s.seats[mover].pos;
+      await page.locator(".bn-pad--0").click();
+      await page.waitForFunction((c) => window.__BOARD.state().seats[c.m].pos !== c.f || window.__BOARD.state().phase === "done", { m: mover, f: from }, { timeout: 8000 });
+      const x = await st();
+      cards++;
+      const to = x.seats[mover].pos, card = x.card;
+      assert.ok(to > from, `a card never moves him back (${from} → ${to})`);
+      if (card.kind === "one" && to < b.size) {
+        assert.equal(b.colours.charAt(to - 2), card.c, `a ${card.c} card lands on a ${card.c} square`);
+        assert.ok(!b.colours.slice(from - 1, to - 2).includes(card.c), "…the NEXT one of that colour, never one further");
+      }
+    }
+    const end = await st();
+    assert.equal(end.phase, "done", "the game ends");
+    assert.ok(end.seats.every((x) => x.home), "both get to the party — nobody loses");
+    assert.ok(cards >= 4, `he drew cards (${cards})`);
+    await page.locator(".bn-party").waitFor({ state: "visible" });
+    const sv = await page.evaluate(() => window.__BOARD.save());
+    assert.equal(sv.done.rainbow, 1, "a finished Rainbow Trail counts once");
+    assert.equal(sv.games.rainbow, undefined, "and leaves nothing waiting on the box");
+  } finally { await slow(); }
+});
+
+test("☄️ a comet on Comet Moon: he slides DOWN one row, glowing, lands with a ⭐, and the friend cheers", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }));
+  // Josh on 15, a 2 to roll: he lands on 17, a comet's head (17 → 12)
+  const s = L.create({ board: "comet", seats: [{ who: "josh" }, { who: "viraj", cpu: true }], seed: 3, first: 0 });
+  s.seats[0].pos = 15; s.seats[0].bag = [2];
+  assert.equal(L.jumpAt(require("../scripts/board-data.js").board("comet"), 17).kind, "comet", "fixture: 17 is a comet's head");
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("comet", x), s), "fixture: loads");
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  await page.locator(".bn-pad--0").click();
+  await page.waitForFunction(() => window.__BOARD.state().phase === "hop" && !window.__BOARD.busy(), null, { timeout: 6000 });
+  for (let k = 0; k < 2; k++) { await page.locator(".bn-pad--0").click(); await page.waitForTimeout(320); }
+  await page.waitForFunction(() => document.querySelector(".bn-token--0").classList.contains("bn-token--ride"), null, { timeout: 4000 });
+  assert.equal(await page.evaluate(() => document.querySelector(".bn-pad--1").classList.contains("bn-pad--cheer")), true, "Viraj cheers him on");
+  await page.waitForFunction(() => document.querySelector(".bn-token--0").dataset.pos === "12", null, { timeout: 4000 });
+  await page.waitForFunction(() => { const p = document.querySelector(".bn-pop"); return !p.hidden && p.textContent === "⭐"; }, null, { timeout: 4000 });
+  const x = await st();
+  assert.equal(x.seats[0].pos, 12, "the comet slid him down to 12 — one row, no further");
+  assert.equal(x.seats[0].stars, 1, "and gave him a star for the ride");
+  await page.waitForFunction(() => document.querySelector(".bn-pad--0 .bn-pad__stars").textContent === "⭐ 1", null, { timeout: 4000 });
 });
 
 test("no uncaught page errors in Game Night", () => {

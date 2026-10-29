@@ -258,6 +258,11 @@ test("RAINBOW: no card, from any square, ever moves a token backwards, and a pic
       assert.deepEqual(mv.path, Array.from({ length: mv.to - from }, (_, k) => from + 1 + k), "the path is every square passed");
       if (card.kind === "one" && mv.to < b.size) assert.equal(L.colourAt(b, mv.to), card.c, "a colour card lands on its colour");
       if (card.kind === "pic" && card.at > from) assert.equal(mv.to, card.at, "a picture ahead zooms to it");
+      // a zoom is a RIDE: it says so, and it earns a star (a booster's rule);
+      // every other card is a plain move and earns nothing
+      const zoom = card.kind === "pic" && card.at > from;
+      assert.equal(mv.zoom, zoom, `card ${JSON.stringify(card)} from ${from}: zoom flag`);
+      assert.equal(st.seats[0].stars, zoom ? 1 : 0, `card ${JSON.stringify(card)} from ${from}: a star exactly for a zoom`);
     }
   }
 });

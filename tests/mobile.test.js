@@ -272,7 +272,8 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
     // the party: both buttons on screen, big and apart
     assert.ok(await page.evaluate(() => {
       const s = window.BoardLogic.create({ board: "moon", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
-      s.seats.forEach((x) => { x.pos = 36; x.home = true; }); s.phase = "done"; s.order = [0, 1];
+      // with a ⭐ haul under each face: the tallest party there is
+      s.seats.forEach((x, i) => { x.pos = 36; x.home = true; x.stars = i ? 2 : 3; }); s.phase = "done"; s.order = [0, 1];
       return window.__BOARD.load("moon", s);
     }), "fixture: a finished game loads");
     await page.locator(".bn-party").waitFor({ state: "visible" });
@@ -281,6 +282,11 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
     await auditActiveScreen(page, `board-party@${w}x${h}`);
     const pb = await page.evaluate(() => Math.max(...[...document.querySelectorAll(".bn-party button")].map((b) => b.getBoundingClientRect().bottom)));
     assert.ok(pb <= h + 1, `[party@${w}x${h}] the party's buttons end at ${Math.round(pb)}, below the fold`);
+    // the whole party box sits inside its scrim (in short landscape the ⭐ row
+    // once pushed it out of the field, past the fold)
+    const pbox = await page.evaluate(() => { const b = document.querySelector(".bn-party__box").getBoundingClientRect(), o = document.querySelector(".bn-party").getBoundingClientRect(); return { b: b.bottom, t: b.top, ob: o.bottom, ot: o.top, haul: [...document.querySelectorAll(".bn-party__haul")].filter((x) => !x.hidden).length }; });
+    assert.equal(pbox.haul, 2, `[party@${w}x${h}] fixture: both ⭐ hauls show`);
+    assert.ok(pbox.t >= pbox.ot - 1 && pbox.b <= pbox.ob + 1, `[party@${w}x${h}] the party box (${Math.round(pbox.t)}..${Math.round(pbox.b)}) spills out of its scrim (${Math.round(pbox.ot)}..${Math.round(pbox.ob)})`);
   }
   // A ROTATION mid-game, and a tall window made short: the board must follow
   // the space it is given down as well as up. Every size above opened FRESH,

@@ -185,7 +185,11 @@
     const i = st.mover, s = st.seats[i];
     const from = s.pos;
     let to;
-    if (card.kind === "pic" && card.at > from) to = card.at;
+    // a picture card AHEAD of you is a ZOOM: one swoop to its landmark, and —
+    // like every booster ride — a ⭐ for the ride. Behind you, it is a plain
+    // move to the next square of the landmark's colour (no zoom, no star).
+    const zoom = card.kind === "pic" && card.at > from;
+    if (zoom) to = card.at;
     else if (card.kind === "pic") to = nextOf(board, from, colourAt(board, card.at));
     else if (card.kind === "two") to = nextOf(board, nextOf(board, from, card.c), card.c);
     else to = nextOf(board, from, card.c);
@@ -194,10 +198,11 @@
     // card from every square to prove it).
     if (to < from) to = from;
     s.pos = to;
+    if (zoom) s.stars += 1;
     st.card = card;
     const path = [];
     for (let n = from + 1; n <= to; n++) path.push(n);
-    const ev = [{ type: "card", seat: st.turn, mover: i, card, from, to, path }];
+    const ev = [{ type: "card", seat: st.turn, mover: i, card, from, to, path, zoom }];
     if (to >= board.size) arrive(st, i, ev);
     endTurn(st, ev);
     return ev;

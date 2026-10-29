@@ -1,6 +1,6 @@
 # 🎲 Game Night — board games for Josh (and a friend)
 
-**Status: BATCH 1 AND BATCH 2 BUILT** — the door, the shelf, the shared turn
+**Status: BATCH 1 AND BATCH 2 BUILT, AUDITED TWICE** — the door, the shelf, the shared turn
 routine, the engine, 🚀 Moon Race (with ☄️ Comet Moon), 🌈 Rainbow Trail, and
 🍎 Apple Spin (the owner's go, 2026-10-28, with "deeply audit the first 2
 games … to make them even more high quality and fun and exciting": §8).
@@ -163,3 +163,47 @@ Measured and NOT done: **a taller 6x8 board** (48 squares, a longer game, and
 it would fill the portrait space) drops the squares to 30px on a 320x568 phone
 and 42px on 375x667, under the 38px floor. A board must be one fixed shape for
 everyone, so it stays 6x6.
+
+## 9. The second audit (2026-10-29): more fun, two bugs
+
+The owner: "Audit the 3 games and look for opportunities to make the game more
+fun and exciting for 4.5 year old Josh. Also make sure to fix any bugs and
+extend test coverage wherever needed." All three games (four boxes) were played
+at phone, small-phone, iPad and landscape sizes and screenshotted, and a stress
+probe played 64 games with random taps on both pads, auto-hops on and off, and
+leaving and coming back mid-move (none stuck, no page errors).
+
+Bugs fixed:
+- **A top-row square's number popped up over the bar.** The pop sits ABOVE the
+  square it names; on the top row that is off the board, and on an iPad it sat
+  on the 🏠 button. It pops below the square there now.
+- **A 🌈 picture card crawled.** "Zoom!" walked the token one square per glide,
+  so a card from square 2 to the castle took about eight seconds of nothing.
+
+More fun (each one reads with the sound OFF, the default):
+- **A picture card is a ZOOM**: one swoop, the token grown and glowing like a
+  booster ride, and it earns a ⭐ (the engine's rule: a ride earns a star).
+  Rainbow Trail now collects stars too, counted on the pad.
+- **The friend cheers you on, visibly.** A ride, a zoom, home or a full basket,
+  and the OTHER player's pad throws up a 🎉 and their face bounces. The
+  computer's "Whoa, Josh!" was a voice line only.
+- **The ⭐ lands when the token lands**: a pad's star count used to change the
+  moment the dice decided the ride, giving the ending away.
+- **🍎 The finale is built** (§6 promised it): both baskets tip into the pie,
+  apple by apple, while it counts 10, 20, then the spares, then the party.
+- **The spinner's wheel really spins** (it tilted and flashed apples) and a
+  drawn **card flips over**. Both are still under reduced motion.
+- **The party shows each player's ⭐ haul** under their dancing face (none for
+  Apple Spin, whose haul is the pie, and none for a starless game).
+- **Every finished game earns its box a 🏆** on the shelf, counted, in the
+  box's corner (out of the flow, so the shelf is no taller).
+
+Coverage added: a whole Rainbow Trail against the computer, a Comet Moon comet
+slide, the zoom, the star landing, the cheer, the tip finale, the wheel and the
+flip (both motion settings), the party haul, the shelf trophies, the top-row
+pop; the mobile audit's party now carries a ⭐ row at every size.
+
+Measured and NOT done: a landmark or rocket picture is covered while a token
+stands on its square (the token sits toward the square's bottom right, clear
+of the NUMBER, which is what he counts by). Moving every picture would trade
+one cover for another, so it stays.
