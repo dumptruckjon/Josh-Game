@@ -2574,7 +2574,10 @@ test("§22: a reset in one tab holds against a tab left open from before — eve
     await page.waitForFunction(() => window.__HOLE.scene() === "farm");
     await page.evaluate(() => window.__HOLE.autoplay(240));
     await deafen();
-    const gB = await B.evaluate(() => { window.__HOLE.reset({ demoSeen: true }); return window.__HOLE.save().gen; });
+    // through resetB: Chromium copies another tab's localStorage write over a
+    // moment later, and a write tab A makes before it sees the reset is a
+    // fixture race, not the product (CI run #530 lost it once)
+    const gB = await resetB();
     await eatMore(page);
     assert.equal(await page.evaluate(() => window.__HOLE.save().gen), gB, "fixture: tab A took the reset inside its own write");
     await B.evaluate(() => { window.__HOLE.start("toyroom"); window.__HOLE.autoplay(240); });
