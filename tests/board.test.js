@@ -830,6 +830,45 @@ test("🌈 a picture card AHEAD is a ZOOM: one swoop that grows and glows, lands
   assert.match(await page.locator(".bn-pad--0 .bn-pad__stars").textContent(), /⭐ 1/, "and his pad counts it");
 });
 
+test("🌈 a picture card BEHIND sends him back to it, as in Candy Land: one swoop, no star, and a kind word", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  // Josh on 25, his next card the dinosaur at 9: sixteen squares BACK
+  const s = L.create({ board: "rainbow", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
+  s.seats[0].pos = 25; s.seats[0].bag = [{ kind: "pic", at: 9 }];
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("rainbow", x), s), "fixture: loads");
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => {
+    window.__said = [];
+    window.__realAudio = { isMuted: window.JoshAudio.isMuted, say: window.JoshAudio.say, tone: window.JoshAudio.tone };
+    window.JoshAudio.isMuted = () => false;
+    window.JoshAudio.say = (t) => { window.__said.push(String(t)); };
+    window.JoshAudio.tone = () => {};
+  });
+  try {
+  await page.locator(".bn-pad--0").click();
+  await page.waitForFunction(() => document.querySelector(".bn-token--0").classList.contains("bn-token--ride"), null, { timeout: 3000 });
+  // straight back to the picture: never set down on a square in between
+  const seen = await page.evaluate(() => new Promise((res) => {
+    const t = document.querySelector(".bn-token--0"), got = new Set([t.dataset.pos]);
+    const mo = new MutationObserver(() => got.add(t.dataset.pos));
+    mo.observe(t, { attributes: true, attributeFilter: ["data-pos"] });
+    setTimeout(() => { mo.disconnect(); res([...got]); }, 1500);
+  }));
+  assert.deepEqual(seen.filter((p) => p !== "25" && p !== "9"), [], `the slide set the token down on ${seen}`);
+  assert.equal(await page.locator(".bn-token--0").getAttribute("data-pos"), "9", "all the way back to the dinosaur");
+  const after = await st();
+  assert.equal(after.seats[0].pos, 9, "the engine agrees");
+  assert.equal(after.seats[0].stars, 0, "a slide back is not a ride: no star");
+  await page.waitForFunction(() => !document.querySelector(".bn-token--0").classList.contains("bn-token--ride"), null, { timeout: 4000 });
+  const said = await page.evaluate(() => window.__said);
+  assert.ok(said.some((t) => /back to Dino land/.test(t)), `it says where he goes back to (${said.join(" | ")})`);
+  assert.ok(!said.some((t) => /zoom/i.test(t)), `it never says "Zoom" for a slide back (${said.join(" | ")})`);
+  } finally {
+    await page.evaluate(() => { if (window.__realAudio) Object.assign(window.JoshAudio, window.__realAudio); delete window.__realAudio; });
+  }
+});
+
 test("a ride's ⭐ lands on the pad when the token LANDS, not the moment the dice decide it", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await slow();

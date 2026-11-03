@@ -888,7 +888,7 @@
         game.showMover = e.mover;
         paintPads();
         SFX.flip();
-        sayPlay(cardLine(e.card));
+        sayPlay(cardLine(e));
         // the square the card sends him to lights up, so the match of card
         // and square is SEEN before the token sets off
         showMark(e.to);
@@ -908,6 +908,22 @@
             hideMark();
             popOnSquare(e.to, "⭐");
             landStar(e.mover);
+            paintBoardLabel();
+          });
+          at(T.hop, () => {});
+        } else if (e.back) {
+          // a picture card BEHIND slides him back to it, as in Candy Land: one
+          // swoop, like a comet, so he SEES where the picture is — never a
+          // square-by-square crawl backwards. No star: it is not a ride.
+          at(0, () => {
+            tokens[e.mover].classList.add("bn-token--ride");
+            moveToken(e.mover, e.to, T.ride);
+            SFX.comet();
+          });
+          at(T.ride, () => {
+            tokens[e.mover].classList.remove("bn-token--ride");
+            hideMark();
+            popOnSquare(e.to, String(e.to));
             paintBoardLabel();
           });
           at(T.hop, () => {});
@@ -962,10 +978,11 @@
       if (then) then();
     }
   }
-  function cardLine(card) {
+  function cardLine(e) {
+    const card = e.card;
     if (card.kind === "pic") {
       const lm = (game.board.landmarks || []).find((l) => l.at === card.at);
-      return fill(SAY.cardPic, { p: lm ? lm.say : "" });
+      return fill(e.zoom ? SAY.cardPic : e.back ? SAY.cardBack : SAY.cardPicGo, { p: lm ? lm.say : "" });
     }
     const c = DATA.colour(card.c);
     return cap(fill(card.kind === "two" ? SAY.cardTwo : SAY.card, { c: c.name, s: c.shape }));

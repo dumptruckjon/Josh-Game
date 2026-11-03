@@ -240,31 +240,58 @@ test("FIRST PLAYER: Josh starts (seat 0 by default), the other seat can start, a
   }
 });
 
-test("RAINBOW: no card, from any square, ever moves a token backwards, and a picture card behind you is still a move", () => {
+test("RAINBOW: only a picture card BEHIND you moves a token back — straight to its picture, early in the game, never once anyone is home", () => {
   const b = DATA.board("rainbow");
   const cards = [
     ...DATA.COLOURS.map((c) => ({ kind: "one", c: c.id })),
     ...DATA.COLOURS.map((c) => ({ kind: "two", c: c.id })),
     ...b.landmarks.map((l) => ({ kind: "pic", at: l.at })),
   ];
-  for (let from = 1; from < b.size; from++) {
-    for (const card of cards) {
-      const st = L.create({ board: "rainbow", seats: SEATS, seed: 3 });
-      st.seats[0].pos = from;
-      st.seats[0].bag = [card];
-      const ev = L.drawCard(st);
-      const mv = ev.find((e) => e.type === "card");
-      assert.ok(mv.to > from, `card ${JSON.stringify(card)} from ${from} moved to ${mv.to}`);
-      assert.deepEqual(mv.path, Array.from({ length: mv.to - from }, (_, k) => from + 1 + k), "the path is every square passed");
-      if (card.kind === "one" && mv.to < b.size) assert.equal(L.colourAt(b, mv.to), card.c, "a colour card lands on its colour");
-      if (card.kind === "pic" && card.at > from) assert.equal(mv.to, card.at, "a picture ahead zooms to it");
-      // a zoom is a RIDE: it says so, and it earns a star (a booster's rule);
-      // every other card is a plain move and earns nothing
-      const zoom = card.kind === "pic" && card.at > from;
-      assert.equal(mv.zoom, zoom, `card ${JSON.stringify(card)} from ${from}: zoom flag`);
-      assert.equal(st.seats[0].stars, zoom ? 1 : 0, `card ${JSON.stringify(card)} from ${from}: a star exactly for a zoom`);
+  // the three moments a picture card can come: a fresh game (slides on), late
+  // in the game (past BACK_CAP cards), and once the friend is home (helper)
+  const moments = [
+    ["early", () => {}, true],
+    ["late", (st) => { st.rolls = L.BACK_CAP; }, false],
+    ["friend home", (st) => { st.seats[1].pos = b.size; st.seats[1].home = true; st.order = [1]; }, false],
+  ];
+  let backs = 0;
+  for (const [when, set, slidesOn] of moments) {
+    for (let from = 1; from < b.size; from++) {
+      for (const card of cards) {
+        const st = L.create({ board: "rainbow", seats: SEATS, seed: 3 });
+        set(st);
+        st.seats[0].pos = from;
+        st.seats[0].bag = [card];
+        const ev = L.drawCard(st);
+        const mv = ev.find((e) => e.type === "card");
+        const tag = `${when}: card ${JSON.stringify(card)} from ${from}`;
+        const back = slidesOn && card.kind === "pic" && card.at < from;
+        assert.equal(!!mv.back, back, `${tag}: back flag`);
+        if (back) {
+          backs++;
+          // Candy Land: ALL the way back to the picture, however far
+          assert.equal(mv.to, card.at, `${tag}: a picture behind sends him back to it`);
+          assert.deepEqual(mv.path, Array.from({ length: from - mv.to }, (_, k) => from - 1 - k), `${tag}: the path is every square passed, going back`);
+        } else {
+          assert.ok(mv.to > from, `${tag}: moved to ${mv.to}`);
+          assert.deepEqual(mv.path, Array.from({ length: mv.to - from }, (_, k) => from + 1 + k), `${tag}: the path is every square passed`);
+        }
+        if (card.kind === "one" && mv.to < b.size) assert.equal(L.colourAt(b, mv.to), card.c, "a colour card lands on its colour");
+        if (card.kind === "pic" && card.at > from) assert.equal(mv.to, card.at, "a picture ahead zooms to it");
+        // a zoom is a RIDE: it says so, and it earns a star (a booster's rule);
+        // a slide back is not a ride, and every other card is a plain move
+        const zoom = card.kind === "pic" && card.at > from;
+        assert.equal(mv.zoom, zoom, `${tag}: zoom flag`);
+        assert.equal(st.seats[0].stars, zoom ? 1 : 0, `${tag}: a star exactly for a zoom`);
+      }
     }
   }
+  // not vacuous: the slide back really happens, from the whole back half
+  assert.ok(backs > 40, `only ${backs} slides back were played`);
+  // and it happens in real play, not only from a fixture
+  let real = 0;
+  for (let seed = 1; seed <= 300; seed++) real += play("rainbow", seed).ev.filter((e) => e.type === "card" && e.back).length;
+  assert.ok(real / 300 > 0.4, `a picture behind sends him back ${(real / 300).toFixed(2)} times a game`);
 });
 
 test("RESTORE: a saved game comes back exactly, and a broken one is dropped, never half-played", () => {

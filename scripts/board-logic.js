@@ -79,6 +79,11 @@
   // long game switches them off too, so every game ends in minutes. The 🐦 in
   // Apple Spin keeps the same rules.
   const COMET_CAP = 40;   // rolls (or spins) in total
+  // 🌈 a picture card BEHIND sends you back only in a game's first BACK_CAP
+  // cards (both players'). Measured over 3000 games: at 40 the longest game
+  // ran 52 turns; at 24 it is 42 with the median unchanged (18) and nearly
+  // every slide kept (0.72 a game against 0.76).
+  const BACK_CAP = 24;
   // Where a token STARTS: square 1 of a track, or an EMPTY basket
   const startOf = (board) => (board.game === "spin" ? 0 : 1);
 
@@ -185,24 +190,32 @@
     const i = st.mover, s = st.seats[i];
     const from = s.pos;
     let to;
+    st.rolls += 1;
     // a picture card AHEAD of you is a ZOOM: one swoop to its landmark, and —
-    // like every booster ride — a ⭐ for the ride. Behind you, it is a plain
-    // move to the next square of the landmark's colour (no zoom, no star).
+    // like every booster ride — a ⭐ for the ride. A picture card BEHIND you
+    // sends you BACK to it, as in Candy Land (the owner's call, 2026-11: "too
+    // forgiving"). Only while slides are on, exactly as the comets are: never
+    // once anyone is home (the helper rule — nobody loses) and never after
+    // BACK_CAP cards, so every game still ends in minutes. Outside that, and
+    // on the picture's own square, it is a plain move to the next square of
+    // the landmark's colour.
     const zoom = card.kind === "pic" && card.at > from;
-    if (zoom) to = card.at;
+    const back = card.kind === "pic" && card.at < from && !anyHome(st) && st.rolls <= BACK_CAP;
+    if (zoom || back) to = card.at;
     else if (card.kind === "pic") to = nextOf(board, from, colourAt(board, card.at));
     else if (card.kind === "two") to = nextOf(board, nextOf(board, from, card.c), card.c);
     else to = nextOf(board, from, card.c);
     to = Math.min(board.size, to);
-    // A move never goes backwards, under any card (a guardrail plays every
+    // Only a picture card behind you goes backwards (a guardrail plays every
     // card from every square to prove it).
-    if (to < from) to = from;
+    if (to < from && !back) to = from;
     s.pos = to;
     if (zoom) s.stars += 1;
     st.card = card;
     const path = [];
-    for (let n = from + 1; n <= to; n++) path.push(n);
-    const ev = [{ type: "card", seat: st.turn, mover: i, card, from, to, path, zoom }];
+    if (back) for (let n = from - 1; n >= to; n--) path.push(n);
+    else for (let n = from + 1; n <= to; n++) path.push(n);
+    const ev = [{ type: "card", seat: st.turn, mover: i, card, from, to, path, zoom, back }];
     if (to >= board.size) arrive(st, i, ev);
     endTurn(st, ev);
     return ev;
@@ -359,7 +372,7 @@
 
   const BoardLogic = {
     create, roll, hop, drawCard, spin, pick, autoTurn, snapshot, restore,
-    cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, COMET_CAP,
+    cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, COMET_CAP, BACK_CAP,
   };
   global.BoardLogic = BoardLogic;
   if (typeof module !== "undefined" && module.exports) module.exports = BoardLogic;

@@ -72,7 +72,8 @@ under our own names and art.
 - **Rainbow Trail:** tap the pad → a colour card flips (a colour AND a shape,
   so it reads in any colour vision) → the next square of that colour pulses
   and the token glides there. Double cards go to the second one; a picture
-  card zooms to its landmark.
+  card zooms to its landmark — or, if the landmark is BEHIND you, slides you
+  back to it, as in Candy Land (§10).
 - The turn passes by itself. A computer turn is played visibly at a counting
   pace, so every computer turn is a worked example.
 
@@ -207,3 +208,18 @@ Measured and NOT done: a landmark or rocket picture is covered while a token
 stands on its square (the token sits toward the square's bottom right, clear
 of the NUMBER, which is what he counts by). Moving every picture would trade
 one cover for another, so it stays.
+
+## 10. A picture card behind you sends you BACK (the owner, 2026-11)
+
+"We noticed, at least on Rainbow Road, that you were too forgiving. If we pull
+a picture card matching a space much earlier in the board, we expect the
+player to actually go backwards, just like in Candyland." Built: a picture card
+for a landmark behind you slides you all the way back to it in one swoop (like
+a comet, no ⭐: it is not a ride), with "Dino land! Whoosh, back to Dino land!".
+Two limits keep the no-lose rules: never once anyone is home (the helper is
+moving the friend), and never after the game's first 24 cards, so every game
+still ends in minutes. Measured over 3000 games: about 0.7 slides back a game;
+median 18 turns (was 17), 95% within 30, the longest 42. At a 40-card cutoff
+the longest ran 52, which is why it is 24. Outside those limits, and on the
+picture's own square, a picture card is the old gentle move to the next square
+of its colour.

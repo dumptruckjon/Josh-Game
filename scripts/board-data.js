@@ -85,7 +85,8 @@
       // ahead (so one card is never a long wait), and each colour appears 6 or
       // 7 times.
       colours: "GYBRPGYPBRPGYBRPGYRBPGYRGYBPBRGYPB",
-      // a picture card ZOOMS you forward to its landmark
+      // a picture card ZOOMS you forward to its landmark, or — behind you, in
+      // a game's first cards — slides you back to it, as in Candy Land
       landmarks: [
         { at: 9, pic: "🦕", say: "Dino land" },
         { at: 19, pic: "🚀", say: "Rocket land" },
@@ -144,6 +145,8 @@
     card: "{c} {s}!",
     cardTwo: "Two {c} {s}s!",
     cardPic: "{p}! Zoom!",
+    cardBack: "{p}! Whoosh, back to {p}!",
+    cardPicGo: "{p}!",
     keepGoing: "Keep playing!",
     spinFirst: "Tap to spin!",
     pickFirst: "Tap to pick! One tap, one apple.",
