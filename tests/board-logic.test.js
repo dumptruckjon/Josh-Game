@@ -33,7 +33,7 @@ test("data: every box opens a real board, every board is a real grid, every pers
     // its picture, and its size is the TEN-FRAME basket
     if (board.game === "spin") assert.equal(board.size, 10, `${board.id}: a basket is a ten-frame`);
     else assert.equal(board.size, board.cols * board.rows, `${board.id} fills its grid exactly`);
-    assert.ok(["dice", "cards", "spin"].indexOf(board.game) >= 0, `${board.id} is a dice, card or spinner game`);
+    assert.ok(["dice", "cards", "spin", "hen"].indexOf(board.game) >= 0, `${board.id} is a dice, card, spinner or farm game`);
     assert.ok(DATA.BOXES.some((b) => b.board === board.id), `${board.id} is on the shelf (no dead board)`);
   }
   for (const p of [DATA.JOSH, ...DATA.PEOPLE]) {
@@ -201,7 +201,8 @@ test("NO-LOSE: a token only ever goes back on a comet, a comet drops at most one
 
 test("THE HELPER RULE: once a player is home, their turns move their friend, turns still alternate, and the game ends only when both are home", () => {
   let helped = 0;
-  for (const board of DATA.BOARDS.map((b) => b.id)) {
+  // (a co-op board has no race to help in: both players walk ONE hen home)
+  for (const board of DATA.BOARDS.filter((b) => !b.coop).map((b) => b.id)) {
     for (let seed = 1; seed <= 800; seed++) {
       const st = L.create({ board, seats: SEATS, seed });
       let last = null, guard = 0;
@@ -233,7 +234,7 @@ test("THE HELPER RULE: once a player is home, their turns move their friend, tur
 });
 
 test("FIRST PLAYER: Josh starts (seat 0 by default), the other seat can start, and starting is an edge, never a lock-out", () => {
-  for (const board of DATA.BOARDS.map((b) => b.id)) {
+  for (const board of DATA.BOARDS.filter((b) => !b.coop).map((b) => b.id)) {
     let first0 = 0, firstOther = 0;
     const N = 2000;
     for (let seed = 1; seed <= N; seed++) {
@@ -623,4 +624,101 @@ test("💯 HUNDRED HOP: a real hundred chart (the square below is TEN MORE), a t
   assert.equal(L.restore({ ...g, phase: "hop", die: 4, left: 4 }), null, "a 4 is not on this die");
   assert.equal(L.restore({ ...g, seats: g.seats.map((s, i) => (i ? s : { ...s, bag: [10, 10, 10, 10] })) }), null, "a bag with four tens is not one bag of this die");
   assert.ok(L.restore({ ...g, seats: g.seats.map((s, i) => (i ? s : { ...s, bag: [10, 3, 10] })) }), "what is left of a real bag restores");
+});
+
+test("🐔 HEN HOUSE: the farm's laws, one hen for both, every square walked is ONE chick home, the fox only ever sends a chick out to PLAY, and every game ends with all 35 home", () => {
+  const b = DATA.board("hen");
+  assert.ok(b.coop, "Hen House is a co-op board");
+  assert.equal(b.animals.length, b.size - 2, "one animal on every square between the field and the hen house");
+  const ids = DATA.ANIMALS.map((a) => a.id);
+  for (let i = 0; i < b.animals.length; i++) {
+    assert.ok(ids.indexOf(b.animals[i]) >= 0, `square ${i + 2} has a real animal`);
+    if (i) assert.notEqual(b.animals[i], b.animals[i - 1], `squares ${i + 1} and ${i + 2} are not the same animal`);
+    if (i > 2) assert.ok(!(b.animals[i] === b.animals[i - 2] && b.animals[i - 1] === b.animals[i - 3]), `no ABAB at square ${i + 2}`);
+  }
+  for (const a of ids) {
+    const n = b.animals.split(a).length - 1;
+    assert.ok(n >= 8 && n <= 9, `${a} appears ${n} times`);
+    // every animal is close ahead of every square, so no spin is a long walk
+    // (near the end, an animal with none left walks to the hen house)
+    for (let from = 1; from < b.size; from++) assert.ok(L.nextAnimal(b, from, a) - from <= 6, `from ${from} the next ${a} is ${L.nextAnimal(b, from, a) - from} away`);
+  }
+  for (const a of DATA.ANIMALS) assert.ok(a.pic && /^[a-z]+$/.test(a.say), `${a.id} has a picture and a spoken name`);
+  assert.equal(DATA.box("hen").foxAfter, 2, "the fox joins from his THIRD Hen House game");
+  let foxes = 0, refused = 0, snaps = 0;
+  const turns = [];
+  for (const fox of [false, true]) {
+    for (let seed = 1; seed <= 1200; seed++) {
+      const st = L.create({ board: "hen", seats: SEATS, seed, first: seed % 2, fox });
+      let guard = 0, last = null;
+      const spins = [[], []];
+      assert.equal(st.turn, seed % 2, "either seat can start");
+      while (st.phase !== "done" && guard++ < 200) {
+        const t = st.turn;
+        if (last !== null) assert.notEqual(t, last, "turns alternate");
+        last = t;
+        const pos0 = st.seats[0].pos, coop0 = st.coop;
+        const ev = L.spin(st);
+        const face = ev[0].face;
+        spins[t].push(face);
+        if (face === L.FOX) {
+          foxes++;
+          assert.ok(fox, "no fox unless the fox is on");
+          assert.ok(coop0 > 0, "the fox never comes before a chick is home");
+          assert.equal(st.coop, coop0 - 1, "one chick runs out to play");
+          assert.ok(spins[t].length < 2 || spins[t][spins[t].length - 2] !== L.FOX, "never the fox on a player's two spins running");
+          assert.ok(pos0 <= b.size - b.cols, "never in the last row");
+        } else {
+          // the hen walks to the next square of that animal, one chick a tap
+          assert.equal(ev[0].to, L.nextAnimal(b, pos0, face));
+          let k = 0;
+          while (st.phase === "hop") {
+            const h = L.hop(st).filter((e) => e.type === "hop");
+            k++;
+            assert.equal(h.length, 1, "one tap, one step");
+            assert.equal(h[0].to, pos0 + k, "one square a tap");
+          }
+          assert.equal(st.seats[0].pos, ev[0].to, "she stops on that animal");
+          assert.ok(st.coop >= coop0 + k || st.phase === "done", "every square walked is one chick home");
+        }
+        assert.equal(st.seats[0].pos, st.seats[1].pos, "ONE hen for both");
+        snaps++;
+        assert.deepEqual(L.restore(JSON.parse(JSON.stringify(L.snapshot(st)))), st, "every state restores exactly");
+      }
+      assert.equal(st.phase, "done", `seed ${seed} ends`);
+      assert.equal(st.coop, b.size - 1, "every game ends with all 35 chicks home — the fox's playmates too");
+      assert.equal(st.out, 0, "nobody is left out playing");
+      assert.ok(st.seats.every((s) => s.home), "both home together");
+      turns.push(guard);
+    }
+  }
+  assert.ok(foxes > 1000, `fixture: the fox really comes (${foxes})`);
+  assert.ok(snaps > 10000, `fixture: the sweep saw ${snaps} states`);
+  turns.sort((x, y) => x - y);
+  assert.ok(turns[turns.length >> 1] >= 10 && turns[turns.length - 1] <= 30, `a game is a handful of spins (median ${turns[turns.length >> 1]}, longest ${turns[turns.length - 1]})`);
+  // the computer's bag is the same as Josh's: every spin bag is the four
+  // animals once each (and the fox, when on)
+  const st = L.create({ board: "hen", seats: SEATS, seed: 7 });
+  const faces = [];
+  for (let k = 0; k < 8; k++) { faces.push(L.spin(st)[0].face); while (st.phase === "hop") L.hop(st); }
+  assert.deepEqual(faces.filter((f, i) => i % 2 === 0).slice(0, 4).sort(), ids.slice().sort(), "Josh's four spins are the four animals once each");
+  assert.deepEqual(faces.filter((f, i) => i % 2 === 1).slice(0, 4).sort(), ids.slice().sort(), "and so are the friend's");
+  // a fox that may not come waits: directly, no chick home yet
+  const f = L.create({ board: "hen", seats: SEATS, seed: 2, fox: true });
+  f.seats[0].bag = [L.FOX, "C"];
+  const ev = L.spin(f);
+  assert.equal(ev[0].face, "C", "no fox before a chick is home: the cow comes instead");
+  assert.ok(f.seats[0].bag.indexOf(L.FOX) >= 0, "and the fox waits in the bag");
+  // states no game reaches
+  const g = L.snapshot(L.create({ board: "hen", seats: SEATS, seed: 4, fox: true }));
+  const bad = [
+    ["two hens", { ...g, seats: [{ ...g.seats[0], pos: 3 }, g.seats[1]] }],
+    ["a chick count that is not the squares walked", { ...g, coop: 4 }],
+    ["chicks out playing with the fox off", { ...g, fox: false, out: 1, coop: -1 }],
+    ["a fox in a fox-off bag", { ...g, fox: false, seats: [{ ...g.seats[0], bag: [L.FOX] }, g.seats[1]] }],
+    ["a cow twice in one bag", { ...g, seats: [{ ...g.seats[0], bag: ["C", "C"] }, g.seats[1]] }],
+    ["a face that is not an animal", { ...g, card: "Z" }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
 });

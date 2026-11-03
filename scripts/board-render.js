@@ -49,6 +49,7 @@
   // ---- The board ----------------------------------------------------------
   function boardSVG(board) {
     if (board.layout === "chart") return chartSVG(board);
+    if (board.game === "hen") return farmSVG(board);
     const W = board.cols * CELL, H = board.rows * CELL;
     const moon = board.game === "dice";
     let s = '<svg class="bn-svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-hidden="true" focusable="false">';
@@ -126,6 +127,30 @@
     }
     const z = centre(board, board.size);
     s += emojiAt("🎉", z.x + 16, z.y + 38, 40);
+    return s + "</svg>";
+  }
+  // ---- 🐔 the farm --------------------------------------------------------
+  // Grass, a dashed path the hen walks (snaking like the other boards), and on
+  // every square between the field and the hen house its ANIMAL, big — the
+  // picture he matches with the spinner. No numbers: the number here is the
+  // chicks, counted on the hen house as she brings them.
+  function farmSVG(board) {
+    const W = board.cols * CELL, H = board.rows * CELL;
+    let s = '<svg class="bn-svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-hidden="true" focusable="false">';
+    s += '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="22" fill="#9fd77a"/>';
+    let pts = "";
+    for (let n = 1; n <= board.size; n++) { const p = centre(board, n); pts += p.x + "," + p.y + " "; }
+    s += '<polyline points="' + pts + '" fill="none" stroke="#8a5a33" stroke-opacity="0.45" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 18"/>';
+    for (let n = 1; n <= board.size; n++) {
+      const c = L.cellOf(board, n), x = c.col * CELL, y = (board.rows - 1 - c.row) * CELL;
+      const fill = n === 1 ? "#ffe9a8" : n === board.size ? "#ffd2b0" : (c.col + c.row) % 2 ? "#f4f9e6" : "#e6f4d2";
+      s += '<rect class="bn-cell" data-n="' + n + '" x="' + (x + 5) + '" y="' + (y + 5) + '" width="90" height="90" rx="18" fill="' + fill + '" stroke="rgba(60,40,10,0.25)" stroke-width="2"/>';
+      const a = L.animalAt(board, n), an = a && DATA.animal(a);
+      if (an) s += '<text class="bn-farm" data-n="' + n + '" data-a="' + a + '" x="' + (x + 50) + '" y="' + (y + 68) + '" text-anchor="middle" font-size="54">' + an.pic + "</text>";
+    }
+    const f = centre(board, 1), h = centre(board, board.size);
+    s += emojiAt("🌾", f.x - 16, f.y + 4, 40) + emojiAt("🐥", f.x + 18, f.y + 34, 36);
+    s += emojiAt("🏠", h.x, h.y + 20, 60);
     return s + "</svg>";
   }
   function emojiAt(e, x, y, size) {
@@ -234,5 +259,19 @@
     return s + "</svg>";
   }
 
-  global.BoardRender = { boardSVG, shapeSVG, faceHTML, spot, centre, CELL, orchardSVG, spinnerSVG, slotOf, pieSpot, treeSpot, ORCHARD, ORCH };
+  // 🐔 the farm's spinner: four wedges, one animal on each
+  function farmSpinnerSVG() {
+    const cols = ["#ffe08a", "#ffc6d9", "#d8ecff", "#d6f0c2"];
+    let s = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">';
+    for (let k = 0; k < 4; k++) {
+      const a0 = (k * Math.PI) / 2 - Math.PI / 4, a1 = a0 + Math.PI / 2, am = a0 + Math.PI / 4;
+      s += '<path d="M50 50 L' + (50 + 44 * Math.cos(a0)).toFixed(1) + " " + (50 + 44 * Math.sin(a0)).toFixed(1) +
+        " A44 44 0 0 1 " + (50 + 44 * Math.cos(a1)).toFixed(1) + " " + (50 + 44 * Math.sin(a1)).toFixed(1) + ' Z" fill="' + cols[k] + '" stroke="#1d1d2b" stroke-width="2"/>';
+      s += '<text x="' + (50 + 26 * Math.cos(am)).toFixed(1) + '" y="' + (58 + 26 * Math.sin(am)).toFixed(1) + '" text-anchor="middle" font-size="22">' + DATA.ANIMALS[k].pic + "</text>";
+    }
+    s += '<circle cx="50" cy="50" r="6" fill="#ffffff" stroke="#1d1d2b" stroke-width="2"/>';
+    return s + "</svg>";
+  }
+
+  global.BoardRender = { farmSpinnerSVG, boardSVG, shapeSVG, faceHTML, spot, centre, CELL, orchardSVG, spinnerSVG, slotOf, pieSpot, treeSpot, ORCHARD, ORCH };
 })(typeof window !== "undefined" ? window : globalThis);

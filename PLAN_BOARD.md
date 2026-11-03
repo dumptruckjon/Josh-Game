@@ -1,7 +1,7 @@
 # 🎲 Game Night — board games for Josh (and a friend)
 
 **Status: BATCHES 1 AND 2 BUILT, AUDITED TWICE; BATCH 3 BUILDING** (§11:
-💯 Hundred Hop built; 🐔 Hen House and 🧺 Picnic Lotto next) — the door, the shelf, the shared turn
+💯 Hundred Hop and 🐔 Hen House built; 🧺 Picnic Lotto next) — the door, the shelf, the shared turn
 routine, the engine, 🚀 Moon Race (with ☄️ Comet Moon), 🌈 Rainbow Trail, and
 🍎 Apple Spin (the owner's go, 2026-10-28, with "deeply audit the first 2
 games … to make them even more high quality and fun and exciting": §8).
@@ -246,10 +246,20 @@ four already on the shelf, each luck-only, each portrait-first and no-lose:
    iPhone) with an 11px number, too small for a token BESIDE its number; the
    token is a RING round its whole square instead, the number showing inside
    it, the face in the square's bottom right quarter.
-2. **🐔 Hen House** — co-op, the Count Your Chickens shape: one shared hen, a
-   spinner of farm animals, and every hop to the next square with that animal
-   brings one chick home to the coop, counted in ten-frames. A gentle fox from
-   his third game sends one chick out to play (it comes home at the end).
+2. **🐔 Hen House (BUILT)** — co-op, the Count Your Chickens shape (a
+   trademark; only the mechanic is borrowed): ONE shared hen walks the farm
+   from the field to the hen house. Spin a cow, pig, sheep or dog, the square
+   of the next one lights up, and every tap walks her one square and brings
+   ONE chick home — the count he says is the chicks, shown on the hen house
+   ("🐥 12"). From his third game a 🦊 joins the spinner with the bird's
+   rules (never before a chick is home, never twice running, never in the
+   last row, never in a long game): it sends one chick out to PLAY, never
+   away, and every chick comes home with the hen, so every game ends with all
+   35 home and one party for both. The animal path (34 squares) is a seeded
+   search for no equal neighbours, no ABAB, 8-9 of each and every animal
+   never more than 6 squares ahead; a game is about 14 spins (17 with the
+   fox), about a minute at the shell's pace. The engine's spin() and hop()
+   route a farm game to its own moves, so every generic sweep plays it.
 3. **🧺 Picnic Lotto** — picture lotto: each player has a picnic blanket of six
    foods; tap the basket, a food comes out, and he finds where it goes —
    his blanket or his friend's ("A banana for River!"). Both blankets fill; one

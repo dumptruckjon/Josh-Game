@@ -35,7 +35,9 @@
   // box · intro: whether he has been shown how (dice / cards) · auto: the
   // grown-up "hop by itself" switch · next: who starts the next two-person
   // game per box · last: the last box and its players.
-  function freshSave() { return { v: 1, games: {}, done: {}, intro: { dice: false, cards: false, spin: false }, auto: false, next: {}, last: null }; }
+  // "has been shown how", per kind of game (each kind's first-time hand)
+  const INTRO = ["dice", "cards", "spin", "hen"];
+  function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, next: {}, last: null }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
   function coerce(text) {
     const s = freshSave();
@@ -51,7 +53,7 @@
       }
     }
     if (isObj(raw.done)) for (const [box, n] of Object.entries(raw.done)) if (DATA.box(box) && Number.isInteger(n) && n > 0) s.done[box] = n;
-    if (isObj(raw.intro)) { s.intro.dice = raw.intro.dice === true; s.intro.cards = raw.intro.cards === true; s.intro.spin = raw.intro.spin === true; }
+    if (isObj(raw.intro)) for (const k of INTRO) s.intro[k] = raw.intro[k] === true;
     s.auto = raw.auto === true;
     if (isObj(raw.next)) for (const [box, n] of Object.entries(raw.next)) if (DATA.box(box) && (n === 0 || n === 1)) s.next[box] = n;
     if (isObj(raw.last) && DATA.box(raw.last.box) && DATA.person(raw.last.who) && typeof raw.last.cpu === "boolean") {
@@ -76,9 +78,7 @@
     for (const box of Object.keys(save.games)) if (!own.has(box) && !disk.games[box]) delete save.games[box];
     for (const [box, g] of Object.entries(disk.games)) if (!own.has(box)) save.games[box] = g;
     for (const [box, n] of Object.entries(disk.done)) save.done[box] = Math.max(save.done[box] || 0, n + (added[box] || 0));
-    save.intro.dice = save.intro.dice || disk.intro.dice;
-    save.intro.cards = save.intro.cards || disk.intro.cards;
-    save.intro.spin = save.intro.spin || disk.intro.spin;
+    for (const k of INTRO) save.intro[k] = save.intro[k] || disk.intro[k];
   }
   function persist() {
     syncSave();
@@ -122,7 +122,7 @@
   // ---- The screens -----------------------------------------------------------
   let shelf = null, who = null, pick = null, play = null;
   let boardEl = null, svgWrap = null, tokens = [null, null], pads = [null, null], hand = null, party = null;
-  let applesEl = null, popEl = null, markEl = null;
+  let applesEl = null, popEl = null, markEl = null, coopEl = null;
   let whoBox = null, pickMode = null;   // which box the who/pick screens are for
 
   const bar = (cls, backLabel, backIcon, title) =>
@@ -193,6 +193,8 @@
           '<div class="bn-svgwrap"></div>' +
           // 🌈 the square a card sends you to, ringed until you get there
           '<div class="bn-mark" aria-hidden="true" hidden></div>' +
+          // 🐔 the chicks home in the hen house, counted as she brings them
+          '<div class="bn-coop" aria-hidden="true" hidden></div>' +
           // 🍎 the apples that move (in the baskets, the pie, and flying)
           '<div class="bn-apples" aria-hidden="true"></div>' +
           '<div class="bn-token bn-token--0" aria-hidden="true"><span class="bn-token__face"></span></div>' +
@@ -229,6 +231,7 @@
     applesEl = play.querySelector(".bn-apples");
     popEl = play.querySelector(".bn-pop");
     markEl = play.querySelector(".bn-mark");
+    coopEl = play.querySelector(".bn-coop");
     play.querySelector(".bn-playback").addEventListener("click", () => { location.hash = "#board-home"; });
     play.querySelector(".bn-hear").addEventListener("click", () => { hint(true); });
     party.querySelector(".bn-again").addEventListener("click", () => { if (game) newGame(game.box, game.friend, game.cpu); });
@@ -344,7 +347,9 @@
     const seed = (Date.now() ^ Math.floor(now() * 1000)) >>> 0;
     // the 🐦 joins Apple Spin from his third game there (as the comets do)
     const birds = b.birdsAfter != null && (save.done[box] || 0) >= b.birdsAfter;
-    const st = L.create({ board: b.board, seats: [{ who: "josh" }, { who: friend, cpu }], seed, first, birds });
+    // the 🦊 joins Hen House from his third game there (the same rule)
+    const fox = b.foxAfter != null && (save.done[box] || 0) >= b.foxAfter;
+    const st = L.create({ board: b.board, seats: [{ who: "josh" }, { who: friend, cpu }], seed, first, birds, fox });
     save.last = { box, who: friend, cpu };
     save.games[box] = { st: L.snapshot(st), at: Date.now() };
     own.add(box);
@@ -378,10 +383,13 @@
     hideMark();
     endRides();
     endCheer();
+    const farm = board.game === "hen";
     for (let i = 0; i < 2; i++) {
       const p = seatPerson(i);
-      tokens[i].querySelector(".bn-token__face").innerHTML = R.faceHTML(p);
-      tokens[i].style.borderColor = p.colour;
+      // 🐔 co-op: ONE token, the hen, that both players walk home
+      tokens[i].hidden = farm && i === 1;
+      tokens[i].querySelector(".bn-token__face").innerHTML = farm ? '<span class="bn-emoji">🐔</span>' : R.faceHTML(p);
+      tokens[i].style.borderColor = farm ? "#c2410c" : p.colour;
       tokens[i].style.transitionDuration = "0ms";
       pads[i].querySelector(".bn-pad__face").innerHTML = R.faceHTML(p);
       pads[i].querySelector(".bn-pad__face").classList.toggle("bn-tablet", !!st.seats[i].cpu);
@@ -430,7 +438,7 @@
       }
       return;
     }
-    const shared = st.seats[0].pos === st.seats[1].pos;
+    const shared = b.game !== "hen" && st.seats[0].pos === st.seats[1].pos;
     for (let i = 0; i < 2; i++) {
       const sp = R.spot(b, st.seats[i].pos, i, shared);
       tokens[i].classList.toggle("bn-token--shared", shared);
@@ -444,7 +452,8 @@
   function moveToken(i, n, ms) {
     const b = game.board, other = game.shown[1 - i];
     game.shown[i] = n;
-    const shared = other === n;
+    if (b.game === "hen") game.shown[1 - i] = n;   // one hen: both seats stand where she does
+    const shared = b.game !== "hen" && other === n;
     for (const k of [0, 1]) {
       const sp = R.spot(b, game.shown[k], k, shared);
       if (ms != null && k === i) tokens[k].style.transitionDuration = ms + "ms";
@@ -468,16 +477,34 @@
     // the ride did gave the ending away)
     game.shownStars = game.st.seats.map((s) => s.stars);
     if (game.showTurn == null) { game.showTurn = game.st.turn; game.showMover = game.st.mover; }
+    game.shownCoop = game.st.coop || 0;
     placeTokens();
     paintApples();
+    paintCoop();
     paintPads();
     paintBoardLabel();
+  }
+  // 🐔 the hen house's count: "🐥 12", on the hen house square
+  function paintCoop() {
+    if (!coopEl) return;
+    const b = game.board;
+    coopEl.hidden = b.game !== "hen";
+    if (coopEl.hidden) return;
+    const c = R.centre(b, b.size);
+    coopEl.style.left = (c.x / (b.cols * R.CELL) * 100) + "%";
+    coopEl.style.top = ((c.y - R.CELL * 0.3) / (b.rows * R.CELL) * 100) + "%";
+    coopEl.textContent = "🐥 " + game.shownCoop;
+    coopEl.dataset.n = String(game.shownCoop);
   }
   function paintBoardLabel() {
     const st = game.st;
     if (game.board.game === "spin") {
       boardEl.setAttribute("aria-label", st.seats.map((s, i) => nameOf(i) + " has " + game.shown[i] + (game.shown[i] === 1 ? " apple" : " apples")).join(". ") +
         ". " + game.shownPie + " in the pie.");
+      return;
+    }
+    if (game.board.game === "hen") {
+      boardEl.setAttribute("aria-label", "The hen is " + (st.seats[0].home ? "home" : "on square " + game.shown[0]) + ". " + game.shownCoop + (game.shownCoop === 1 ? " chick is" : " chicks are") + " in the hen house.");
       return;
     }
     boardEl.setAttribute("aria-label", st.seats.map((s, i) => nameOf(i) + (s.home ? " is home" : " is on " + game.shown[i])).join(". "));
@@ -507,6 +534,17 @@
         pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
         const hopping = active && st.phase === "hop" && st.turn === i;
         pad.setAttribute("aria-label", nameOf(i) + (active ? (hopping ? (st.die === L.TEN ? ": tap for ten more" : ": tap to hop, " + st.left + " to go") : ": tap to roll the dice") : ": wait for your turn") + (s.home ? ", home" : ""));
+      } else if (game.board.game === "hen") {
+        // 🐔 the farm's spinner: the wheel turns, then shows the ANIMAL spun
+        // and one 🐥 per square to walk, each going pale as a chick runs home
+        if (active && game.tumbling) {
+          if (!act.querySelector(".bn-spinner--go")) act.innerHTML = '<span class="bn-spinner bn-spinner--go" style="animation-duration:' + T.tumble + 'ms">' + R.farmSpinnerSVG() + "</span>";
+        } else if (active && game.rolled && st.phase === "hop" && st.turn === i) act.innerHTML = farmHTML(st.card, st.die, st.left);
+        else if (active && game.rolled && st.card === L.FOX) act.innerHTML = farmHTML(L.FOX, 0, 0);
+        else act.innerHTML = '<span class="bn-spinner">' + R.farmSpinnerSVG() + "</span>";
+        pad.querySelector(".bn-pad__stars").textContent = "";
+        const walking = active && st.phase === "hop" && st.turn === i;
+        pad.setAttribute("aria-label", nameOf(i) + (active ? (walking ? ": tap to walk, " + st.left + " to go" : ": tap to spin") : ": wait for your turn"));
       } else if (game.board.game === "spin") {
         // while it spins, the WHEEL spins (it used to tilt and flash apples):
         // drawn once, so its turning is never restarted mid-spin
@@ -571,6 +609,14 @@
     for (let k = 0; k < n; k++) s += '<span class="bn-spin__apple' + (k >= n - lit ? "" : " bn-spin__apple--used") + '">🍎</span>';
     return s + "</span>";
   }
+  // 🐔 a spin's result on the pad: the animal, and a 🐥 per square to walk
+  function farmHTML(face, n, lit) {
+    if (face === L.FOX) return '<span class="bn-spin bn-spin--fox" data-face="F">🦊</span>';
+    const an = DATA.animal(face);
+    let s = '<span class="bn-spin bn-spin--farm" data-face="' + face + '"><span class="bn-spin__animal">' + (an ? an.pic : "") + '</span><span class="bn-spin__chicks">';
+    for (let k = 0; k < n; k++) s += '<span class="bn-spin__chick' + (k >= n - lit ? "" : " bn-spin__chick--used") + '">🐥</span>';
+    return s + "</span></span>";
+  }
   function cardHTML(card, flip) {
     const b = game.board, f = flip ? " bn-card--flip" : "";
     if (card.kind === "pic") {
@@ -610,7 +656,9 @@
   }
   // what to do with a die just rolled: hop once a tap — or, for a 💯 ten-bar,
   // one tap for ten more
-  function hopLine() { return game && game.st.die === L.TEN ? SAY.tenFirst : SAY.hopFirst; }
+  function hopLine() { return !game ? SAY.hopFirst : game.board.game === "hen" ? SAY.henFirst : game.st.die === L.TEN ? SAY.tenFirst : SAY.hopFirst; }
+  // which first-time hand a HOP belongs to: the dice's, or the farm's
+  function introKey() { return game && game.board.game === "hen" ? "hen" : "dice"; }
   function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" ? SAY.spinFirst : SAY.flipFirst; }
 
   function padTap(i) {
@@ -630,7 +678,7 @@
     if (game.board.game === "cards") return flipCard();
     if (st.phase === "roll") return rollDice();
     if (st.phase === "hop" && !save.auto) return hopOnce();
-    if (st.phase === "spin") return spinApples();
+    if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
     if (st.phase === "pick" && !save.auto) return pickOnce();
   }
   function wiggle(el) {
@@ -668,7 +716,7 @@
       persistGame();
       const st = game.st;
       if (st.seats[st.turn].cpu) { later(cpuHop, T.cpuHop); return; }
-      if (!save.intro.dice) { sayPlay(hopLine()); showHand(st.turn); }
+      if (!save.intro[introKey()]) { sayPlay(hopLine()); showHand(st.turn); }
       if (save.auto) autoHops();
     }, T.tumble);
   }
@@ -688,7 +736,7 @@
     if (!ev.length) return;
     game.hopUntil = now() + T.hop;
     hideHand();
-    if (!save.intro.dice && !st.seats[ev[0].seat].cpu) { save.intro.dice = true; persist(); }
+    if (!save.intro[introKey()] && !st.seats[ev[0].seat].cpu) { save.intro[introKey()] = true; persist(); }
     playEvents(ev);
   }
   function cpuHop() {
@@ -710,7 +758,7 @@
     if (st.phase === "done" || !st.seats[st.turn].cpu) return;
     if (game.board.game === "cards") return flipCard();
     if (st.phase === "roll") return rollDice();
-    if (st.phase === "spin") return spinApples();
+    if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
     if (st.phase === "pick") return cpuPick();
     cpuHop();
   }
@@ -745,6 +793,36 @@
       if (st.seats[st.turn].cpu) { later(cpuPick, T.cpuHop); return; }
       if (!save.intro.spin) { sayPlay(SAY.pickFirst); showHand(st.turn); }
       if (save.auto) autoPicks();
+    }, T.tumble);
+  }
+  // 🐔 the farm's spinner: it turns, lands on an animal, and the square the
+  // hen walks to lights up (the 🌈 card's mark) — then one tap, one chick.
+  // A 🦊 is the whole turn.
+  function spinFarm() {
+    game.busy = true;
+    hideHand();
+    const ev = L.spin(game.st);
+    if (!ev.length) { game.busy = false; return; }
+    game.rolled = true;
+    game.tumbling = true;
+    let k = 0;
+    paintPads();
+    const go = () => { k++; SFX.tick(); if (k * 100 < T.tumble) later(go, 100); };
+    go();
+    later(() => {
+      game.tumbling = false;
+      SFX.thunk();
+      game.busy = false;
+      paintPads();
+      const st = game.st, e = ev[0];
+      if (e.face === L.FOX) { playEvents(ev.slice(1)); return; }
+      const an = DATA.animal(e.face);
+      sayPlay(fill(SAY.henSpin, { a: an ? an.say : "" }));
+      showMark(e.to);
+      persistGame();
+      if (st.seats[st.turn].cpu) { later(cpuHop, T.cpuHop); return; }
+      if (!save.intro.hen) { sayPlay(SAY.henFirst); showHand(st.turn); }
+      if (save.auto) autoHops();
     }, T.tumble);
   }
   function autoPicks() {
@@ -860,7 +938,44 @@
     const at = (ms, fn) => { t += ms; later(fn, t); };
     let turnEnded = false;
     for (const e of ev) {
-      if (e.type === "hop" && e.ten) {
+      if (e.type === "hop" && game.board.game === "hen") {
+        // 🐔 the hen walks one square and one chick runs into the hen house:
+        // the COUNT is the chicks home, popped and said
+        moveToken(0, e.to, T.hop);
+        game.shownCoop = e.coop;
+        paintCoop();
+        paintPads();
+        SFX.plop(e.coop);
+        sayPlay(String(e.coop));
+        popOnSquare(e.to, String(e.coop));
+        if (e.left === 0) hideMark();
+        paintBoardLabel();
+      } else if (e.type === "fox") {
+        // 🦊 a fox wants to play: one chick runs OUT of the hen house to play
+        // (it comes home at the end) — never a scold, a friendly tweet
+        at(T.hop, () => {
+          game.shownCoop = e.coop;
+          paintCoop();
+          SFX.tweet();
+          sayPlay(SAY.fox);
+          const c = R.centre(game.board, game.board.size);
+          popAt({ x: c.x / (game.board.cols * R.CELL), y: (c.y + R.CELL * 0.35) / (game.board.rows * R.CELL) }, "🦊", true);
+          paintBoardLabel();
+        });
+        at(T.ride, () => {});
+      } else if (e.type === "henhome") {
+        // the hen is home: the chicks who were out playing run home too
+        at(T.hop + 120, () => {
+          game.shownCoop = e.coop;
+          paintCoop();
+          hideMark();
+          SFX.home();
+          sayPlay(SAY.henHome);
+          try { if (global.JoshEffects && playVisible()) global.JoshEffects.stars(); } catch (err) { /* ignore */ }
+          paintBoardLabel();
+        });
+        at(900, () => {});
+      } else if (e.type === "hop" && e.ten) {
         // 💯 a ten-bar: one slide straight DOWN one row of the chart, ten
         // more ("24… 34! Ten more!"): slower than a hop, so the straight-down
         // line is seen
@@ -1076,7 +1191,7 @@
   function endLine(kind) {
     const g = game.board.game;
     if (g === "spin") return kind === "home" ? SAY.full : fill(SAY.endApple, { k: 20 + (game.st.pie || 0) });
-    if (game.board.lines) return game.board.lines[kind];
+    if (game.board.lines) return fill(game.board.lines[kind], { k: game.st.coop });
     if (g === "dice") return kind === "home" ? SAY.homeMoon : SAY.endMoon;
     return kind === "home" ? SAY.homeTrail : SAY.endTrail;
   }
@@ -1108,7 +1223,7 @@
   function hidePop() { if (popEl) { popEl.hidden = true; popEl.classList.remove("bn-pop--go"); } }
   // 🌈 the target square's ring
   function showMark(n) {
-    if (!markEl || game.board.game !== "cards") return;
+    if (!markEl || (game.board.game !== "cards" && game.board.game !== "hen")) return;
     const b = game.board, c = L.cellOf(b, n);
     markEl.style.left = (c.col / b.cols * 100) + "%";
     markEl.style.top = ((b.rows - 1 - c.row) / b.rows * 100) + "%";
@@ -1267,7 +1382,7 @@
       game = null; pending = null;
       save = freshSave();
       own.clear(); added = {};
-      if (opts && opts.introSeen) { save.intro.dice = true; save.intro.cards = true; save.intro.spin = true; }
+      if (opts && opts.introSeen) for (const k of INTRO) save.intro[k] = true;
       if (opts && opts.done) Object.assign(save.done, opts.done);
       // a reset WRITES, it does not fold: persist() keeps the larger of each
       // finished-games count and ORs "has been shown how", so a reset through
@@ -1279,7 +1394,7 @@
     // screen would.
     start(box, friend, cpu, seed, first, birds) {
       const b = DATA.box(box);
-      const st = L.create({ board: b.board, seats: [{ who: "josh" }, { who: friend, cpu: !!cpu }], seed: seed || 1, first: first || 0, birds: !!birds });
+      const st = L.create({ board: b.board, seats: [{ who: "josh" }, { who: friend, cpu: !!cpu }], seed: seed || 1, first: first || 0, birds: !!birds, fox: !!birds });
       save.games[box] = { st: L.snapshot(st), at: Date.now() };
       save.last = { box, who: friend, cpu: !!cpu };
       own.add(box);

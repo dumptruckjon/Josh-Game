@@ -43,6 +43,17 @@
     { id: "P", name: "purple", shape: "diamond", fill: "#9a4fd6" },
   ];
 
+  // ---- 🐔 Hen House's farm animals ----------------------------------------
+  // A square's animal and a spinner face are the same picture: spin a 🐄 and
+  // the hen walks to the next 🐄. Four animals a four-year-old names at once,
+  // each a different shape (never two that look alike), each said by name.
+  const ANIMALS = [
+    { id: "C", pic: "🐄", say: "cow" },
+    { id: "P", pic: "🐖", say: "pig" },
+    { id: "S", pic: "🐑", say: "sheep" },
+    { id: "D", pic: "🐕", say: "dog" },
+  ];
+
   // ---- The boards ---------------------------------------------------------
   // Squares are numbered 1..size and snake back and forth from the bottom left
   // (row 1 runs left to right, row 2 right to left, …), exactly like a real
@@ -108,6 +119,22 @@
       lines: { home: "{n} made it to one hundred!", end: "You both made it to one hundred! High five!" },
     },
     {
+      // 🐔 Hen House (the Count Your Chickens shape): CO-OP. One shared hen
+      // walks the farm from the field (square 1, where the chicks wait) to the
+      // hen house (36). Spin an animal, and the hen walks to the next square
+      // with that animal — and every square she walks, one chick follows her
+      // home, counted. So a spin's chicks are the squares between, and he
+      // counts them hop by hop. From his third game a 🦊 fox joins the
+      // spinner (`foxAfter`): it never hurts — one chick runs out to PLAY, and
+      // every chick comes home at the end, so the count always ends at 35.
+      // `animals`: squares 2..35, one letter each, found by a seeded search
+      // for the laws board-logic.test.js restates (no two neighbours alike,
+      // no ABAB, every animal never more than 6 squares ahead, 8 or 9 of each).
+      id: "hen", box: "hen", game: "hen", name: "Hen House", coop: true,
+      cols: 6, rows: 6, size: 36,
+      animals: "SDPCSPDCPDSCDPCSPDSCDSPDCSCDPSCPCD",
+    },
+    {
       // 🍎 Apple Spin (Hi-Ho Cherry-O's mechanic): no track at all. Each
       // player fills their own TEN-FRAME basket from a big tree; `size` is the
       // basket. A spin says how many apples to pick (one tap, one apple); a
@@ -133,6 +160,8 @@
     // the 🐦 joins from his THIRD Apple game, exactly as the comets do
     { id: "apple", board: "apple", name: "Apple Spin", pic: "🍎", colour: "#d63b3b", birdsAfter: 2 },
     { id: "hundred", board: "hundred", name: "Hundred Hop", pic: "💯", colour: "#e08a00" },
+    // the 🦊 joins from his THIRD Hen House game, exactly as the comets do
+    { id: "hen", board: "hen", name: "Hen House", pic: "🐔", colour: "#c2410c", foxAfter: 2 },
   ];
 
   // ---- Every line the game says ------------------------------------------
@@ -170,11 +199,17 @@
     bird: "Tweet! A silly bird put one back. {to} in the basket.",
     endApple: "Ten, twenty! {k} apples in the pie! Yum!",
     tenFirst: "Tap once for ten more!",
+    henSpin: "A {a}! Walk to the {a}!",
+    henFirst: "Tap to walk! One tap, one chick.",
+    fox: "Oh! A fox wants to play. One chick ran out to play!",
+    henHome: "The hen is home! Here come the chicks who were playing!",
+    endHen: "All {k} chicks are home! We did it together!",
     ten: "{to}! Ten more!",
     tens: "{to}! A star!",
   };
 
-  const BoardData = { JOSH, FRIENDS, PEOPLE, COLOURS, BOARDS, BOXES, SAY };
+  const BoardData = { JOSH, FRIENDS, PEOPLE, COLOURS, ANIMALS, BOARDS, BOXES, SAY };
+  BoardData.animal = (id) => ANIMALS.find((a) => a.id === id) || null;
   BoardData.board = (id) => BOARDS.find((b) => b.id === id) || null;
   BoardData.box = (id) => BOXES.find((b) => b.id === id) || null;
   BoardData.person = (id) => (id === "josh" ? JOSH : PEOPLE.find((p) => p.id === id) || null);

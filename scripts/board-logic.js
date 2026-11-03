@@ -50,6 +50,13 @@
     if (birds) bag.push(0);
     return shuffle(seat, bag);
   }
+  // 🐔 a spinner bag of the farm's animals, plus a 🦊 ("F") once the fox is on
+  function henBag(seat, fox) {
+    const bag = DATA.ANIMALS.map((a) => a.id);
+    if (fox) bag.push(FOX);
+    return shuffle(seat, bag);
+  }
+  const FOX = "F";
   function draw(seat, make) {
     if (!seat.bag.length) seat.bag = make();
     return seat.bag.shift();
@@ -71,6 +78,16 @@
   function colourAt(board, n) {
     if (!board.colours || n < 2 || n >= board.size) return null;
     return board.colours.charAt(n - 2) || null;
+  }
+  // 🐔 the animal on square n (null on the field and the hen house), and the
+  // next square after `from` with animal a — or the hen house if none is left
+  function animalAt(board, n) {
+    if (!board.animals || n < 2 || n >= board.size) return null;
+    return board.animals.charAt(n - 2) || null;
+  }
+  function nextAnimal(board, from, a) {
+    for (let n = from + 1; n < board.size; n++) if (animalAt(board, n) === a) return n;
+    return board.size;
   }
   function landmarkAt(board, n) { return (board.landmarks || []).find((l) => l.at === n) || null; }
   // The next square AFTER `from` of colour c, or the cake if none is left: the
@@ -105,6 +122,7 @@
         rng: (seed * (i + 7) + 0x9E3779B9 * (i + 1)) | 0,
       };
       if (spin) seat.bird = false;   // did the 🐦 visit this player's last spin?
+      if (board.game === "hen") seat.fox = false;   // was this player's last spin the 🦊?
       return seat;
     });
     if (seats.length !== 2) throw new Error("a game needs two seats");
@@ -116,9 +134,12 @@
       die: 0, left: 0, card: null, rolls: 0, order: [],
     };
     if (spin) { st.pie = 0; st.birds = !!opts.birds; }
+    // 🐔 co-op: ONE hen for both (both seats stand where she stands), the
+    // chicks she has brought home, and the chicks out playing with the fox
+    if (board.game === "hen") { st.coop = 0; st.out = 0; st.fox = !!opts.fox; }
     return st;
   }
-  function firstPhase(game) { return game === "cards" ? "draw" : game === "spin" ? "spin" : "roll"; }
+  function firstPhase(game) { return game === "cards" ? "draw" : game === "spin" || game === "hen" ? "spin" : "roll"; }
 
   const anyHome = (st) => st.seats.some((s) => s.home);
   const other = (i) => (i === 0 ? 1 : 0);
@@ -164,6 +185,7 @@
   const TEN = 10;
   const tapsOf = (die) => (die === TEN ? 1 : die);
   function hop(st) {
+    if (st.game === "hen") return henHop(st);    // one chick per tap
     if (st.game !== "dice" || st.phase !== "hop" || st.left <= 0) return [];
     const board = DATA.board(st.board);
     const i = st.mover, s = st.seats[i];
@@ -245,6 +267,7 @@
     return st.birds && !anyHome(st) && st.rolls <= COMET_CAP && !seat.bird && st.seats[st.mover].pos > 0;
   }
   function spin(st) {
+    if (st.game === "hen") return spinHen(st);   // the farm's spinner
     if (st.game !== "spin" || st.phase !== "spin") return [];
     const board = DATA.board(st.board);
     const seat = st.seats[st.turn];
@@ -298,11 +321,76 @@
     return ev;
   }
 
+  // ---- 🐔 Hen House: spin an animal, walk to it, one chick per tap -----------
+  // The 🦊 is gentle, with the bird's rules: never when no chick is home yet,
+  // never on a player's two spins running, never in the last row, never in a
+  // long game. A fox that may not come waits at the back of the bag.
+  function foxOK(st, seat) {
+    const board = DATA.board(st.board);
+    return st.fox && st.coop > 0 && !seat.fox && st.rolls <= COMET_CAP && st.seats[0].pos <= board.size - board.cols;
+  }
+  function spinHen(st) {
+    if (st.game !== "hen" || st.phase !== "spin") return [];
+    const board = DATA.board(st.board);
+    const seat = st.seats[st.turn];
+    st.rolls += 1;
+    st.mover = st.turn;
+    const make = () => henBag(seat, st.fox);
+    let face = draw(seat, make), guard = 0;
+    while (face === FOX && !foxOK(st, seat) && guard++ < 20) {
+      if (!seat.bag.length) seat.bag = make();
+      else seat.bag.push(FOX);
+      face = draw(seat, make);
+    }
+    seat.fox = face === FOX;
+    st.card = face;
+    if (face === FOX) {
+      st.coop -= 1;
+      st.out += 1;
+      const ev = [{ type: "spin", seat: st.turn, face }, { type: "fox", seat: st.turn, coop: st.coop, out: st.out }];
+      endTurn(st, ev);
+      return ev;
+    }
+    const from = st.seats[0].pos, to = nextAnimal(board, from, face);
+    st.die = to - from;
+    st.left = st.die;
+    st.phase = "hop";
+    return [{ type: "spin", seat: st.turn, face, from, to }];
+  }
+  function henHop(st) {
+    if (st.game !== "hen" || st.phase !== "hop" || st.left <= 0) return [];
+    const board = DATA.board(st.board);
+    for (const s of st.seats) s.pos += 1;
+    st.left -= 1;
+    st.coop += 1;
+    const pos = st.seats[0].pos;
+    const ev = [{ type: "hop", seat: st.turn, to: pos, left: st.left, coop: st.coop }];
+    if (pos >= board.size) {
+      // the hen is home: every chick out playing comes home too, and the
+      // game ends with ONE party for both — the count is always size - 1
+      const came = st.out;
+      st.coop += st.out;
+      st.out = 0;
+      for (const s of st.seats) s.home = true;
+      st.order = [0, 1];
+      ev.push({ type: "henhome", came, coop: st.coop });
+      endTurn(st, ev);
+      return ev;
+    }
+    if (st.left === 0) endTurn(st, ev);
+    return ev;
+  }
+
   // One whole turn for the computer (and the tests' bot)
   function autoTurn(st) {
     if (st.phase === "done") return [];
     if (st.game === "cards") return drawCard(st);
     let guard = 0;
+    if (st.game === "hen") {
+      const ev = spinHen(st);
+      while (st.phase === "hop" && guard++ < 40) ev.push(...henHop(st));
+      return ev;
+    }
     if (st.game === "spin") {
       const ev = spin(st);
       while (st.phase === "pick" && guard++ < 20) ev.push(...pick(st));
@@ -325,6 +413,12 @@
   // What is left of a bag: a die bag is distinct faces 1..6, a card bag at
   // most one full deal of cards this board can deal
   function okBag(board, bag, birds) {
+    if (board.game === "hen") {
+      // what is left of ONE bag: each animal at most once, a 🦊 only when the
+      // fox is on (here `birds` carries the fox flag)
+      const faces = DATA.ANIMALS.map((a) => a.id).concat(birds ? [FOX] : []);
+      return bag.every((f) => faces.indexOf(f) >= 0) && new Set(bag).size === bag.length;
+    }
     if (board.game === "dice") {
       // what is left of ONE bag of this board's faces: no face more often
       // than the die has it
@@ -351,7 +445,8 @@
       if (!board || snap.game !== board.game) return null;
       if (!Array.isArray(snap.seats) || snap.seats.length !== 2) return null;
       const spinning = board.game === "spin";
-      const okPhase = board.game === "cards" ? ["draw", "done"] : spinning ? ["spin", "pick", "done"] : ["roll", "hop", "done"];
+      const hen = board.game === "hen";
+      const okPhase = board.game === "cards" ? ["draw", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : ["roll", "hop", "done"];
       if (okPhase.indexOf(snap.phase) < 0) return null;
       const moving = spinning ? "pick" : "hop";
       if (spinning) {
@@ -369,7 +464,15 @@
       if ((snap.phase === moving) !== (snap.left > 0)) return null;
       if (snap.phase === moving && snap.left > (spinning ? snap.die : tapsOf(snap.die))) return null;
       if (!int(snap.rolls) || snap.rolls < 0) return null;
-      if (snap.card !== null && !okCard(board, snap.card)) return null;
+      if (hen) {
+        // one hen: both seats stand where she stands, and every square she
+        // has walked brought one chick home (or out to play with the fox)
+        if (typeof snap.fox !== "boolean" || !int(snap.coop) || !int(snap.out) || snap.coop < 0 || snap.out < 0) return null;
+        if (snap.seats[0].pos !== snap.seats[1].pos || snap.coop + snap.out !== snap.seats[0].pos - 1) return null;
+        if (snap.out > 0 && !snap.fox) return null;
+        if (snap.card !== null && !DATA.animal(snap.card) && !(snap.card === FOX && snap.fox)) return null;
+        if (snap.seats.some((s) => typeof s.fox !== "boolean")) return null;
+      } else if (snap.card !== null && !okCard(board, snap.card)) return null;
       for (const s of snap.seats) {
         if (!s || typeof s.who !== "string" || !DATA.person(s.who)) return null;
         if (!int(s.pos) || s.pos < startOf(board) || s.pos > board.size) return null;
@@ -378,7 +481,7 @@
         if (!int(s.stars) || s.stars < 0 || !int(s.rng)) return null;
         // home is exactly standing on the last square
         if (s.home !== (s.pos === board.size)) return null;
-        if (!Array.isArray(s.bag) || !okBag(board, s.bag, snap.birds)) return null;
+        if (!Array.isArray(s.bag) || !okBag(board, s.bag, hen ? snap.fox : snap.birds)) return null;
       }
       // the order they got home in names exactly the seats that are home
       const homeAt = [0, 1].filter((i) => snap.seats[i].home);
@@ -393,7 +496,7 @@
   }
 
   const BoardLogic = {
-    create, roll, hop, drawCard, spin, pick, autoTurn, snapshot, restore,
+    create, roll, hop, drawCard, spin, pick, spinHen, henHop, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
     cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN,
   };
   global.BoardLogic = BoardLogic;
