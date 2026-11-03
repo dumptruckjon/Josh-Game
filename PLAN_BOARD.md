@@ -1,6 +1,7 @@
 # 🎲 Game Night — board games for Josh (and a friend)
 
-**Status: BATCH 1 AND BATCH 2 BUILT, AUDITED TWICE** — the door, the shelf, the shared turn
+**Status: BATCHES 1 AND 2 BUILT, AUDITED TWICE; BATCH 3 BUILDING** (§11:
+💯 Hundred Hop built; 🐔 Hen House and 🧺 Picnic Lotto next) — the door, the shelf, the shared turn
 routine, the engine, 🚀 Moon Race (with ☄️ Comet Moon), 🌈 Rainbow Trail, and
 🍎 Apple Spin (the owner's go, 2026-10-28, with "deeply audit the first 2
 games … to make them even more high quality and fun and exciting": §8).
@@ -223,3 +224,37 @@ median 18 turns (was 17), 95% within 30, the longest 42. At a 40-card cutoff
 the longest ran 52, which is why it is 24. Outside those limits, and on the
 picture's own square, a picture card is the old gentle move to the next square
 of its colour.
+
+## 11. Batch 3 — three more boxes (the owner, 2026-11-03)
+
+"As soon as 100% done with the current work … you can move onto building the
+next 3 board games." Chosen from §7's later list and the classics the first
+ranking dropped for being hard to do well, each a DIFFERENT shape from the
+four already on the shelf, each luck-only, each portrait-first and no-lose:
+
+1. **💯 Hundred Hop (BUILT)** — a race down a real HUNDRED CHART (1 at the top
+   left, reading like a book; the Montessori hundred board is MASTERED on his
+   June 2026 report, and counting by tens with it). The die is 1, 2, 3 and three
+   golden TEN-BARS: a ten is ONE tap that slides the token straight DOWN one
+   row ("24 … 34! Ten more!"), the square below being ten more. A turn ending on
+   a tens square (10, 20, … 90) earns a ⭐. Each bag of six adds 36, so a game is
+   about 17 rolls each (median 35 turns in all, 108s at the shell's pace —
+   which is why the game-length law now counts SECONDS: Hundred Hop has twice
+   Moon Race's turns and FEWER taps). The starter gets home first 68% of the
+   time (the law's band is 45-75%). Measured on the board itself: ten across is
+   the phone's width, so a square is 35px on a 390 phone (37 on the owner's 402
+   iPhone) with an 11px number, too small for a token BESIDE its number; the
+   token is a RING round its whole square instead, the number showing inside
+   it, the face in the square's bottom right quarter.
+2. **🐔 Hen House** — co-op, the Count Your Chickens shape: one shared hen, a
+   spinner of farm animals, and every hop to the next square with that animal
+   brings one chick home to the coop, counted in ten-frames. A gentle fox from
+   his third game sends one chick out to play (it comes home at the end).
+3. **🧺 Picnic Lotto** — picture lotto: each player has a picnic blanket of six
+   foods; tap the basket, a food comes out, and he finds where it goes —
+   his blanket or his friend's ("A banana for River!"). Both blankets fill; one
+   picnic.
+
+The shelf now stands two by two from four boxes, an ODD shelf's last box
+spanning both columns; on a short phone each box is a smaller picture over a
+one-line name (76px), so eight boxes still fit the first screen of a 320x568.

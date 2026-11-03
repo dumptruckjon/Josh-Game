@@ -48,6 +48,7 @@
 
   // ---- The board ----------------------------------------------------------
   function boardSVG(board) {
+    if (board.layout === "chart") return chartSVG(board);
     const W = board.cols * CELL, H = board.rows * CELL;
     const moon = board.game === "dice";
     let s = '<svg class="bn-svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-hidden="true" focusable="false">';
@@ -107,6 +108,26 @@
     }
     return s + "</svg>";
   }
+  // ---- 💯 the hundred chart ------------------------------------------------
+  // The number IS the square here, so it is big, in each square's top left
+  // (a token stands toward the bottom right and never covers it). The tens
+  // column is gold, as on the Montessori board: he counts down it by tens.
+  // Rows alternate two creams, so the eye can follow a row across.
+  function chartSVG(board) {
+    const W = board.cols * CELL, H = board.rows * CELL;
+    let s = '<svg class="bn-svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-hidden="true" focusable="false">';
+    s += '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="22" fill="#f3e6c8"/>';
+    for (let n = 1; n <= board.size; n++) {
+      const c = L.cellOf(board, n), x = c.col * CELL, y = (board.rows - 1 - c.row) * CELL;
+      const tens = n % 10 === 0;
+      const fill = n === 1 ? "#bfe8ff" : n === board.size ? "#ffd84d" : tens ? "#ffe39a" : (board.rows - 1 - c.row) % 2 ? "#fff8ea" : "#ffffff";
+      s += '<rect class="bn-cell" data-n="' + n + '" x="' + (x + 4) + '" y="' + (y + 4) + '" width="92" height="92" rx="14" fill="' + fill + '" stroke="' + (tens ? "#c98a00" : "rgba(0,0,0,0.16)") + '" stroke-width="' + (tens ? 3 : 2) + '"/>';
+      s += '<text class="bn-num" data-n="' + n + '" x="' + (x + 27) + '" y="' + (y + 37) + '" text-anchor="middle" font-size="' + (n > 99 ? 26 : 34) + '" font-weight="900" fill="' + (tens ? "#6b4700" : "#1d1d3b") + '">' + n + "</text>";
+    }
+    const z = centre(board, board.size);
+    s += emojiAt("🎉", z.x + 16, z.y + 38, 40);
+    return s + "</svg>";
+  }
   function emojiAt(e, x, y, size) {
     return '<text x="' + x + '" y="' + y + '" text-anchor="middle" font-size="' + size + '">' + e + "</text>";
   }
@@ -130,6 +151,10 @@
     const c = L.cellOf(board, n);
     // a little toward the bottom right, so the square's number (top left)
     // still shows under the token — he counts his hops by it
+    // 💯 on a hundred chart the square is too small for a token beside its
+    // number: the token is a RING round the whole square (the number shows
+    // inside it) with the face at its corner, so it stands on the middle
+    if (board.layout === "chart") return { x: (c.col + 0.5) / board.cols, y: (board.rows - 1 - c.row + 0.5) / board.rows };
     let x = (c.col + 0.58) / board.cols, y = (board.rows - 1 - c.row + 0.6) / board.rows;
     if (shared) { x += (seat ? 0.2 : -0.2) / board.cols; y += (seat ? -0.13 : 0.13) / board.rows; }
     return { x, y };

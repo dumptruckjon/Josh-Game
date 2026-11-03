@@ -89,18 +89,25 @@ test("the shelf: Moon Race and Rainbow Trail first; Comet Moon arrives after TWO
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await go("#board-home", "#screen-board-home");
   const boxes = () => page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-box")].map((b) => b.dataset.box));
-  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple"], "a fresh shelf: three boxes, no locked fourth");
-  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "1", "an odd shelf keeps one column (no ragged row)");
+  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred"], "a fresh shelf: four boxes, no locked fifth");
+  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "2", "four boxes stand two by two");
   assert.equal(await page.locator("#screen-board-home [aria-disabled], #screen-board-home .bn-box[disabled]").count(), 0, "nothing on the shelf is locked or greyed");
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 1 } }));
   await go("#board-home", "#screen-board-home");
-  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple"], "one Moon game is not enough");
+  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred"], "one Moon game is not enough");
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }));
   await go("#board-home", "#screen-board-home");
-  assert.deepEqual(await boxes(), ["moon", "comet", "rainbow", "apple"], "after two, Comet Moon is on the shelf, beside Moon Race");
-  // four rows of boxes put the last one below the fold of a small phone, so
-  // an even shelf stands in two columns
-  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "2", "four boxes stand two by two");
+  assert.deepEqual(await boxes(), ["moon", "comet", "rainbow", "apple", "hundred"], "after two, Comet Moon is on the shelf, beside Moon Race");
+  // rows of single boxes put the last one below the fold of a small phone,
+  // so a shelf of four or more stands in two columns — and an ODD shelf's
+  // last box spans both, so no row is ragged
+  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "2", "five boxes stand two by two");
+  const rag = await page.evaluate(() => {
+    const bs = [...document.querySelectorAll("#screen-board-home .bn-box")].map((b) => b.getBoundingClientRect());
+    const list = document.querySelector(".bn-boxes").getBoundingClientRect(), last = bs[bs.length - 1];
+    return { lastW: last.width, listW: list.width, otherW: bs[0].width };
+  });
+  assert.ok(Math.abs(rag.lastW - rag.listW) < 2 && rag.lastW > rag.otherW * 1.8, `an odd shelf's last box spans the row (${JSON.stringify(rag)})`);
   // a deep link to a box that is not on the shelf yet goes nowhere
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await page.evaluate(() => { location.hash = "#board-who-comet"; });
@@ -984,7 +991,7 @@ test("every finished game earns its box a 🏆 on the shelf, counted — and a f
     const w = b.querySelector(".bn-box__won");
     return [b.dataset.box, w ? w.textContent : null];
   })));
-  assert.deepEqual(await won(), { moon: "🏆 3", comet: null, rainbow: null, apple: null }, "three Moon games: 🏆 3; the rest none yet");
+  assert.deepEqual(await won(), { moon: "🏆 3", comet: null, rainbow: null, apple: null, hundred: null }, "three Moon games: 🏆 3; the rest none yet");
   assert.match(await page.locator('.bn-box[data-box="moon"]').getAttribute("aria-label"), /played 3 times/);
   // the trophy pill sits in the corner, never on the box's name
   const clear = await page.evaluate(() => {
@@ -1058,6 +1065,99 @@ test("☄️ a comet on Comet Moon: he slides DOWN one row, glowing, lands with 
   assert.equal(x.seats[0].pos, 12, "the comet slid him down to 12 — one row, no further");
   assert.equal(x.seats[0].stars, 1, "and gave him a star for the ride");
   await page.waitForFunction(() => document.querySelector(".bn-pad--0 .bn-pad__stars").textContent === "⭐ 1", null, { timeout: 4000 });
+});
+
+test("💯 a whole Hundred Hop against the computer: a real hundred chart, a TEN is one tap straight DOWN a row, a ⭐ on a tens square, one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("hundred", "raegar", true, 5, 0);
+  // the chart reads like the Montessori board: 1 top left, 100 bottom right,
+  // the tens column gold; and every number is big enough to read
+  const chart = await page.evaluate(() => {
+    const r = (n) => document.querySelector('.bn-cell[data-n="' + n + '"]').getBoundingClientRect();
+    const num = document.querySelector('.bn-num[data-n="47"]');
+    return { one: r(1), ten: r(10), eleven: r(11), hundred: r(100), font: num.getBoundingClientRect().height, cells: document.querySelectorAll(".bn-cell").length,
+      tensFill: document.querySelector('.bn-cell[data-n="30"]').getAttribute("fill"), plainFill: document.querySelector('.bn-cell[data-n="31"]').getAttribute("fill") };
+  });
+  assert.equal(chart.cells, 100, "a hundred squares");
+  assert.ok(chart.one.left < chart.ten.left && Math.abs(chart.one.top - chart.ten.top) < 1, "1 and 10 share the top row, 1 at the left");
+  assert.ok(Math.abs(chart.eleven.left - chart.one.left) < 1 && chart.eleven.top > chart.one.top, "11 sits straight below 1");
+  assert.ok(chart.hundred.left > chart.one.left && chart.hundred.top > chart.one.top, "100 is at the bottom right");
+  assert.ok(chart.font >= 10, `the numbers are readable (${chart.font.toFixed(1)}px tall)`);
+  assert.notEqual(chart.tensFill, chart.plainFill, "the tens column stands out");
+  let tens = 0, small = 0, starSeen = false, tenBarSeen = false;
+  for (let guard = 0; guard < 400; guard++) {
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    if (s.phase === "roll") {
+      await page.locator(".bn-pad--0").click();
+      await page.waitForFunction(() => window.__BOARD.state().phase !== "roll" || window.__BOARD.state().turn !== 0);
+      continue;
+    }
+    const mover = s.mover, from = (await page.evaluate(() => window.__BOARD.shown()))[mover];
+    const tenRoll = s.die === 10;
+    if (tenRoll) tenBarSeen = tenBarSeen || await page.locator(".bn-pad--0 .bn-die--ten .bn-bead").count() === 10;
+    const box0 = await page.locator(".bn-token--" + mover).boundingBox();
+    const stars0 = s.seats[mover].stars;
+    await page.locator(".bn-pad--0").click();
+    await page.waitForFunction((a) => window.__BOARD.shown()[a[0]] !== a[1], [mover, from]);
+    await page.waitForTimeout(80);
+    const to = (await page.evaluate(() => window.__BOARD.shown()))[mover];
+    if (tenRoll) {
+      tens++;
+      assert.equal(to, Math.min(100, from + 10), `one tap of a ten-bar is ten more (${from} → ${to})`);
+      if (to < 100) {
+        const box1 = await page.locator(".bn-token--" + mover).boundingBox();
+        assert.ok(Math.abs(box1.x - box0.x) < 2 && box1.y > box0.y, `ten more is straight DOWN the chart (${JSON.stringify([box0, box1])})`);
+      }
+    } else { small++; assert.equal(to, from + 1, "a small number hops one square a tap"); }
+    const after = await st();
+    if (after.seats[mover].stars > stars0) starSeen = true;
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.ok(end.seats.every((x) => x.home && x.pos === 100), "both reach one hundred");
+  assert.ok(tens > 2 && small > 2, `he slid tens (${tens}) and hopped small numbers (${small})`);
+  assert.ok(tenBarSeen, "a ten shows on his pad as a bar of ten golden beads");
+  assert.ok(starSeen || end.seats.some((x) => x.stars > 0), "a tens square gave a star");
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  const sv = await page.evaluate(() => window.__BOARD.save());
+  assert.equal(sv.done.hundred, 1, "a finished Hundred Hop counts once");
+  } finally { await slow(); }
+});
+
+test("💯 on the hundred chart a token never covers its square's number, and a tens square's ⭐ is SEEN (popped, and counted on the pad)", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  const s = L.create({ board: "hundred", seats: [{ who: "josh" }, { who: "dad" }], seed: 3, first: 0 });
+  s.seats[0].pos = 18; s.seats[1].pos = 57; s.seats[0].bag = [2];
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("hundred", x), s), "fixture: the game loads");
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(450);
+  // a square is too small for a token BESIDE its number: the token is a ring
+  // round its own square (the number shows inside, so the ring is see-through)
+  // and its face sits in the square's bottom right quarter, clear of every
+  // number — its own and its neighbours'
+  const gap = async () => page.evaluate(() => [...document.querySelectorAll(".bn-token")].map((t) => {
+    const n = t.dataset.pos, k = t.getBoundingClientRect(), cell = document.querySelector('.bn-cell[data-n="' + n + '"]').getBoundingClientRect();
+    const f = t.querySelector(".bn-token__face").getBoundingClientRect();
+    const hit = (a) => f.left < a.right && f.right > a.left && f.top < a.bottom && f.bottom > a.top;
+    const covered = [...document.querySelectorAll(".bn-num")].filter((m) => hit(m.getBoundingClientRect())).map((m) => m.dataset.n);
+    const ringOnSquare = Math.abs((k.left + k.right) / 2 - (cell.left + cell.right) / 2) < 2 && Math.abs((k.top + k.bottom) / 2 - (cell.top + cell.bottom) / 2) < 2;
+    const seeThrough = getComputedStyle(t).backgroundColor === "rgba(0, 0, 0, 0)";
+    return { n, ov: covered.length > 0 || !ringOnSquare || !seeThrough, covered, ringOnSquare, seeThrough, face: f.width };
+  }));
+  for (const x of await gap()) assert.ok(!x.ov, `the token on ${x.n}: ${JSON.stringify(x)}`);
+  // 18 + 2 = 20: a tens square, and its star is popped and lands on his pad
+  await page.locator(".bn-pad--0").click();
+  await page.waitForFunction(() => window.__BOARD.state().phase === "hop" && !window.__BOARD.busy());
+  await page.locator(".bn-pad--0").click();
+  await page.waitForTimeout(320);
+  await page.locator(".bn-pad--0").click();
+  await page.waitForFunction(() => document.querySelector(".bn-pop") && !document.querySelector(".bn-pop").hidden && document.querySelector(".bn-pop").textContent === "⭐", null, { timeout: 5000 });
+  await page.waitForFunction(() => /⭐ 1/.test(document.querySelector(".bn-pad--0 .bn-pad__stars").textContent), null, { timeout: 5000 });
+  for (const x of await gap()) assert.ok(!x.ov, `the token on ${x.n}: ${JSON.stringify(x)}`);
 });
 
 test("no uncaught page errors in Game Night", () => {

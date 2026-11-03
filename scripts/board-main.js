@@ -24,7 +24,7 @@
   const KEEP_MS = 24 * 60 * 60 * 1000;
   // The pace of everything that is NOT his finger: the dice tumbling, a hop,
   // a ride, the hand-over, and the computer friend's turn.
-  const T = { tumble: 700, hop: 240, autoHop: 480, cpuThink: 900, cpuHop: 560, ride: 900, card: 520, glide: 300, handoff: 700, pop: 700, cheer: 1400, tip: 1000 };
+  const T = { tumble: 700, hop: 240, autoHop: 480, cpuThink: 900, cpuHop: 560, ride: 900, card: 520, glide: 300, handoff: 700, pop: 700, cheer: 1400, tip: 1000, ten: 520 };
   const now = () => (global.performance && global.performance.now ? global.performance.now() : Date.now());
   const $ = (sel, root) => (root || doc).querySelector(sel);
   const fill = (line, o) => String(line).replace(/\{(\w+)\}/g, (m, k) => (o && o[k] != null ? o[k] : m));
@@ -116,6 +116,7 @@
     plop: (k) => tone(392 * Math.pow(2, (k % 10) / 12), { type: "sine", duration: 0.14, gain: 0.16 }),
     tweet: () => notes([[1568, 0, { type: "sine", duration: 0.08 }], [1976, 90, { type: "sine", duration: 0.08 }], [1568, 180, { type: "sine", duration: 0.1 }]]),
     pie: () => notes([[659.25, 0], [880, 100, { duration: 0.25 }]]),
+    ten: () => notes([[392, 0, { type: "triangle" }], [523.25, 120, { type: "triangle", duration: 0.25 }]]),
   };
 
   // ---- The screens -----------------------------------------------------------
@@ -263,10 +264,11 @@
     const list = shelf.querySelector(".bn-boxes");
     list.innerHTML = "";
     const open = DATA.BOXES.filter(boxOpen);
-    // An even shelf of four or more stands in two columns: four full-width
-    // rows put the last box below the fold of a 320x568 phone. An odd shelf
-    // keeps one column, so no row is ragged.
-    list.dataset.cols = open.length >= 4 && open.length % 2 === 0 ? "2" : "1";
+    // A shelf of four or more stands in two columns: four full-width rows put
+    // the last box below the fold of a 320x568 phone. An ODD shelf's last box
+    // spans both columns (the front door's wide door), so no row is ragged.
+    list.dataset.cols = open.length >= 4 ? "2" : "1";
+    list.dataset.odd = open.length >= 4 && open.length % 2 ? "1" : "0";
     for (const b of open) {
       const btn = doc.createElement("button");
       btn.className = "bn-box tap";
@@ -369,6 +371,7 @@
     play.querySelector(".bn-title").textContent = DATA.box(box).name;
     play.dataset.game = board.game;
     play.dataset.box = box;
+    boardEl.classList.toggle("bn-board--chart", board.layout === "chart");
     svgWrap.innerHTML = board.game === "spin" ? R.orchardSVG() : R.boardSVG(board);
     applesEl.innerHTML = "";
     hidePop();
@@ -404,7 +407,9 @@
     boardEl.style.height = cell * b.rows + "px";
     boardEl.style.left = Math.max(0, Math.round((w - cell * b.cols) / 2)) + "px";
     boardEl.style.top = Math.max(0, Math.round((h - cell * b.rows) / 2)) + "px";
-    for (const t of tokens) { t.style.width = Math.round(cell * 0.62) + "px"; t.style.height = Math.round(cell * 0.62) + "px"; }
+    // (on a hundred chart the token is a ring round its whole square)
+    const tk = Math.round(cell * (b.layout === "chart" ? 1 : 0.62));
+    for (const t of tokens) { t.style.width = tk + "px"; t.style.height = tk + "px"; }
     // the pop and the apples scale with the board (an apple fills its slot)
     popEl.style.fontSize = Math.max(18, Math.round(cell * 0.5)) + "px";
     applesEl.style.fontSize = Math.round(cell * 0.4) + "px";
@@ -501,7 +506,7 @@
         else act.innerHTML = dieHTML(0, 0);
         pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
         const hopping = active && st.phase === "hop" && st.turn === i;
-        pad.setAttribute("aria-label", nameOf(i) + (active ? (hopping ? ": tap to hop, " + st.left + " to go" : ": tap to roll the dice") : ": wait for your turn") + (s.home ? ", home" : ""));
+        pad.setAttribute("aria-label", nameOf(i) + (active ? (hopping ? (st.die === L.TEN ? ": tap for ten more" : ": tap to hop, " + st.left + " to go") : ": tap to roll the dice") : ": wait for your turn") + (s.home ? ", home" : ""));
       } else if (game.board.game === "spin") {
         // while it spins, the WHEEL spins (it used to tilt and flash apples):
         // drawn once, so its turning is never restarted mid-spin
@@ -541,6 +546,13 @@
     // not rolled yet: just a die to tap (an empty frame beside it read as a
     // missing picture)
     if (!n) return '<span class="bn-die bn-die--cue" data-n="0"><span class="bn-die__cue">🎲</span></span>';
+    // 💯 a TEN is a ten-bar of golden beads (the Montessori ten): one tap,
+    // ten more. Its beads stay lit until that tap, then all go dark at once.
+    if (n === L.TEN) {
+      let b = '<span class="bn-die bn-die--ten" data-n="10">';
+      for (let k = 0; k < 10; k++) b += '<span class="bn-bead' + (lit ? "" : " bn-bead--used") + '"></span>';
+      return b + "</span>";
+    }
     const on = DOTS[n] || [];
     let s = '<span class="bn-die' + (n ? "" : " bn-die--blank") + '" data-n="' + n + '">';
     for (let k = 0; k < 9; k++) {
@@ -589,13 +601,16 @@
     }
     // his turn: the line, and — the first time ever — the hand that shows how
     const first = !save.intro[game.board.game];
-    if (st.phase === "hop") sayPlay(SAY.hopFirst);
+    if (st.phase === "hop") sayPlay(hopLine());
     else if (st.phase === "pick") sayPlay(SAY.pickFirst);
     else sayPlay(fill(SAY.turn, { n: nameOf(i) }) + (first ? " " + firstLine() : ""));
     if (first) showHand(i);
     if (st.phase === "hop" && save.auto) autoHops();
     if (st.phase === "pick" && save.auto) autoPicks();
   }
+  // what to do with a die just rolled: hop once a tap — or, for a 💯 ten-bar,
+  // one tap for ten more
+  function hopLine() { return game && game.st.die === L.TEN ? SAY.tenFirst : SAY.hopFirst; }
   function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" ? SAY.spinFirst : SAY.flipFirst; }
 
   function padTap(i) {
@@ -635,7 +650,9 @@
     game.rolled = true;
     game.showMover = game.st.mover;
     let k = 0;
-    const faces = [3, 6, 2, 5, 1, 4];
+    // the faces this board's die really has (a hundred chart's has ten-bars)
+    const all = L.facesOf(game.board), faces = [];
+    for (const f of [3, 6, 10, 2, 5, 1, 4]) if (all.indexOf(f) >= 0) faces.push(f);
     const spin = () => {
       game.tumbleFace = faces[k++ % faces.length];
       SFX.tick();
@@ -651,7 +668,7 @@
       persistGame();
       const st = game.st;
       if (st.seats[st.turn].cpu) { later(cpuHop, T.cpuHop); return; }
-      if (!save.intro.dice) { sayPlay(SAY.hopFirst); showHand(st.turn); }
+      if (!save.intro.dice) { sayPlay(hopLine()); showHand(st.turn); }
       if (save.auto) autoHops();
     }, T.tumble);
   }
@@ -843,7 +860,18 @@
     const at = (ms, fn) => { t += ms; later(fn, t); };
     let turnEnded = false;
     for (const e of ev) {
-      if (e.type === "hop") {
+      if (e.type === "hop" && e.ten) {
+        // 💯 a ten-bar: one slide straight DOWN one row of the chart, ten
+        // more ("24… 34! Ten more!"): slower than a hop, so the straight-down
+        // line is seen
+        moveToken(e.seat, e.to, T.ten);
+        paintPads();
+        SFX.ten();
+        sayPlay(fill(SAY.ten, { to: e.to }));
+        popOnSquare(e.to, String(e.to));
+        paintBoardLabel();
+        at(T.ten, () => {});
+      } else if (e.type === "hop") {
         moveToken(e.seat, e.to, T.hop);
         paintPads();
         SFX.hop(e.to);
@@ -945,6 +973,17 @@
           paintBoardLabel();
         });
         at(T.ride, () => {});
+      } else if (e.type === "tens") {
+        // 💯 a turn ending on a tens square: a ⭐, counting by tens
+        at(T.hop + 120, () => {
+          popOnSquare(e.at, "⭐");
+          landStar(e.seat);
+          SFX.boost();
+          sayPlay(fill(SAY.tens, { to: e.at }));
+          cheer(e.seat);
+          paintPads();
+        });
+        at(T.ride, () => {});
       } else if (e.type === "home") {
         at(T.hop, () => {
           SFX.home();
@@ -1037,6 +1076,7 @@
   function endLine(kind) {
     const g = game.board.game;
     if (g === "spin") return kind === "home" ? SAY.full : fill(SAY.endApple, { k: 20 + (game.st.pie || 0) });
+    if (game.board.lines) return game.board.lines[kind];
     if (g === "dice") return kind === "home" ? SAY.homeMoon : SAY.endMoon;
     return kind === "home" ? SAY.homeTrail : SAY.endTrail;
   }
@@ -1132,7 +1172,7 @@
     if (st.phase === "done") { say(endLine("end")); return; }
     const i = st.turn;
     if (st.seats[i].cpu) { say(fill(SAY.turn, { n: nameOf(i) })); return; }
-    if (st.phase === "hop") say(SAY.hopFirst);
+    if (st.phase === "hop") say(hopLine());
     else if (st.phase === "pick") say(SAY.pickFirst);
     else say(fill(SAY.turn, { n: nameOf(i) }) + " " + firstLine());
     showHand(i);

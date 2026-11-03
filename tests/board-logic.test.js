@@ -116,7 +116,7 @@ test("the engine is PURE: no Math.random, no DOM, dual export, and the same seed
 
 test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (thousands of seeds on every board)", () => {
   for (const board of DATA.BOARDS) {
-    const turns = [];
+    const turns = [], secs = [];
     for (let seed = 1; seed <= 3000; seed++) {
       const g = play(board.id, seed);
       assert.equal(g.st.phase, "done", `${board.id} seed ${seed} never ended`);
@@ -124,16 +124,25 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
       assert.equal(g.ev.filter((e) => e.type === "end").length, 1, "one ending");
       assert.equal(g.st.order.length, 2, "both arrivals are recorded");
       turns.push(g.turns);
+      // the time it plays for, at the shell's own pace: a turn's tumble, the
+      // computer's thinking and the hand-over (~2.3s), each tap (~0.5s) and
+      // each ride or star (~1s). TURNS alone measured the wrong thing once a
+      // board's turns got short: 💯 Hundred Hop takes twice Moon Race's turns
+      // and has FEWER taps, because a ten is one tap.
+      const taps = g.ev.filter((e) => e.type === "hop" || e.type === "pick" || e.type === "card").length;
+      const extras = g.ev.filter((e) => e.type === "ride" || e.type === "tens").length;
+      secs.push(g.turns * 2.3 + taps * 0.5 + extras);
     }
     turns.sort((a, b) => a - b);
-    const med = turns[turns.length >> 1], p95 = turns[Math.floor(turns.length * 0.95)];
-    // About 8-9 turns each (a minute and a half to three at a child's pace),
-    // and never a slog: the long tail is short too. Apple Spin is shorter in
-    // turns (about five spins each) because every spin is up to four TAPS.
-    const lo = board.game === "spin" ? 8 : 12;
-    assert.ok(med >= lo && med <= 22, `${board.id}: median ${med} turns in all`);
-    assert.ok(p95 <= 30, `${board.id}: p95 ${p95} turns — a game can drag`);
-    assert.ok(turns[turns.length - 1] <= 45, `${board.id}: the longest game took ${turns[turns.length - 1]} turns`);
+    secs.sort((a, b) => a - b);
+    const q = (a, f) => a[Math.min(a.length - 1, Math.floor(a.length * f))];
+    // A minute or two of play (a few minutes at a child's pace), and never a
+    // slog: the long tail is short too.
+    assert.ok(q(secs, 0.5) >= 30 && q(secs, 0.5) <= 120, `${board.id}: a median game plays ${Math.round(q(secs, 0.5))}s`);
+    assert.ok(q(secs, 0.95) <= 140, `${board.id}: p95 ${Math.round(q(secs, 0.95))}s — a game can drag`);
+    assert.ok(secs[secs.length - 1] <= 160, `${board.id}: the longest game plays ${Math.round(secs[secs.length - 1])}s`);
+    // and a track board is still a handful of turns each, not a marathon
+    assert.ok(q(turns, 0.5) >= (board.game === "spin" ? 8 : 12), `${board.id}: median ${q(turns, 0.5)} turns in all`);
   }
 });
 
@@ -167,7 +176,9 @@ test("NO-LOSE: a token only ever goes back on a comet, a comet drops at most one
         const homeBefore = st.seats.some((s) => s.home);
         for (const e of L.autoTurn(st)) {
           if (e.type === "roll" && pos[e.mover] + e.die > board.size) overshoots++;
-          if (e.type === "hop") { assert.equal(e.to, Math.min(board.size, pos[e.seat] + 1)); pos[e.seat] = e.to; }
+          if (e.type === "hop") { assert.equal(e.to, Math.min(board.size, pos[e.seat] + (e.ten ? L.TEN : 1))); pos[e.seat] = e.to; }
+          // 💯 a turn ending on a tens square earns a star (never the hundred)
+          if (e.type === "tens") { assert.ok(e.at % 10 === 0 && e.at < board.size && e.at === pos[e.seat]); stars[e.seat] += 1; }
           if (e.type === "ride") {
             assert.equal(e.from, pos[e.seat], "a ride starts where the token is");
             if (e.kind === "comet") {
@@ -181,7 +192,7 @@ test("NO-LOSE: a token only ever goes back on a comet, a comet drops at most one
           }
         }
       }
-      assert.deepEqual(st.seats.map((s) => s.stars), stars, "every ride, up or down, earns exactly one star");
+      assert.deepEqual(st.seats.map((s) => s.stars), stars, "every ride, up or down, and every tens square earns exactly one star");
     }
   }
   assert.ok(comets > 1000, `fixture: comets really happen (${comets})`);
@@ -538,4 +549,78 @@ test("🍎 a tap that is not a move does nothing: no pick before a spin, no seco
   assert.equal(picks, face, `${picks} picks on a ${face}`);
   const m = L.create({ board: "moon", seats: SEATS, seed: 4 });
   assert.deepEqual(L.spin(m), [], "no spinner in a dice game");
+});
+
+test("💯 HUNDRED HOP: a real hundred chart (the square below is TEN MORE), a ten is ONE tap straight down, a ⭐ on every tens square, a fair die of 1, 2, 3 and three tens", () => {
+  const b = DATA.board("hundred");
+  assert.equal(b.size, 100);
+  assert.equal(b.layout, "chart");
+  // the chart reads like a book: 1 at the top left, 10 at the top right, 11
+  // under 1, 100 at the bottom right — and every square below is ten more
+  const top = b.rows - 1;
+  assert.deepEqual(L.cellOf(b, 1), { col: 0, row: top });
+  assert.deepEqual(L.cellOf(b, 10), { col: 9, row: top });
+  assert.deepEqual(L.cellOf(b, 11), { col: 0, row: top - 1 });
+  assert.deepEqual(L.cellOf(b, 100), { col: 9, row: 0 });
+  for (let n = 1; n <= 90; n++) {
+    const a = L.cellOf(b, n), c = L.cellOf(b, n + 10);
+    assert.ok(c.col === a.col && c.row === a.row - 1, `${n + 10} sits straight below ${n}`);
+  }
+  // the die: three small numbers to count and three tens to slide
+  assert.deepEqual(L.facesOf(b).slice().sort((x, y) => x - y), [1, 2, 3, 10, 10, 10]);
+  let tens = 0, stars = 0;
+  for (let seed = 1; seed <= 600; seed++) {
+    const st = L.create({ board: "hundred", seats: SEATS, seed });
+    const rolls = [[], []];
+    const pos = [1, 1];
+    let guard = 0;
+    while (st.phase !== "done" && guard++ < 400) {
+      const ev = L.roll(st);
+      if (!ev.length) break;
+      rolls[ev[0].seat].push(ev[0].die);
+      const die = ev[0].die, mover = ev[0].mover, from = st.seats[mover].pos;
+      // a ten is ONE tap: one hop event, ten squares, straight down
+      assert.equal(st.left, die === 10 ? 1 : die, "a face is its count of taps (a ten is one)");
+      const hops = [];
+      while (st.phase === "hop") {
+        const h = L.hop(st);
+        hops.push(...h.filter((e) => e.type === "hop"));
+        for (const e of h) if (e.type === "tens") { stars++; assert.ok(e.at % 10 === 0 && e.at < 100); }
+      }
+      if (die === 10) {
+        tens++;
+        assert.equal(hops.length, 1, "a ten is one hop");
+        assert.ok(hops[0].ten && hops[0].to === Math.min(100, from + 10), "ten more");
+      } else assert.ok(hops.every((h) => !h.ten), "a small number hops one at a time");
+      pos[mover] = st.seats[mover].pos;
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ended`);
+    // every six rolls of a player are the die's six faces
+    for (const r of rolls) for (let k = 0; k + 6 <= r.length; k += 6) assert.deepEqual(r.slice(k, k + 6).sort((x, y) => x - y), [1, 2, 3, 10, 10, 10]);
+    // the stars on the seats are exactly the tens squares they ended on
+  }
+  assert.ok(tens > 5000 && stars > 1000, `fixture: tens and tens-stars really happen (${tens}, ${stars})`);
+  // a turn ending ON a tens square earns a star; passing one does not
+  const st = L.create({ board: "hundred", seats: SEATS, seed: 3 });
+  st.seats[0].pos = 18; st.seats[0].bag = [2];
+  L.roll(st); L.hop(st); const ev = L.hop(st);
+  assert.ok(ev.some((e) => e.type === "tens" && e.at === 20) && st.seats[0].stars === 1, "18 + 2 = 20: a star");
+  const st2 = L.create({ board: "hundred", seats: SEATS, seed: 3 });
+  st2.seats[0].pos = 19; st2.seats[0].bag = [2];
+  L.roll(st2); L.hop(st2); const ev2 = L.hop(st2);
+  assert.ok(!ev2.some((e) => e.type === "tens") && st2.seats[0].stars === 0, "19 + 2 = 21 passes 20: no star");
+  // ten more from 95 is home (overshoot is home), with no star for 100
+  const st3 = L.create({ board: "hundred", seats: SEATS, seed: 3 });
+  st3.seats[0].pos = 95; st3.seats[0].bag = [10];
+  L.roll(st3); const ev3 = L.hop(st3);
+  assert.ok(st3.seats[0].home && st3.seats[0].pos === 100 && !ev3.some((e) => e.type === "tens"), "95 + 10 is home, and home is no tens star");
+  // a restored save must be a die this board has
+  const g = L.snapshot(L.create({ board: "hundred", seats: SEATS, seed: 4 }));
+  assert.ok(L.restore(g), "the real state restores");
+  const mid = L.create({ board: "hundred", seats: SEATS, seed: 4 }); mid.seats[0].bag = [10]; L.roll(mid);
+  assert.ok(L.restore(L.snapshot(mid)), "mid-ten restores (one tap left)");
+  assert.equal(L.restore({ ...L.snapshot(mid), left: 10 }), null, "a ten never has ten taps left");
+  assert.equal(L.restore({ ...g, phase: "hop", die: 4, left: 4 }), null, "a 4 is not on this die");
+  assert.equal(L.restore({ ...g, seats: g.seats.map((s, i) => (i ? s : { ...s, bag: [10, 10, 10, 10] })) }), null, "a bag with four tens is not one bag of this die");
+  assert.ok(L.restore({ ...g, seats: g.seats.map((s, i) => (i ? s : { ...s, bag: [10, 3, 10] })) }), "what is left of a real bag restores");
 });

@@ -10,6 +10,7 @@ const assert = require("node:assert");
 const { startServer, launchMobileBrowser } = require("./helpers");
 const fs = require("node:fs");
 const path = require("node:path");
+const DATA_BOXES = require("../scripts/board-data.js").BOXES.length;
 
 const MIN_TAP = 75;
 const MIN_GAP = 14; // design target is 16px; 2px slack absorbs sub-pixel measurement
@@ -241,10 +242,10 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
       if (lbl === "shelf" && h > w) {
         const last = await page.evaluate(() => Math.max(...[...document.querySelectorAll(".bn-box")].map((b) => b.getBoundingClientRect().bottom)));
         assert.ok(last <= h, `[shelf@${w}x${h}] the last box ends at ${Math.round(last)}, below the fold`);
-        assert.equal(await page.locator(".bn-box").count(), 4, "fixture: the shelf holds four boxes");
+        assert.equal(await page.locator(".bn-box").count(), DATA_BOXES, "fixture: the shelf holds every box (Comet Moon unlocked)");
       }
     }
-    for (const [box, who, cpu] of [["moon", "river", true], ["rainbow", "dad", false], ["apple", "viraj", true]]) {
+    for (const [box, who, cpu] of [["moon", "river", true], ["rainbow", "dad", false], ["apple", "viraj", true], ["hundred", "mom", false]]) {
       await page.evaluate((a) => window.__BOARD.start(a[0], a[1], a[2], 3, 0), [box, who, cpu]);
       await page.locator("#screen-board-play").waitFor({ state: "visible" });
       await page.waitForTimeout(300);
@@ -253,7 +254,10 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
       const fit = await page.evaluate(() => {
         const b = document.querySelector(".bn-board").getBoundingClientRect();
         const pads = [...document.querySelectorAll(".bn-pad")].map((p) => p.getBoundingClientRect());
-        return { sh: document.documentElement.scrollHeight, vh: innerHeight, cell: b.width / 6, padBottom: Math.max(...pads.map((p) => p.bottom)),
+        const chart = document.querySelector(".bn-num");
+        return { sh: document.documentElement.scrollHeight, vh: innerHeight, cell: b.width / (chart ? 10 : 6), chart: !!chart,
+          num: chart ? Math.min(...[...document.querySelectorAll(".bn-num")].map((t) => t.getBoundingClientRect().height)) : 0,
+          padBottom: Math.max(...pads.map((p) => p.bottom)),
           overlap: pads.some((p) => p.left < b.right && p.right > b.left && p.top < b.bottom && p.bottom > b.top) };
       });
       assert.ok(fit.sh <= fit.vh + 1, `[${box}@${w}x${h}] the play screen scrolls: ${fit.sh} in ${fit.vh}`);
@@ -261,7 +265,18 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
       assert.ok(!fit.overlap, `[${box}@${w}x${h}] a pad covers the board`);
       // the smallest board still has squares a child can tell apart; a
       // portrait phone gets a real board, not a postage stamp
-      assert.ok(fit.cell >= (h > w ? 38 : 30), `[${box}@${w}x${h}] squares only ${fit.cell.toFixed(1)}px`);
+      // (💯 a hundred chart is ten across, so its squares are smaller; what
+      // must stay readable there is the NUMBER, which is the square)
+      // Ten across is the WIDTH a phone has: measured, 35px squares with 11px
+      // numbers on a 390 phone (37 / 11 on the owner's 402 iPhone), 31 / 10
+      // at 360 — but 24 / 8 on a 320x568 and 20 / 6 at 320x480, where the
+      // board is HEIGHT-limited as well. So the readable floor is held on a
+      // portrait phone 360 wide or more; smaller screens keep a real board.
+      if (fit.chart) {
+        const big = h > w && w >= 360;
+        assert.ok(fit.cell >= (big ? 30 : 18), `[${box}@${w}x${h}] the chart's squares are only ${fit.cell.toFixed(1)}px`);
+        assert.ok(fit.num >= (big ? 10 : 6), `[${box}@${w}x${h}] the chart's numbers are only ${fit.num.toFixed(1)}px tall`);
+      } else assert.ok(fit.cell >= (h > w ? 38 : 30), `[${box}@${w}x${h}] squares only ${fit.cell.toFixed(1)}px`);
       // a tall phone gives the pads the room the square board leaves: the die
       // (the card, the spinner) grows past its small-phone size
       if (h >= 780 && w < 600) {

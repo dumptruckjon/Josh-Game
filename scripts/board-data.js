@@ -5,7 +5,8 @@
 //
 // The board games are luck games for a four-year-old and a friend (or the
 // computer). Only the MECHANICS of the classics are borrowed — Snakes &
-// Ladders (traditional) and the colour-card trail of Candy Land, a trademark —
+// Ladders (traditional), the colour-card trail of Candy Land and the spinner of
+// Hi-Ho Cherry-O (trademarks), and the hundred chart —
 // under our own names and art.
 
 (function (global) {
@@ -94,6 +95,19 @@
       ],
     },
     {
+      // 💯 Hundred Hop: a race down a real HUNDRED CHART (1 at the top left,
+      // reading like a book, 100 at the bottom right — the Montessori hundred
+      // board he has mastered). `layout: "chart"` is that reading order, so a
+      // square straight BELOW is ten more. The die (`faces`) is three small
+      // numbers and three TEN-BARS: a ten is one tap, straight down one row,
+      // "ten more!". Landing on a tens square (`tens`) earns a ⭐ — counting by
+      // tens. Each bag of six adds 36, so a game is about 17 rolls each.
+      id: "hundred", box: "hundred", game: "dice", name: "Hundred Hop",
+      cols: 10, rows: 10, size: 100, layout: "chart",
+      faces: [1, 2, 3, 10, 10, 10], tens: true, jumps: [],
+      lines: { home: "{n} made it to one hundred!", end: "You both made it to one hundred! High five!" },
+    },
+    {
       // 🍎 Apple Spin (Hi-Ho Cherry-O's mechanic): no track at all. Each
       // player fills their own TEN-FRAME basket from a big tree; `size` is the
       // basket. A spin says how many apples to pick (one tap, one apple); a
@@ -118,6 +132,7 @@
     { id: "rainbow", board: "rainbow", name: "Rainbow Trail", pic: "🌈", colour: "#e0569b" },
     // the 🐦 joins from his THIRD Apple game, exactly as the comets do
     { id: "apple", board: "apple", name: "Apple Spin", pic: "🍎", colour: "#d63b3b", birdsAfter: 2 },
+    { id: "hundred", board: "hundred", name: "Hundred Hop", pic: "💯", colour: "#e08a00" },
   ];
 
   // ---- Every line the game says ------------------------------------------
@@ -154,6 +169,9 @@
     pie: "{k} more for the pie!",
     bird: "Tweet! A silly bird put one back. {to} in the basket.",
     endApple: "Ten, twenty! {k} apples in the pie! Yum!",
+    tenFirst: "Tap once for ten more!",
+    ten: "{to}! Ten more!",
+    tens: "{to}! A star!",
   };
 
   const BoardData = { JOSH, FRIENDS, PEOPLE, COLOURS, BOARDS, BOXES, SAY };

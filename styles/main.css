@@ -3127,6 +3127,8 @@ body.board-mode { background: linear-gradient(165deg, #fff3e2 0%, #ffeef6 55%, #
 .bn-boxes[data-cols="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .bn-boxes[data-cols="2"] .bn-box { grid-template-columns: minmax(0, 100%); justify-items: center; align-content: center; gap: 6px; padding: 12px 8px; text-align: center; }
 .bn-boxes[data-cols="2"] .bn-box__label { font-size: 1.2rem; line-height: 1.15; }
+/* an odd shelf: its last box spans both columns, so no row is ragged */
+.bn-boxes[data-odd="1"] .bn-box:last-child { grid-column: 1 / -1; }
 .bn-box__pic { font-size: 3.6rem; line-height: 1; }
 .bn-box__label { font-size: 1.4rem; font-weight: 800; color: #2e2a55; }
 /* every finished game earns the box a 🏆: a pill in its top corner (out of
@@ -3239,6 +3241,18 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
    faces show and neither hangs off the board's edge */
 .bn-token--shared { transform: translate(-50%, -50%) scale(0.8); }
 @keyframes bnHop { 0% { transform: translateY(0); } 45% { transform: translateY(-22%); } 100% { transform: translateY(0); } }
+/* 💯 on a hundred chart a square is too small for a token BESIDE its number:
+   the token is a ring round the whole square, in the player's colour (the
+   number shows inside it, top left), with the face in its bottom right
+   quarter — inside its own square, so it covers no neighbour's number. Two
+   on one square: the second ring sits inside the first, its face at the
+   bottom left. */
+.bn-board--chart .bn-token { border-width: 4px; border-radius: 12px; background: transparent; overflow: visible; box-shadow: 0 0 0 2px #ffffff; }
+.bn-board--chart .bn-token__face { position: absolute; right: 1px; bottom: 1px; width: 50%; height: 50%; border-radius: 50%; background: #ffffff; border: 2px solid #2b2b3a; overflow: hidden; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35); }
+.bn-board--chart .bn-token--on { box-shadow: 0 0 0 3px #2b2b3a, 0 0 0 6px #ffd24d; }
+.bn-board--chart .bn-token--shared { transform: translate(-50%, -50%); }
+.bn-board--chart .bn-token--shared.bn-token--1 { transform: translate(-50%, -50%) scale(0.7); }
+.bn-board--chart .bn-token--shared.bn-token--1 .bn-token__face { right: auto; left: 1px; }
 
 /* the pads: each player's own big button — the die, or the card pile */
 .bn-tray { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); margin-top: 12px; }
@@ -3281,6 +3295,11 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
 .bn-dot { display: block; border-radius: 50%; background: #1d1d3b; }
 .bn-dot--none { background: transparent; }
 .bn-dot--used { opacity: 0.16; }
+/* 💯 a TEN: ten golden beads in two rows of five (the ten he knows from the
+   ten-frame and the golden-bead bar), all going dark on the one tap */
+.bn-die.bn-die--ten { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); align-content: center; row-gap: 22%; background: #fff7dc; }
+.bn-bead { display: block; border-radius: 50%; background: #e0a000; box-shadow: inset 0 0 0 2px #8a5a00; }
+.bn-bead--used { opacity: 0.18; }
 /* not rolled yet: just a big die to tap, no empty frame */
 .bn-die--cue { display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: minmax(0, 100%); place-items: center; padding: 0; border: none; background: none; }
 .bn-die__cue { font-size: 3.4rem; line-height: 1; }
@@ -3446,6 +3465,15 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
 @media (max-height: 700px) {
   .bn-box { min-height: 96px; }
   .bn-box__pic { font-size: 2.8rem; }
+  /* a full shelf (eight boxes, four rows) on a short phone: each box a
+     smaller picture over a ONE-line name, still a 76px door, so the last row
+     is on the first screen of a 320x568 phone. A game waiting on a box peeks
+     out of its top left corner (the 🏆 has the top right). */
+  .bn-boxes[data-cols="2"] .bn-box { display: grid; min-height: 76px; gap: 2px; padding: 5px 6px; }
+  .bn-boxes[data-cols="2"] .bn-box__pic { font-size: 1.9rem; }
+  .bn-boxes[data-cols="2"] .bn-box__label { font-size: 0.95rem; white-space: nowrap; }
+  .bn-boxes[data-cols="2"] .bn-box__wait { position: absolute; top: 4px; left: 6px; }
+  .bn-boxes[data-cols="2"] .bn-box__peek { width: 24px; height: 24px; }
   .bn-mode { min-height: 130px; }
   .bn-mode__pic { font-size: 2.8rem; }
   .bn-mode__pic .bn-tablet { width: 64px; height: 56px; font-size: 2.2rem; }

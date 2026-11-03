@@ -33,7 +33,9 @@
   // three 1s in a row and both players see the same spread. A card bag holds
   // one card of each colour, one double and one picture card. Nobody's bag —
   // the computer's included — is ever weighted toward anyone.
-  function dieBag(seat) { return shuffle(seat, [1, 2, 3, 4, 5, 6]); }
+  // (a board may give its die other FACES: 💯 Hundred Hop's has ten-bars)
+  const facesOf = (board) => board.faces || [1, 2, 3, 4, 5, 6];
+  function dieBag(seat, board) { return shuffle(seat, facesOf(board).slice()); }
   function cardBag(seat, board) {
     const cs = DATA.COLOURS.map((c) => c.id);
     const bag = cs.map((c) => ({ kind: "one", c }));
@@ -56,8 +58,11 @@
   // ---- Board geometry -------------------------------------------------------
   // Square n (1-based) → its column and row (0-based, row 0 at the BOTTOM),
   // snaking: even rows run left to right, odd rows right to left.
+  // 💯 a "chart" board reads like a hundred chart instead: left to right on
+  // every row, 1 at the TOP left, so the square straight below is ten more.
   function cellOf(board, n) {
     const i = n - 1, row = Math.floor(i / board.cols);
+    if (board.layout === "chart") return { col: i % board.cols, row: board.rows - 1 - row };
     const k = i % board.cols;
     return { col: row % 2 === 0 ? k : board.cols - 1 - k, row };
   }
@@ -146,21 +151,27 @@
   function roll(st) {
     if (st.game !== "dice" || st.phase !== "roll") return [];
     const seat = st.seats[st.turn];
-    const die = draw(seat, () => dieBag(seat));
-    st.die = die; st.left = die; st.rolls += 1;
+    const board = DATA.board(st.board);
+    const die = draw(seat, () => dieBag(seat, board));
+    // a ten-bar is ONE tap: ten more, straight down a row
+    st.die = die; st.left = tapsOf(die); st.rolls += 1;
     st.mover = moverFor(st, st.turn);
     st.phase = "hop";
     return [{ type: "roll", seat: st.turn, mover: st.mover, die }];
   }
 
+  // How many taps a face is: one per hop, and one for a ten-bar
+  const TEN = 10;
+  const tapsOf = (die) => (die === TEN ? 1 : die);
   function hop(st) {
     if (st.game !== "dice" || st.phase !== "hop" || st.left <= 0) return [];
     const board = DATA.board(st.board);
     const i = st.mover, s = st.seats[i];
     const ev = [];
-    s.pos = Math.min(board.size, s.pos + 1);
+    const ten = st.die === TEN;
+    s.pos = Math.min(board.size, s.pos + (ten ? TEN : 1));
     st.left -= 1;
-    ev.push({ type: "hop", seat: i, to: s.pos, left: st.left });
+    ev.push(ten ? { type: "hop", seat: i, to: s.pos, left: st.left, ten: true } : { type: "hop", seat: i, to: s.pos, left: st.left });
     if (s.pos >= board.size) {
       // overshoot is home: the dots still to hop simply go dark
       arrive(st, i, ev);
@@ -175,6 +186,12 @@
       s.pos = j.to;
       s.stars += 1;              // every ride earns a star, up or down
       ev.push({ type: "ride", seat: i, kind: j.kind, from, to: j.to });
+    }
+    // 💯 a turn that ENDS on a tens square (10, 20, … 90) earns a ⭐: he
+    // counts by tens. Never the hundred itself, which is home.
+    if (board.tens && s.pos % TEN === 0 && s.pos < board.size) {
+      s.stars += 1;
+      ev.push({ type: "tens", seat: i, at: s.pos });
     }
     endTurn(st, ev);
     return ev;
@@ -309,7 +326,11 @@
   // most one full deal of cards this board can deal
   function okBag(board, bag, birds) {
     if (board.game === "dice") {
-      return bag.length <= 6 && bag.every((n) => int(n) && n >= 1 && n <= 6) && new Set(bag).size === bag.length;
+      // what is left of ONE bag of this board's faces: no face more often
+      // than the die has it
+      const left = facesOf(board).slice();
+      for (const n of bag) { const k = left.indexOf(n); if (!int(n) || k < 0) return false; left.splice(k, 1); }
+      return true;
     }
     if (board.game === "spin") {
       // faces the spinner has, at most one bag's worth, and a 🐦 (face 0)
@@ -340,12 +361,13 @@
       if (!int(snap.turn) || snap.turn < 0 || snap.turn > 1) return null;
       if (!int(snap.mover) || snap.mover < 0 || snap.mover > 1) return null;
       if (!int(snap.left) || snap.left < 0 || snap.left > 6) return null;
-      if (!int(snap.die) || snap.die < 0 || snap.die > 6) return null;
+      if (!int(snap.die) || snap.die < 0) return null;
+      if (board.game === "dice" ? snap.die !== 0 && facesOf(board).indexOf(snap.die) < 0 : snap.die > 6) return null;
       // hops (or apples) are left exactly while hopping (picking): a "hop"
       // turn with none left would be stuck for good (hop() refuses, nothing
       // ends the turn)
       if ((snap.phase === moving) !== (snap.left > 0)) return null;
-      if (snap.phase === moving && snap.left > snap.die) return null;
+      if (snap.phase === moving && snap.left > (spinning ? snap.die : tapsOf(snap.die))) return null;
       if (!int(snap.rolls) || snap.rolls < 0) return null;
       if (snap.card !== null && !okCard(board, snap.card)) return null;
       for (const s of snap.seats) {
@@ -372,7 +394,7 @@
 
   const BoardLogic = {
     create, roll, hop, drawCard, spin, pick, autoTurn, snapshot, restore,
-    cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, COMET_CAP, BACK_CAP,
+    cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN,
   };
   global.BoardLogic = BoardLogic;
   if (typeof module !== "undefined" && module.exports) module.exports = BoardLogic;
