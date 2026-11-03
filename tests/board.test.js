@@ -603,7 +603,9 @@ test("🍎 a whole Apple Spin against the computer: spin, ONE tap ONE apple into
     assert.ok(end.seats.every((x) => x.pos === 10 && x.home), "both baskets are full — nobody loses");
     assert.ok(spins > 2 && picks >= spins, `he spun (${spins}) and picked (${picks})`);
     await page.locator(".bn-party").waitFor({ state: "visible" });
-    assert.equal(await page.locator(".bn-apple--pie").count(), Math.min(end.pie, 14), "the pie shows its spare apples");
+    // the finale tips both baskets (20 apples) into the pie on top of its spares
+    await page.waitForFunction((n) => document.querySelectorAll(".bn-apple--pie").length === n, Math.min(20 + end.pie, 14));
+    assert.equal(await page.locator(".bn-apple--pie").count(), Math.min(20 + end.pie, 14), "the pie holds both baskets and the spares");
     assert.equal(await page.locator(".bn-pop").textContent(), String(20 + end.pie), "the party counts the pie: ten, twenty, and the spares");
     const sv = await page.evaluate(() => window.__BOARD.save());
     assert.equal(sv.done.apple, 1, "a finished game counts once");
