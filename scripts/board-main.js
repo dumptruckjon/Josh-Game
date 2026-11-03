@@ -36,7 +36,7 @@
   // grown-up "hop by itself" switch · next: who starts the next two-person
   // game per box · last: the last box and its players.
   // "has been shown how", per kind of game (each kind's first-time hand)
-  const INTRO = ["dice", "cards", "spin", "hen"];
+  const INTRO = ["dice", "cards", "spin", "hen", "lotto"];
   function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, next: {}, last: null }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
   function coerce(text) {
@@ -377,7 +377,7 @@
     play.dataset.game = board.game;
     play.dataset.box = box;
     boardEl.classList.toggle("bn-board--chart", board.layout === "chart");
-    svgWrap.innerHTML = board.game === "spin" ? R.orchardSVG() : R.boardSVG(board);
+    svgWrap.innerHTML = board.game === "spin" ? R.orchardSVG() : board.game === "lotto" ? R.picnicSVG(board, st.seats.map((s) => DATA.person(s.who).colour)) : R.boardSVG(board);
     applesEl.innerHTML = "";
     hidePop();
     hideMark();
@@ -387,7 +387,8 @@
     for (let i = 0; i < 2; i++) {
       const p = seatPerson(i);
       // 🐔 co-op: ONE token, the hen, that both players walk home
-      tokens[i].hidden = farm && i === 1;
+      // 🧺 a picnic has no tokens at all: the foods are the pieces
+      tokens[i].hidden = (farm && i === 1) || board.game === "lotto";
       tokens[i].querySelector(".bn-token__face").innerHTML = farm ? '<span class="bn-emoji">🐔</span>' : R.faceHTML(p);
       tokens[i].style.borderColor = farm ? "#c2410c" : p.colour;
       tokens[i].style.transitionDuration = "0ms";
@@ -428,6 +429,7 @@
   function orchardFrac(p) { return { x: p.x / R.ORCH, y: p.y / R.ORCH }; }
   function placeTokens() {
     const st = game.st, b = game.board;
+    if (b.game === "lotto") return;
     if (b.game === "spin") {
       for (let i = 0; i < 2; i++) {
         const sp = orchardFrac(R.ORCHARD.face[i]);
@@ -478,8 +480,11 @@
     game.shownStars = game.st.seats.map((s) => s.stars);
     if (game.showTurn == null) { game.showTurn = game.st.turn; game.showMover = game.st.mover; }
     game.shownCoop = game.st.coop || 0;
+    game.shownPlaced = game.st.placed ? game.st.placed.map((p) => p.slice()) : null;
+    game.landed = null;
     placeTokens();
     paintApples();
+    paintFoods();
     paintCoop();
     paintPads();
     paintBoardLabel();
@@ -501,6 +506,10 @@
     if (game.board.game === "spin") {
       boardEl.setAttribute("aria-label", st.seats.map((s, i) => nameOf(i) + " has " + game.shown[i] + (game.shown[i] === 1 ? " apple" : " apples")).join(". ") +
         ". " + game.shownPie + " in the pie.");
+      return;
+    }
+    if (game.board.game === "lotto") {
+      boardEl.setAttribute("aria-label", [0, 1].map((i) => nameOf(i) + "'s blanket has " + game.shownPlaced[i].length + " of " + game.board.spots).join(". ") + ".");
       return;
     }
     if (game.board.game === "hen") {
@@ -534,6 +543,16 @@
         pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
         const hopping = active && st.phase === "hop" && st.turn === i;
         pad.setAttribute("aria-label", nameOf(i) + (active ? (hopping ? (st.die === L.TEN ? ": tap for ten more" : ": tap to hop, " + st.left + " to go") : ": tap to roll the dice") : ": wait for your turn") + (s.home ? ", home" : ""));
+      } else if (game.board.game === "lotto") {
+        // 🧺 the basket to tap; then the food in hand, big. While it is in a
+        // human's hand BOTH pads are answers ("whose is it?"), so both light.
+        const giving = st.phase === "give" && game.showTurn === st.turn && !st.seats[st.turn].cpu;
+        if (active && game.foodShown) act.innerHTML = '<span class="bn-card bn-card--food">' + (DATA.food(game.foodShown) || {}).pic + "</span>";
+        else act.innerHTML = '<span class="bn-card bn-card--basket">🧺</span>';
+        if (giving) { pad.classList.add("bn-pad--on", "bn-pad--ask"); pad.classList.remove("bn-pad--wait"); }
+        else pad.classList.remove("bn-pad--ask");
+        pad.querySelector(".bn-pad__stars").textContent = "";
+        pad.setAttribute("aria-label", giving ? "Give it to " + nameOf(i) : nameOf(i) + (active ? ": tap the basket" : ": wait for your turn") + (s.home ? ", blanket full" : ""));
       } else if (game.board.game === "hen") {
         // 🐔 the farm's spinner: the wheel turns, then shows the ANIMAL spun
         // and one 🐥 per square to walk, each going pale as a chick runs home
@@ -636,7 +655,8 @@
     game.tumbleFace = 0;
     game.showTurn = st.turn;
     game.showMover = st.mover;
-    game.rolled = st.phase === "hop" || st.phase === "pick";   // a game restored mid-move shows its die / spin
+    game.rolled = st.phase === "hop" || st.phase === "pick" || st.phase === "give";   // a game restored mid-move shows its die / spin / food
+    game.foodShown = st.phase === "give" ? st.food : null;
     paintPads();
     persistGame();
     const i = st.turn;
@@ -659,7 +679,7 @@
   function hopLine() { return !game ? SAY.hopFirst : game.board.game === "hen" ? SAY.henFirst : game.st.die === L.TEN ? SAY.tenFirst : SAY.hopFirst; }
   // which first-time hand a HOP belongs to: the dice's, or the farm's
   function introKey() { return game && game.board.game === "hen" ? "hen" : "dice"; }
-  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" ? SAY.spinFirst : SAY.flipFirst; }
+  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" || g === "hen" ? SAY.spinFirst : g === "lotto" ? SAY.basketFirst : SAY.flipFirst; }
 
   function padTap(i) {
     if (!game || !playVisible()) return;
@@ -668,6 +688,12 @@
     // whose turn it is ON SCREEN: through a hand-over the engine has already
     // passed the turn on while the lit pad is still the one that just moved
     const shown = game.showTurn == null ? st.turn : game.showTurn;
+    // 🧺 "whose is it?": while a food is in his hand, BOTH pads are answers
+    // (his own, or his friend's — the computer's too)
+    if (game.board.game === "lotto" && st.phase === "give" && !st.seats[st.turn].cpu && shown === st.turn) {
+      if (!game.busy) giveTo(i);
+      return;
+    }
     if (i !== shown || st.seats[i].cpu) {
       // not this pad's turn: a kind wiggle, never a buzzer
       wiggle(pads[i]);
@@ -676,6 +702,7 @@
     }
     if (game.busy || i !== st.turn) return;
     if (game.board.game === "cards") return flipCard();
+    if (game.board.game === "lotto") return takeFood();
     if (st.phase === "roll") return rollDice();
     if (st.phase === "hop" && !save.auto) return hopOnce();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
@@ -757,6 +784,7 @@
     const st = game.st;
     if (st.phase === "done" || !st.seats[st.turn].cpu) return;
     if (game.board.game === "cards") return flipCard();
+    if (game.board.game === "lotto") return takeFood();
     if (st.phase === "roll") return rollDice();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
     if (st.phase === "pick") return cpuPick();
@@ -795,6 +823,64 @@
       if (save.auto) autoPicks();
     }, T.tumble);
   }
+  // ---- 🧺 Picnic Lotto: take a food, then find whose blanket it goes on -------
+  const foodSay = (id) => { const f = DATA.food(id); return f ? f.say : ""; };
+  function whoseLine() { return cap(fill(SAY.whose, { f: foodSay(game.st.food) })); }
+  function takeFood() {
+    const ev = L.takeFood(game.st);
+    if (!ev.length) return;
+    hideHand();
+    game.busy = true;
+    game.rolled = true;
+    game.foodShown = ev[0].food;
+    SFX.flip();
+    paintPads();
+    paintFoods();
+    persistGame();
+    const st = game.st;
+    if (st.seats[st.turn].cpu) {
+      // the computer finds it itself, at a pace he can follow: a worked
+      // example of looking at both blankets
+      sayPlay(cap(foodSay(ev[0].food)) + "!");
+      later(() => { game.busy = false; giveTo(L.ownerOf(game.st, game.st.food)); }, T.cpuThink);
+      return;
+    }
+    sayPlay(whoseLine() + (save.intro.lotto ? "" : " " + SAY.whoseFirst));
+    later(() => { game.busy = false; paintPads(); }, T.card);
+  }
+  function giveTo(i) {
+    const st = game.st, ev = L.giveFood(st, i);
+    if (!ev.length) return;
+    if (ev[0].type === "miss") {
+      // not there: a kind wiggle, and after two the food's own spot glows
+      wiggle(pads[i]);
+      sayPlay(fill(SAY.lookAgain, { f: foodSay(st.food) }));
+      paintFoods();
+      persistGame();
+      return;
+    }
+    if (!save.intro.lotto && !st.seats[ev[0].seat].cpu) { save.intro.lotto = true; persist(); }
+    playEvents(ev);
+  }
+  // Every food on the two blankets: the ones placed in full colour, the ones
+  // still to come as a faint picture of what to look for, the one in hand's
+  // spot glowing once he has looked twice
+  function paintFoods() {
+    if (!game || game.board.game !== "lotto") return;
+    const st = game.st, b = game.board, sp = game.shownPlaced || st.placed;
+    let html = "";
+    for (let i = 0; i < 2; i++) {
+      for (let k = 0; k < b.spots; k++) {
+        const id = st.blankets[i][k], f = DATA.food(id), p = R.spotOf(i, k);
+        const on = sp[i].indexOf(id) >= 0;
+        const hintOn = !on && st.phase === "give" && st.food === id && st.misses >= 2;
+        html += '<span class="bn-food' + (on ? " bn-food--on" : " bn-food--ghost") + (hintOn ? " bn-food--hint" : "") + (game.landed === id ? " bn-food--land" : "") +
+          '" data-seat="' + i + '" data-k="' + k + '" data-food="' + id + '" style="left:' + (p.x / R.PIC.w * 100) + "%;top:" + (p.y / R.PIC.h * 100) + '%">' + (f ? f.pic : "") + "</span>";
+      }
+    }
+    applesEl.innerHTML = html;
+  }
+
   // 🐔 the farm's spinner: it turns, lands on an animal, and the square the
   // hen walks to lights up (the 🌈 card's mark) — then one tap, one chick.
   // A 🦊 is the whole turn.
@@ -950,6 +1036,28 @@
         popOnSquare(e.to, String(e.coop));
         if (e.left === 0) hideMark();
         paintBoardLabel();
+      } else if (e.type === "give") {
+        // 🧺 the food lands on its spot on the right blanket
+        game.foodShown = null;
+        game.shownPlaced[e.owner].push(e.food);
+        game.landed = e.food;
+        paintFoods();
+        paintPads();
+        SFX.plop(e.count);
+        sayPlay(cap(fill(SAY.giveMine, { f: foodSay(e.food), n: nameOf(e.owner) })));
+        const p = R.spotOf(e.owner, e.slot);
+        popAt({ x: p.x / R.PIC.w, y: (p.y - 30) / R.PIC.h }, String(e.count));
+        paintBoardLabel();
+        if (e.owner !== e.seat) cheer(e.seat, true);
+        at(T.hop + 300, () => { game.landed = null; });
+      } else if (e.type === "full") {
+        at(T.hop, () => {
+          SFX.home();
+          sayPlay(fill(endLine("home"), { n: nameOf(e.seat) }));
+          cheer(e.seat, true);
+          try { if (global.JoshEffects && playVisible()) global.JoshEffects.stars(); } catch (err) { /* ignore */ }
+        });
+        at(900, () => {});
       } else if (e.type === "fox") {
         // 🦊 a fox wants to play: one chick runs OUT of the hen house to play
         // (it comes home at the end) — never a scold, a friendly tweet
@@ -1289,6 +1397,7 @@
     if (st.seats[i].cpu) { say(fill(SAY.turn, { n: nameOf(i) })); return; }
     if (st.phase === "hop") say(hopLine());
     else if (st.phase === "pick") say(SAY.pickFirst);
+    else if (st.phase === "give") say(whoseLine() + " " + SAY.whoseFirst);
     else say(fill(SAY.turn, { n: nameOf(i) }) + " " + firstLine());
     showHand(i);
     later(hideHand, 2600);

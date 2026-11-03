@@ -107,7 +107,7 @@
   // every slide kept (0.72 a game against 0.76).
   const BACK_CAP = 24;
   // Where a token STARTS: square 1 of a track, or an EMPTY basket
-  const startOf = (board) => (board.game === "spin" ? 0 : 1);
+  const startOf = (board) => (board.game === "spin" || board.game === "lotto" ? 0 : 1);
 
   // ---- A new game -----------------------------------------------------------
   // opts: { board, seats: [{ who, cpu }], seed, first }
@@ -137,9 +137,21 @@
     // 🐔 co-op: ONE hen for both (both seats stand where she stands), the
     // chicks she has brought home, and the chicks out playing with the fox
     if (board.game === "hen") { st.coop = 0; st.out = 0; st.fox = !!opts.fox; }
+    // 🧺 two blankets of six foods (never sharing one), one basket of all
+    // twelve in a shuffled order, nothing on a blanket yet. Dealt from seat
+    // 0's generator, so the deal is part of the seed. A seat's `pos` is how
+    // many foods its blanket holds, and it is "home" once its blanket is full.
+    if (board.game === "lotto") {
+      const ids = shuffle(seats[0], DATA.FOODS.map((f) => f.id)).slice(0, board.spots * 2);
+      st.blankets = [ids.slice(0, board.spots), ids.slice(board.spots)];
+      st.placed = [[], []];
+      st.basket = shuffle(seats[0], ids.slice());
+      st.food = null;
+      st.misses = 0;
+    }
     return st;
   }
-  function firstPhase(game) { return game === "cards" ? "draw" : game === "spin" || game === "hen" ? "spin" : "roll"; }
+  function firstPhase(game) { return game === "cards" || game === "lotto" ? "draw" : game === "spin" || game === "hen" ? "spin" : "roll"; }
 
   const anyHome = (st) => st.seats.some((s) => s.home);
   const other = (i) => (i === 0 ? 1 : 0);
@@ -381,10 +393,47 @@
     return ev;
   }
 
+  // ---- 🧺 Picnic Lotto: take a food from the basket, then give it --------------
+  // Whose blanket has this food (0 or 1)
+  function ownerOf(st, food) { return st.blankets[0].indexOf(food) >= 0 ? 0 : st.blankets[1].indexOf(food) >= 0 ? 1 : -1; }
+  function takeFood(st) {
+    if (st.game !== "lotto" || st.phase !== "draw" || !st.basket.length) return [];
+    st.rolls += 1;
+    st.food = st.basket.shift();
+    st.misses = 0;
+    st.phase = "give";
+    return [{ type: "draw", seat: st.turn, food: st.food, owner: ownerOf(st, st.food) }];
+  }
+  // Give the food in hand to seat `to`. The wrong friend only wiggles (the food
+  // stays in hand, and the count of misses lets the screen help after two);
+  // the right one puts it on its spot. When both blankets are full, the game
+  // is over: one picnic.
+  function giveFood(st, to) {
+    if (st.game !== "lotto" || st.phase !== "give" || (to !== 0 && to !== 1)) return [];
+    const owner = ownerOf(st, st.food);
+    if (to !== owner) { st.misses += 1; return [{ type: "miss", seat: st.turn, to, misses: st.misses, owner }]; }
+    const food = st.food, s = st.seats[owner];
+    st.placed[owner].push(food);
+    s.pos = st.placed[owner].length;
+    st.food = null;
+    st.misses = 0;
+    const ev = [{ type: "give", seat: st.turn, owner, food, slot: st.blankets[owner].indexOf(food), count: s.pos }];
+    const board = DATA.board(st.board);
+    if (s.pos >= board.spots && !s.home) { s.home = true; st.order.push(owner); ev.push({ type: "full", seat: owner }); }
+    endTurn(st, ev);
+    return ev;
+  }
+
   // One whole turn for the computer (and the tests' bot)
   function autoTurn(st) {
     if (st.phase === "done") return [];
     if (st.game === "cards") return drawCard(st);
+    if (st.game === "lotto") {
+      // the computer (and the bot) always knows whose it is: a worked example
+      const ev = takeFood(st);
+      if (st.phase === "give") ev.push(...giveFood(st, ownerOf(st, st.food)));
+      return ev;
+    }
     let guard = 0;
     if (st.game === "hen") {
       const ev = spinHen(st);
@@ -413,6 +462,7 @@
   // What is left of a bag: a die bag is distinct faces 1..6, a card bag at
   // most one full deal of cards this board can deal
   function okBag(board, bag, birds) {
+    if (board.game === "lotto") return bag.length === 0;   // the basket is shared, not a seat's
     if (board.game === "hen") {
       // what is left of ONE bag: each animal at most once, a 🦊 only when the
       // fox is on (here `birds` carries the fox flag)
@@ -446,7 +496,8 @@
       if (!Array.isArray(snap.seats) || snap.seats.length !== 2) return null;
       const spinning = board.game === "spin";
       const hen = board.game === "hen";
-      const okPhase = board.game === "cards" ? ["draw", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : ["roll", "hop", "done"];
+      const lotto = board.game === "lotto";
+      const okPhase = board.game === "cards" ? ["draw", "done"] : lotto ? ["draw", "give", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : ["roll", "hop", "done"];
       if (okPhase.indexOf(snap.phase) < 0) return null;
       const moving = spinning ? "pick" : "hop";
       if (spinning) {
@@ -472,6 +523,26 @@
         if (snap.out > 0 && !snap.fox) return null;
         if (snap.card !== null && !DATA.animal(snap.card) && !(snap.card === FOX && snap.fox)) return null;
         if (snap.seats.some((s) => typeof s.fox !== "boolean")) return null;
+      } else if (lotto) {
+        // two blankets of `spots` different foods that share none; what is on
+        // each is from that blanket; every food is in exactly one place — on
+        // its blanket, in the basket, or in hand while it is being given
+        const B = snap.blankets, P = snap.placed;
+        if (!Array.isArray(B) || B.length !== 2 || !Array.isArray(P) || P.length !== 2 || !Array.isArray(snap.basket)) return null;
+        const all = [];
+        for (let i = 0; i < 2; i++) {
+          if (!Array.isArray(B[i]) || B[i].length !== board.spots || !Array.isArray(P[i])) return null;
+          if (B[i].some((f) => !DATA.food(f)) || P[i].some((f) => B[i].indexOf(f) < 0)) return null;
+          if (snap.seats[i].pos !== P[i].length) return null;
+          all.push(...B[i]);
+        }
+        if (new Set(all).size !== all.length) return null;
+        const inHand = snap.phase === "give" ? [snap.food] : [];
+        if (snap.phase === "give" ? all.indexOf(snap.food) < 0 : snap.food !== null) return null;
+        const everywhere = P[0].concat(P[1], snap.basket, inHand);
+        if (everywhere.length !== all.length || new Set(everywhere).size !== all.length || everywhere.some((f) => all.indexOf(f) < 0)) return null;
+        if (!int(snap.misses) || snap.misses < 0 || (snap.phase !== "give" && snap.misses !== 0)) return null;
+        if (snap.card !== null) return null;
       } else if (snap.card !== null && !okCard(board, snap.card)) return null;
       for (const s of snap.seats) {
         if (!s || typeof s.who !== "string" || !DATA.person(s.who)) return null;
@@ -496,7 +567,7 @@
   }
 
   const BoardLogic = {
-    create, roll, hop, drawCard, spin, pick, spinHen, henHop, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
+    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
     cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN,
   };
   global.BoardLogic = BoardLogic;

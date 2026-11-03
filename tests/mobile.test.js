@@ -245,7 +245,7 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
         assert.equal(await page.locator(".bn-box").count(), DATA_BOXES, "fixture: the shelf holds every box (Comet Moon unlocked)");
       }
     }
-    for (const [box, who, cpu] of [["moon", "river", true], ["rainbow", "dad", false], ["apple", "viraj", true], ["hundred", "mom", false], ["hen", "raegar", true]]) {
+    for (const [box, who, cpu] of [["moon", "river", true], ["rainbow", "dad", false], ["apple", "viraj", true], ["hundred", "mom", false], ["hen", "raegar", true], ["lotto", "grandma", false]]) {
       await page.evaluate((a) => window.__BOARD.start(a[0], a[1], a[2], 3, 0), [box, who, cpu]);
       await page.locator("#screen-board-play").waitFor({ state: "visible" });
       await page.waitForTimeout(300);
@@ -255,7 +255,7 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
         const b = document.querySelector(".bn-board").getBoundingClientRect();
         const pads = [...document.querySelectorAll(".bn-pad")].map((p) => p.getBoundingClientRect());
         const chart = document.querySelector(".bn-num");
-        return { sh: document.documentElement.scrollHeight, vh: innerHeight, cell: b.width / (chart ? 10 : 6), chart: !!chart,
+        return { sh: document.documentElement.scrollHeight, vh: innerHeight, cell: b.width / window.BoardData.board(window.__BOARD.state().board).cols, chart: !!chart,
           num: chart ? Math.min(...[...document.querySelectorAll(".bn-num")].map((t) => t.getBoundingClientRect().height)) : 0,
           padBottom: Math.max(...pads.map((p) => p.bottom)),
           overlap: pads.some((p) => p.left < b.right && p.right > b.left && p.top < b.bottom && p.bottom > b.top) };

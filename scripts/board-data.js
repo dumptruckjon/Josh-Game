@@ -54,6 +54,29 @@
     { id: "D", pic: "🐕", say: "dog" },
   ];
 
+  // ---- 🧺 Picnic Lotto's foods -----------------------------------------------
+  // Sixteen foods a four-year-old names at once, each a different SHAPE (never
+  // two reds that look alike, never two round fruits side by side in his
+  // eye): every blanket is six of them, and the two blankets never share one.
+  const FOODS = [
+    { id: "banana", pic: "🍌", say: "a banana" },
+    { id: "strawberry", pic: "🍓", say: "a strawberry" },
+    { id: "grapes", pic: "🍇", say: "some grapes" },
+    { id: "watermelon", pic: "🍉", say: "a watermelon" },
+    { id: "pizza", pic: "🍕", say: "a pizza" },
+    { id: "cheese", pic: "🧀", say: "some cheese" },
+    { id: "carrot", pic: "🥕", say: "a carrot" },
+    { id: "cookie", pic: "🍪", say: "a cookie" },
+    { id: "cupcake", pic: "🧁", say: "a cupcake" },
+    { id: "donut", pic: "🍩", say: "a donut" },
+    { id: "pretzel", pic: "🥨", say: "a pretzel" },
+    { id: "corn", pic: "🌽", say: "some corn" },
+    { id: "icecream", pic: "🍦", say: "an ice cream" },
+    { id: "sandwich", pic: "🥪", say: "a sandwich" },
+    { id: "broccoli", pic: "🥦", say: "some broccoli" },
+    { id: "cherries", pic: "🍒", say: "some cherries" },
+  ];
+
   // ---- The boards ---------------------------------------------------------
   // Squares are numbered 1..size and snake back and forth from the bottom left
   // (row 1 runs left to right, row 2 right to left, …), exactly like a real
@@ -135,6 +158,20 @@
       animals: "SDPCSPDCPDSCDPCSPDSCDSPDCSCDPSCPCD",
     },
     {
+      // 🧺 Picnic Lotto (picture lotto): each player's picnic BLANKET shows six
+      // foods, and the two blankets never share one. One basket holds all
+      // twelve; on your turn you take one out, and then find WHOSE blanket it
+      // goes on — yours, or your friend's ("A banana! Whose is it?") — and
+      // tap that player's pad. A wrong guess only wiggles; after two, the
+      // spot glows. Both blankets fill (twelve foods, six turns each) and the
+      // picnic is ONE party. `spots` is a blanket's size; the picture is two
+      // blankets side by side, each two across and three down, over the two
+      // pads that own them.
+      id: "lotto", box: "lotto", game: "lotto", name: "Picnic Lotto", coop: true,
+      cols: 4.4, rows: 3.3, size: 6, spots: 6,
+      lines: { home: "{n}'s blanket is full!", end: "Both blankets are full! Picnic time!" },
+    },
+    {
       // 🍎 Apple Spin (Hi-Ho Cherry-O's mechanic): no track at all. Each
       // player fills their own TEN-FRAME basket from a big tree; `size` is the
       // basket. A spin says how many apples to pick (one tap, one apple); a
@@ -162,6 +199,7 @@
     { id: "hundred", board: "hundred", name: "Hundred Hop", pic: "💯", colour: "#e08a00" },
     // the 🦊 joins from his THIRD Hen House game, exactly as the comets do
     { id: "hen", board: "hen", name: "Hen House", pic: "🐔", colour: "#c2410c", foxAfter: 2 },
+    { id: "lotto", board: "lotto", name: "Picnic Lotto", pic: "🧺", colour: "#2f9e6e" },
   ];
 
   // ---- Every line the game says ------------------------------------------
@@ -204,11 +242,18 @@
     fox: "Oh! A fox wants to play. One chick ran out to play!",
     henHome: "The hen is home! Here come the chicks who were playing!",
     endHen: "All {k} chicks are home! We did it together!",
+    basketFirst: "Tap the basket!",
+    whose: "{f}! Whose is it?",
+    whoseFirst: "Tap the friend whose blanket has it!",
+    giveMine: "{f} for {n}!",
+    lookAgain: "Look again! Where is {f}?",
+    endLotto: "Both blankets are full! Picnic time!",
     ten: "{to}! Ten more!",
     tens: "{to}! A star!",
   };
 
-  const BoardData = { JOSH, FRIENDS, PEOPLE, COLOURS, ANIMALS, BOARDS, BOXES, SAY };
+  const BoardData = { JOSH, FRIENDS, PEOPLE, COLOURS, ANIMALS, FOODS, BOARDS, BOXES, SAY };
+  BoardData.food = (id) => FOODS.find((f) => f.id === id) || null;
   BoardData.animal = (id) => ANIMALS.find((a) => a.id === id) || null;
   BoardData.board = (id) => BOARDS.find((b) => b.id === id) || null;
   BoardData.box = (id) => BOXES.find((b) => b.id === id) || null;

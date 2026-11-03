@@ -32,8 +32,9 @@ test("data: every box opens a real board, every board is a real grid, every pers
     // a track fills its grid exactly; Apple Spin's grid is only the shape of
     // its picture, and its size is the TEN-FRAME basket
     if (board.game === "spin") assert.equal(board.size, 10, `${board.id}: a basket is a ten-frame`);
+    else if (board.game === "lotto") assert.equal(board.size, board.spots, `${board.id}: a seat is done when its blanket's ${board.spots} spots are full`);
     else assert.equal(board.size, board.cols * board.rows, `${board.id} fills its grid exactly`);
-    assert.ok(["dice", "cards", "spin", "hen"].indexOf(board.game) >= 0, `${board.id} is a dice, card, spinner or farm game`);
+    assert.ok(["dice", "cards", "spin", "hen", "lotto"].indexOf(board.game) >= 0, `${board.id} is a dice, card, spinner, farm or lotto game`);
     assert.ok(DATA.BOXES.some((b) => b.board === board.id), `${board.id} is on the shelf (no dead board)`);
   }
   for (const p of [DATA.JOSH, ...DATA.PEOPLE]) {
@@ -129,7 +130,8 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
       // each ride or star (~1s). TURNS alone measured the wrong thing once a
       // board's turns got short: 💯 Hundred Hop takes twice Moon Race's turns
       // and has FEWER taps, because a ten is one tap.
-      const taps = g.ev.filter((e) => e.type === "hop" || e.type === "pick" || e.type === "card").length;
+      // (a lotto turn is two taps: the basket, then whose it is)
+      const taps = g.ev.filter((e) => e.type === "hop" || e.type === "pick" || e.type === "card" || e.type === "draw" || e.type === "give").length;
       const extras = g.ev.filter((e) => e.type === "ride" || e.type === "tens").length;
       secs.push(g.turns * 2.3 + taps * 0.5 + extras);
     }
@@ -357,6 +359,7 @@ test("RESTORE takes back EVERY state a real game passes through, and refuses eac
       let guard = 0;
       while (st.phase !== "done" && guard++ < 500) {
         if (st.game === "cards") L.drawCard(st);
+        else if (st.game === "lotto") { if (st.phase === "draw") L.takeFood(st); else L.giveFood(st, L.ownerOf(st, st.food)); }
         else if (st.phase === "roll") L.roll(st);
         else if (st.phase === "spin") L.spin(st);
         else if (st.phase === "pick") L.pick(st);
@@ -718,6 +721,73 @@ test("🐔 HEN HOUSE: the farm's laws, one hen for both, every square walked is 
     ["a fox in a fox-off bag", { ...g, fox: false, seats: [{ ...g.seats[0], bag: [L.FOX] }, g.seats[1]] }],
     ["a cow twice in one bag", { ...g, seats: [{ ...g.seats[0], bag: ["C", "C"] }, g.seats[1]] }],
     ["a face that is not an animal", { ...g, card: "Z" }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
+test("🧺 PICNIC LOTTO: two blankets of six foods that share none, every food in exactly one place, a wrong friend only wiggles, and every game ends with both blankets full", () => {
+  const b = DATA.board("lotto");
+  assert.ok(b.coop, "Picnic Lotto ends in one picnic for both");
+  assert.equal(new Set(DATA.FOODS.map((f) => f.pic)).size, DATA.FOODS.length, "every food is a different picture");
+  assert.ok(DATA.FOODS.length >= b.spots * 2, "enough foods for two blankets");
+  for (const f of DATA.FOODS) assert.match(f.say, /^(a|an|some) [a-z ]+$/, `${f.id} is said as words`);
+  let games = 0, firstFull = [0, 0], misses = 0;
+  for (let seed = 1; seed <= 2000; seed++) {
+    const st = L.create({ board: "lotto", seats: SEATS, seed, first: seed % 2 });
+    const all = st.blankets[0].concat(st.blankets[1]);
+    assert.equal(new Set(all).size, b.spots * 2, "the blankets share no food");
+    assert.ok(all.every((f) => DATA.food(f)), "every spot is a real food");
+    assert.deepEqual(st.basket.slice().sort(), all.slice().sort(), "the basket holds exactly the twelve foods");
+    let guard = 0, last = null;
+    while (st.phase !== "done" && guard++ < 100) {
+      const t = st.turn;
+      if (last !== null) assert.notEqual(t, last, "turns alternate");
+      last = t;
+      const left = st.basket.length;
+      const d = L.takeFood(st);
+      assert.equal(d[0].type, "draw");
+      assert.equal(st.basket.length, left - 1, "one food comes out of the basket");
+      const owner = L.ownerOf(st, st.food);
+      // the wrong friend first, sometimes: it only wiggles
+      if (seed % 3 === 0) {
+        const m = L.giveFood(st, 1 - owner);
+        assert.equal(m[0].type, "miss");
+        misses++;
+        assert.equal(st.phase, "give", "a wrong friend changes nothing: the food is still in hand");
+        assert.equal(st.turn, t, "and it is still his turn");
+        assert.equal(st.placed[1 - owner].indexOf(d[0].food), -1, "nothing is put on the wrong blanket");
+      }
+      const before = st.placed[owner].length;
+      const g = L.giveFood(st, owner);
+      assert.equal(g[0].type, "give");
+      assert.equal(st.placed[owner].length, before + 1, "the right friend's blanket gets it");
+      assert.equal(g[0].slot, st.blankets[owner].indexOf(d[0].food), "on its own spot");
+      assert.deepEqual(L.restore(JSON.parse(JSON.stringify(L.snapshot(st)))), st, "every state restores exactly");
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ends`);
+    assert.equal(guard, b.spots * 2, "twelve foods, twelve turns");
+    assert.ok(st.seats.every((s) => s.home && s.pos === b.spots), "both blankets are full");
+    firstFull[st.order[0]]++;
+    games++;
+  }
+  assert.ok(misses > 1000, `fixture: wrong friends really happen (${misses})`);
+  // whose blanket fills first is luck, never a seat's edge
+  for (const n of firstFull) assert.ok(n / games > 0.4 && n / games < 0.6, `a seat fills first ${(100 * n / games).toFixed(0)}% of the time`);
+  // states no game reaches
+  const st = L.create({ board: "lotto", seats: SEATS, seed: 4 });
+  L.takeFood(st);
+  const g = L.snapshot(st);
+  const other = g.blankets[0].concat(g.blankets[1]).find((f) => f !== g.food);
+  const bad = [
+    ["a food on the wrong blanket", { ...g, placed: [[g.blankets[1][0]], []], seats: [{ ...g.seats[0], pos: 1 }, g.seats[1]] }],
+    ["a food in two places", { ...g, basket: g.basket.concat([g.food]) }],
+    ["a food lost", { ...g, basket: g.basket.slice(1) }],
+    ["the blankets sharing a food", { ...g, blankets: [g.blankets[0], [g.blankets[0][0]].concat(g.blankets[1].slice(1))] }],
+    ["a blanket count that is not its foods", { ...g, seats: [{ ...g.seats[0], pos: 2 }, g.seats[1]] }],
+    ["no food in hand while giving", { ...g, food: null }],
+    ["a food in hand while drawing", { ...g, phase: "draw", food: other }],
+    ["a food that is not on the menu", { ...g, blankets: [["rock"].concat(g.blankets[0].slice(1)), g.blankets[1]] }],
   ];
   for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
   assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");

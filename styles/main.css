@@ -3430,6 +3430,20 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
 .bn-spin__chicks { display: grid; grid-auto-flow: column; justify-content: center; font-size: 0.5em; line-height: 1.1; }
 .bn-spin__chick--used { opacity: 0.2; }
 .bn-spin--fox { grid-template-columns: minmax(0, 100%); font-size: 2.8rem; }
+/* 🧺 the foods on the blankets: the ones still to come a faint picture of
+   what to look for, the placed ones in full colour (a SHAPE and a lightness
+   tell them apart, never a hue alone); the one in hand glows on its spot
+   once he has looked twice */
+.bn-food { position: absolute; transform: translate(-50%, -50%); font-size: 1.85em; line-height: 1; pointer-events: none; }
+.bn-food--ghost { opacity: 0.28; }
+.bn-food--on { opacity: 1; }
+.bn-food--land { animation: bnLand 0.4s ease-out; }
+.bn-food--hint { opacity: 0.9; border-radius: 50%; box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200; animation: bnGlow 0.9s ease-in-out infinite alternate; }
+@keyframes bnLand { 0% { transform: translate(-50%, -50%) scale(0.4); } 70% { transform: translate(-50%, -50%) scale(1.2); } 100% { transform: translate(-50%, -50%) scale(1); } }
+@keyframes bnGlow { from { box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200; } to { box-shadow: 0 0 0 8px #ffd24d, 0 0 0 12px #7a5200; } }
+.bn-card--basket { border-style: dashed; font-size: 2.6rem; }
+/* "whose is it?": both pads are answers, so both stand ready */
+.bn-pad--ask .bn-pad__face, .bn-pad--ask .bn-pad__act { opacity: 1; }
 /* the chicks home: a counter on the hen house square, above its picture */
 .bn-coop {
   position: absolute;
@@ -3539,5 +3553,6 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
   .bn-card--flip { animation: none; }
   .bn-pad--cheer .bn-pad__face { animation: none; }
   .bn-mark { animation: none; }
+  .bn-food--land, .bn-food--hint { animation: none; }
   .bn-apple { transition: none; }
 }

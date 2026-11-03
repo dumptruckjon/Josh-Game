@@ -273,5 +273,30 @@
     return s + "</svg>";
   }
 
-  global.BoardRender = { farmSpinnerSVG, boardSVG, shapeSVG, faceHTML, spot, centre, CELL, orchardSVG, spinnerSVG, slotOf, pieSpot, treeSpot, ORCHARD, ORCH };
+  // ---- 🧺 the picnic -------------------------------------------------------
+  // Two blankets side by side over the two pads that own them (the left one
+  // is seat 0's), each two across and three down, a plate on every spot and
+  // the owner's colour round its edge. The FOODS are DOM over it (they move),
+  // placed by spotOf: board units, the boards' own CELL.
+  const PIC = { w: 440, h: 330, gapX: 240, top: 15 };
+  function spotOf(i, k) {
+    return { x: (i ? PIC.gapX : 0) + 50 + 100 * (k % 2), y: PIC.top + 50 + 100 * Math.floor(k / 2) };
+  }
+  function picnicSVG(board, colours) {
+    let s = '<svg class="bn-svg" viewBox="0 0 ' + PIC.w + " " + PIC.h + '" preserveAspectRatio="none" aria-hidden="true" focusable="false">';
+    s += '<rect x="0" y="0" width="' + PIC.w + '" height="' + PIC.h + '" rx="22" fill="#b9e3a2"/>';
+    for (let i = 0; i < 2; i++) {
+      const x0 = i ? PIC.gapX : 0;
+      s += '<rect x="' + (x0 + 4) + '" y="' + (PIC.top - 8) + '" width="192" height="316" rx="18" fill="#ffffff" stroke="' + (colours[i] || "#2b2b3a") + '" stroke-width="8"/>';
+      // gingham: soft squares on the cloth
+      for (let r = 0; r < 6; r++) for (let c = 0; c < 4; c++) if ((r + c) % 2 === 0) s += '<rect x="' + (x0 + 8 + c * 46) + '" y="' + (PIC.top - 4 + r * 51) + '" width="46" height="51" fill="' + (i ? "#d8ecff" : "#ffd9dc") + '"/>';
+      for (let k = 0; k < board.spots; k++) {
+        const p = spotOf(i, k);
+        s += '<circle class="bn-plate" data-seat="' + i + '" data-k="' + k + '" cx="' + p.x + '" cy="' + p.y + '" r="38" fill="#ffffff" stroke="rgba(0,0,0,0.22)" stroke-width="3"/>';
+      }
+    }
+    return s + "</svg>";
+  }
+
+  global.BoardRender = { picnicSVG, spotOf, PIC, farmSpinnerSVG, boardSVG, shapeSVG, faceHTML, spot, centre, CELL, orchardSVG, spinnerSVG, slotOf, pieSpot, treeSpot, ORCHARD, ORCH };
 })(typeof window !== "undefined" ? window : globalThis);

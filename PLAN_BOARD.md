@@ -1,7 +1,7 @@
 # 🎲 Game Night — board games for Josh (and a friend)
 
-**Status: BATCHES 1 AND 2 BUILT, AUDITED TWICE; BATCH 3 BUILDING** (§11:
-💯 Hundred Hop and 🐔 Hen House built; 🧺 Picnic Lotto next) — the door, the shelf, the shared turn
+**Status: BATCHES 1, 2 AND 3 BUILT** (batches 1-2 audited twice; §11 is
+batch 3: 💯 Hundred Hop, 🐔 Hen House and 🧺 Picnic Lotto) — the door, the shelf, the shared turn
 routine, the engine, 🚀 Moon Race (with ☄️ Comet Moon), 🌈 Rainbow Trail, and
 🍎 Apple Spin (the owner's go, 2026-10-28, with "deeply audit the first 2
 games … to make them even more high quality and fun and exciting": §8).
@@ -260,10 +260,20 @@ four already on the shelf, each luck-only, each portrait-first and no-lose:
    never more than 6 squares ahead; a game is about 14 spins (17 with the
    fox), about a minute at the shell's pace. The engine's spin() and hop()
    route a farm game to its own moves, so every generic sweep plays it.
-3. **🧺 Picnic Lotto** — picture lotto: each player has a picnic blanket of six
-   foods; tap the basket, a food comes out, and he finds where it goes —
-   his blanket or his friend's ("A banana for River!"). Both blankets fill; one
-   picnic.
+3. **🧺 Picnic Lotto (BUILT)** — picture lotto: each player's picnic blanket
+   shows six foods (the two never share one), drawn faintly as what to look
+   for. He taps the basket on his pad, a food comes out onto it, and then he
+   FINDS whose blanket it is on and taps that player's pad — his own or his
+   friend's, the computer's too ("A banana! Whose is it?" … "A banana for
+   River!"). That is the skill: a visual search across both blankets. A wrong
+   friend only wiggles ("Look again!") and the food stays in hand; after two,
+   its spot glows. The computer's turns are worked examples (it always knows).
+   Twelve foods, twelve turns, both blankets fill, one picnic. The blankets
+   stand side by side over the two pads that own them, in each player's
+   colour — so the answer to "whose?" is also a place. The foods are pictures,
+   not buttons: the only targets are the two pads, which is what keeps every
+   tap ≥75px on a 320x568 phone (two blankets of tappable spots needed four
+   rows of 75px there, about 150px more than the field has).
 
 The shelf now stands two by two from four boxes, an ODD shelf's last box
 spanning both columns; on a short phone each box is a smaller picture over a

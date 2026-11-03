@@ -89,8 +89,8 @@ test("the shelf: Moon Race and Rainbow Trail first; Comet Moon arrives after TWO
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await go("#board-home", "#screen-board-home");
   const boxes = () => page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-box")].map((b) => b.dataset.box));
-  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred", "hen"], "a fresh shelf: five boxes, nothing locked");
-  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "2", "five boxes stand two by two");
+  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred", "hen", "lotto"], "a fresh shelf: six boxes, nothing locked");
+  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "2", "six boxes stand two by two");
   assert.equal(await page.locator("#screen-board-home [aria-disabled], #screen-board-home .bn-box[disabled]").count(), 0, "nothing on the shelf is locked or greyed");
   // no row is ragged: an ODD shelf's last box spans both columns, an even
   // one's is a box like the rest (checked on both shelves this test sees)
@@ -106,14 +106,14 @@ test("the shelf: Moon Race and Rainbow Trail first; Comet Moon arrives after TWO
   await shelfEven();
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 1 } }));
   await go("#board-home", "#screen-board-home");
-  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred", "hen"], "one Moon game is not enough");
+  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred", "hen", "lotto"], "one Moon game is not enough");
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }));
   await go("#board-home", "#screen-board-home");
-  assert.deepEqual(await boxes(), ["moon", "comet", "rainbow", "apple", "hundred", "hen"], "after two, Comet Moon is on the shelf, beside Moon Race");
+  assert.deepEqual(await boxes(), ["moon", "comet", "rainbow", "apple", "hundred", "hen", "lotto"], "after two, Comet Moon is on the shelf, beside Moon Race");
   // rows of single boxes put the last one below the fold of a small phone,
   // so a shelf of four or more stands in two columns — and an ODD shelf's
   // last box spans both, so no row is ragged
-  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "2", "six boxes stand two by two");
+  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "2", "seven boxes stand two by two");
   await shelfEven();
   // a deep link to a box that is not on the shelf yet goes nowhere
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
@@ -998,7 +998,7 @@ test("every finished game earns its box a 🏆 on the shelf, counted — and a f
     const w = b.querySelector(".bn-box__won");
     return [b.dataset.box, w ? w.textContent : null];
   })));
-  assert.deepEqual(await won(), { moon: "🏆 3", comet: null, rainbow: null, apple: null, hundred: null, hen: null }, "three Moon games: 🏆 3; the rest none yet");
+  assert.deepEqual(await won(), { moon: "🏆 3", comet: null, rainbow: null, apple: null, hundred: null, hen: null, lotto: null }, "three Moon games: 🏆 3; the rest none yet");
   assert.match(await page.locator('.bn-box[data-box="moon"]').getAttribute("aria-label"), /played 3 times/);
   // the trophy pill sits in the corner, never on the box's name
   const clear = await page.evaluate(() => {
@@ -1252,6 +1252,85 @@ test("🐔 the fox joins from his THIRD Hen House game, and it only ever sends o
   } finally {
     await page.evaluate(() => { window.JoshAudio.say = window.__realSay; window.JoshAudio.isMuted = window.__realMuted; });
   }
+});
+
+test("🧺 a whole Picnic Lotto against the computer: tap the basket, find WHOSE blanket the food is on, a wrong friend only wiggles, both blankets fill, one picnic", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("lotto", "river", true, 6, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "a picnic has no tokens: the foods are the pieces");
+  // two blankets of six, each food a faint picture of what to look for
+  const start = await page.evaluate(() => ({ ghosts: document.querySelectorAll(".bn-food--ghost").length, on: document.querySelectorAll(".bn-food--on").length }));
+  assert.deepEqual(start, { ghosts: 12, on: 0 }, "twelve spots to fill, none filled");
+  let mine = 0, theirs = 0, missed = 0;
+  for (let guard = 0; guard < 200; guard++) {
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    if (s.phase === "draw") {
+      await page.locator(".bn-pad--0").click();
+      await page.waitForFunction(() => window.__BOARD.state().phase === "give" && !window.__BOARD.busy(), null, { timeout: 4000 });
+      continue;
+    }
+    // a food in his hand: it shows on his pad, and BOTH pads are answers
+    const food = s.food, owner = s.blankets[0].indexOf(food) >= 0 ? 0 : 1;
+    const pad = await page.evaluate(() => document.querySelector(".bn-pad--0 .bn-card--food").textContent);
+    assert.ok(pad.length > 0, "the food in hand is on his pad");
+    assert.ok(await page.evaluate(() => [...document.querySelectorAll(".bn-pad")].every((p) => p.classList.contains("bn-pad--ask"))), "both pads stand ready: whose is it?");
+    if (missed < 2) {
+      // the wrong friend first: a wiggle, nothing moves, still his food
+      await page.locator(".bn-pad--" + (1 - owner)).click();
+      await page.waitForTimeout(80);
+      const after = await st();
+      assert.equal(after.phase, "give", "a wrong friend changes nothing");
+      assert.equal(after.food, food, "the food is still in his hand");
+      missed++;
+      if (missed === 2) {
+        await page.waitForFunction((f) => { const e = document.querySelector('.bn-food[data-food="' + f + '"]'); return e && e.classList.contains("bn-food--hint"); }, food, { timeout: 4000 });
+      }
+      continue;
+    }
+    await page.locator(".bn-pad--" + owner).click();
+    await page.waitForFunction((f) => { const e = document.querySelector('.bn-food[data-food="' + f + '"]'); return e && e.classList.contains("bn-food--on"); }, food, { timeout: 4000 });
+    if (owner === 0) mine++; else theirs++;
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the picnic ends");
+  assert.ok(end.placed.every((p) => p.length === 6), "both blankets are full");
+  assert.ok(mine > 0 && theirs > 0, `he put food on his own blanket (${mine}) AND gave some to his friend (${theirs})`);
+  assert.equal(missed, 2, "fixture: the wrong friend was tapped twice, and the spot then glowed");
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal(await page.evaluate(() => document.querySelectorAll(".bn-food--on").length), 12, "all twelve foods are on the blankets");
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.lotto, 1, "a finished Picnic Lotto counts once");
+  } finally { await slow(); }
+});
+
+test("🧺 his friend's turn shows the worked example: the computer takes a food and gives it to the right blanket by itself; and a game left mid-give comes back with the food still in hand", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("lotto", "raegar", true, 9, 1);
+  assert.equal((await st()).turn, 1, "fixture: the friend starts");
+  await page.waitForFunction(() => { const s = window.__BOARD.state(); return s.placed[0].length + s.placed[1].length === 1; }, null, { timeout: 8000 });
+  const s = await st();
+  const placed = s.placed[0].concat(s.placed[1])[0];
+  const owner = s.blankets[0].indexOf(placed) >= 0 ? 0 : 1;
+  assert.ok(s.placed[owner].indexOf(placed) >= 0, "the computer put it on the blanket that has it");
+  } finally { await slow(); }
+  // carry on mid-give: the food is still in his hand when he comes back
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  const g = L.create({ board: "lotto", seats: [{ who: "josh" }, { who: "mom" }], seed: 5, first: 0 });
+  L.takeFood(g);
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("lotto", x), g), "fixture: a game mid-give loads");
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(450);
+  const back = await st();
+  assert.equal(back.food, g.food, "the food is still in hand");
+  assert.ok(await page.evaluate(() => !!document.querySelector(".bn-pad--0 .bn-card--food")), "and on his pad");
+  const owner2 = L.ownerOf(g, g.food);
+  await page.locator(".bn-pad--" + owner2).click();
+  await page.waitForFunction((f) => { const e = document.querySelector('.bn-food[data-food="' + f + '"]'); return e && e.classList.contains("bn-food--on"); }, g.food, { timeout: 4000 });
 });
 
 test("no uncaught page errors in Game Night", () => {
