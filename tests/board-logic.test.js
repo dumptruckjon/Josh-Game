@@ -33,8 +33,9 @@ test("data: every box opens a real board, every board is a real grid, every pers
     // its picture, and its size is the TEN-FRAME basket
     if (board.game === "spin") assert.equal(board.size, 10, `${board.id}: a basket is a ten-frame`);
     else if (board.game === "lotto") assert.equal(board.size, board.spots, `${board.id}: a seat is done when its blanket's ${board.spots} spots are full`);
+    else if (board.game === "spot") assert.equal(board.size, board.deck.length - 1, `${board.id}: every card but the first is found`);
     else assert.equal(board.size, board.cols * board.rows, `${board.id} fills its grid exactly`);
-    assert.ok(["dice", "cards", "spin", "hen", "lotto"].indexOf(board.game) >= 0, `${board.id} is a dice, card, spinner, farm or lotto game`);
+    assert.ok(["dice", "cards", "spin", "hen", "lotto", "spot"].indexOf(board.game) >= 0, `${board.id} is a dice, card, spinner, farm, lotto or spot game`);
     assert.ok(DATA.BOXES.some((b) => b.board === board.id), `${board.id} is on the shelf (no dead board)`);
   }
   for (const p of [DATA.JOSH, ...DATA.PEOPLE]) {
@@ -121,7 +122,9 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
     for (let seed = 1; seed <= 3000; seed++) {
       const g = play(board.id, seed);
       assert.equal(g.st.phase, "done", `${board.id} seed ${seed} never ended`);
-      assert.ok(g.st.seats.every((s) => s.home && s.pos === board.size), `${board.id} seed ${seed}: everyone is home`);
+      // (👀 Twin Spot's seats share the twelve twins between their piles)
+      if (board.game === "spot") assert.ok(g.st.seats.every((s) => s.home) && g.st.seats[0].pos + g.st.seats[1].pos === board.size, `${board.id} seed ${seed}: every twin found`);
+      else assert.ok(g.st.seats.every((s) => s.home && s.pos === board.size), `${board.id} seed ${seed}: everyone is home`);
       assert.equal(g.ev.filter((e) => e.type === "end").length, 1, "one ending");
       assert.equal(g.st.order.length, 2, "both arrivals are recorded");
       turns.push(g.turns);
@@ -131,7 +134,7 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
       // board's turns got short: 💯 Hundred Hop takes twice Moon Race's turns
       // and has FEWER taps, because a ten is one tap.
       // (a lotto turn is two taps: the basket, then whose it is)
-      const taps = g.ev.filter((e) => e.type === "hop" || e.type === "pick" || e.type === "card" || e.type === "draw" || e.type === "give").length;
+      const taps = g.ev.filter((e) => e.type === "hop" || e.type === "pick" || e.type === "card" || e.type === "draw" || e.type === "give" || e.type === "flip" || e.type === "found").length;
       const extras = g.ev.filter((e) => e.type === "ride" || e.type === "tens").length;
       secs.push(g.turns * 2.3 + taps * 0.5 + extras);
     }
@@ -360,6 +363,7 @@ test("RESTORE takes back EVERY state a real game passes through, and refuses eac
       while (st.phase !== "done" && guard++ < 500) {
         if (st.game === "cards") L.drawCard(st);
         else if (st.game === "lotto") { if (st.phase === "draw") L.takeFood(st); else L.giveFood(st, L.ownerOf(st, st.food)); }
+        else if (st.game === "spot") { if (st.phase === "flip") L.flipSpot(st); else L.findSpot(st, L.twinOf(DATA.board("spot"), st.centre, st.hand)); }
         else if (st.phase === "roll") L.roll(st);
         else if (st.phase === "spin") L.spin(st);
         else if (st.phase === "pick") L.pick(st);
@@ -788,6 +792,69 @@ test("🧺 PICNIC LOTTO: two blankets of six foods that share none, every food i
     ["no food in hand while giving", { ...g, food: null }],
     ["a food in hand while drawing", { ...g, phase: "draw", food: other }],
     ["a food that is not on the menu", { ...g, blankets: [["rock"].concat(g.blankets[0].slice(1)), g.blankets[1]] }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
+test("👀 TWIN SPOT: any two cards share EXACTLY one picture, no picture twice on a card, a wrong picture only wiggles, after two the twin is known, and every game finds all twelve twins", () => {
+  const b = DATA.board("spot");
+  assert.equal(b.deck.length, 13, "thirteen cards");
+  assert.equal(DATA.SPOTS.length, 13, "thirteen pictures");
+  assert.equal(new Set(DATA.SPOTS.map((x) => x.pic)).size, 13, "every picture is different");
+  for (const x of DATA.SPOTS) assert.match(x.say, /^the [a-z]+$/, `${x.id} is said as words`);
+  for (let i = 0; i < 13; i++) {
+    assert.equal(b.deck[i].length, 4, "four pictures a card");
+    assert.equal(new Set(b.deck[i]).size, 4, `card ${i} shows no picture twice`);
+    assert.ok(b.deck[i].every((p) => p >= 0 && p < 13), "every picture is real");
+    for (let j = i + 1; j < 13; j++) {
+      const both = b.deck[i].filter((p) => b.deck[j].indexOf(p) >= 0);
+      assert.equal(both.length, 1, `cards ${i} and ${j} share exactly ONE picture (they share ${both.length})`);
+      assert.equal(L.twinOf(b, i, j), both[0]);
+    }
+  }
+  // every picture is on four cards (so no picture is the answer far more than another)
+  for (let p = 0; p < 13; p++) assert.equal(b.deck.filter((c) => c.indexOf(p) >= 0).length, 4, `picture ${p} is on four cards`);
+  let misses = 0;
+  for (let seed = 1; seed <= 1500; seed++) {
+    const st = L.create({ board: "spot", seats: SEATS, seed, first: seed % 2 });
+    let guard = 0, last = null;
+    while (st.phase !== "done" && guard++ < 40) {
+      const t = st.turn;
+      if (last !== null) assert.notEqual(t, last, "turns alternate");
+      last = t;
+      const f = L.flipSpot(st);
+      assert.equal(f[0].type, "flip");
+      const twin = L.twinOf(b, st.centre, st.hand), hand = st.hand;
+      if (seed % 2) {
+        const wrong = b.deck[hand].find((p) => p !== twin);
+        const m = L.findSpot(st, wrong);
+        assert.equal(m[0].type, "miss");
+        misses++;
+        assert.equal(st.phase, "find", "a wrong picture changes nothing");
+        assert.equal(st.hand, hand, "the card is still in hand");
+      }
+      const g = L.findSpot(st, twin);
+      assert.equal(g[0].type, "found");
+      assert.equal(st.centre, hand, "the found card becomes the middle one");
+      assert.deepEqual(L.restore(JSON.parse(JSON.stringify(L.snapshot(st)))), st, "every state restores exactly");
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ends`);
+    assert.equal(guard, 12, "twelve flips");
+    assert.equal(st.seats[0].pos + st.seats[1].pos, 12, "all twelve twins found");
+    assert.ok(st.seats.every((s) => s.home && s.stars === s.pos), "both home together, a star for every twin");
+  }
+  assert.ok(misses > 5000, `fixture: wrong pictures really happen (${misses})`);
+  // states no game reaches
+  const st = L.create({ board: "spot", seats: SEATS, seed: 4 });
+  L.flipSpot(st);
+  const g = L.snapshot(st);
+  const bad = [
+    ["a card in two places", { ...g, deck: g.deck.concat([g.centre]) }],
+    ["a card lost", { ...g, deck: g.deck.slice(1) }],
+    ["no card in hand while finding", { ...g, hand: null }],
+    ["a pile that is not what was found", { ...g, seats: [{ ...g.seats[0], pos: 1, stars: 1 }, g.seats[1]] }],
+    ["a card that does not exist", { ...g, hand: 13 }],
   ];
   for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
   assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");

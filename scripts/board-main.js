@@ -36,7 +36,7 @@
   // grown-up "hop by itself" switch · next: who starts the next two-person
   // game per box · last: the last box and its players.
   // "has been shown how", per kind of game (each kind's first-time hand)
-  const INTRO = ["dice", "cards", "spin", "hen", "lotto"];
+  const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot"];
   function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, next: {}, last: null }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
   function coerce(text) {
@@ -122,7 +122,7 @@
   // ---- The screens -----------------------------------------------------------
   let shelf = null, who = null, pick = null, play = null;
   let boardEl = null, svgWrap = null, tokens = [null, null], pads = [null, null], hand = null, party = null;
-  let applesEl = null, popEl = null, markEl = null, coopEl = null;
+  let applesEl = null, popEl = null, markEl = null, coopEl = null, spotsEl = null;
   let whoBox = null, pickMode = null;   // which box the who/pick screens are for
 
   const bar = (cls, backLabel, backIcon, title) =>
@@ -197,6 +197,9 @@
           '<div class="bn-coop" aria-hidden="true" hidden></div>' +
           // 🍎 the apples that move (in the baskets, the pie, and flying)
           '<div class="bn-apples" aria-hidden="true"></div>' +
+          // 👀 Twin Spot: the middle card (pictures) and the flipped card (its
+          // four pictures are the buttons: find the one on both)
+          '<div class="bn-spots" hidden><div class="bn-spotcard bn-spotcard--mid" aria-hidden="true"></div><div class="bn-spotcard bn-spotcard--hand" role="group" aria-label="The card you flipped"></div></div>' +
           '<div class="bn-token bn-token--0" aria-hidden="true"><span class="bn-token__face"></span></div>' +
           '<div class="bn-token bn-token--1" aria-hidden="true"><span class="bn-token__face"></span></div>' +
           // the number of the square just reached (or the apples in the
@@ -229,6 +232,11 @@
     hand = play.querySelector(".bn-hand");
     party = play.querySelector(".bn-party");
     applesEl = play.querySelector(".bn-apples");
+    spotsEl = play.querySelector(".bn-spots");
+    spotsEl.addEventListener("click", (e) => {
+      const b = e.target.closest(".bn-twin");
+      if (b && spotsEl.contains(b) && b.tagName === "BUTTON") pickTwin(Number(b.dataset.p), b);
+    });
     popEl = play.querySelector(".bn-pop");
     markEl = play.querySelector(".bn-mark");
     coopEl = play.querySelector(".bn-coop");
@@ -377,7 +385,7 @@
     play.dataset.game = board.game;
     play.dataset.box = box;
     boardEl.classList.toggle("bn-board--chart", board.layout === "chart");
-    svgWrap.innerHTML = board.game === "spin" ? R.orchardSVG() : board.game === "lotto" ? R.picnicSVG(board, st.seats.map((s) => DATA.person(s.who).colour)) : R.boardSVG(board);
+    svgWrap.innerHTML = board.game === "spot" ? "" : board.game === "spin" ? R.orchardSVG() : board.game === "lotto" ? R.picnicSVG(board, st.seats.map((s) => DATA.person(s.who).colour)) : R.boardSVG(board);
     applesEl.innerHTML = "";
     hidePop();
     hideMark();
@@ -388,7 +396,7 @@
       const p = seatPerson(i);
       // 🐔 co-op: ONE token, the hen, that both players walk home
       // 🧺 a picnic has no tokens at all: the foods are the pieces
-      tokens[i].hidden = (farm && i === 1) || board.game === "lotto";
+      tokens[i].hidden = (farm && i === 1) || board.game === "lotto" || board.game === "spot";
       tokens[i].querySelector(".bn-token__face").innerHTML = farm ? '<span class="bn-emoji">🐔</span>' : R.faceHTML(p);
       tokens[i].style.borderColor = farm ? "#c2410c" : p.colour;
       tokens[i].style.transitionDuration = "0ms";
@@ -411,6 +419,8 @@
     const field = play.querySelector(".bn-field");
     const w = field.clientWidth, h = field.clientHeight;
     const b = game.board;
+    spotsEl.hidden = b.game !== "spot";
+    if (b.game === "spot") return layoutSpot(w, h);
     const cell = Math.max(20, Math.floor(Math.min(w / b.cols, h / b.rows)));
     boardEl.style.width = cell * b.cols + "px";
     boardEl.style.height = cell * b.rows + "px";
@@ -424,12 +434,105 @@
     applesEl.style.fontSize = Math.round(cell * 0.4) + "px";
   }
 
+  // 👀 Twin Spot fills its field with two cards: the flipped one (four 75px+
+  // buttons, 16px apart) and the middle one (pictures only, smaller). Side by
+  // side or stacked, whichever gives the BUTTONS more room.
+  function layoutSpot(w, h) {
+    const PAD = 6, GAP = 16, MGAP = 6, BETWEEN = 12, MID = 0.5;
+    const side = Math.min((w - 2 * PAD - GAP - BETWEEN - 2 * PAD - MGAP) / (2 + 2 * MID), (h - 2 * PAD - GAP) / 2);
+    const stack = Math.min((w - 2 * PAD - GAP) / 2, (h - 2 * PAD - GAP - BETWEEN - 2 * PAD - MGAP) / (2 + 2 * MID));
+    const stacked = stack > side;
+    const s = Math.max(40, Math.floor(Math.min(130, stacked ? stack : side)));
+    spotsEl.classList.toggle("bn-spots--stack", stacked);
+    spotsEl.style.setProperty("--twin", s + "px");
+    spotsEl.style.setProperty("--mid", Math.floor(s * MID) + "px");
+    boardEl.style.width = w + "px";
+    boardEl.style.height = h + "px";
+    boardEl.style.left = "0px";
+    boardEl.style.top = "0px";
+  }
+  // The cards: the middle one's pictures, and the flipped one's as buttons.
+  // A card's pictures turn and size a little each (as on the real cards), the
+  // same way every time for that card — only the picture, never its tap box.
+  const TILT = [-14, 9, -5, 16, 0, -10, 12, -16];
+  function cardPics(k, buttons, cls) {
+    const pics = game.board.deck[k] || [];
+    return pics.map((p, j) => {
+      const sp = DATA.spot(p), rot = TILT[(k * 3 + j) % TILT.length], big = (k + j) % 3 === 0 ? 1.12 : (k + j) % 3 === 1 ? 0.9 : 1;
+      const inner = '<span class="bn-twin__pic" style="transform:rotate(' + rot + "deg) scale(" + big + ')">' + (sp ? sp.pic : "") + "</span>";
+      return buttons
+        ? '<button class="bn-twin tap' + (cls(p) || "") + '" type="button" data-p="' + p + '" aria-label="' + (sp ? sp.say.replace(/^the /, "") : "") + '">' + inner + "</button>"
+        : '<span class="bn-twin bn-twin--mid' + (cls(p) || "") + '" data-p="' + p + '">' + inner + "</span>";
+    }).join("");
+  }
+  function paintSpots() {
+    if (!game || game.board.game !== "spot") return;
+    const st = game.st, twin = st.phase === "find" ? L.twinOf(game.board, st.centre, st.hand) : -1;
+    const glow = (p) => (game.spotYes === p ? " bn-twin--yes" : st.phase === "find" && st.misses >= 2 && p === twin ? " bn-twin--hint" : "");
+    const mid = game.spotMid != null ? game.spotMid : st.centre;
+    spotsEl.querySelector(".bn-spotcard--mid").innerHTML = cardPics(mid, false, glow);
+    const hand = spotsEl.querySelector(".bn-spotcard--hand");
+    const shown = game.spotHand != null ? game.spotHand : st.phase === "find" ? st.hand : null;
+    hand.innerHTML = shown != null ? cardPics(shown, true, glow) : '<span class="bn-spotcard__back" aria-hidden="true">👀</span>';
+    hand.classList.toggle("bn-spotcard--back", shown == null);
+    hand.classList.toggle("bn-spotcard--flip", !!game.spotFresh);
+    game.spotFresh = false;
+    // the computer's turn: its card is not his to tap
+    hand.classList.toggle("bn-spotcard--cpu", !!(shown != null && st.seats[st.turn].cpu));
+  }
+  function flipSpot() {
+    const ev = L.flipSpot(game.st);
+    if (!ev.length) return;
+    hideHand();
+    game.busy = true;
+    game.rolled = true;
+    game.spotHand = null;
+    game.spotFresh = true;
+    SFX.flip();
+    paintSpots();
+    paintPads();
+    persistGame();
+    const st = game.st;
+    if (st.seats[st.turn].cpu) {
+      // the computer looks… and finds it: a worked example, at his pace
+      later(() => { if (!game) return; game.busy = false; pickTwin(ev[0].twin, null); }, T.cpuThink + 500);
+      return;
+    }
+    sayPlay(SAY.findTwin);
+    later(() => { if (game) { game.busy = false; paintPads(); } }, T.card);
+  }
+  function pickTwin(p, btn) {
+    if (!game || game.board.game !== "spot" || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "find") return;
+    if (btn && st.seats[st.turn].cpu) return;   // the computer's card is not his to tap
+    const hand = st.hand, centre = st.centre;
+    const ev = L.findSpot(st, p);
+    if (!ev.length) return;
+    if (ev[0].type === "miss") {
+      // not on both: a kind wiggle (after two, the twin glows on both cards)
+      paintSpots();
+      const again = spotsEl.querySelector('.bn-spotcard--hand .bn-twin[data-p="' + p + '"]');
+      if (again) wiggle(again);
+      sayPlay(SAY.notTwin);
+      persistGame();
+      return;
+    }
+    if (!save.intro.spot && !st.seats[ev[0].seat].cpu) { save.intro.spot = true; persist(); }
+    // the twin glows on BOTH cards before the card moves to the middle
+    game.spotYes = ev[0].twin;
+    game.spotHand = hand;
+    game.spotMid = centre;
+    paintSpots();
+    playEvents(ev);
+  }
+
   // 🍎 a face badge stands between each tree and its basket: whose is whose,
   // and (with the halo) whose basket this turn fills
   function orchardFrac(p) { return { x: p.x / R.ORCH, y: p.y / R.ORCH }; }
   function placeTokens() {
     const st = game.st, b = game.board;
-    if (b.game === "lotto") return;
+    if (b.game === "lotto" || b.game === "spot") return;
     if (b.game === "spin") {
       for (let i = 0; i < 2; i++) {
         const sp = orchardFrac(R.ORCHARD.face[i]);
@@ -482,7 +585,9 @@
     game.shownCoop = game.st.coop || 0;
     game.shownPlaced = game.st.placed ? game.st.placed.map((p) => p.slice()) : null;
     game.landed = null;
+    game.spotYes = null; game.spotHand = null; game.spotMid = null;
     placeTokens();
+    paintSpots();
     paintApples();
     paintFoods();
     paintCoop();
@@ -506,6 +611,10 @@
     if (game.board.game === "spin") {
       boardEl.setAttribute("aria-label", st.seats.map((s, i) => nameOf(i) + " has " + game.shown[i] + (game.shown[i] === 1 ? " apple" : " apples")).join(". ") +
         ". " + game.shownPie + " in the pie.");
+      return;
+    }
+    if (game.board.game === "spot") {
+      boardEl.setAttribute("aria-label", "The middle card shows " + game.board.deck[st.centre].map((p) => DATA.spot(p).say.replace(/^the /, "")).join(", ") + ". " + [0, 1].map((i) => nameOf(i) + " has found " + st.seats[i].pos).join(". ") + ".");
       return;
     }
     if (game.board.game === "lotto") {
@@ -543,6 +652,12 @@
         pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
         const hopping = active && st.phase === "hop" && st.turn === i;
         pad.setAttribute("aria-label", nameOf(i) + (active ? (hopping ? (st.die === L.TEN ? ": tap for ten more" : ": tap to hop, " + st.left + " to go") : ": tap to roll the dice") : ": wait for your turn") + (s.home ? ", home" : ""));
+      } else if (game.board.game === "spot") {
+        // 👀 a card back to tap (flip), then a magnifier while he looks; his
+        // pile of found twins is his ⭐ count
+        act.innerHTML = active && st.phase === "find" ? '<span class="bn-card bn-card--food">🔍</span>' : '<span class="bn-card bn-card--basket">👀</span>';
+        pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
+        pad.setAttribute("aria-label", nameOf(i) + (active ? (st.phase === "find" ? ": find the picture on both cards" : ": tap to flip a card") : ": wait for your turn"));
       } else if (game.board.game === "lotto") {
         // 🧺 the basket to tap; then the food in hand, big. While it is in a
         // human's hand BOTH pads are answers ("whose is it?"), so both light.
@@ -655,7 +770,7 @@
     game.tumbleFace = 0;
     game.showTurn = st.turn;
     game.showMover = st.mover;
-    game.rolled = st.phase === "hop" || st.phase === "pick" || st.phase === "give";   // a game restored mid-move shows its die / spin / food
+    game.rolled = st.phase === "hop" || st.phase === "pick" || st.phase === "give" || st.phase === "find";   // a game restored mid-move shows its die / spin / food
     game.foodShown = st.phase === "give" ? st.food : null;
     paintPads();
     persistGame();
@@ -703,6 +818,7 @@
     if (game.busy || i !== st.turn) return;
     if (game.board.game === "cards") return flipCard();
     if (game.board.game === "lotto") return takeFood();
+    if (game.board.game === "spot") { if (st.phase === "flip") flipSpot(); return; }
     if (st.phase === "roll") return rollDice();
     if (st.phase === "hop" && !save.auto) return hopOnce();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
@@ -785,6 +901,7 @@
     if (st.phase === "done" || !st.seats[st.turn].cpu) return;
     if (game.board.game === "cards") return flipCard();
     if (game.board.game === "lotto") return takeFood();
+    if (game.board.game === "spot") return flipSpot();
     if (st.phase === "roll") return rollDice();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
     if (st.phase === "pick") return cpuPick();
@@ -1036,6 +1153,18 @@
         popOnSquare(e.to, String(e.coop));
         if (e.left === 0) hideMark();
         paintBoardLabel();
+      } else if (e.type === "found") {
+        // 👀 the twin! it glows on both cards, then the found card slides to
+        // the middle and onto the finder's pile
+        SFX.home();
+        sayPlay(cap(fill(SAY.foundTwin, { s: (DATA.spot(e.twin) || {}).say || "" })));
+        cheer(e.seat, true);
+        at(T.ride, () => {
+          game.spotYes = null; game.spotHand = null; game.spotMid = null;
+          landStar(e.seat);
+          paintSpots();
+          paintPads();
+        });
       } else if (e.type === "give") {
         // 🧺 the food lands on its spot on the right blanket
         game.foodShown = null;
@@ -1398,6 +1527,7 @@
     if (st.phase === "hop") say(hopLine());
     else if (st.phase === "pick") say(SAY.pickFirst);
     else if (st.phase === "give") say(whoseLine() + " " + SAY.whoseFirst);
+    else if (st.phase === "find") say(SAY.findTwin);
     else say(fill(SAY.turn, { n: nameOf(i) }) + " " + firstLine());
     showHand(i);
     later(hideHand, 2600);

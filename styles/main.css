@@ -3444,6 +3444,26 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
 .bn-card--basket { border-style: dashed; font-size: 2.6rem; }
 /* "whose is it?": both pads are answers, so both stand ready */
 .bn-pad--ask .bn-pad__face, .bn-pad--ask .bn-pad__act { opacity: 1; }
+/* 👀 Twin Spot: the flipped card (four big buttons) beside — or under — the
+   middle card (its pictures, smaller). Sizes come from board-main.js's
+   layoutSpot as --twin / --mid, so the buttons are as big as the field
+   allows and never under 75px where it can be helped. */
+.bn-spots { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: grid; grid-auto-flow: column; justify-content: center; align-content: center; align-items: center; gap: 12px; }
+.bn-spots[hidden] { display: none; }
+.bn-spots--stack { grid-auto-flow: row; justify-items: center; }
+.bn-spotcard { display: grid; grid-template-columns: repeat(2, var(--twin, 80px)); grid-template-rows: repeat(2, var(--twin, 80px)); gap: 16px; padding: 6px; border-radius: 50%; background: #ffffff; box-shadow: var(--card-shadow), inset 0 0 0 4px #7c3aed; }
+.bn-spotcard--mid { grid-template-columns: repeat(2, var(--mid, 40px)); grid-template-rows: repeat(2, var(--mid, 40px)); gap: 6px; box-shadow: var(--card-shadow), inset 0 0 0 3px #b7a2e8; }
+.bn-spotcard--back { grid-template-columns: minmax(0, 100%); grid-template-rows: minmax(0, 100%); width: calc(2 * var(--twin, 80px) + 16px); height: calc(2 * var(--twin, 80px) + 16px); place-items: center; background: #ede4ff; }
+.bn-spotcard__back { font-size: calc(var(--twin, 80px) * 0.9); line-height: 1; }
+.bn-spotcard--flip { animation: bnFlip 0.42s ease-out; }
+.bn-spotcard--cpu .bn-twin { pointer-events: none; }
+.bn-twin { display: grid; place-items: center; width: var(--twin, 80px); height: var(--twin, 80px); min-width: 0; padding: 0; border: none; border-radius: 50%; background: #f7f2ff; font-size: calc(var(--twin, 80px) * 0.62); line-height: 1; }
+.bn-twin--mid { width: var(--mid, 40px); height: var(--mid, 40px); font-size: calc(var(--mid, 40px) * 0.7); background: transparent; }
+.bn-twin__pic { display: block; }
+/* found: a shape (a thick ring) as well as a colour; the hint after two
+   misses is a dashed ring, so the two never read as the same */
+.bn-twin--yes { box-shadow: 0 0 0 5px #22a352, 0 0 0 9px #0f5a2a; }
+.bn-twin--hint { box-shadow: 0 0 0 4px #ffd24d, 0 0 0 8px #7a5200; animation: bnGlow 0.9s ease-in-out infinite alternate; }
 /* the chicks home: a counter on the hen house square, above its picture */
 .bn-coop {
   position: absolute;
@@ -3554,5 +3574,6 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
   .bn-pad--cheer .bn-pad__face { animation: none; }
   .bn-mark { animation: none; }
   .bn-food--land, .bn-food--hint { animation: none; }
+  .bn-spotcard--flip, .bn-twin--hint { animation: none; }
   .bn-apple { transition: none; }
 }

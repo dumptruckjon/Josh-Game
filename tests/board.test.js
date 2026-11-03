@@ -89,8 +89,8 @@ test("the shelf: Moon Race and Rainbow Trail first; Comet Moon arrives after TWO
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await go("#board-home", "#screen-board-home");
   const boxes = () => page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-box")].map((b) => b.dataset.box));
-  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred", "hen", "lotto"], "a fresh shelf: six boxes, nothing locked");
-  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "2", "six boxes stand two by two");
+  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred", "hen", "lotto", "spot"], "a fresh shelf: seven boxes, nothing locked");
+  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "2", "seven boxes stand two by two");
   assert.equal(await page.locator("#screen-board-home [aria-disabled], #screen-board-home .bn-box[disabled]").count(), 0, "nothing on the shelf is locked or greyed");
   // no row is ragged: an ODD shelf's last box spans both columns, an even
   // one's is a box like the rest (checked on both shelves this test sees)
@@ -106,14 +106,14 @@ test("the shelf: Moon Race and Rainbow Trail first; Comet Moon arrives after TWO
   await shelfEven();
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 1 } }));
   await go("#board-home", "#screen-board-home");
-  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred", "hen", "lotto"], "one Moon game is not enough");
+  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred", "hen", "lotto", "spot"], "one Moon game is not enough");
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }));
   await go("#board-home", "#screen-board-home");
-  assert.deepEqual(await boxes(), ["moon", "comet", "rainbow", "apple", "hundred", "hen", "lotto"], "after two, Comet Moon is on the shelf, beside Moon Race");
+  assert.deepEqual(await boxes(), ["moon", "comet", "rainbow", "apple", "hundred", "hen", "lotto", "spot"], "after two, Comet Moon is on the shelf, beside Moon Race");
   // rows of single boxes put the last one below the fold of a small phone,
   // so a shelf of four or more stands in two columns — and an ODD shelf's
   // last box spans both, so no row is ragged
-  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "2", "seven boxes stand two by two");
+  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "2", "eight boxes stand two by two");
   await shelfEven();
   // a deep link to a box that is not on the shelf yet goes nowhere
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
@@ -998,7 +998,7 @@ test("every finished game earns its box a 🏆 on the shelf, counted — and a f
     const w = b.querySelector(".bn-box__won");
     return [b.dataset.box, w ? w.textContent : null];
   })));
-  assert.deepEqual(await won(), { moon: "🏆 3", comet: null, rainbow: null, apple: null, hundred: null, hen: null, lotto: null }, "three Moon games: 🏆 3; the rest none yet");
+  assert.deepEqual(await won(), { moon: "🏆 3", comet: null, rainbow: null, apple: null, hundred: null, hen: null, lotto: null, spot: null }, "three Moon games: 🏆 3; the rest none yet");
   assert.match(await page.locator('.bn-box[data-box="moon"]').getAttribute("aria-label"), /played 3 times/);
   // the trophy pill sits in the corner, never on the box's name
   const clear = await page.evaluate(() => {
@@ -1331,6 +1331,79 @@ test("🧺 his friend's turn shows the worked example: the computer takes a food
   const owner2 = L.ownerOf(g, g.food);
   await page.locator(".bn-pad--" + owner2).click();
   await page.waitForFunction((f) => { const e = document.querySelector('.bn-food[data-food="' + f + '"]'); return e && e.classList.contains("bn-food--on"); }, g.food, { timeout: 4000 });
+});
+
+test("👀 a whole Twin Spot against the computer: flip a card, find the ONE picture on both, a wrong one only wiggles, the twin glows after two, all twelve found, one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("spot", "river", true, 8, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the cards are the pieces");
+  const deck = await page.evaluate(() => window.BoardData.board("spot").deck);
+  let found = 0, missed = 0;
+  for (let guard = 0; guard < 200; guard++) {
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    if (s.phase === "flip") {
+      await page.locator(".bn-pad--0").click();
+      await page.waitForFunction(() => window.__BOARD.state().phase === "find" && !window.__BOARD.busy(), null, { timeout: 4000 });
+      continue;
+    }
+    // the middle card and the flipped card are on screen, and share ONE picture
+    const shown = await page.evaluate(() => ({
+      mid: [...document.querySelectorAll(".bn-spotcard--mid .bn-twin")].map((x) => Number(x.dataset.p)),
+      hand: [...document.querySelectorAll(".bn-spotcard--hand .bn-twin")].map((x) => Number(x.dataset.p)),
+      // (offsetWidth: the card may still be mid-flip, and a flip's transform
+      // is not the tap box)
+      sizes: [...document.querySelectorAll(".bn-spotcard--hand button.bn-twin")].map((x) => x.offsetWidth),
+    }));
+    assert.deepEqual(shown.mid.slice().sort(), deck[s.centre].slice().sort(), "the middle card is the middle card");
+    assert.deepEqual(shown.hand.slice().sort(), deck[s.hand].slice().sort(), "his flipped card is his card");
+    assert.ok(shown.sizes.length === 4 && shown.sizes.every((w) => w >= 75), `four big pictures to tap (${shown.sizes})`);
+    const twin = deck[s.centre].find((p) => deck[s.hand].indexOf(p) >= 0);
+    if (missed < 2) {
+      const wrong = deck[s.hand].find((p) => p !== twin);
+      await page.locator('.bn-spotcard--hand button.bn-twin[data-p="' + wrong + '"]').click();
+      await page.waitForTimeout(80);
+      const after = await st();
+      assert.equal(after.phase, "find", "a wrong picture changes nothing");
+      assert.equal(after.hand, s.hand, "the card is still his to look at");
+      missed++;
+      if (missed === 2) {
+        const glow = await page.evaluate((t) => [...document.querySelectorAll('.bn-twin[data-p="' + t + '"]')].filter((x) => x.classList.contains("bn-twin--hint")).length, twin);
+        assert.equal(glow, 2, "after two, the twin glows on BOTH cards");
+      }
+      continue;
+    }
+    await page.locator('.bn-spotcard--hand button.bn-twin[data-p="' + twin + '"]').click();
+    await page.waitForFunction((c) => window.__BOARD.state().centre === c, s.hand, { timeout: 4000 });
+    found++;
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.equal(end.seats[0].pos + end.seats[1].pos, 12, "all twelve twins found");
+  assert.ok(found >= 5, `he found his twins (${found})`);
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.spot, 1, "a finished Twin Spot counts once");
+  } finally { await slow(); }
+});
+
+test("👀 on the computer's turn its card cannot be tapped, it finds the twin itself (a worked example), and the twin glows on both cards before the card moves", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await startGame("spot", "viraj", true, 3, 1);
+  const s0 = await st();
+  assert.equal(s0.turn, 1, "fixture: the friend starts");
+  await page.waitForFunction(() => window.__BOARD.state().phase === "find", null, { timeout: 8000 });
+  const s1 = await st();
+  // a tap on the computer's card does nothing
+  const deck = await page.evaluate(() => window.BoardData.board("spot").deck);
+  const twin = deck[s1.centre].find((p) => deck[s1.hand].indexOf(p) >= 0);
+  await page.locator('.bn-spotcard--hand .bn-twin[data-p="' + twin + '"]').click({ force: true }).catch(() => {});
+  assert.equal((await st()).seats[0].pos, 0, "his tap on the computer's card found nothing for him");
+  // the twin glows on BOTH cards as the computer finds it
+  await page.waitForFunction((t) => [...document.querySelectorAll('.bn-twin[data-p="' + t + '"]')].filter((x) => x.classList.contains("bn-twin--yes")).length === 2, twin, { timeout: 8000 });
+  await page.waitForFunction(() => window.__BOARD.state().seats[1].pos === 1, null, { timeout: 8000 });
 });
 
 test("no uncaught page errors in Game Night", () => {

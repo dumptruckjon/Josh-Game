@@ -77,6 +77,25 @@
     { id: "cherries", pic: "🍒", say: "some cherries" },
   ];
 
+  // ---- 👀 Twin Spot's pictures --------------------------------------------
+  // Thirteen pictures a four-year-old names at once, each a different shape
+  // and colour, so two of them are never confused for one another.
+  const SPOTS = [
+    { id: "dog", pic: "🐶", say: "the dog" },
+    { id: "cat", pic: "🐱", say: "the cat" },
+    { id: "frog", pic: "🐸", say: "the frog" },
+    { id: "lion", pic: "🦁", say: "the lion" },
+    { id: "elephant", pic: "🐘", say: "the elephant" },
+    { id: "apple", pic: "🍎", say: "the apple" },
+    { id: "banana", pic: "🍌", say: "the banana" },
+    { id: "car", pic: "🚗", say: "the car" },
+    { id: "rocket", pic: "🚀", say: "the rocket" },
+    { id: "ball", pic: "⚽", say: "the ball" },
+    { id: "star", pic: "⭐", say: "the star" },
+    { id: "flower", pic: "🌸", say: "the flower" },
+    { id: "balloon", pic: "🎈", say: "the balloon" },
+  ];
+
   // ---- The boards ---------------------------------------------------------
   // Squares are numbered 1..size and snake back and forth from the bottom left
   // (row 1 runs left to right, row 2 right to left, …), exactly like a real
@@ -172,6 +191,21 @@
       lines: { home: "{n}'s blanket is full!", end: "Both blankets are full! Picnic time!" },
     },
     {
+      // 👀 Twin Spot (the Spot It shape, a trademark: only the mechanic is
+      // borrowed). Thirteen cards of four pictures, and ANY two cards share
+      // exactly ONE picture — the order-3 projective plane, each `deck` entry
+      // a card's four picture indexes into SPOTS (a guardrail proves every
+      // pair shares exactly one). One card lies in the middle; on your turn
+      // you flip the next one and find the ONE picture on both — no race, no
+      // clock, take turns. A wrong picture only wiggles; after two, the twin
+      // glows on both cards. Found, your card becomes the middle one and goes
+      // on your pile; twelve flips, one party.
+      id: "spot", box: "spot", game: "spot", name: "Twin Spot", coop: true,
+      cols: 4.4, rows: 2.2, size: 12,
+      deck: [[0, 3, 6, 9], [1, 4, 7, 9], [2, 5, 8, 9], [0, 4, 8, 10], [1, 5, 6, 10], [2, 3, 7, 10], [0, 5, 7, 11], [1, 3, 8, 11], [2, 4, 6, 11], [0, 1, 2, 12], [3, 4, 5, 12], [6, 7, 8, 12], [9, 10, 11, 12]],
+      lines: { home: "", end: "All the twins are found! High five!" },
+    },
+    {
       // 🍎 Apple Spin (Hi-Ho Cherry-O's mechanic): no track at all. Each
       // player fills their own TEN-FRAME basket from a big tree; `size` is the
       // basket. A spin says how many apples to pick (one tap, one apple); a
@@ -200,6 +234,7 @@
     // the 🦊 joins from his THIRD Hen House game, exactly as the comets do
     { id: "hen", board: "hen", name: "Hen House", pic: "🐔", colour: "#c2410c", foxAfter: 2 },
     { id: "lotto", board: "lotto", name: "Picnic Lotto", pic: "🧺", colour: "#2f9e6e" },
+    { id: "spot", board: "spot", name: "Twin Spot", pic: "👀", colour: "#7c3aed" },
   ];
 
   // ---- Every line the game says ------------------------------------------
@@ -248,11 +283,16 @@
     giveMine: "{f} for {n}!",
     lookAgain: "Look again! Where is {f}?",
     endLotto: "Both blankets are full! Picnic time!",
+    flipFirst2: "Tap to flip a card!",
+    findTwin: "Find the picture on BOTH cards!",
+    foundTwin: "Yes! {s}!",
+    notTwin: "Look again! Is it on both cards?",
     ten: "{to}! Ten more!",
     tens: "{to}! A star!",
   };
 
-  const BoardData = { JOSH, FRIENDS, PEOPLE, COLOURS, ANIMALS, FOODS, BOARDS, BOXES, SAY };
+  const BoardData = { JOSH, FRIENDS, PEOPLE, COLOURS, ANIMALS, FOODS, SPOTS, BOARDS, BOXES, SAY };
+  BoardData.spot = (k) => SPOTS[k] || null;
   BoardData.food = (id) => FOODS.find((f) => f.id === id) || null;
   BoardData.animal = (id) => ANIMALS.find((a) => a.id === id) || null;
   BoardData.board = (id) => BOARDS.find((b) => b.id === id) || null;

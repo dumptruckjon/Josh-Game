@@ -107,7 +107,7 @@
   // every slide kept (0.72 a game against 0.76).
   const BACK_CAP = 24;
   // Where a token STARTS: square 1 of a track, or an EMPTY basket
-  const startOf = (board) => (board.game === "spin" || board.game === "lotto" ? 0 : 1);
+  const startOf = (board) => (board.game === "spin" || board.game === "lotto" || board.game === "spot" ? 0 : 1);
 
   // ---- A new game -----------------------------------------------------------
   // opts: { board, seats: [{ who, cpu }], seed, first }
@@ -141,6 +141,14 @@
     // twelve in a shuffled order, nothing on a blanket yet. Dealt from seat
     // 0's generator, so the deal is part of the seed. A seat's `pos` is how
     // many foods its blanket holds, and it is "home" once its blanket is full.
+    // 👀 the thirteen cards shuffled, one turned up in the middle, nothing in
+    // hand; a seat's `pos` is the twins it has found (its pile)
+    if (board.game === "spot") {
+      st.deck = shuffle(seats[0], board.deck.map((c, k) => k));
+      st.centre = st.deck.shift();
+      st.hand = null;
+      st.misses = 0;
+    }
     if (board.game === "lotto") {
       const ids = shuffle(seats[0], DATA.FOODS.map((f) => f.id)).slice(0, board.spots * 2);
       st.blankets = [ids.slice(0, board.spots), ids.slice(board.spots)];
@@ -151,7 +159,7 @@
     }
     return st;
   }
-  function firstPhase(game) { return game === "cards" || game === "lotto" ? "draw" : game === "spin" || game === "hen" ? "spin" : "roll"; }
+  function firstPhase(game) { return game === "spot" ? "flip" : game === "cards" || game === "lotto" ? "draw" : game === "spin" || game === "hen" ? "spin" : "roll"; }
 
   const anyHome = (st) => st.seats.some((s) => s.home);
   const other = (i) => (i === 0 ? 1 : 0);
@@ -424,10 +432,51 @@
     return ev;
   }
 
+  // ---- 👀 Twin Spot: flip a card, find the ONE picture on both --------------
+  // The one picture two cards share (any two share exactly one)
+  function twinOf(board, a, b) {
+    const A = board.deck[a], B = board.deck[b];
+    return A.find((p) => B.indexOf(p) >= 0);
+  }
+  function flipSpot(st) {
+    if (st.game !== "spot" || st.phase !== "flip" || !st.deck.length) return [];
+    st.rolls += 1;
+    st.hand = st.deck.shift();
+    st.misses = 0;
+    st.phase = "find";
+    return [{ type: "flip", seat: st.turn, card: st.hand, twin: twinOf(DATA.board(st.board), st.centre, st.hand) }];
+  }
+  // Pick picture `p` on the flipped card: not the twin is a kind wiggle (and a
+  // count of misses, so the screen can help after two); the twin puts the card
+  // on your pile and in the middle. The last card ends the game: one party.
+  function findSpot(st, p) {
+    if (st.game !== "spot" || st.phase !== "find") return [];
+    const board = DATA.board(st.board), twin = twinOf(board, st.centre, st.hand);
+    if (p !== twin) { st.misses += 1; return [{ type: "miss", seat: st.turn, pick: p, misses: st.misses }]; }
+    const s = st.seats[st.turn];
+    s.pos += 1;
+    s.stars += 1;
+    const ev = [{ type: "found", seat: st.turn, twin, card: st.hand, count: s.pos }];
+    st.centre = st.hand;
+    st.hand = null;
+    st.misses = 0;
+    if (!st.deck.length) {
+      for (const x of st.seats) x.home = true;
+      st.order = [0, 1];
+    }
+    endTurn(st, ev);
+    return ev;
+  }
+
   // One whole turn for the computer (and the tests' bot)
   function autoTurn(st) {
     if (st.phase === "done") return [];
     if (st.game === "cards") return drawCard(st);
+    if (st.game === "spot") {
+      const ev = flipSpot(st);
+      if (st.phase === "find") ev.push(...findSpot(st, twinOf(DATA.board(st.board), st.centre, st.hand)));
+      return ev;
+    }
     if (st.game === "lotto") {
       // the computer (and the bot) always knows whose it is: a worked example
       const ev = takeFood(st);
@@ -462,7 +511,7 @@
   // What is left of a bag: a die bag is distinct faces 1..6, a card bag at
   // most one full deal of cards this board can deal
   function okBag(board, bag, birds) {
-    if (board.game === "lotto") return bag.length === 0;   // the basket is shared, not a seat's
+    if (board.game === "lotto" || board.game === "spot") return bag.length === 0;   // the basket / deck is shared, not a seat's
     if (board.game === "hen") {
       // what is left of ONE bag: each animal at most once, a 🦊 only when the
       // fox is on (here `birds` carries the fox flag)
@@ -496,8 +545,8 @@
       if (!Array.isArray(snap.seats) || snap.seats.length !== 2) return null;
       const spinning = board.game === "spin";
       const hen = board.game === "hen";
-      const lotto = board.game === "lotto";
-      const okPhase = board.game === "cards" ? ["draw", "done"] : lotto ? ["draw", "give", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : ["roll", "hop", "done"];
+      const lotto = board.game === "lotto", spotting = board.game === "spot";
+      const okPhase = board.game === "cards" ? ["draw", "done"] : lotto ? ["draw", "give", "done"] : spotting ? ["flip", "find", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : ["roll", "hop", "done"];
       if (okPhase.indexOf(snap.phase) < 0) return null;
       const moving = spinning ? "pick" : "hop";
       if (spinning) {
@@ -523,6 +572,18 @@
         if (snap.out > 0 && !snap.fox) return null;
         if (snap.card !== null && !DATA.animal(snap.card) && !(snap.card === FOX && snap.fox)) return null;
         if (snap.seats.some((s) => typeof s.fox !== "boolean")) return null;
+      } else if (spotting) {
+        // every card is in exactly one place: the deck, the middle, in hand
+        // (while finding), or on a pile — and the piles are what was found
+        if (!Array.isArray(snap.deck) || !int(snap.centre)) return null;
+        const here = snap.deck.concat([snap.centre], snap.phase === "find" ? [snap.hand] : []);
+        if (snap.phase !== "find" && snap.hand !== null) return null;
+        if (here.some((k) => !int(k) || k < 0 || k >= board.deck.length) || new Set(here).size !== here.length) return null;
+        if (snap.seats[0].pos + snap.seats[1].pos !== board.deck.length - here.length) return null;
+        if (snap.seats.some((s) => s.stars !== s.pos)) return null;
+        if (!int(snap.misses) || snap.misses < 0 || (snap.phase !== "find" && snap.misses !== 0)) return null;
+        if (snap.card !== null) return null;
+        if (snap.phase === "done" ? snap.deck.length !== 0 : snap.deck.length === 0 && snap.phase === "flip") return null;
       } else if (lotto) {
         // two blankets of `spots` different foods that share none; what is on
         // each is from that blanket; every food is in exactly one place — on
@@ -551,7 +612,9 @@
         if (typeof s.home !== "boolean" || typeof s.cpu !== "boolean") return null;
         if (!int(s.stars) || s.stars < 0 || !int(s.rng)) return null;
         // home is exactly standing on the last square
-        if (s.home !== (s.pos === board.size)) return null;
+        // home is exactly standing on the last square (👀 everyone is home
+        // together, once the deck is used up)
+        if (spotting ? s.home !== (snap.phase === "done") : s.home !== (s.pos === board.size)) return null;
         if (!Array.isArray(s.bag) || !okBag(board, s.bag, hen ? snap.fox : snap.birds)) return null;
       }
       // the order they got home in names exactly the seats that are home
@@ -567,7 +630,7 @@
   }
 
   const BoardLogic = {
-    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
+    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
     cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN,
   };
   global.BoardLogic = BoardLogic;

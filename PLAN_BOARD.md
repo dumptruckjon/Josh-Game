@@ -1,7 +1,8 @@
 # 🎲 Game Night — board games for Josh (and a friend)
 
 **Status: BATCHES 1, 2 AND 3 BUILT** (batches 1-2 audited twice; §11 is
-batch 3: 💯 Hundred Hop, 🐔 Hen House and 🧺 Picnic Lotto) — the door, the shelf, the shared turn
+batch 3: 💯 Hundred Hop, 🐔 Hen House, 🧺 Picnic Lotto, and 👀 Twin Spot,
+the owner's Spot It ask) — the door, the shelf, the shared turn
 routine, the engine, 🚀 Moon Race (with ☄️ Comet Moon), 🌈 Rainbow Trail, and
 🍎 Apple Spin (the owner's go, 2026-10-28, with "deeply audit the first 2
 games … to make them even more high quality and fun and exciting": §8).
@@ -278,3 +279,19 @@ four already on the shelf, each luck-only, each portrait-first and no-lose:
 The shelf now stands two by two from four boxes, an ODD shelf's last box
 spanning both columns; on a short phone each box is a smaller picture over a
 one-line name (76px), so eight boxes still fit the first screen of a 320x568.
+
+4. **👀 Twin Spot (BUILT; the owner, 2026-11-03: "Can we also do a 'spot it'
+   style game?")** — the Spot It shape (a trademark; only the mechanic is
+   borrowed): thirteen cards of four pictures, and ANY two share exactly ONE
+   — the order-3 projective plane (13 points, 13 lines, 4 a line), proven
+   pair by pair in the engine test. One card lies in the middle; on your turn
+   you flip the next and find the one picture on both. The real game is a
+   RACE, which a four-year-old's laws refuse (no timers, no speed), so here
+   the players take TURNS: a wrong picture only wiggles ("Look again! Is it
+   on both cards?"), after two the twin glows on BOTH cards, and found, it
+   glows green on both, the card goes on your pile (a ⭐) and becomes the
+   middle one. The computer's turns are worked examples. Twelve flips, one
+   party. Measured on the field: a flipped card's four pictures are its
+   buttons, so the cards lay out SIDE BY SIDE or STACKED, whichever gives the
+   buttons more room — 130px on the owner's iPhone, 76px on a 320x568 (where
+   only side by side clears 75), the middle card's pictures at half size.
