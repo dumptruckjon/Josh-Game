@@ -19,7 +19,12 @@ concurrency:
 jobs:
   # Tests must pass before anything is published — no broken deploys.
   test:
-    runs-on: ubuntu-latest
+    # PINNED, never ubuntu-latest (run #527, 2026-11): the moment ubuntu-latest
+    # moved to a newer Ubuntu, every WebKit test failed to even launch —
+    # "missing libicu*.so.74, libxml2.so.2", the libraries this Playwright's
+    # WebKit build was made against — and nothing deployed. Move to a newer
+    # image only together with a Playwright that supports it.
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,7 +57,7 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
@@ -80,7 +85,7 @@ jobs:
   # (Safari's engine) — so we never declare something shipped that's broken.
   verify-live:
     needs: deploy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -4193,6 +4193,28 @@ test("CI: installing browsers CANNOT hang — one owner, a timeout, and a retry"
   // bump — for ever, since the entry is only rewritten on a miss.
   assert.match(act, /key: *[^\n]*hashFiles\('package-lock\.json'\)/,
     "the cache key must be derived from the lockfile, or a Playwright version bump keeps restoring the old browsers");
+  // A browser build is tied to the Ubuntu it was made for, so a cache restored
+  // onto a different image is a set of browsers that cannot launch.
+  assert.match(act, /key: *[^\n]*env\.ImageOS/,
+    "the cache key must name the runner image, or browsers cached on one Ubuntu are restored onto another");
+});
+
+test("CI: every job runs on a PINNED Ubuntu, never -latest", () => {
+  // Run #527 (2026-11): ubuntu-latest moved to a newer Ubuntu, and every WebKit
+  // test failed to launch ("missing libicu*.so.74, libxml2.so.2") — the
+  // libraries the installed Playwright's WebKit was built against. Nothing in
+  // the repo had changed. An image that moves by itself is a dependency with
+  // no version, so every job names one; it moves only with a Playwright bump.
+  const dir = path.join(root, ".github", "workflows");
+  const files = fs.readdirSync(dir).filter((f) => /\.ya?ml$/.test(f));
+  let jobs = 0;
+  for (const f of files) {
+    for (const m of read(".github/workflows/" + f).matchAll(/^\s*runs-on:\s*(\S+)/gm)) {
+      jobs++;
+      assert.ok(!/latest/.test(m[1]), f + " runs on " + m[1] + " — pin a version (ubuntu-24.04), or the image can move under the tests");
+    }
+  }
+  assert.ok(jobs >= 4, "the scan must find the workflow jobs (saw " + jobs + ")");
 });
 
 test("CI: the browser-install retry actually RETRIES, and names a hang a hang", () => {

@@ -58,9 +58,12 @@ runs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+        # ImageOS (ubuntu24, ubuntu26, …) is in the key because a browser build
+        # is tied to the system it was made for: browsers cached on one Ubuntu
+        # must never be restored onto another.
+        key: playwright-${{ runner.os }}-${{ env.ImageOS }}-${{ hashFiles('package-lock.json') }}
         restore-keys: |
-          playwright-${{ runner.os }}-
+          playwright-${{ runner.os }}-${{ env.ImageOS }}-
 
     - shell: bash
       run: |

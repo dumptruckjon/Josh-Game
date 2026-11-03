@@ -10406,6 +10406,18 @@ an element that animates in from `scale(0.4)` measures small to
 pace hides anything shown only between a tap and the hand-over: assert those at
 the real pace, or on the event, never by polling after a quick turn.
 
+**CI WENT RED WITH NOTHING IN THE REPO CHANGED: `ubuntu-latest` moved.** Run
+#527 (2026-11) failed every WebKit test at launch — "missing libicu*.so.74,
+libxml2.so.2", the libraries this Playwright's WebKit was built against — so
+nothing deployed. An image that moves by itself is a dependency with no
+version: every job is pinned to `ubuntu-24.04` (a site.test.js law fails any
+`-latest`), the browser cache key names `env.ImageOS` so browsers cached on one
+Ubuntu are never restored onto another, and the image moves only together with
+a Playwright bump. Same session: a §22 Gobble test flaked 1 run in 5 because
+**Chromium gives each tab its own copy of localStorage** and carries another
+tab's write over a moment later, so tab A read stale storage and wrote it over
+tab B's reset; each reset in tab B now waits until tab A can see it.
+
 ---
 
 ## Repository Structure
