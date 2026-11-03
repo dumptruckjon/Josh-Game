@@ -313,11 +313,18 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
     await page.locator("#screen-board-play").waitFor({ state: "visible" });
     for (const [w, h] of [[834, 1112], [320, 568], [390, 844], [844, 390], [390, 844]]) {
       await page.setViewportSize({ width: w, height: h });
-      await page.waitForTimeout(300);
-      const f = await page.evaluate(() => {
+      // the board re-lays out on the resize event: wait for THAT (a fixed
+      // 300ms read the old layout on a starved live WebKit run, #531:
+      // "929 in 568"), then hold it to the laws
+      const measure = () => page.evaluate(() => {
         const fl = document.querySelector(".bn-field").getBoundingClientRect(), b = document.querySelector(".bn-board").getBoundingClientRect();
         return { sh: document.documentElement.scrollHeight, vh: innerHeight, l: b.left - fl.left, r: fl.right - b.right, t: b.top - fl.top, bt: fl.bottom - b.bottom };
       });
+      let f = await measure();
+      for (let k = 0; k < 50 && !(f.sh <= f.vh + 1 && Math.abs(f.l - f.r) <= 2 && Math.abs(f.t - f.bt) <= 2); k++) {
+        await page.waitForTimeout(100);
+        f = await measure();
+      }
       assert.ok(f.sh <= f.vh + 1, `[turned to ${w}x${h}] the play screen scrolls: ${f.sh} in ${f.vh}`);
       assert.ok(f.l >= -1 && f.r >= -1 && f.t >= -1 && f.bt >= -1, `[turned to ${w}x${h}] the board leaves its field: ${JSON.stringify(f)}`);
       assert.ok(Math.abs(f.l - f.r) <= 2 && Math.abs(f.t - f.bt) <= 2, `[turned to ${w}x${h}] the board is not centred in its field: ${JSON.stringify(f)}`);
@@ -385,7 +392,9 @@ test("🕳️ Gobble Hole: its home, the game and the win screen fit, and every 
       for (let i = 1; i <= 6; i++) ev("pointermove", { x: a.x, y: a.y + ((b.y - a.y) * i) / 6 });
       out.ty1 = h.ty;
       const tick0 = st.tick, t0 = performance.now();
-      while (st.tick - tick0 < 20 && performance.now() - t0 < 6000) await new Promise((r) => setTimeout(r, 50));
+      // (up to 15s: the loop stops waiting at 20 steps, so a healthy engine
+      // pays nothing; a starved live WebKit run, #531, managed 7 in 6s)
+      while (st.tick - tick0 < 20 && performance.now() - t0 < 15000) await new Promise((r) => setTimeout(r, 50));
       out.ticks = st.tick - tick0;
       out.ms = Math.round(performance.now() - t0);
       ev("pointerup", b);
