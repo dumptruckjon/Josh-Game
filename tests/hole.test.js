@@ -2229,7 +2229,12 @@ test("§20: the FIRST-time ghost hand never fights his finger — a child who st
     await cdp.detach();
   }
   assert.equal(samples.filter((x) => x.demo).length, 0, "the hand never started under his finger (" + samples.map((x) => (x.demo ? "D" : "-") + x.off.toFixed(0)).join(" ") + ")");
-  assert.ok(samples.slice(2).every((x) => x.off < 3), "Gobble heads for his finger the whole time");
+  // A lone sample can read a few units off: the finger's world point is read
+  // in the test while the camera moves (a grow zooms it out between the
+  // engine's read and ours) — measured at 5.8 once in 10 runs, between 0.9s.
+  // The defect lasts the hand's whole 1.5s, so TWO samples off in a row fail.
+  const offs = samples.slice(2).map((x) => x.off >= 3);
+  assert.ok(!offs.some((o, i) => o && offs[i + 1]), "Gobble heads for his finger the whole time (" + samples.map((x) => x.off.toFixed(1)).join(" ") + ")");
   // 👂 is an ASK: it shows the hand even though he has steered
   await page.waitForTimeout(400);
   await page.locator("#screen-hole-play .hole-hear").click();
@@ -2424,6 +2429,12 @@ test("§22: a reset in one tab holds against a tab left open from before — eve
     //    used to drop out of this tab's places, so every write of the other
     //    tab replaced its run with the stored one (or none)
     await page.evaluate(() => window.__HOLE.autoplay(240));
+    // each tab has its own copy of localStorage, carried over a moment later:
+    // tab B waits until it can SEE tab A's write, or that write can arrive
+    // AFTER B's own and replace it (CI run #529)
+    // (at least as much of the farm as A had stored: A's own loop may eat on)
+    const farmA = await page.evaluate((k) => JSON.parse(localStorage.getItem(k)).runs.farm.eaten.length, KEY);
+    await B.waitForFunction(([k, n]) => { try { const f = JSON.parse(localStorage.getItem(k)).runs.farm; return !!f && f.eaten.length >= n; } catch (e) { return false; } }, [KEY, farmA]);
     await B.evaluate(() => { location.hash = "#hole-play"; });
     await B.locator("#screen-hole-play").waitFor({ state: "visible" });
     // tab B must really WRITE its toy room, so it eats until it does (a fixed
@@ -2615,6 +2626,9 @@ test("§22: a reset still holds after the device's clock goes BACK — a gen loa
     await B.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
     const gB = await B.evaluate(() => window.__HOLE.save().gen);
     assert.ok(gB < g0, "fixture: the reset made after the clock went back reads an EARLIER time (" + gB + " < " + g0 + ")");
+    // each tab has its own copy of localStorage, carried over a moment later:
+    // wait until tab A can SEE the reset, or it writes a stale save over it
+    await A.waitForFunction(([k, g]) => { try { return JSON.parse(localStorage.getItem(k)).gen === g; } catch (e) { return false; } }, [KEY, gB]);
     // tab A, still holding the gen it loaded before, takes the reset anyway
     await A.evaluate(() => { window.__HOLE.start("farm"); window.__HOLE.autoplay(120); });
     assert.deepEqual(await A.evaluate((k) => JSON.parse(localStorage.getItem(k)).done, KEY), {}, "a reset made after the clock went back still holds (tab A's old ⭐ stay gone)");
