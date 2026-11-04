@@ -10932,7 +10932,11 @@ time, so a sharp memory wins about 73% of the pairs. 🚪 **Shut the Doors**
 is number bonds: roll, then shut the door that makes it or TWO that do (a ⭐;
 the first is held with a gold ring until its partner), a wrong door only
 wiggles and a way glows after two, nothing fits means roll AGAIN (never a
-lost turn), and making two at once beats the computer 64% of the time. 🌰
+lost turn), and making two at once beats the computer 64% of the time (the
+owner found the first version confusing, PLAN_BOARD §12: a shut door now looks
+SHUT, every open door wears its dots, a goal row beside the doors shows the
+roll or "4 + ? = 5", the face above is the doors' owner, and the first game
+glows a way from the start). 🌰
 **Acorn Pots** is mancala: three pots of three acorns each and a squirrel's
 nest; tap a pot and its acorns drop in one by one round the ring (each pot
 popping its count, never into the friend's nest), the last one in your OWN

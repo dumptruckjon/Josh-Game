@@ -350,6 +350,18 @@ one picture on both cards, are searches, not luck.
    door shut and one party. The skill is measured: making two at once when
    he can wins the race to six 64% of the time against a computer that picks
    any way (51% at even play).
+   **The owner, 2026-11-04: "Shut the Doors is confusing game."** Three
+   causes, all fixed: a SHUT door was drawn as an empty grey hole, which reads
+   as the door OPENING — now an open door is a lit doorway and a shut one is a
+   closed wooden door; the roll was only dots on the pad far below the doors,
+   in a different language from the doors' numerals — now every open door
+   wears its own dots (the die's pattern) and a goal row right above the doors
+   shows the roll's dots and number, or "4 + ? = 5" while a door is held; and
+   the face above the doors was the OTHER player's, so his own doors looked
+   like his friend's — it is now the face of whoever's doors they are (the
+   friend's small strip is gone; their doors show on their own turn). The
+   first game also teaches: a way to make the roll glows from the first roll,
+   not only after two misses.
 
 3. **🌰 Acorn Pots (BUILT)** — mancala for a four-year-old. Planned as "Seed
    Pots", renamed because the bean emoji is Emoji 14.0 and invisible on

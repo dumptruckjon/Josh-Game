@@ -3420,11 +3420,15 @@ button.bn-domt { cursor: pointer; }
 .bn-dom__n { position: absolute; right: 4px; bottom: 2px; font-size: 1.1rem; font-weight: 900; color: #1f2937; }
 .bn-box__pic .bn-domsvg { width: 1.6em; height: 0.8em; display: block; }
 
-/* 🚪 Shut the Doors: the waiting player's six small doors in a strip (their
-   face first), then the mover's six as big buttons, three by two, in a frame
-   of the mover's colour. An open door is wood with its number; a shut one is
-   pale and flat (not a button); a HELD door wears a gold ring; after two
-   misses a way to make the roll wears a green one. */
+/* 🚪 Shut the Doors: above the doors, WHOSE doors they are (a face) and what
+   to make (the roll's dots and number, or "held + ? = roll"); then the six
+   doors, three by two, in a frame of their owner's colour. An OPEN door is
+   a lit doorway showing its number and its dots (the die's pattern, so the
+   roll can be matched by counting); a SHUT door is a closed wooden door,
+   flat (not a button). The first version drew a shut door as an empty grey
+   hole, which read as the door opening. A HELD door wears a gold ring; a way
+   to make the roll wears a green one (from the start in the first game,
+   after two misses after that). */
 .bn-doors {
   position: absolute; left: 0; top: 0; right: 0; bottom: 0;
   display: grid;
@@ -3434,10 +3438,15 @@ button.bn-domt { cursor: pointer; }
   align-content: center;
   justify-items: center;
 }
-.bn-doors__other { display: grid; grid-template-columns: 40px repeat(6, 30px); gap: 6px; align-items: center; height: 40px; }
+.bn-doors__other { display: grid; grid-auto-flow: column; grid-auto-columns: auto; column-gap: 8px; align-items: center; height: 40px; }
 .bn-doors__face { display: block; width: 40px; height: 40px; }
-.bn-mini { display: grid; place-items: center; height: 34px; border-radius: 8px 8px 3px 3px; background: #a3460a; color: #ffffff; font-size: 0.95rem; font-weight: 800; }
-.bn-mini--shut { background: #e7e5e4; color: #57534e; }
+.bn-goal__die { display: block; width: 40px; height: 40px; padding: 4px; border: 3px solid #2b2b3a; border-radius: 10px; background: #ffffff; }
+.bn-goal__n { font-size: 1.9rem; font-weight: 900; color: #3b1d02; line-height: 1; }
+.bn-goal__op { font-size: 1.5rem; font-weight: 900; color: #3b1d02; line-height: 1; }
+.bn-goal__q { display: grid; place-items: center; width: 40px; height: 40px; border: 3px dashed #7a5200; border-radius: 10px; font-size: 1.5rem; font-weight: 900; color: #3b1d02; }
+.bn-pips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 2px; width: 100%; height: 100%; }
+.bn-pip { display: block; border-radius: 50%; background: #1d1d3b; }
+.bn-pip--none { background: transparent; }
 .bn-doors__grid {
   display: grid;
   grid-template-columns: repeat(3, var(--door, 80px));
@@ -3450,19 +3459,30 @@ button.bn-domt { cursor: pointer; }
   position: relative;
   width: var(--door, 80px); height: var(--door, 80px);
   min-height: 75px;
-  border: 4px solid #6b2d06;
+  border: 5px solid #6b2d06;
   border-radius: 22px 22px 8px 8px;
-  background: linear-gradient(180deg, #b8520f 0%, #a3460a 100%);
+  background: linear-gradient(180deg, #fff6cc 0%, #ffe48a 100%);
   box-shadow: var(--card-shadow);
-  display: grid; place-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 100%);
+  grid-template-rows: 55% 34%;
+  align-content: center;
+  justify-items: center;
+  row-gap: 2%;
   padding: 0;
   font: inherit;
-  color: #ffffff;
+  color: #3b1d02;
 }
-.bn-door::after { content: ""; position: absolute; right: 14%; top: 52%; width: 9%; height: 9%; border-radius: 50%; background: #ffd24d; }
-.bn-door__n { font-weight: 900; line-height: 1; }
-.bn-door--shut { background: #e7e5e4; border: 3px dashed #a8a29e; box-shadow: none; color: #57534e; min-height: 0; }
-.bn-door--shut::after { display: none; }
+.bn-door .bn-pips { width: 34%; height: 100%; }
+.bn-door__n { font-size: 0.85em; font-weight: 900; line-height: 1; align-self: end; }
+.bn-door--shut {
+  background: linear-gradient(180deg, #b8520f 0%, #a3460a 100%);
+  border-width: 4px;
+  color: #ffffff;
+  grid-template-rows: minmax(0, 100%);
+}
+.bn-door--shut::after { content: ""; position: absolute; right: 14%; top: 52%; width: 9%; height: 9%; border-radius: 50%; background: #ffd24d; }
+.bn-door--shut .bn-door__n { font-size: 0.6em; align-self: center; }
 .bn-door--go { animation: bnDoorShut 0.4s ease-out; }
 @keyframes bnDoorShut { from { transform: perspective(300px) rotateY(-70deg); } to { transform: perspective(300px) rotateY(0); } }
 .bn-door--held { box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200, var(--card-shadow); }

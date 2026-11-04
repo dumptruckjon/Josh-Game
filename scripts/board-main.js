@@ -215,7 +215,7 @@
           '<div class="bn-dom" hidden><div class="bn-dom__row"><span class="bn-dom__end" data-side="left"></span><div class="bn-dom__line" aria-hidden="true"></div><span class="bn-dom__end" data-side="right"></span></div><div class="bn-dom__hand" role="group" aria-label="The tiles"></div></div>' +
           // 🚪 Shut the Doors: the waiting player's doors (small), and the
           // mover's six (big buttons: tap the ones that make the roll)
-          '<div class="bn-doors" hidden><div class="bn-doors__other" aria-hidden="true"></div><div class="bn-doors__grid" role="group" aria-label="The doors"></div></div>' +
+          '<div class="bn-doors" hidden><div class="bn-doors__other" role="group"></div><div class="bn-doors__grid" role="group" aria-label="The doors"></div></div>' +
           '<div class="bn-token bn-token--0" aria-hidden="true"><span class="bn-token__face"></span></div>' +
           '<div class="bn-token bn-token--1" aria-hidden="true"><span class="bn-token__face"></span></div>' +
           // the number of the square just reached (or the apples in the
@@ -443,7 +443,7 @@
     clearLater();
     hideParty();
     const board = DATA.board(st.board);
-    game = { box, st, board, friend: st.seats[1].who, cpu: st.seats[1].cpu, busy: false, hopUntil: 0, counted: st.phase === "done" };
+    game = { box, st, board, friend: st.seats[1].who, cpu: st.seats[1].cpu, busy: false, hopUntil: 0, counted: st.phase === "done", doorsTeach: board.game === "doors" && !save.intro.doors };
     play.querySelector(".bn-title").textContent = DATA.box(box).name;
     play.dataset.game = board.game;
     play.dataset.box = box;
@@ -567,24 +567,46 @@
     if (!game || game.board.game !== "doors") return;
     const st = game.st, m = game.showMover == null ? st.mover : game.showMover, o = 1 - m;
     const shut = game.shownShut, live = st.phase === "shut" && st.mover === m;
-    const ways = live && st.misses >= 2 ? L.doorWays(st) : [];
+    // the FIRST game teaches: a way to make the roll glows from the start;
+    // after that it glows only after two misses
+    const ways = live && (st.misses >= 2 || game.doorsTeach) ? L.doorWays(st) : [];
     const hint = ways.length ? (ways.find((x) => st.held == null || x.indexOf(st.held) >= 0) || ways[0]) : [];
     const cpu = st.phase !== "done" && st.seats[game.showTurn == null ? st.turn : game.showTurn].cpu;
     let html = "";
     for (let n = 1; n <= 6; n++) {
+      // a SHUT door is a closed wooden door (its number small on it); an
+      // OPEN one is a lit doorway showing its number AND its dots, the die's
+      // own dots, so he can match the roll by counting
       if (shut[m].indexOf(n) >= 0) { html += '<span class="bn-door bn-door--shut' + (game.doorsGo && game.doorsGo.indexOf(n) >= 0 ? " bn-door--go" : "") + '" aria-hidden="true"><span class="bn-door__n">' + n + "</span></span>"; continue; }
       const held = live && st.held === n;
       html += '<button class="bn-door tap' + (held ? " bn-door--held" : "") + (hint.indexOf(n) >= 0 && !held ? " bn-door--hint" : "") +
-        '" type="button" data-n="' + n + '" aria-label="Door ' + n + (held ? ", held" : "") + '"><span class="bn-door__n">' + n + "</span></button>";
+        '" type="button" data-n="' + n + '" aria-label="Door ' + n + (held ? ", held" : "") + '"><span class="bn-door__n">' + n + "</span>" + pipsHTML(n) + "</button>";
     }
     const grid = doorsEl.querySelector(".bn-doors__grid");
     grid.innerHTML = html;
     grid.setAttribute("aria-label", nameOf(m) + "'s doors");
     grid.classList.toggle("bn-doors__grid--cpu", !!cpu);
     grid.style.borderColor = seatPerson(m).colour;
-    let other = '<span class="bn-doors__face">' + R.faceHTML(seatPerson(o)) + "</span>";
-    for (let n = 1; n <= 6; n++) other += '<span class="bn-mini' + (shut[o].indexOf(n) >= 0 ? " bn-mini--shut" : "") + '">' + n + "</span>";
-    doorsEl.querySelector(".bn-doors__other").innerHTML = other;
+    // the row above the doors: WHOSE doors these are (their face), then what
+    // to make — the roll's dots and its number, or, with a door held,
+    // "held + ? = roll" — so the goal sits beside the doors, not down on the pad
+    let goal = '<span class="bn-doors__face">' + R.faceHTML(seatPerson(m)) + "</span>";
+    if (live) {
+      const want = '<span class="bn-goal__die">' + pipsHTML(st.die) + '</span><span class="bn-goal__n">' + st.die + "</span>";
+      goal += st.held != null
+        ? '<span class="bn-goal__die">' + pipsHTML(st.held) + '</span><span class="bn-goal__op">+</span><span class="bn-goal__q">?</span><span class="bn-goal__op">=</span>' + want
+        : '<span class="bn-goal__op">🎯</span>' + want;
+    }
+    const row = doorsEl.querySelector(".bn-doors__other");
+    row.innerHTML = goal;
+    row.setAttribute("aria-label", live ? (st.held != null ? st.held + " and what make " + st.die : "Make " + st.die) : nameOf(m) + "'s doors");
+  }
+  // a door's (or the goal's) dots: the die's own pattern, small
+  function pipsHTML(n) {
+    const on = DOTS[n] || [];
+    let s = '<span class="bn-pips" aria-hidden="true">';
+    for (let k = 0; k < 9; k++) s += '<span class="bn-pip' + (on.indexOf(k) < 0 ? " bn-pip--none" : "") + '"></span>';
+    return s + "</span>";
   }
   function tapDoor(n, btn) {
     if (!game || game.board.game !== "doors" || game.busy || !playVisible()) return;

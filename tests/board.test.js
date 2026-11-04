@@ -1542,8 +1542,19 @@ test("🚪 a whole Shut the Doors against the computer: roll, tap the door that 
   const d0 = await doors();
   assert.deepEqual(d0.map((d) => d.n), [1, 2, 3, 4, 5, 6], "his six doors, 1 to 6");
   assert.ok(d0.every((d) => d.button && d.w >= 75 && d.h >= 75), `six big doors (${d0.map((d) => d.w)})`);
-  assert.equal(await page.locator(".bn-doors__other .bn-mini").count(), 6, "his friend's six doors, small, above");
-  let twos = 0, missed = 0, echoed = false, hinted = false;
+  // an OPEN door is a lit doorway showing its number AND its dots (the die's
+  // pattern), so the roll can be matched by counting, not only by reading
+  const pips = () => page.evaluate(() => [...document.querySelectorAll(".bn-doors__grid .bn-door")].map((b) => b.querySelectorAll(".bn-pip:not(.bn-pip--none)").length));
+  assert.deepEqual(await pips(), [1, 2, 3, 4, 5, 6], "every open door wears its own number of dots");
+  // the row above the doors says WHOSE doors they are, and (only once rolled)
+  // what to make
+  const goal = () => page.evaluate(() => {
+    const r = document.querySelector(".bn-doors__other");
+    return { face: !!r.querySelector(".bn-doors__face svg"), n: (r.querySelector(".bn-goal__n") || {}).textContent || null, dice: [...r.querySelectorAll(".bn-goal__die")].map((d) => d.querySelectorAll(".bn-pip:not(.bn-pip--none)").length), q: !!r.querySelector(".bn-goal__q"), label: r.getAttribute("aria-label") };
+  });
+  const g0 = await goal();
+  assert.ok(g0.face && g0.n === null && g0.dice.length === 0, `before the roll: just whose doors (${JSON.stringify(g0)})`);
+  let twos = 0, missed = 0, echoed = false, hinted = false, goaled = false, shutSeen = false;
   for (let guard = 0; guard < 80; guard++) {
     await untilTap(0);
     let s = await st();
@@ -1555,6 +1566,18 @@ test("🚪 a whole Shut the Doors against the computer: roll, tap the door that 
     }
     // shut: which doors make the roll? (his own six, or his friend's once he helps)
     const ways = await page.evaluate(() => window.BoardLogic.doorWays(window.__BOARD.state()));
+    if (!goaled) {
+      goaled = true;
+      const g = await goal();
+      assert.ok(g.n === String(s.die) && g.dice.length === 1 && g.dice[0] === s.die && !g.q, `rolled ${s.die}: the goal beside the doors shows its dots and its number (${JSON.stringify(g)})`);
+      assert.equal(g.label, "Make " + s.die, "and says so to a screen reader");
+      assert.equal((await doors()).filter((d) => d.hint).length, 0, "after the first game, no way glows before he has tried");
+    }
+    if (!shutSeen && s.seats[s.mover].shut.length) {
+      shutSeen = true;
+      const sh = await page.evaluate(() => [...document.querySelectorAll(".bn-doors__grid .bn-door--shut")].map((b) => ({ tag: b.tagName, pips: b.querySelectorAll(".bn-pip").length, bg: getComputedStyle(b).backgroundImage })));
+      assert.ok(sh.length && sh.every((d) => d.tag === "SPAN" && d.pips === 0 && /linear-gradient/.test(d.bg)), `a shut door is a closed WOODEN door, not a button, no dots (${JSON.stringify(sh)})`);
+    }
     const open = [1, 2, 3, 4, 5, 6].filter((n) => s.seats[s.mover].shut.indexOf(n) < 0);
     const wrong = open.find((n) => !ways.some((w) => w.indexOf(n) >= 0));
     if (wrong != null && missed < 2) {
@@ -1583,6 +1606,8 @@ test("🚪 a whole Shut the Doors against the computer: roll, tap the door that 
         assert.equal((await st()).held, w[0], "the door already held stays held (the hammer's echo)");
       }
       assert.ok((await doors()).find((d) => d.n === w[0]).held, "a held door wears its ring");
+      const gh = await goal();
+      assert.ok(gh.q && gh.dice[0] === w[0] && gh.dice[1] === s.die && gh.n === String(s.die), `holding ${w[0]}: the goal reads ${w[0]} + ? = ${s.die} (${JSON.stringify(gh)})`);
       await page.locator('.bn-doors__grid button.bn-door[data-n="' + w[1] + '"]').click();
       twos++;
     }
@@ -1591,10 +1616,23 @@ test("🚪 a whole Shut the Doors against the computer: roll, tap the door that 
   const end = await st();
   assert.equal(end.phase, "done", "the game ends");
   assert.ok(end.seats.every((x) => x.shut.length === 6), "every door of both players shut");
-  assert.ok(twos >= 1 && hinted && echoed, `fixture: two-door shuts, the hint and the echo all ran (${twos})`);
+  assert.ok(twos >= 1 && hinted && echoed && goaled && shutSeen, `fixture: two-door shuts, the hint, the echo, the goal and a shut door all ran (${twos})`);
   await page.locator(".bn-party").waitFor({ state: "visible" });
   assert.equal((await page.evaluate(() => window.__BOARD.save())).done.doors, 1, "a finished Shut the Doors counts once");
   } finally { await slow(); }
+});
+
+test("🚪 the FIRST Shut the Doors teaches: a way to make the roll glows from the very first roll, before any miss", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: false }));
+  await startGame("doors", "river", true, 11, 0);
+  await page.waitForTimeout(400);
+  await page.locator(".bn-pad--0").click();
+  await page.waitForFunction(() => window.__BOARD.state().phase === "shut" && !window.__BOARD.busy(), null, { timeout: 5000 });
+  const s = await st();
+  assert.equal(s.misses, 0, "fixture: no miss yet");
+  const ways = await page.evaluate(() => window.BoardLogic.doorWays(window.__BOARD.state()));
+  const hint = await page.evaluate(() => [...document.querySelectorAll(".bn-doors__grid .bn-door--hint")].map((b) => Number(b.dataset.n)));
+  assert.ok(hint.length && ways.some((w) => w.every((n) => hint.indexOf(n) >= 0)), `rolled ${s.die}: a way glows at once (${hint})`);
 });
 
 test("🌰 a whole Acorn Pots against the computer: his three pots are the buttons, the acorns drop in one by one counting (sound off), a last acorn in his nest glows and is a ⭐ (go again), an empty pot does nothing, every acorn ends in a nest, one party", async () => {
