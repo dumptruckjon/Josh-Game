@@ -44,10 +44,10 @@ async function go(hash, sel) {
 // The pace of the turn routine, made quick: the timings are presentation,
 // never rules, and a whole game at full pace takes minutes.
 async function quick() {
-  await page.evaluate(() => Object.assign(window.__BOARD.T, { tumble: 60, hop: 30, autoHop: 40, cpuThink: 40, cpuHop: 30, ride: 40, card: 30, glide: 20, handoff: 40, cheer: 60, tip: 40 }));
+  await page.evaluate(() => Object.assign(window.__BOARD.T, { tumble: 60, hop: 30, autoHop: 40, cpuThink: 40, cpuHop: 30, ride: 40, card: 30, glide: 20, handoff: 40, cheer: 60, tip: 40, look: 40 }));
 }
 async function slow() {
-  await page.evaluate(() => Object.assign(window.__BOARD.T, { tumble: 700, hop: 240, autoHop: 480, cpuThink: 900, cpuHop: 560, ride: 900, card: 520, glide: 300, handoff: 700, cheer: 1400, tip: 1000 }));
+  await page.evaluate(() => Object.assign(window.__BOARD.T, { tumble: 700, hop: 240, autoHop: 480, cpuThink: 900, cpuHop: 560, ride: 900, card: 520, glide: 300, handoff: 700, cheer: 1400, tip: 1000, look: 1500 }));
 }
 const st = () => page.evaluate(() => window.__BOARD.state());
 // Wait until it is a person's move (his pad waits for a tap), or the game is over.
@@ -85,35 +85,42 @@ test("the front door's FIFTH door opens Game Night, and 🚪 comes back", async 
   assert.ok(!(await page.evaluate(() => document.body.classList.contains("board-mode"))), "leaving drops the theme");
 });
 
-test("the shelf: Moon Race and Rainbow Trail first; Comet Moon arrives after TWO finished Moon games, never as a padlock", async () => {
+test("the shelf: two shelves (🎲 lucky, 🧠 thinking); Moon Race and Rainbow Trail first; Comet Moon arrives after TWO finished Moon games, never as a padlock", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await go("#board-home", "#screen-board-home");
   const boxes = () => page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-box")].map((b) => b.dataset.box));
-  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred", "hen", "lotto", "spot"], "a fresh shelf: seven boxes, nothing locked");
-  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "2", "seven boxes stand two by two");
+  const kinds = () => page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-boxes")].map((l) => [l.dataset.kind, [...l.querySelectorAll(".bn-box")].map((b) => b.dataset.box)]));
+  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred", "hen", "lotto", "spot", "pairs"], "a fresh shelf: eight boxes, nothing locked");
+  // every box is on the shelf its data names, and a thinking game is never
+  // on the lucky shelf (derived, so a new box is checked the day it lands)
+  for (const [kind, ids] of await kinds()) {
+    for (const id of ids) assert.equal(await page.evaluate((b) => window.BoardData.box(b).kind || "luck", id), kind, `${id} stands on the ${kind} shelf`);
+  }
+  assert.deepEqual((await kinds()).map((k) => k[0]), ["luck", "think"], "the lucky games first, then the thinking games");
+  const heads = await page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-shelves__head")].map((h) => h.textContent));
+  assert.equal(heads.length, 2, "each shelf has its heading");
+  assert.ok(await page.evaluate(() => [...document.querySelectorAll(".bn-boxes")].every((l) => l.dataset.cols === "2")), "each shelf stands two by two");
   assert.equal(await page.locator("#screen-board-home [aria-disabled], #screen-board-home .bn-box[disabled]").count(), 0, "nothing on the shelf is locked or greyed");
   // no row is ragged: an ODD shelf's last box spans both columns, an even
-  // one's is a box like the rest (checked on both shelves this test sees)
+  // one's is a box like the rest (checked on every shelf this test sees)
   const shelfEven = async () => {
-    const r = await page.evaluate(() => {
-      const bs = [...document.querySelectorAll("#screen-board-home .bn-box")].map((b) => b.getBoundingClientRect());
-      const list = document.querySelector(".bn-boxes").getBoundingClientRect(), last = bs[bs.length - 1];
-      return { n: bs.length, lastW: last.width, listW: list.width, otherW: bs[0].width };
-    });
-    if (r.n % 2) assert.ok(Math.abs(r.lastW - r.listW) < 2 && r.lastW > r.otherW * 1.8, `an odd shelf's last box spans the row (${JSON.stringify(r)})`);
-    else assert.ok(Math.abs(r.lastW - r.otherW) < 2, `an even shelf's last box is a box like the rest (${JSON.stringify(r)})`);
+    const rs = await page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-boxes")].map((list) => {
+      const bs = [...list.querySelectorAll(".bn-box")].map((b) => b.getBoundingClientRect());
+      const last = bs[bs.length - 1];
+      return { kind: list.dataset.kind, n: bs.length, lastW: last.width, listW: list.getBoundingClientRect().width, otherW: bs[0].width };
+    }));
+    for (const r of rs) {
+      if (r.n % 2) assert.ok(Math.abs(r.lastW - r.listW) < 2 && r.lastW > r.otherW * 1.8, `an odd shelf's last box spans the row (${JSON.stringify(r)})`);
+      else assert.ok(Math.abs(r.lastW - r.otherW) < 2, `an even shelf's last box is a box like the rest (${JSON.stringify(r)})`);
+    }
   };
   await shelfEven();
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 1 } }));
   await go("#board-home", "#screen-board-home");
-  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred", "hen", "lotto", "spot"], "one Moon game is not enough");
+  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred", "hen", "lotto", "spot", "pairs"], "one Moon game is not enough");
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }));
   await go("#board-home", "#screen-board-home");
-  assert.deepEqual(await boxes(), ["moon", "comet", "rainbow", "apple", "hundred", "hen", "lotto", "spot"], "after two, Comet Moon is on the shelf, beside Moon Race");
-  // rows of single boxes put the last one below the fold of a small phone,
-  // so a shelf of four or more stands in two columns — and an ODD shelf's
-  // last box spans both, so no row is ragged
-  assert.equal(await page.evaluate(() => document.querySelector(".bn-boxes").dataset.cols), "2", "eight boxes stand two by two");
+  assert.deepEqual(await boxes(), ["moon", "comet", "rainbow", "apple", "hundred", "hen", "lotto", "spot", "pairs"], "after two, Comet Moon is on the lucky shelf, beside Moon Race");
   await shelfEven();
   // a deep link to a box that is not on the shelf yet goes nowhere
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
@@ -998,7 +1005,7 @@ test("every finished game earns its box a 🏆 on the shelf, counted — and a f
     const w = b.querySelector(".bn-box__won");
     return [b.dataset.box, w ? w.textContent : null];
   })));
-  assert.deepEqual(await won(), { moon: "🏆 3", comet: null, rainbow: null, apple: null, hundred: null, hen: null, lotto: null, spot: null }, "three Moon games: 🏆 3; the rest none yet");
+  assert.deepEqual(await won(), { moon: "🏆 3", comet: null, rainbow: null, apple: null, hundred: null, hen: null, lotto: null, spot: null, pairs: null }, "three Moon games: 🏆 3; the rest none yet");
   assert.match(await page.locator('.bn-box[data-box="moon"]').getAttribute("aria-label"), /played 3 times/);
   // the trophy pill sits in the corner, never on the box's name
   const clear = await page.evaluate(() => {
@@ -1404,6 +1411,111 @@ test("👀 on the computer's turn its card cannot be tapped, it finds the twin i
   // the twin glows on BOTH cards as the computer finds it
   await page.waitForFunction((t) => [...document.querySelectorAll('.bn-twin[data-p="' + t + '"]')].filter((x) => x.classList.contains("bn-twin--yes")).length === 2, twin, { timeout: 8000 });
   await page.waitForFunction(() => window.__BOARD.state().seats[1].pos === 1, null, { timeout: 8000 });
+});
+
+test("🧠 a whole Peek-a-Pair against the computer: nine cards face down, a turned card shows its picture, a pair glows and is his (go again), a miss turns back over, a second board, one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("pairs", "river", true, 5, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the cards are the pieces");
+  const pic = (id) => (id === "star" ? "⭐" : window.BoardData.pairPic(id).pic);
+  const dom = () => page.evaluate(() => [...document.querySelectorAll(".bn-pairs .bn-pc")].map((b) => ({
+    button: b.tagName === "BUTTON", up: b.classList.contains("bn-pc--up"), gone: b.classList.contains("bn-pc--gone"),
+    yes: b.classList.contains("bn-pc--yes"), pic: (b.querySelector(".bn-pc__pic") || {}).textContent || "", w: b.offsetWidth, h: b.offsetHeight })));
+  const d0 = await dom();
+  assert.equal(d0.length, 9, "nine cards");
+  assert.ok(d0.every((c) => c.button && !c.up && c.pic === "" && c.w >= 75 && c.h >= 75), `nine big cards, all face down, no picture showing (${JSON.stringify(d0.map((c) => c.w))})`);
+  // a sharp memory: a pair he has SEEN, else a card nobody has looked at
+  const choose = (s) => {
+    const down = s.cards.map((c, k) => k).filter((k) => !s.gone[k] && s.open.indexOf(k) < 0);
+    if (s.phase === "second") { const m = down.find((k) => s.cards[k] === s.cards[s.open[0]] && s.seen[k]); if (m != null) return m; }
+    else for (const k of down) if (s.cards[k] !== "star" && s.seen[k] && down.some((j) => j !== k && s.cards[j] === s.cards[k] && s.seen[j])) return k;
+    const fresh = down.filter((k) => !s.seen[k]);
+    return (fresh.length ? fresh : down)[0];
+  };
+  let pairs = 0, missesSeen = 0, echoed = false, resumed = false, cpuTried = false, boards = new Set([0]);
+  for (let guard = 0; guard < 120; guard++) {
+    // the computer's turn: its cards are not his to tap
+    const x = await st();
+    if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      const before = x.seats[0].pos;
+      await page.locator(".bn-pairs .bn-pc").first().click({ force: true }).catch(() => {});
+      assert.equal((await st()).seats[0].pos, before, "his tap on the computer's turn finds nothing for him");
+    }
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    boards.add(s.boardNo);
+    const k = choose(s), was = s.phase;
+    await page.locator('.bn-pairs button.bn-pc[data-k="' + k + '"]').click();
+    await page.waitForFunction((n) => window.__BOARD.state().rolls === n, s.rolls + 1, { timeout: 4000 });
+    const a = await st();
+    if (was === "flip" && a.phase === "second") {
+      // (a first card stays up, so its picture can be read; a second one is
+      // gone again at the quick test pace — the glow test below reads that)
+      // (the engine has turned it; the picture is painted on the next task)
+      await page.waitForFunction((kk) => { const b = document.querySelector('.bn-pairs .bn-pc[data-k="' + kk + '"]'); return b && b.classList.contains("bn-pc--up"); }, k, { timeout: 3000 });
+      const shown = await page.evaluate((kk) => { const b = document.querySelector('.bn-pairs .bn-pc[data-k="' + kk + '"]'); return b ? (b.querySelector(".bn-pc__pic") || {}).textContent : null; }, k);
+      assert.equal(shown, await page.evaluate(pic, s.cards[k]), "a turned card shows ITS picture");
+      if (!echoed) {
+        // the hammer's echo: tapping the card already up does nothing
+        echoed = true;
+        await page.waitForTimeout(80);
+        await page.locator('.bn-pairs button.bn-pc[data-k="' + k + '"]').click();
+        await page.waitForTimeout(80);
+        assert.equal((await st()).rolls, a.rolls, "the card already up cannot be turned again");
+      }
+      if (!resumed) {
+        // leave mid-turn and come back: the card he turned is still up
+        resumed = true;
+        await go("#board-home", "#screen-board-home");
+        await go("#board-play", "#screen-board-play");
+        await page.waitForTimeout(100);
+        assert.ok(await page.evaluate((kk) => document.querySelector('.bn-pairs .bn-pc[data-k="' + kk + '"]').classList.contains("bn-pc--up"), k), "the card he turned is still up after he comes back");
+      }
+      continue;
+    }
+    if (was === "second") {
+      const mate = s.open[0];
+      if (s.cards[mate] === s.cards[k]) {
+        pairs++;
+        assert.equal(a.seats[0].pos, s.seats[0].pos + 1, "a pair is his");
+        if (a.phase !== "done") assert.equal(a.turn, 0, "a pair goes again");
+      } else {
+        missesSeen++;
+        assert.ok(!a.gone[k] && !a.gone[mate] && a.open.length === 0, "a miss: both still on the board");
+        // both stay up a moment, then turn back over
+        await page.waitForFunction((m) => [...document.querySelectorAll(".bn-pairs .bn-pc")].filter((b) => m.indexOf(Number(b.dataset.k)) >= 0).every((b) => !b.classList.contains("bn-pc--up")), [k, mate], { timeout: 4000 });
+      }
+    }
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.equal(end.seats[0].pos + end.seats[1].pos, 8, "all eight pairs found");
+  assert.ok(pairs >= 3, `he found pairs of his own (${pairs})`);
+  assert.ok(boards.has(1), "a second board was dealt");
+  assert.ok(echoed && resumed && cpuTried, "fixture: every check really ran");
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.pairs, 1, "a finished Peek-a-Pair counts once");
+  } finally { await slow(); }
+});
+
+test("🧠 a pair GLOWS before it leaves (the cards he matched are seen, sound off), and leaves an empty place; his ⭐ lands on his pad", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await startGame("pairs", "river", true, 5, 0);
+  const s = await st();
+  const k0 = s.cards.findIndex((c) => c !== "star"), k1 = s.cards.findIndex((c, k) => k !== k0 && c === s.cards[k0]);
+  await page.locator('.bn-pairs button.bn-pc[data-k="' + k0 + '"]').click();
+  await page.waitForFunction(() => window.__BOARD.state().phase === "second", null, { timeout: 4000 });
+  await page.waitForTimeout(400);
+  await page.locator('.bn-pairs button.bn-pc[data-k="' + k1 + '"]').click();
+  await page.waitForFunction((m) => m.every((kk) => document.querySelector('.bn-pairs .bn-pc[data-k="' + kk + '"]').classList.contains("bn-pc--yes")), [k0, k1], { timeout: 3000 });
+  await page.waitForFunction((m) => m.every((kk) => document.querySelectorAll(".bn-pairs .bn-pc")[kk].classList.contains("bn-pc--gone")), [k0, k1], { timeout: 4000 });
+  assert.equal(await page.locator(".bn-pairs .bn-pc").count(), 9, "the board keeps its shape: an empty place where the pair was");
+  await page.waitForFunction(() => /⭐ 1/.test(document.querySelector(".bn-pad--0 .bn-pad__stars").textContent), null, { timeout: 3000 });
+  assert.equal((await st()).turn, 0, "and it is still his turn");
 });
 
 test("no uncaught page errors in Game Night", () => {

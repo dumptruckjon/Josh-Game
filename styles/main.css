@@ -3105,6 +3105,11 @@ body.board-mode { background: linear-gradient(165deg, #fff3e2 0%, #ffeef6 55%, #
 .bn-bar { margin-bottom: var(--pad); }
 .bn-title { color: #7a2e10; }
 
+/* the shelves: the LUCK games, then the THINKING games, each under its own
+   heading (a grown-up's words; the boxes' pictures carry the play) */
+.bn-shelves { display: grid; grid-template-columns: minmax(0, 100%); gap: 12px; }
+.bn-shelves__head { margin: 6px 4px 0; font-size: 1.15rem; font-weight: 800; color: #7a2e10; }
+.bn-shelves__head:first-child { margin-top: 0; }
 /* the shelf: one big door per box, a full-width row each */
 .bn-boxes { display: grid; grid-template-columns: minmax(0, 100%); gap: var(--pad); }
 .bn-box {
@@ -3253,6 +3258,39 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
 .bn-board--chart .bn-token--shared { transform: translate(-50%, -50%); }
 .bn-board--chart .bn-token--shared.bn-token--1 { transform: translate(-50%, -50%) scale(0.7); }
 .bn-board--chart .bn-token--shared.bn-token--1 .bn-token__face { right: auto; left: 1px; }
+
+/* 🧠 Peek-a-Pair: nine cards, each a button (75px+, 16px apart, grid gap),
+   sized by layoutPairs() to the field. Face down a card is a bright back with
+   a pattern; face up it shows its picture on white. A found pair leaves an
+   empty dashed place, so the board keeps its shape. */
+.bn-pairs {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--pcols, 3), var(--pcw, 80px));
+  grid-auto-rows: var(--pch, 80px);
+  gap: 16px;
+  justify-content: center;
+  align-content: center;
+}
+.bn-pc {
+  position: relative;
+  width: var(--pcw, 80px); height: var(--pch, 80px);
+  min-height: 75px;
+  border: 4px solid #ffffff;
+  border-radius: 18px;
+  background: repeating-linear-gradient(45deg, #db2777 0 10px, #be185d 10px 20px);
+  box-shadow: var(--card-shadow);
+  display: grid; place-items: center;
+  padding: 0;
+  font: inherit;
+  line-height: 1;
+}
+.bn-pc--up { background: #ffffff; border-color: #db2777; }
+.bn-pc__pic { display: block; line-height: 1; }
+.bn-pc--yes { box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200, var(--card-shadow); }
+.bn-pc--gone { border: 3px dashed #d8b4c8; background: transparent; box-shadow: none; min-height: 0; }
+.bn-pc--flip .bn-pc__pic { animation: bnFlip 0.32s ease-out; }
+.bn-pairs--cpu .bn-pc { cursor: default; }
 
 /* the pads: each player's own big button — the die, or the card pile */
 .bn-tray { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); margin-top: 12px; }
@@ -3536,6 +3574,12 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
   .bn-person { min-height: 100px; }
   .bn-person__face { width: 52px; height: 52px; }
   .bn-pad { min-height: 92px; }
+  /* 🧠 nine cards three high want 257px of field: on a short phone the pads
+     (here only whose turn it is — the cards are the buttons) give way */
+  .bn-play[data-game="pairs"] .bn-pad { min-height: 75px; padding: 4px 8px; }
+  .bn-play[data-game="pairs"] .bn-tray { margin-top: 16px; }
+  .bn-play[data-game="pairs"] .bn-pad__face { width: 40px; height: 40px; }
+  .bn-play[data-game="pairs"] .bn-pad .bn-card { width: 44px; height: 44px; font-size: 1.7rem; }
   .bn-die { width: 56px; height: 56px; padding: 6px; }
   .bn-die__cue { font-size: 2.8rem; }
   .bn-card, .bn-spinner, .bn-spin { width: 56px; height: 56px; font-size: 2.2rem; }
@@ -3557,11 +3601,14 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
   .bn-play .bn-bar { grid-column: 1 / -1; }
   .bn-play .bn-field { grid-column: 1; grid-row: 2; min-height: 0; }
   .bn-play .bn-tray { grid-column: 2; grid-row: 2; grid-template-columns: minmax(0, 100%); align-content: center; margin-top: 0; }
+  /* 🧠 five cards across want the width: the pads' column gives a little */
+  body.in-game .screen.bn-play[data-game="pairs"] { grid-template-columns: minmax(0, 1fr) 150px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .bn-token { transition: none; }
   .bn-token--hop .bn-token__face { animation: none; }
   .bn-wiggle { animation: none; }
+  .bn-pc--flip .bn-pc__pic { animation: none; }
   .bn-hand { animation: none; }
   .bn-party__face { animation: none; }
   .bn-box:active { transform: none; }

@@ -237,15 +237,22 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
       await showScreen(page, hash, sel);
       await noOverflow(page, `board-${lbl}@${w}x${h}`);
       await auditActiveScreen(page, `board-${lbl}@${w}x${h}`);
-      // every box on the first screen of a phone held upright: four rows ran
-      // the fourth box below the fold of a 320x568 phone
+      // Two shelves of boxes are more than one phone screen, so the shelf
+      // SCROLLS on a phone (Gobble Hole's land pages are the precedent): the
+      // first screen must hold at least three full rows of boxes, and the
+      // last box must be reachable by scrolling.
       if (lbl === "shelf" && h > w) {
-        const last = await page.evaluate(() => Math.max(...[...document.querySelectorAll(".bn-box")].map((b) => b.getBoundingClientRect().bottom)));
-        assert.ok(last <= h, `[shelf@${w}x${h}] the last box ends at ${Math.round(last)}, below the fold`);
         assert.equal(await page.locator(".bn-box").count(), DATA_BOXES, "fixture: the shelf holds every box (Comet Moon unlocked)");
+        const rows = await page.evaluate((vh) => new Set([...document.querySelectorAll(".bn-box")].filter((b) => b.getBoundingClientRect().bottom <= vh).map((b) => Math.round(b.getBoundingClientRect().top))).size, h);
+        assert.ok(rows >= 3, `[shelf@${w}x${h}] only ${rows} full rows of boxes on the first screen`);
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+        await page.waitForTimeout(60);
+        const last = await page.evaluate(() => Math.max(...[...document.querySelectorAll(".bn-box")].map((b) => b.getBoundingClientRect().bottom)));
+        assert.ok(last <= h + 1, `[shelf@${w}x${h}] the last box is out of reach: it ends at ${Math.round(last)} even scrolled`);
+        await page.evaluate(() => window.scrollTo(0, 0));
       }
     }
-    for (const [box, who, cpu] of [["moon", "river", true], ["rainbow", "dad", false], ["apple", "viraj", true], ["hundred", "mom", false], ["hen", "raegar", true], ["lotto", "grandma", false], ["spot", "river", true]]) {
+    for (const [box, who, cpu] of [["moon", "river", true], ["rainbow", "dad", false], ["apple", "viraj", true], ["hundred", "mom", false], ["hen", "raegar", true], ["lotto", "grandma", false], ["spot", "river", true], ["pairs", "dad", false]]) {
       await page.evaluate((a) => window.__BOARD.start(a[0], a[1], a[2], 3, 0), [box, who, cpu]);
       await page.locator("#screen-board-play").waitFor({ state: "visible" });
       await page.waitForTimeout(300);

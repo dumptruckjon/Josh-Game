@@ -96,6 +96,23 @@
     { id: "balloon", pic: "🎈", say: "the balloon" },
   ];
 
+  // ---- 🧠 Peek-a-Pair's pictures -------------------------------------------
+  // Twelve pictures that never look alike; a board uses four of them, twice.
+  const PAIRS = [
+    { id: "duck", pic: "🦆", say: "duck", two: "ducks" },
+    { id: "pig", pic: "🐷", say: "pig", two: "pigs" },
+    { id: "bear", pic: "🐻", say: "bear", two: "bears" },
+    { id: "fish", pic: "🐟", say: "fish", two: "fish" },
+    { id: "truck", pic: "🚚", say: "truck", two: "trucks" },
+    { id: "boat", pic: "⛵", say: "boat", two: "boats" },
+    { id: "cake", pic: "🎂", say: "cake", two: "cakes" },
+    { id: "drum", pic: "🥁", say: "drum", two: "drums" },
+    { id: "kite", pic: "🪁", say: "kite", two: "kites" },
+    { id: "sun", pic: "🌻", say: "sunflower", two: "sunflowers" },
+    { id: "car", pic: "🚒", say: "fire engine", two: "fire engines" },
+    { id: "egg", pic: "🍳", say: "egg", two: "eggs" },
+  ];
+
   // ---- The boards ---------------------------------------------------------
   // Squares are numbered 1..size and snake back and forth from the bottom left
   // (row 1 runs left to right, row 2 right to left, …), exactly like a real
@@ -206,6 +223,19 @@
       lines: { home: "", end: "All the twins are found! High five!" },
     },
     {
+      // 🧠 Peek-a-Pair (memory, the classic Concentration — a game of SKILL a
+      // four-year-old is often better at than his grown-up). Nine cards face
+      // down, three by three: four PAIRS and one ⭐. On your turn flip two:
+      // a pair is yours and you go again; not a pair and they turn back over
+      // (look hard!) and it is your friend's turn. The ⭐ is a free star and
+      // another go. A cleared board deals a SECOND (`boards`), so a game is
+      // eight pairs. Nine, not twelve: three rows of 75px cards is what a
+      // 320x568 phone's field holds.
+      id: "pairs", box: "pairs", game: "pairs", name: "Peek-a-Pair", coop: true,
+      cols: 3, rows: 3, size: 9, boards: 2, pairsPer: 4,
+      lines: { home: "", end: "Every pair is found! What a memory!" },
+    },
+    {
       // 🍎 Apple Spin (Hi-Ho Cherry-O's mechanic): no track at all. Each
       // player fills their own TEN-FRAME basket from a big tree; `size` is the
       // basket. A spin says how many apples to pick (one tap, one apple); a
@@ -233,8 +263,11 @@
     { id: "hundred", board: "hundred", name: "Hundred Hop", pic: "💯", colour: "#e08a00" },
     // the 🦊 joins from his THIRD Hen House game, exactly as the comets do
     { id: "hen", board: "hen", name: "Hen House", pic: "🐔", colour: "#c2410c", foxAfter: 2 },
-    { id: "lotto", board: "lotto", name: "Picnic Lotto", pic: "🧺", colour: "#2f9e6e" },
-    { id: "spot", board: "spot", name: "Twin Spot", pic: "👀", colour: "#7c3aed" },
+    // the THINKING games (`kind: "think"`) stand on their own shelf: games of
+    // finding, remembering and choosing, not only of luck
+    { id: "lotto", board: "lotto", name: "Picnic Lotto", pic: "🧺", colour: "#2f9e6e", kind: "think" },
+    { id: "spot", board: "spot", name: "Twin Spot", pic: "👀", colour: "#7c3aed", kind: "think" },
+    { id: "pairs", board: "pairs", name: "Peek-a-Pair", pic: "🧠", colour: "#db2777", kind: "think" },
   ];
 
   // ---- Every line the game says ------------------------------------------
@@ -287,12 +320,18 @@
     findTwin: "Find the picture on BOTH cards!",
     foundTwin: "Yes! {s}!",
     notTwin: "Look again! Is it on both cards?",
+    pairsFirst: "Tap two cards!",
+    pairYes: "Two {p}! A pair! Go again!",
+    pairNo: "Not a pair. Remember where they are!",
+    pairStar: "A star! Go again!",
+    pairsNew: "A new board!",
     ten: "{to}! Ten more!",
     tens: "{to}! A star!",
   };
 
-  const BoardData = { JOSH, FRIENDS, PEOPLE, COLOURS, ANIMALS, FOODS, SPOTS, BOARDS, BOXES, SAY };
+  const BoardData = { JOSH, FRIENDS, PEOPLE, COLOURS, ANIMALS, FOODS, SPOTS, PAIRS, BOARDS, BOXES, SAY };
   BoardData.spot = (k) => SPOTS[k] || null;
+  BoardData.pairPic = (id) => PAIRS.find((p) => p.id === id) || null;
   BoardData.food = (id) => FOODS.find((f) => f.id === id) || null;
   BoardData.animal = (id) => ANIMALS.find((a) => a.id === id) || null;
   BoardData.board = (id) => BOARDS.find((b) => b.id === id) || null;

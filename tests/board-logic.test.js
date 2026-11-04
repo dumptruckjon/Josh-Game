@@ -34,8 +34,9 @@ test("data: every box opens a real board, every board is a real grid, every pers
     if (board.game === "spin") assert.equal(board.size, 10, `${board.id}: a basket is a ten-frame`);
     else if (board.game === "lotto") assert.equal(board.size, board.spots, `${board.id}: a seat is done when its blanket's ${board.spots} spots are full`);
     else if (board.game === "spot") assert.equal(board.size, board.deck.length - 1, `${board.id}: every card but the first is found`);
+    else if (board.game === "pairs") assert.equal(board.size, board.pairsPer * 2 + 1, `${board.id}: a board is its pairs and one star`);
     else assert.equal(board.size, board.cols * board.rows, `${board.id} fills its grid exactly`);
-    assert.ok(["dice", "cards", "spin", "hen", "lotto", "spot"].indexOf(board.game) >= 0, `${board.id} is a dice, card, spinner, farm, lotto or spot game`);
+    assert.ok(["dice", "cards", "spin", "hen", "lotto", "spot", "pairs"].indexOf(board.game) >= 0, `${board.id} is a dice, card, spinner, farm, lotto, spot or pairs game`);
     assert.ok(DATA.BOXES.some((b) => b.board === board.id), `${board.id} is on the shelf (no dead board)`);
   }
   for (const p of [DATA.JOSH, ...DATA.PEOPLE]) {
@@ -123,7 +124,8 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
       const g = play(board.id, seed);
       assert.equal(g.st.phase, "done", `${board.id} seed ${seed} never ended`);
       // (👀 Twin Spot's seats share the twelve twins between their piles)
-      if (board.game === "spot") assert.ok(g.st.seats.every((s) => s.home) && g.st.seats[0].pos + g.st.seats[1].pos === board.size, `${board.id} seed ${seed}: every twin found`);
+      if (board.game === "pairs") assert.ok(g.st.seats.every((s) => s.home) && g.st.seats[0].pos + g.st.seats[1].pos === board.boards * board.pairsPer, `${board.id} seed ${seed}: every pair found`);
+      else if (board.game === "spot") assert.ok(g.st.seats.every((s) => s.home) && g.st.seats[0].pos + g.st.seats[1].pos === board.size, `${board.id} seed ${seed}: every twin found`);
       else assert.ok(g.st.seats.every((s) => s.home && s.pos === board.size), `${board.id} seed ${seed}: everyone is home`);
       assert.equal(g.ev.filter((e) => e.type === "end").length, 1, "one ending");
       assert.equal(g.st.order.length, 2, "both arrivals are recorded");
@@ -134,8 +136,10 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
       // board's turns got short: 💯 Hundred Hop takes twice Moon Race's turns
       // and has FEWER taps, because a ten is one tap.
       // (a lotto turn is two taps: the basket, then whose it is)
-      const taps = g.ev.filter((e) => e.type === "hop" || e.type === "pick" || e.type === "card" || e.type === "draw" || e.type === "give" || e.type === "flip" || e.type === "found").length;
-      const extras = g.ev.filter((e) => e.type === "ride" || e.type === "tens").length;
+      const taps = g.ev.filter((e) => e.type === "hop" || e.type === "pick" || e.type === "card" || e.type === "draw" || e.type === "give" || e.type === "flip" || e.type === "found" || e.type === "peek").length;
+      // (🧠 a pair or a star glows a moment; a miss stays up to be LOOKED at)
+      const extras = g.ev.filter((e) => e.type === "ride" || e.type === "tens" || e.type === "pair" || e.type === "star").length +
+        1.5 * g.ev.filter((e) => e.type === "nopair").length;
       secs.push(g.turns * 2.3 + taps * 0.5 + extras);
     }
     turns.sort((a, b) => a - b);
@@ -147,7 +151,8 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
     assert.ok(q(secs, 0.95) <= 140, `${board.id}: p95 ${Math.round(q(secs, 0.95))}s — a game can drag`);
     assert.ok(secs[secs.length - 1] <= 160, `${board.id}: the longest game plays ${Math.round(secs[secs.length - 1])}s`);
     // and a track board is still a handful of turns each, not a marathon
-    assert.ok(q(turns, 0.5) >= (board.game === "spin" ? 8 : 12), `${board.id}: median ${q(turns, 0.5)} turns in all`);
+    // (🧠 a memory turn can find pair after pair, so it has fewer, longer turns)
+    assert.ok(q(turns, 0.5) >= (board.game === "pairs" ? 5 : board.game === "spin" ? 8 : 12), `${board.id}: median ${q(turns, 0.5)} turns in all`);
   }
 });
 
@@ -364,6 +369,7 @@ test("RESTORE takes back EVERY state a real game passes through, and refuses eac
         if (st.game === "cards") L.drawCard(st);
         else if (st.game === "lotto") { if (st.phase === "draw") L.takeFood(st); else L.giveFood(st, L.ownerOf(st, st.food)); }
         else if (st.game === "spot") { if (st.phase === "flip") L.flipSpot(st); else L.findSpot(st, L.twinOf(DATA.board("spot"), st.centre, st.hand)); }
+        else if (st.game === "pairs") L.peekPair(st, L.pairChoice(st));
         else if (st.phase === "roll") L.roll(st);
         else if (st.phase === "spin") L.spin(st);
         else if (st.phase === "pick") L.pick(st);
@@ -855,6 +861,98 @@ test("👀 TWIN SPOT: any two cards share EXACTLY one picture, no picture twice 
     ["no card in hand while finding", { ...g, hand: null }],
     ["a pile that is not what was found", { ...g, seats: [{ ...g.seats[0], pos: 1, stars: 1 }, g.seats[1]] }],
     ["a card that does not exist", { ...g, hand: 13 }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
+test("🧠 PEEK-A-PAIR: each board is four pairs and a ⭐, a pair (or the star) goes again, a miss turns back and passes the turn, every state restores, and every game finds all eight pairs", () => {
+  const b = DATA.board("pairs");
+  assert.ok(DATA.PAIRS.length >= b.boards * b.pairsPer, "enough pictures for a whole game without a repeat");
+  assert.equal(new Set(DATA.PAIRS.map((p) => p.pic)).size, DATA.PAIRS.length, "every picture is different");
+  assert.equal(new Set(DATA.PAIRS.map((p) => p.id)).size, DATA.PAIRS.length, "every id is different");
+  for (const p of DATA.PAIRS) assert.ok(/^[a-z ]+$/.test(p.say) && /^[a-z ]+$/.test(p.two), `${p.id} is said as words, one and two`);
+  let misses = 0, goAgain = 0, stars = 0;
+  for (let seed = 1; seed <= 1500; seed++) {
+    const st = L.create({ board: "pairs", seats: SEATS, seed, first: seed % 2 });
+    assert.equal(new Set(st.pics).size, b.boards * b.pairsPer, "a game never shows a picture on two boards");
+    assert.equal(st.cards.filter((c) => c === L.STAR).length, 1, "one star a board");
+    let guard = 0;
+    while (st.phase !== "done" && guard++ < 400) {
+      const t = st.turn, before = st.boardNo, k = L.pairChoice(st);
+      assert.ok(k >= 0 && !st.gone[k] && st.open.indexOf(k) < 0, "the computer only ever turns a card that is face down");
+      const firstUp = st.phase === "second" ? st.open[0] : -1;
+      const ev = L.peekPair(st, k);
+      assert.equal(ev[0].type, "peek");
+      const pair = ev.find((e) => e.type === "pair"), miss = ev.find((e) => e.type === "nopair"), star = ev.find((e) => e.type === "star");
+      if (miss) {
+        misses++;
+        assert.notEqual(st.cards[miss.a], st.cards[miss.b], "a miss is two DIFFERENT pictures");
+        assert.ok(!st.gone[miss.a] && !st.gone[miss.b] && st.open.length === 0, "a miss turns both back over");
+        assert.notEqual(st.turn, t, "a miss passes the turn");
+      }
+      if (pair) {
+        goAgain++;
+        assert.equal(pair.a, firstUp, "a pair is the card already up and this one");
+        if (st.phase !== "done") assert.equal(st.turn, t, "a pair goes again");
+        if (st.boardNo === before) assert.ok(st.gone[pair.a] && st.gone[pair.b], "a pair leaves the board");
+      }
+      if (star) { stars++; if (st.phase !== "done") assert.equal(st.turn, t, "the star goes again"); }
+      if (!miss && !pair && !star) assert.deepEqual(st.open, [k], "a first card stays up");
+      assert.deepEqual(L.restore(JSON.parse(JSON.stringify(L.snapshot(st)))), st, "every state restores exactly");
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ends`);
+    assert.equal(st.seats[0].pos + st.seats[1].pos, b.boards * b.pairsPer, "all eight pairs found");
+    assert.equal(st.seats[0].stars + st.seats[1].stars, b.boards * (b.pairsPer + 1), "a star for every pair, and each board's ⭐");
+    assert.ok(st.seats.every((s) => s.home), "both home together: one party");
+  }
+  assert.ok(misses > 5000 && goAgain > 5000 && stars === 3000, `fixture: misses, pairs and stars all happen (${misses}, ${goAgain}, ${stars})`);
+
+  // A game of SKILL: a sharp memory finds more than the computer, which
+  // forgets — and the computer is no pushover either
+  const sharp = (st) => {
+    const down = st.cards.map((c, k) => k).filter((k) => !st.gone[k] && st.open.indexOf(k) < 0);
+    if (st.phase === "second") { const m = down.find((k) => st.cards[k] === st.cards[st.open[0]] && st.seen[k]); if (m != null) return m; }
+    else for (const k of down) { if (st.cards[k] !== L.STAR && st.seen[k] && down.some((j) => j !== k && st.cards[j] === st.cards[k] && st.seen[j])) return k; }
+    const fresh = down.filter((k) => !st.seen[k]);
+    return (fresh.length ? fresh : down)[0];
+  };
+  const share = (josh) => {
+    let a = 0, c = 0;
+    for (let seed = 1; seed <= 1500; seed++) {
+      const st = L.create({ board: "pairs", seats: SEATS, seed, first: seed % 2 });
+      let g = 0;
+      while (st.phase !== "done" && g++ < 400) L.peekPair(st, st.turn === 0 ? josh(st) : L.pairChoice(st));
+      a += st.seats[0].pos; c += st.seats[1].pos;
+    }
+    return a / (a + c);
+  };
+  const even = share((st) => L.pairChoice(st)), sh = share(sharp);
+  assert.ok(even > 0.42 && even < 0.58, `the same memory finds about half (${even.toFixed(3)})`);
+  assert.ok(sh > 0.62, `remembering wins pairs: a sharp memory finds ${(100 * sh).toFixed(0)}% against the computer`);
+  assert.ok(sh < 0.9, `but the computer still finds some (${(100 * sh).toFixed(0)}%)`);
+
+  // a tap that is not a move does nothing
+  const st = L.create({ board: "pairs", seats: SEATS, seed: 4 });
+  const k0 = st.cards.findIndex((c) => c !== L.STAR);
+  L.peekPair(st, k0);
+  assert.deepEqual(L.peekPair(st, k0), [], "the card already up (the hammer's echo) does nothing");
+  assert.deepEqual(L.peekPair(st, 99), [], "no such card");
+  assert.deepEqual(L.flipSpot(st), [], "no other game's move");
+  // states no game reaches
+  const g = L.snapshot(st);
+  const twin = g.cards.findIndex((c, k) => k !== k0 && c === g.cards[k0]);
+  const other = g.cards.findIndex((c) => c !== g.cards[k0] && c !== L.STAR);
+  const bad = [
+    ["a picture three times", { ...g, cards: g.cards.map((c, k) => (k === other ? g.cards[k0] : c)) }],
+    // (seen, so only the half-a-pair rule can refuse it)
+    ["half a pair taken", { ...g, gone: g.gone.map((x, k) => k === twin), seen: g.seen.map((x, k) => x || k === twin) }],
+    ["no card up while turning the second", { ...g, open: [] }],
+    ["the star up as a first card", { ...g, open: [g.cards.indexOf(L.STAR)] }],
+    ["a pile that was not found", { ...g, seats: [{ ...g.seats[0], pos: 1, stars: 1 }, g.seats[1]] }],
+    ["a picture that does not exist", { ...g, pics: g.pics.map((p, k) => (k === 7 ? "unicorn" : p)) }],
+    ["a board past the last", { ...g, boardNo: b.boards }],
+    ["a card gone that was never seen", { ...g, open: [], phase: "flip", gone: g.gone.map((x, k) => k === twin || k === k0), seen: g.seen.map(() => false), seats: [{ ...g.seats[0], pos: 1, stars: 1 }, g.seats[1]] }],
   ];
   for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
   assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");

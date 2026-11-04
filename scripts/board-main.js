@@ -24,7 +24,7 @@
   const KEEP_MS = 24 * 60 * 60 * 1000;
   // The pace of everything that is NOT his finger: the dice tumbling, a hop,
   // a ride, the hand-over, and the computer friend's turn.
-  const T = { tumble: 700, hop: 240, autoHop: 480, cpuThink: 900, cpuHop: 560, ride: 900, card: 520, glide: 300, handoff: 700, pop: 700, cheer: 1400, tip: 1000, ten: 520 };
+  const T = { tumble: 700, hop: 240, autoHop: 480, cpuThink: 900, cpuHop: 560, ride: 900, card: 520, glide: 300, handoff: 700, pop: 700, cheer: 1400, tip: 1000, ten: 520, look: 1500 };
   const now = () => (global.performance && global.performance.now ? global.performance.now() : Date.now());
   const $ = (sel, root) => (root || doc).querySelector(sel);
   const fill = (line, o) => String(line).replace(/\{(\w+)\}/g, (m, k) => (o && o[k] != null ? o[k] : m));
@@ -36,7 +36,7 @@
   // grown-up "hop by itself" switch · next: who starts the next two-person
   // game per box · last: the last box and its players.
   // "has been shown how", per kind of game (each kind's first-time hand)
-  const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot"];
+  const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs"];
   function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, next: {}, last: null }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
   function coerce(text) {
@@ -122,7 +122,7 @@
   // ---- The screens -----------------------------------------------------------
   let shelf = null, who = null, pick = null, play = null;
   let boardEl = null, svgWrap = null, tokens = [null, null], pads = [null, null], hand = null, party = null;
-  let applesEl = null, popEl = null, markEl = null, coopEl = null, spotsEl = null;
+  let applesEl = null, popEl = null, markEl = null, coopEl = null, spotsEl = null, pairsEl = null;
   let whoBox = null, pickMode = null;   // which box the who/pick screens are for
 
   const bar = (cls, backLabel, backIcon, title) =>
@@ -147,7 +147,9 @@
     if (!$("#screens") || $("#screen-board-home")) return;
     shelf = section("screen-board-home", "bn-home",
       bar("bn-exit", "Back to the front door", "🚪", "Game Night") +
-      '<div class="bn-boxes" role="list" aria-label="Pick a game"></div>' +
+      // two shelves: the LUCK games and the THINKING games (the owner,
+      // 2026-11-04: "at least some going forward need skill vs pure luck")
+      '<div class="bn-shelves"></div>' +
       // Grown-ups only, small and quiet AFTER the last box (never between
       // boxes): hops by tap (the default — every tap is one hop, one number)
       // or by themselves for a tired evening. Not destructive, so no gate.
@@ -200,6 +202,8 @@
           // 👀 Twin Spot: the middle card (pictures) and the flipped card (its
           // four pictures are the buttons: find the one on both)
           '<div class="bn-spots" hidden><div class="bn-spotcard bn-spotcard--mid" aria-hidden="true"></div><div class="bn-spotcard bn-spotcard--hand" role="group" aria-label="The card you flipped"></div></div>' +
+          // 🧠 Peek-a-Pair: the nine cards, face down (each a button)
+          '<div class="bn-pairs" role="group" aria-label="The cards" hidden></div>' +
           '<div class="bn-token bn-token--0" aria-hidden="true"><span class="bn-token__face"></span></div>' +
           '<div class="bn-token bn-token--1" aria-hidden="true"><span class="bn-token__face"></span></div>' +
           // the number of the square just reached (or the apples in the
@@ -237,6 +241,11 @@
       const b = e.target.closest(".bn-twin");
       if (b && spotsEl.contains(b) && b.tagName === "BUTTON") pickTwin(Number(b.dataset.p), b);
     });
+    pairsEl = play.querySelector(".bn-pairs");
+    pairsEl.addEventListener("click", (e) => {
+      const b = e.target.closest(".bn-pc");
+      if (b && pairsEl.contains(b) && b.tagName === "BUTTON") tapPair(Number(b.dataset.k), b);
+    });
     popEl = play.querySelector(".bn-pop");
     markEl = play.querySelector(".bn-mark");
     coopEl = play.querySelector(".bn-coop");
@@ -271,15 +280,38 @@
   // ---- The shelf ---------------------------------------------------------------
   // A box appears once its `unlockAfter` is met — never a padlock.
   function boxOpen(b) { return !b.unlockAfter || (save.done[b.unlockAfter.box] || 0) >= b.unlockAfter.games; }
+  const KINDS = [
+    { id: "luck", head: "🎲 Lucky games", label: "Lucky games" },
+    { id: "think", head: "🧠 Thinking games", label: "Thinking games" },
+  ];
   function paintShelf() {
-    const list = shelf.querySelector(".bn-boxes");
-    list.innerHTML = "";
-    const open = DATA.BOXES.filter(boxOpen);
-    // A shelf of four or more stands in two columns: four full-width rows put
-    // the last box below the fold of a 320x568 phone. An ODD shelf's last box
-    // spans both columns (the front door's wide door), so no row is ragged.
-    list.dataset.cols = open.length >= 4 ? "2" : "1";
-    list.dataset.odd = open.length >= 4 && open.length % 2 ? "1" : "0";
+    const wrap = shelf.querySelector(".bn-shelves");
+    wrap.innerHTML = "";
+    for (const kind of KINDS) {
+      const open = DATA.BOXES.filter((b) => (b.kind || "luck") === kind.id && boxOpen(b));
+      if (!open.length) continue;
+      const head = doc.createElement("h2");
+      head.className = "bn-shelves__head";
+      head.textContent = kind.head;
+      wrap.appendChild(head);
+      const list = doc.createElement("div");
+      list.className = "bn-boxes";
+      list.dataset.kind = kind.id;
+      list.setAttribute("role", "list");
+      list.setAttribute("aria-label", kind.label);
+      wrap.appendChild(list);
+      paintBoxes(list, open);
+    }
+    const auto = shelf.querySelector(".bn-auto");
+    auto.textContent = save.auto ? "Grown-ups: hops by themselves" : "Grown-ups: hops by tap";
+    auto.setAttribute("aria-pressed", save.auto ? "true" : "false");
+  }
+  function paintBoxes(list, open) {
+    // Two columns: rows of single boxes put the last one below the fold of a
+    // small phone. An ODD shelf's last box spans both columns (the front
+    // door's wide door), so no row is ragged.
+    list.dataset.cols = open.length >= 2 ? "2" : "1";
+    list.dataset.odd = open.length >= 2 && open.length % 2 ? "1" : "0";
     for (const b of open) {
       const btn = doc.createElement("button");
       btn.className = "bn-box tap";
@@ -298,9 +330,6 @@
       btn.addEventListener("click", () => { location.hash = "#board-who-" + b.id; });
       list.appendChild(btn);
     }
-    const auto = shelf.querySelector(".bn-auto");
-    auto.textContent = save.auto ? "Grown-ups: hops by themselves" : "Grown-ups: hops by tap";
-    auto.setAttribute("aria-pressed", save.auto ? "true" : "false");
   }
 
   // ---- Who's playing -------------------------------------------------------------
@@ -385,7 +414,7 @@
     play.dataset.game = board.game;
     play.dataset.box = box;
     boardEl.classList.toggle("bn-board--chart", board.layout === "chart");
-    svgWrap.innerHTML = board.game === "spot" ? "" : board.game === "spin" ? R.orchardSVG() : board.game === "lotto" ? R.picnicSVG(board, st.seats.map((s) => DATA.person(s.who).colour)) : R.boardSVG(board);
+    svgWrap.innerHTML = board.game === "spot" || board.game === "pairs" ? "" : board.game === "spin" ? R.orchardSVG() : board.game === "lotto" ? R.picnicSVG(board, st.seats.map((s) => DATA.person(s.who).colour)) : R.boardSVG(board);
     applesEl.innerHTML = "";
     hidePop();
     hideMark();
@@ -396,7 +425,7 @@
       const p = seatPerson(i);
       // 🐔 co-op: ONE token, the hen, that both players walk home
       // 🧺 a picnic has no tokens at all: the foods are the pieces
-      tokens[i].hidden = (farm && i === 1) || board.game === "lotto" || board.game === "spot";
+      tokens[i].hidden = (farm && i === 1) || board.game === "lotto" || board.game === "spot" || board.game === "pairs";
       tokens[i].querySelector(".bn-token__face").innerHTML = farm ? '<span class="bn-emoji">🐔</span>' : R.faceHTML(p);
       tokens[i].style.borderColor = farm ? "#c2410c" : p.colour;
       tokens[i].style.transitionDuration = "0ms";
@@ -420,7 +449,9 @@
     const w = field.clientWidth, h = field.clientHeight;
     const b = game.board;
     spotsEl.hidden = b.game !== "spot";
+    pairsEl.hidden = b.game !== "pairs";
     if (b.game === "spot") return layoutSpot(w, h);
+    if (b.game === "pairs") return layoutPairs(w, h);
     const cell = Math.max(20, Math.floor(Math.min(w / b.cols, h / b.rows)));
     boardEl.style.width = cell * b.cols + "px";
     boardEl.style.height = cell * b.rows + "px";
@@ -450,6 +481,73 @@
     boardEl.style.height = h + "px";
     boardEl.style.left = "0px";
     boardEl.style.top = "0px";
+  }
+  // 🧠 Peek-a-Pair's nine cards: as many across as gives them the most room
+  // (three by three on a phone held upright, a wider row on its side), every
+  // card 75px+ and 16px from the next
+  function layoutPairs(w, h) {
+    const GAP = 16, n = game.board.pairsPer * 2 + 1;
+    // a card may be a little wider than tall (a playing card on its side):
+    // on a short phone that is what keeps it 75px tall
+    let best = { ch: 0, cw: 0, cols: 3 };
+    for (const cols of [3, 4, 5]) {
+      const rows = Math.ceil(n / cols);
+      const sw = Math.floor((w - (cols - 1) * GAP) / cols), sh = Math.floor((h - (rows - 1) * GAP) / rows);
+      const ch = Math.min(sh, sw, 140), cw = Math.min(sw, Math.round(ch * 1.15));
+      if (ch > best.ch || (ch === best.ch && cw > best.cw)) best = { ch, cw, cols };
+    }
+    const ch = Math.max(40, best.ch), cw = Math.max(40, best.cw);
+    pairsEl.style.setProperty("--pch", ch + "px");
+    pairsEl.style.setProperty("--pcw", cw + "px");
+    pairsEl.style.setProperty("--pcols", String(best.cols));
+    pairsEl.style.fontSize = Math.round(Math.min(cw, ch) * 0.55) + "px";
+    boardEl.style.width = w + "px";
+    boardEl.style.height = h + "px";
+    boardEl.style.left = "0px";
+    boardEl.style.top = "0px";
+  }
+  // What the screen shows of the cards (`game.pv`): the engine has already
+  // moved on (a pair taken, a miss turned back, a new board dealt) while the
+  // screen still shows the moment, so the pictures follow these, not the state
+  function pairsView() {
+    const st = game.st;
+    return { cards: st.cards.slice(), gone: st.gone.slice(), up: st.open.slice(), glow: [], fresh: -1 };
+  }
+  function pairSay(id) { return id === L.STAR ? "a star" : (DATA.pairPic(id) || {}).say || ""; }
+  function paintPairs() {
+    if (!game || game.board.game !== "pairs") return;
+    const v = game.pv, st = game.st, cpu = st.phase !== "done" && st.seats[game.showTurn == null ? st.turn : game.showTurn].cpu;
+    let html = "";
+    v.cards.forEach((id, k) => {
+      if (v.gone[k]) { html += '<span class="bn-pc bn-pc--gone" aria-hidden="true"></span>'; return; }
+      const up = v.up.indexOf(k) >= 0;
+      const pic = id === L.STAR ? "⭐" : (DATA.pairPic(id) || {}).pic || "";
+      html += '<button class="bn-pc tap' + (up ? " bn-pc--up" : "") + (v.glow.indexOf(k) >= 0 ? " bn-pc--yes" : "") + (k === v.fresh ? " bn-pc--flip" : "") +
+        '" type="button" data-k="' + k + '" aria-label="' + (up ? "The " + pairSay(id) : "A card, face down") + '">' +
+        '<span class="bn-pc__pic" aria-hidden="true">' + (up ? pic : "") + "</span></button>";
+    });
+    pairsEl.innerHTML = html;
+    v.fresh = -1;
+    // the computer's turn: its cards are not his to tap
+    pairsEl.classList.toggle("bn-pairs--cpu", !!cpu);
+  }
+  function tapPair(k, btn) {
+    if (!game || game.board.game !== "pairs" || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "flip" && st.phase !== "second") return;
+    if (btn && st.seats[st.turn].cpu) return;   // the computer's turn
+    const ev = L.peekPair(st, k);
+    if (!ev.length) return;   // a card already up (the hammer's echo) or gone
+    hideHand();
+    if (!save.intro.pairs && !st.seats[ev[0].seat].cpu) { save.intro.pairs = true; persist(); }
+    playEvents(ev);
+  }
+  function cpuPair() {
+    if (!game || game.board.game !== "pairs") return;
+    if (!playVisible()) { game.cpuWaiting = true; return; }
+    const st = game.st;
+    if (game.busy || st.phase === "done" || !st.seats[st.turn].cpu) return;
+    tapPair(L.pairChoice(st), null);
   }
   // The cards: the middle one's pictures, and the flipped one's as buttons.
   // A card's pictures turn and size a little each (as on the real cards), the
@@ -532,7 +630,7 @@
   function orchardFrac(p) { return { x: p.x / R.ORCH, y: p.y / R.ORCH }; }
   function placeTokens() {
     const st = game.st, b = game.board;
-    if (b.game === "lotto" || b.game === "spot") return;
+    if (b.game === "lotto" || b.game === "spot" || b.game === "pairs") return;
     if (b.game === "spin") {
       for (let i = 0; i < 2; i++) {
         const sp = orchardFrac(R.ORCHARD.face[i]);
@@ -586,8 +684,10 @@
     game.shownPlaced = game.st.placed ? game.st.placed.map((p) => p.slice()) : null;
     game.landed = null;
     game.spotYes = null; game.spotHand = null; game.spotMid = null;
+    game.pv = game.board.game === "pairs" ? pairsView() : null;
     placeTokens();
     paintSpots();
+    paintPairs();
     paintApples();
     paintFoods();
     paintCoop();
@@ -611,6 +711,11 @@
     if (game.board.game === "spin") {
       boardEl.setAttribute("aria-label", st.seats.map((s, i) => nameOf(i) + " has " + game.shown[i] + (game.shown[i] === 1 ? " apple" : " apples")).join(". ") +
         ". " + game.shownPie + " in the pie.");
+      return;
+    }
+    if (game.board.game === "pairs") {
+      const left = st.gone.filter((g) => !g).length;
+      boardEl.setAttribute("aria-label", left + (left === 1 ? " card" : " cards") + " left. " + [0, 1].map((i) => nameOf(i) + " has found " + st.seats[i].pos + (st.seats[i].pos === 1 ? " pair" : " pairs")).join(". ") + ".");
       return;
     }
     if (game.board.game === "spot") {
@@ -652,6 +757,12 @@
         pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
         const hopping = active && st.phase === "hop" && st.turn === i;
         pad.setAttribute("aria-label", nameOf(i) + (active ? (hopping ? (st.die === L.TEN ? ": tap for ten more" : ": tap to hop, " + st.left + " to go") : ": tap to roll the dice") : ": wait for your turn") + (s.home ? ", home" : ""));
+      } else if (game.board.game === "pairs") {
+        // 🧠 the cards on the board are the buttons; the pad is whose turn it
+        // is and the ⭐ count (a pair or a star found)
+        act.innerHTML = '<span class="bn-card bn-card--basket">🧠</span>';
+        pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
+        pad.setAttribute("aria-label", nameOf(i) + (active ? ": tap two cards" : ": wait for your turn"));
       } else if (game.board.game === "spot") {
         // 👀 a card back to tap (flip), then a magnifier while he looks; his
         // pile of found twins is his ⭐ count
@@ -770,9 +881,10 @@
     game.tumbleFace = 0;
     game.showTurn = st.turn;
     game.showMover = st.mover;
-    game.rolled = st.phase === "hop" || st.phase === "pick" || st.phase === "give" || st.phase === "find";   // a game restored mid-move shows its die / spin / food
+    game.rolled = st.phase === "hop" || st.phase === "pick" || st.phase === "give" || st.phase === "find" || st.phase === "second";   // a game restored mid-move shows its die / spin / food
     game.foodShown = st.phase === "give" ? st.food : null;
     paintPads();
+    paintPairs();
     persistGame();
     const i = st.turn;
     if (st.seats[i].cpu) {
@@ -784,6 +896,7 @@
     const first = !save.intro[game.board.game];
     if (st.phase === "hop") sayPlay(hopLine());
     else if (st.phase === "pick") sayPlay(SAY.pickFirst);
+    else if (st.phase === "second") sayPlay(SAY.pairsFirst);
     else sayPlay(fill(SAY.turn, { n: nameOf(i) }) + (first ? " " + firstLine() : ""));
     if (first) showHand(i);
     if (st.phase === "hop" && save.auto) autoHops();
@@ -794,7 +907,7 @@
   function hopLine() { return !game ? SAY.hopFirst : game.board.game === "hen" ? SAY.henFirst : game.st.die === L.TEN ? SAY.tenFirst : SAY.hopFirst; }
   // which first-time hand a HOP belongs to: the dice's, or the farm's
   function introKey() { return game && game.board.game === "hen" ? "hen" : "dice"; }
-  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" || g === "hen" ? SAY.spinFirst : g === "lotto" ? SAY.basketFirst : SAY.flipFirst; }
+  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" || g === "hen" ? SAY.spinFirst : g === "lotto" ? SAY.basketFirst : g === "pairs" ? SAY.pairsFirst : SAY.flipFirst; }
 
   function padTap(i) {
     if (!game || !playVisible()) return;
@@ -819,6 +932,8 @@
     if (game.board.game === "cards") return flipCard();
     if (game.board.game === "lotto") return takeFood();
     if (game.board.game === "spot") { if (st.phase === "flip") flipSpot(); return; }
+    // 🧠 the cards are the buttons: his pad only says (and shows) what to do
+    if (game.board.game === "pairs") { sayPlay(SAY.pairsFirst); showHand(i); later(hideHand, 2600); return; }
     if (st.phase === "roll") return rollDice();
     if (st.phase === "hop" && !save.auto) return hopOnce();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
@@ -902,6 +1017,7 @@
     if (game.board.game === "cards") return flipCard();
     if (game.board.game === "lotto") return takeFood();
     if (game.board.game === "spot") return flipSpot();
+    if (game.board.game === "pairs") return cpuPair();
     if (st.phase === "roll") return rollDice();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
     if (st.phase === "pick") return cpuPick();
@@ -1153,6 +1269,51 @@
         popOnSquare(e.to, String(e.coop));
         if (e.left === 0) hideMark();
         paintBoardLabel();
+      } else if (e.type === "peek") {
+        // 🧠 a card turns over and its picture is said
+        at(0, () => {
+          game.pv.up.push(e.k);
+          game.pv.fresh = e.k;
+          SFX.flip();
+          sayPlay(cap(pairSay(e.pic)));
+          paintPairs();
+        });
+        // a short hold only: he turns his second card as soon as he likes
+        at(250, () => {});
+      } else if (e.type === "star") {
+        at(0, () => { game.pv.glow.push(e.k); paintPairs(); SFX.boost(); sayPlay(SAY.pairStar); cheer(e.seat, true); });
+        at(T.ride, () => {
+          game.pv.gone[e.k] = true;
+          game.pv.glow = [];
+          landStar(e.seat);
+          paintPairs();
+          paintBoardLabel();
+        });
+      } else if (e.type === "pair") {
+        // a pair! both glow, then go to the finder's pile (a ⭐ on the pad)
+        at(0, () => {
+          game.pv.glow.push(e.a, e.b);
+          paintPairs();
+          SFX.home();
+          sayPlay(fill(SAY.pairYes, { p: (DATA.pairPic(e.pic) || {}).two || "" }));
+          cheer(e.seat, true);
+        });
+        at(T.ride, () => {
+          game.pv.gone[e.a] = game.pv.gone[e.b] = true;
+          game.pv.glow = [];
+          game.pv.up = [];
+          landStar(e.seat);
+          paintPairs();
+          paintBoardLabel();
+        });
+      } else if (e.type === "nopair") {
+        // not a pair: both stay up a moment (look hard!), then turn back over
+        at(0, () => sayPlay(SAY.pairNo));
+        at(T.look, () => { game.pv.up = []; paintPairs(); });
+      } else if (e.type === "deal") {
+        // a cleared board: the next nine cards, face down
+        at(400, () => { game.pv = pairsView(); SFX.whoosh(); sayPlay(SAY.pairsNew); paintPairs(); paintBoardLabel(); });
+        at(T.card, () => {});
       } else if (e.type === "found") {
         // 👀 the twin! it glows on both cards, then the found card slides to
         // the middle and onto the finder's pile
@@ -1367,6 +1528,18 @@
     if (!turnEnded) {
       persistGame();
       if (then) then();
+      // 🧠 a card, a pair or a star: the turn goes on (his next card, or the
+      // computer's) once the moment has been shown
+      if (game.board.game === "pairs") {
+        at(0, () => {
+          if (!game) return;
+          game.busy = false;
+          paintPads();
+          paintPairs();
+          const st = game.st;
+          if (st.phase !== "done" && st.seats[st.turn].cpu) later(cpuPair, T.cpuThink);
+        });
+      }
     }
   }
   function cardLine(e) {
@@ -1510,7 +1683,9 @@
 
   // ---- The hand that shows how (first time, and on 👂) ---------------------------
   function showHand(i) {
-    const pad = pads[i];
+    // 🧠 the cards are the buttons, so the hand points at one face down
+    const card = game && game.board.game === "pairs" ? pairsEl.querySelector("button.bn-pc:not(.bn-pc--up)") : null;
+    const pad = card || pads[i];
     if (!pad) return;
     const r = pad.getBoundingClientRect(), pr = play.getBoundingClientRect();
     hand.style.left = (r.left - pr.left + r.width * 0.5) + "px";
@@ -1528,6 +1703,7 @@
     else if (st.phase === "pick") say(SAY.pickFirst);
     else if (st.phase === "give") say(whoseLine() + " " + SAY.whoseFirst);
     else if (st.phase === "find") say(SAY.findTwin);
+    else if (st.phase === "second") say(SAY.pairsFirst);
     else say(fill(SAY.turn, { n: nameOf(i) }) + " " + firstLine());
     showHand(i);
     later(hideHand, 2600);

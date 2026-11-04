@@ -107,7 +107,7 @@
   // every slide kept (0.72 a game against 0.76).
   const BACK_CAP = 24;
   // Where a token STARTS: square 1 of a track, or an EMPTY basket
-  const startOf = (board) => (board.game === "spin" || board.game === "lotto" || board.game === "spot" ? 0 : 1);
+  const startOf = (board) => (board.game === "spin" || board.game === "lotto" || board.game === "spot" || board.game === "pairs" ? 0 : 1);
 
   // ---- A new game -----------------------------------------------------------
   // opts: { board, seats: [{ who, cpu }], seed, first }
@@ -149,6 +149,14 @@
       st.hand = null;
       st.misses = 0;
     }
+    // 🧠 the pictures for every board of the game (four pairs a board, never
+    // a picture twice in one game), the first board dealt face down
+    if (board.game === "pairs") {
+      st.pics = shuffle(seats[0], DATA.PAIRS.map((p) => p.id)).slice(0, board.boards * board.pairsPer);
+      st.boardNo = 0;
+      st.open = [];
+      dealPairs(st, board);
+    }
     if (board.game === "lotto") {
       const ids = shuffle(seats[0], DATA.FOODS.map((f) => f.id)).slice(0, board.spots * 2);
       st.blankets = [ids.slice(0, board.spots), ids.slice(board.spots)];
@@ -159,7 +167,7 @@
     }
     return st;
   }
-  function firstPhase(game) { return game === "spot" ? "flip" : game === "cards" || game === "lotto" ? "draw" : game === "spin" || game === "hen" ? "spin" : "roll"; }
+  function firstPhase(game) { return game === "spot" || game === "pairs" ? "flip" : game === "cards" || game === "lotto" ? "draw" : game === "spin" || game === "hen" ? "spin" : "roll"; }
 
   const anyHome = (st) => st.seats.some((s) => s.home);
   const other = (i) => (i === 0 ? 1 : 0);
@@ -468,10 +476,107 @@
     return ev;
   }
 
+  // ---- 🧠 Peek-a-Pair: flip two; a pair is yours and you go again ----------
+  // A board: its four pictures twice and one ⭐, shuffled; nothing gone,
+  // nothing open, nothing seen yet (`seen` is what the computer may remember)
+  const STAR = "star";
+  function dealPairs(st, board) {
+    const ids = st.pics.slice(st.boardNo * board.pairsPer, (st.boardNo + 1) * board.pairsPer);
+    st.cards = shuffle(st.seats[0], ids.concat(ids, [STAR]));
+    st.gone = st.cards.map(() => false);
+    st.seen = st.cards.map(() => false);
+    st.open = [];
+  }
+  // Flip card `k` (face down, not already up). The first card of a turn
+  // stays up; the second is a pair (both yours, go again) or not (both turn
+  // back over, and it is your friend's turn). The ⭐ is a free star and the
+  // turn goes on, whichever card it was. The last card of a board deals the
+  // next; the last card of the last board ends the game: one party.
+  function peekPair(st, k) {
+    if (st.game !== "pairs" || (st.phase !== "flip" && st.phase !== "second")) return [];
+    if (!int(k) || k < 0 || k >= st.cards.length || st.gone[k] || st.open.indexOf(k) >= 0) return [];
+    const board = DATA.board(st.board), s = st.seats[st.turn], pic = st.cards[k];
+    st.rolls += 1;
+    st.seen[k] = true;
+    const ev = [{ type: "peek", seat: st.turn, k, pic }];
+    if (pic === STAR) {
+      st.gone[k] = true;
+      s.stars += 1;
+      ev.push({ type: "star", seat: st.turn, k });
+    } else if (st.phase === "flip") {
+      st.open = [k];
+      st.phase = "second";
+      return ev;
+    } else {
+      const a = st.open[0];
+      st.open = [];
+      st.phase = "flip";
+      if (st.cards[a] !== pic) {
+        ev.push({ type: "nopair", seat: st.turn, a, b: k });
+        endTurn(st, ev);
+        return ev;
+      }
+      st.gone[a] = st.gone[k] = true;
+      s.pos += 1;
+      s.stars += 1;
+      ev.push({ type: "pair", seat: st.turn, a, b: k, pic, count: s.pos });
+    }
+    if (st.gone.every(Boolean)) {
+      if (st.boardNo + 1 < board.boards) {
+        st.boardNo += 1;
+        dealPairs(st, board);
+        ev.push({ type: "deal", seat: st.turn, board: st.boardNo });
+      } else {
+        for (const x of st.seats) x.home = true;
+        st.order = [0, 1];
+        endTurn(st, ev);
+      }
+    }
+    return ev;
+  }
+  // Which card the computer turns: it REMEMBERS a card it has seen only
+  // `PAIR_RECALL` of the time (its own seeded luck), so a sharp four-year-old
+  // can beat it — and it always prefers a card nobody has looked at yet.
+  const PAIR_RECALL = 0.6;
+  function pairChoice(st) {
+    const s = st.seats[st.turn];
+    const down = st.cards.map((c, k) => k).filter((k) => !st.gone[k] && st.open.indexOf(k) < 0);
+    if (!down.length) return -1;
+    const known = (k) => st.seen[k] && next(s) < PAIR_RECALL;
+    if (st.phase === "second") {
+      const want = st.cards[st.open[0]];
+      const mate = down.find((k) => st.cards[k] === want && st.seen[k]);
+      if (mate != null && known(mate)) return mate;
+    } else {
+      for (const k of down) {
+        const c = st.cards[k];
+        if (c === STAR || !st.seen[k]) continue;
+        const mate = down.find((j) => j !== k && st.cards[j] === c && st.seen[j]);
+        if (mate != null && known(k)) return k;
+      }
+    }
+    const fresh = down.filter((k) => !st.seen[k]);
+    const from = fresh.length ? fresh : down;
+    return from[Math.floor(next(s) * from.length)];
+  }
+
   // One whole turn for the computer (and the tests' bot)
   function autoTurn(st) {
     if (st.phase === "done") return [];
     if (st.game === "cards") return drawCard(st);
+    if (st.game === "pairs") {
+      // the whole turn: card after card until the turn passes (a pair, or the
+      // star, goes again) or the game is over
+      const ev = [], who = st.turn;
+      let guard = 0;
+      while (st.phase !== "done" && st.turn === who && guard++ < 60) {
+        const more = peekPair(st, pairChoice(st));
+        if (!more.length) break;
+        ev.push(...more);
+        if (more.some((e) => e.type === "turn")) break;
+      }
+      return ev;
+    }
     if (st.game === "spot") {
       const ev = flipSpot(st);
       if (st.phase === "find") ev.push(...findSpot(st, twinOf(DATA.board(st.board), st.centre, st.hand)));
@@ -511,7 +616,7 @@
   // What is left of a bag: a die bag is distinct faces 1..6, a card bag at
   // most one full deal of cards this board can deal
   function okBag(board, bag, birds) {
-    if (board.game === "lotto" || board.game === "spot") return bag.length === 0;   // the basket / deck is shared, not a seat's
+    if (board.game === "lotto" || board.game === "spot" || board.game === "pairs") return bag.length === 0;   // the basket / deck is shared, not a seat's
     if (board.game === "hen") {
       // what is left of ONE bag: each animal at most once, a 🦊 only when the
       // fox is on (here `birds` carries the fox flag)
@@ -545,8 +650,8 @@
       if (!Array.isArray(snap.seats) || snap.seats.length !== 2) return null;
       const spinning = board.game === "spin";
       const hen = board.game === "hen";
-      const lotto = board.game === "lotto", spotting = board.game === "spot";
-      const okPhase = board.game === "cards" ? ["draw", "done"] : lotto ? ["draw", "give", "done"] : spotting ? ["flip", "find", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : ["roll", "hop", "done"];
+      const lotto = board.game === "lotto", spotting = board.game === "spot", pairing = board.game === "pairs";
+      const okPhase = board.game === "cards" ? ["draw", "done"] : pairing ? ["flip", "second", "done"] : lotto ? ["draw", "give", "done"] : spotting ? ["flip", "find", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : ["roll", "hop", "done"];
       if (okPhase.indexOf(snap.phase) < 0) return null;
       const moving = spinning ? "pick" : "hop";
       if (spinning) {
@@ -572,6 +677,37 @@
         if (snap.out > 0 && !snap.fox) return null;
         if (snap.card !== null && !DATA.animal(snap.card) && !(snap.card === FOX && snap.fox)) return null;
         if (snap.seats.some((s) => typeof s.fox !== "boolean")) return null;
+      } else if (pairing) {
+        // the game's pictures (distinct, real); this board holds its own four
+        // twice and one ⭐; cards go in twos (a pair), the ⭐ alone; at most
+        // the one card of an unfinished turn is up; and the piles are exactly
+        // the pairs and stars found
+        const per = board.pairsPer, P = snap.pics;
+        if (!Array.isArray(P) || P.length !== board.boards * per || new Set(P).size !== P.length || P.some((id) => !DATA.pairPic(id))) return null;
+        if (!int(snap.boardNo) || snap.boardNo < 0 || snap.boardNo >= board.boards) return null;
+        const C = snap.cards, G = snap.gone, S = snap.seen, O = snap.open;
+        if (!Array.isArray(C) || C.length !== per * 2 + 1 || !Array.isArray(G) || G.length !== C.length || !Array.isArray(S) || S.length !== C.length || !Array.isArray(O)) return null;
+        if (G.some((g) => typeof g !== "boolean") || S.some((g) => typeof g !== "boolean")) return null;
+        const mine = P.slice(snap.boardNo * per, (snap.boardNo + 1) * per);
+        const want = mine.concat(mine, [STAR]).sort(), got = C.slice().sort();
+        if (want.some((id, k) => got[k] !== id)) return null;
+        let pairsGone = 0;
+        for (const id of mine) {
+          const ks = C.map((c, k) => k).filter((k) => C[k] === id);
+          if (G[ks[0]] !== G[ks[1]]) return null;
+          if (G[ks[0]]) pairsGone += 1;
+        }
+        const starGone = G[C.indexOf(STAR)];
+        if (O.length !== (snap.phase === "second" ? 1 : 0)) return null;
+        if (O.some((k) => !int(k) || k < 0 || k >= C.length || G[k] || C[k] === STAR || !S[k])) return null;
+        if (G.some((g, k) => g && !S[k])) return null;
+        const found = snap.seats[0].pos + snap.seats[1].pos, starred = snap.seats[0].stars + snap.seats[1].stars - found;
+        if (found !== snap.boardNo * per + pairsGone) return null;
+        if (starred !== snap.boardNo + (starGone ? 1 : 0)) return null;
+        if (snap.seats.some((s) => !int(s.stars) || s.stars < s.pos)) return null;
+        if ((snap.phase === "done") !== (snap.boardNo === board.boards - 1 && G.every(Boolean))) return null;
+        if (snap.phase !== "done" && G.every(Boolean)) return null;
+        if (snap.card !== null) return null;
       } else if (spotting) {
         // every card is in exactly one place: the deck, the middle, in hand
         // (while finding), or on a pile — and the piles are what was found
@@ -614,7 +750,7 @@
         // home is exactly standing on the last square
         // home is exactly standing on the last square (👀 everyone is home
         // together, once the deck is used up)
-        if (spotting ? s.home !== (snap.phase === "done") : s.home !== (s.pos === board.size)) return null;
+        if (spotting || pairing ? s.home !== (snap.phase === "done") : s.home !== (s.pos === board.size)) return null;
         if (!Array.isArray(s.bag) || !okBag(board, s.bag, hen ? snap.fox : snap.birds)) return null;
       }
       // the order they got home in names exactly the seats that are home
@@ -630,7 +766,7 @@
   }
 
   const BoardLogic = {
-    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
+    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
     cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN,
   };
   global.BoardLogic = BoardLogic;

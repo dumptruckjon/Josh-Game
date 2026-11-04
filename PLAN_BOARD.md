@@ -1,8 +1,9 @@
 # 🎲 Game Night — board games for Josh (and a friend)
 
-**Status: BATCHES 1, 2 AND 3 BUILT** (batches 1-2 audited twice; §11 is
-batch 3: 💯 Hundred Hop, 🐔 Hen House, 🧺 Picnic Lotto, and 👀 Twin Spot,
-the owner's Spot It ask) — the door, the shelf, the shared turn
+**Status: BATCHES 1, 2 AND 3 BUILT; BATCH 4 IN PROGRESS** (batches 1-2
+audited twice; §11 is batch 3: 💯 Hundred Hop, 🐔 Hen House, 🧺 Picnic Lotto,
+and 👀 Twin Spot, the owner's Spot It ask; §12 is batch 4, games of SKILL:
+🧠 Peek-a-Pair is built) — the door, the shelf, the shared turn
 routine, the engine, 🚀 Moon Race (with ☄️ Comet Moon), 🌈 Rainbow Trail, and
 🍎 Apple Spin (the owner's go, 2026-10-28, with "deeply audit the first 2
 games … to make them even more high quality and fun and exciting": §8).
@@ -295,3 +296,39 @@ one-line name (76px), so eight boxes still fit the first screen of a 320x568.
    buttons, so the cards lay out SIDE BY SIDE or STACKED, whichever gives the
    buttons more room — 130px on the owner's iPhone, 76px on a 320x568 (where
    only side by side clears 75), the middle card's pictures at half size.
+
+## 12. Batch 4 — games of SKILL (the owner, 2026-11-04)
+
+The ask: "5 more board games. Try to vary the type. Many of the games now are
+too similar. At least some going forward need skill vs pure luck". Eight of
+the nine boxes were a roll (or a spin, or a draw) and then the luck carried
+the token, so batch 4 is five DIFFERENT shapes, each with a choice in it:
+🧠 Peek-a-Pair (memory), 🫘 Seed Pots (a tiny mancala: counting and planning),
+🚪 Shut the Doors (number bonds: which doors make the roll), 🁢 Dot Dominoes
+(matching dots, choosing which tile) and 🏴‍☠️ Treasure Dig (co-op: arrows
+point toward the treasure, so each dig is reasoned, not guessed).
+
+**The shelf became two shelves**, 🎲 Lucky games and 🧠 Thinking games, each
+under its heading (a box's `kind: "think"`; luck is the default). Fourteen
+boxes do not fit one phone screen, so the shelf now SCROLLS on a phone — the
+law is that the first screen holds at least three full rows and the last box
+can be scrolled to (Gobble Hole's land pages are the precedent). Picnic Lotto
+and Twin Spot moved to the thinking shelf: finding whose food it is, and the
+one picture on both cards, are searches, not luck.
+
+1. **🧠 Peek-a-Pair (BUILT)** — Concentration. Nine cards face down, three
+   by three: four PAIRS and one ⭐. Turn two over: a pair is yours (it glows,
+   then leaves an empty place) and you GO AGAIN; not a pair, and both stay up
+   for a moment ("Remember where they are!") then turn back over, and it is
+   your friend's turn. The ⭐ is a free star and another go, whichever card
+   it was. A cleared board deals a second, so a game is eight pairs (a minute
+   or two). Memory is the one board game a four-year-old routinely beats a
+   grown-up at, which is why it is first. **The computer forgets on
+   purpose**: it remembers a card it has seen 60% of the time (its own
+   seeded luck) and always prefers a card nobody has looked at, so it plays
+   like a child. Measured over 1500 games each: the same memory as the
+   computer finds about half the pairs, a sharp memory 73% — the skill is
+   real, and the computer is no pushover. Nine and not twelve because three
+   rows of 75px cards (16px apart) is what a 320x568 phone's field holds: on
+   a short phone the pads give way (75px) and a card is a little wider than
+   tall (85x75); 112px squares on the owner's iPhone.
