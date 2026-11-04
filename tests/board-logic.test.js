@@ -35,8 +35,9 @@ test("data: every box opens a real board, every board is a real grid, every pers
     else if (board.game === "lotto") assert.equal(board.size, board.spots, `${board.id}: a seat is done when its blanket's ${board.spots} spots are full`);
     else if (board.game === "spot") assert.equal(board.size, board.deck.length - 1, `${board.id}: every card but the first is found`);
     else if (board.game === "pairs") assert.equal(board.size, board.pairsPer * 2 + 1, `${board.id}: a board is its pairs and one star`);
+    else if (board.game === "doors") assert.equal(board.size, 6, `${board.id}: six doors a player`);
     else assert.equal(board.size, board.cols * board.rows, `${board.id} fills its grid exactly`);
-    assert.ok(["dice", "cards", "spin", "hen", "lotto", "spot", "pairs"].indexOf(board.game) >= 0, `${board.id} is a dice, card, spinner, farm, lotto, spot or pairs game`);
+    assert.ok(["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors"].indexOf(board.game) >= 0, `${board.id} is a dice, card, spinner, farm, lotto, spot, pairs or doors game`);
     assert.ok(DATA.BOXES.some((b) => b.board === board.id), `${board.id} is on the shelf (no dead board)`);
   }
   for (const p of [DATA.JOSH, ...DATA.PEOPLE]) {
@@ -136,10 +137,10 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
       // board's turns got short: 💯 Hundred Hop takes twice Moon Race's turns
       // and has FEWER taps, because a ten is one tap.
       // (a lotto turn is two taps: the basket, then whose it is)
-      const taps = g.ev.filter((e) => e.type === "hop" || e.type === "pick" || e.type === "card" || e.type === "draw" || e.type === "give" || e.type === "flip" || e.type === "found" || e.type === "peek").length;
+      const taps = g.ev.filter((e) => e.type === "hop" || e.type === "pick" || e.type === "card" || e.type === "draw" || e.type === "give" || e.type === "flip" || e.type === "found" || e.type === "peek" || (e.type === "roll" && board.game === "doors") || e.type === "shut").length;
       // (🧠 a pair or a star glows a moment; a miss stays up to be LOOKED at)
       const extras = g.ev.filter((e) => e.type === "ride" || e.type === "tens" || e.type === "pair" || e.type === "star").length +
-        1.5 * g.ev.filter((e) => e.type === "nopair").length;
+        1.5 * g.ev.filter((e) => e.type === "nopair" || e.type === "stuck").length;
       secs.push(g.turns * 2.3 + taps * 0.5 + extras);
     }
     turns.sort((a, b) => a - b);
@@ -152,7 +153,8 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
     assert.ok(secs[secs.length - 1] <= 160, `${board.id}: the longest game plays ${Math.round(secs[secs.length - 1])}s`);
     // and a track board is still a handful of turns each, not a marathon
     // (🧠 a memory turn can find pair after pair, so it has fewer, longer turns)
-    assert.ok(q(turns, 0.5) >= (board.game === "pairs" ? 5 : board.game === "spin" ? 8 : 12), `${board.id}: median ${q(turns, 0.5)} turns in all`);
+    // (🚪 every turn shuts a door or two, so six doors each is a short race)
+    assert.ok(q(turns, 0.5) >= (board.game === "pairs" ? 5 : board.game === "spin" || board.game === "doors" ? 8 : 12), `${board.id}: median ${q(turns, 0.5)} turns in all`);
   }
 });
 
@@ -370,6 +372,10 @@ test("RESTORE takes back EVERY state a real game passes through, and refuses eac
         else if (st.game === "lotto") { if (st.phase === "draw") L.takeFood(st); else L.giveFood(st, L.ownerOf(st, st.food)); }
         else if (st.game === "spot") { if (st.phase === "flip") L.flipSpot(st); else L.findSpot(st, L.twinOf(DATA.board("spot"), st.centre, st.hand)); }
         else if (st.game === "pairs") L.peekPair(st, L.pairChoice(st));
+        else if (st.game === "doors") {
+          if (st.phase === "roll") L.roll(st);
+          else { const w = L.doorWays(st).find((x) => st.held == null || x[0] === st.held); L.shutDoor(st, st.held == null ? w[0] : w[1]); }
+        }
         else if (st.phase === "roll") L.roll(st);
         else if (st.phase === "spin") L.spin(st);
         else if (st.phase === "pick") L.pick(st);
@@ -953,6 +959,94 @@ test("🧠 PEEK-A-PAIR: each board is four pairs and a ⭐, a pair (or the star)
     ["a picture that does not exist", { ...g, pics: g.pics.map((p, k) => (k === 7 ? "unicorn" : p)) }],
     ["a board past the last", { ...g, boardNo: b.boards }],
     ["a card gone that was never seen", { ...g, open: [], phase: "flip", gone: g.gone.map((x, k) => k === twin || k === k0), seen: g.seen.map(() => false), seats: [{ ...g.seats[0], pos: 1, stars: 1 }, g.seats[1]] }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
+test("🚪 SHUT THE DOORS: a roll shuts its door or TWO that make it (a ⭐), a wrong door only wiggles, nothing fits means roll again, every turn shuts a door, and making two at once is the skill", () => {
+  let twos = 0, misses = 0, stuck = 0;
+  for (let seed = 1; seed <= 1500; seed++) {
+    const st = L.create({ board: "doors", seats: SEATS, seed, first: seed % 2 });
+    let guard = 0, last = null;
+    while (st.phase !== "done" && guard++ < 60) {
+      const t = st.turn;
+      if (last !== null) assert.notEqual(t, last, "turns alternate");
+      last = t;
+      let r = 0;
+      while (st.phase === "roll" && r++ < 20) {
+        const ev = L.roll(st);
+        if (ev.some((e) => e.type === "stuck")) {
+          stuck++;
+          assert.equal(L.doorWays(st).length, 0, "stuck only when no way makes the roll");
+          assert.equal(st.turn, t, "nothing fits: the SAME player rolls again (never a lost turn)");
+        }
+      }
+      assert.equal(st.phase, "shut", "a roll that fits comes within the bag");
+      const m = st.mover, d = st.die, ways = L.doorWays(st), before = st.seats[m].shut.slice();
+      for (const w of ways) assert.equal(w.reduce((a, b) => a + b, 0), d, "every way makes the roll");
+      for (const w of ways) assert.ok(w.every((n) => before.indexOf(n) < 0), "every way uses open doors");
+      // a door that cannot be part of a way only wiggles
+      const wrong = [1, 2, 3, 4, 5, 6].find((n) => before.indexOf(n) < 0 && !ways.some((w) => w.indexOf(n) >= 0));
+      if (wrong != null && seed % 2) {
+        const e = L.shutDoor(st, wrong);
+        assert.equal(e[0].type, "miss");
+        misses++;
+        assert.deepEqual(st.seats[m].shut, before, "a miss shuts nothing");
+        assert.equal(st.phase, "shut", "and the roll still waits");
+      }
+      // the sharp play: two doors when it can
+      const w = ways.find((x) => x.length === 2) || ways[0];
+      const ev = [];
+      for (const n of w) ev.push(...L.shutDoor(st, n));
+      if (w.length === 2) { assert.equal(ev[0].type, "hold", "the first of two is held"); twos++; }
+      const sh = ev.find((e) => e.type === "shut");
+      assert.ok(sh && sh.doors.length === w.length, "the doors shut");
+      assert.deepEqual(st.seats[m].shut.slice().sort(), before.concat(w).sort(), "exactly those doors are shut");
+      assert.deepEqual(L.restore(JSON.parse(JSON.stringify(L.snapshot(st)))), st, "every state restores exactly");
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ends`);
+    assert.ok(st.seats.every((s) => s.home && s.shut.length === 6), "every door of both players shut: one party");
+  }
+  assert.ok(twos > 3000 && misses > 1000 && stuck > 1000, `fixture: two-door shuts, misses and roll-agains all happen (${twos}, ${misses}, ${stuck})`);
+  // the SKILL: a player who makes two at once when he can beats the computer
+  // (which picks any way) to all six doors more often than not
+  const sharp = (st) => { const w = L.doorWays(st); return w.find((x) => x.length === 2) || w[0]; };
+  let first = 0;
+  const N = 2000;
+  for (let seed = 1; seed <= N; seed++) {
+    const st = L.create({ board: "doors", seats: SEATS, seed, first: seed % 2 });
+    let g = 0;
+    while (st.phase !== "done" && g++ < 60) {
+      if (st.turn === 0 && !st.seats[0].home) {
+        let r = 0;
+        while (st.phase === "roll" && r++ < 20) L.roll(st);
+        for (const n of sharp(st)) L.shutDoor(st, n);
+      } else L.autoTurn(st);
+    }
+    if (st.order[0] === 0) first++;
+  }
+  assert.ok(first / N > 0.58, `making two doors at once wins: he shuts all six first ${(100 * first / N).toFixed(0)}% of the time`);
+  // a tap that is not a move does nothing
+  const st = L.create({ board: "doors", seats: SEATS, seed: 3 });
+  assert.deepEqual(L.shutDoor(st, 1), [], "no door before the roll");
+  let r = 0;
+  while (st.phase === "roll" && r++ < 20) L.roll(st);
+  const way = L.doorWays(st).find((x) => x.length === 2);
+  if (way) {
+    L.shutDoor(st, way[0]);
+    assert.deepEqual(L.shutDoor(st, way[0]), [], "the door already held (the hammer's echo) does nothing");
+  }
+  assert.deepEqual(L.shutDoor(st, 9), [], "no such door");
+  // states no game reaches
+  const g = L.snapshot(st);
+  const bad = [
+    ["a door shut twice", { ...g, seats: [{ ...g.seats[0], shut: [1, 1], pos: 2 }, g.seats[1]] }],
+    ["a door that does not exist", { ...g, seats: [{ ...g.seats[0], shut: [7], pos: 1 }, g.seats[1]] }],
+    ["a count that is not the doors shut", { ...g, seats: [{ ...g.seats[0], pos: 3 }, g.seats[1]] }],
+    ["a held door as big as the roll", { ...g, held: g.die }],
+    ["a held door while rolling", { ...g, phase: "roll", held: 1 }],
+    ["a shut turn with no way to make it", { ...g, held: null, seats: [{ ...g.seats[0], shut: [1, 2, 3, 4, 5], pos: 5 }, g.seats[1]].map((x, i) => (i === g.mover ? x : g.seats[i])), die: 2 }],
   ];
   for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
   assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");

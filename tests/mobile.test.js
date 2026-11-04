@@ -252,7 +252,7 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
         await page.evaluate(() => window.scrollTo(0, 0));
       }
     }
-    for (const [box, who, cpu] of [["moon", "river", true], ["rainbow", "dad", false], ["apple", "viraj", true], ["hundred", "mom", false], ["hen", "raegar", true], ["lotto", "grandma", false], ["spot", "river", true], ["pairs", "dad", false]]) {
+    for (const [box, who, cpu] of [["moon", "river", true], ["rainbow", "dad", false], ["apple", "viraj", true], ["hundred", "mom", false], ["hen", "raegar", true], ["lotto", "grandma", false], ["spot", "river", true], ["pairs", "dad", false], ["doors", "viraj", true]]) {
       await page.evaluate((a) => window.__BOARD.start(a[0], a[1], a[2], 3, 0), [box, who, cpu]);
       await page.locator("#screen-board-play").waitFor({ state: "visible" });
       await page.waitForTimeout(300);

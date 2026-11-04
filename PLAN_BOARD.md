@@ -3,7 +3,7 @@
 **Status: BATCHES 1, 2 AND 3 BUILT; BATCH 4 IN PROGRESS** (batches 1-2
 audited twice; §11 is batch 3: 💯 Hundred Hop, 🐔 Hen House, 🧺 Picnic Lotto,
 and 👀 Twin Spot, the owner's Spot It ask; §12 is batch 4, games of SKILL:
-🧠 Peek-a-Pair is built) — the door, the shelf, the shared turn
+🧠 Peek-a-Pair and 🚪 Shut the Doors are built) — the door, the shelf, the shared turn
 routine, the engine, 🚀 Moon Race (with ☄️ Comet Moon), 🌈 Rainbow Trail, and
 🍎 Apple Spin (the owner's go, 2026-10-28, with "deeply audit the first 2
 games … to make them even more high quality and fun and exciting": §8).
@@ -332,3 +332,19 @@ one picture on both cards, are searches, not luck.
    rows of 75px cards (16px apart) is what a 320x568 phone's field holds: on
    a short phone the pads give way (75px) and a card is a little wider than
    tall (85x75); 112px squares on the owner's iPhone.
+
+2. **🚪 Shut the Doors (BUILT)** — shut-the-box for a four-year-old: a game
+   of NUMBER BONDS. Each player has six doors, 1 to 6 (his big, three by two,
+   in his colour; his friend's small above). Roll the die, then shut the door
+   with that number, or TWO doors that make it (5 is 4 and 1, or 3 and 2):
+   tap the first and it is held (a gold ring, "4… and what makes 5?"), tap
+   its partner and both swing shut — two at once is a ⭐. A door that is not
+   part of a way only wiggles ("That does not make 5. Try another!"), and
+   after two a way glows green. When nothing fits, he ROLLS AGAIN: the first
+   design passed the turn, and measured, 36-40% of all turns did nothing
+   (the end game, one door left, waits for one number), so now every turn
+   shuts a door and the fair bag brings every number within six rolls. First
+   to shut all six helps the other (the helper rule), so it ends with every
+   door shut and one party. The skill is measured: making two at once when
+   he can wins the race to six 64% of the time against a computer that picks
+   any way (51% at even play).

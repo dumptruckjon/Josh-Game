@@ -90,7 +90,14 @@ test("the shelf: two shelves (🎲 lucky, 🧠 thinking); Moon Race and Rainbow 
   await go("#board-home", "#screen-board-home");
   const boxes = () => page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-box")].map((b) => b.dataset.box));
   const kinds = () => page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-boxes")].map((l) => [l.dataset.kind, [...l.querySelectorAll(".bn-box")].map((b) => b.dataset.box)]));
-  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred", "hen", "lotto", "spot", "pairs"], "a fresh shelf: eight boxes, nothing locked");
+  // what the shelf should hold, from the data: the lucky boxes, then the
+  // thinking ones, each in its data order, Comet Moon only once unlocked
+  const want = (comet) => page.evaluate((c) => {
+    const ok = window.BoardData.BOXES.filter((b) => !b.unlockAfter || c);
+    return ok.filter((b) => (b.kind || "luck") === "luck").concat(ok.filter((b) => b.kind === "think")).map((b) => b.id);
+  }, comet);
+  assert.deepEqual(await boxes(), await want(false), "a fresh shelf: every box but Comet Moon, nothing locked");
+  assert.deepEqual((await boxes()).slice(0, 2), ["moon", "rainbow"], "Moon Race and Rainbow Trail first");
   // every box is on the shelf its data names, and a thinking game is never
   // on the lucky shelf (derived, so a new box is checked the day it lands)
   for (const [kind, ids] of await kinds()) {
@@ -117,10 +124,11 @@ test("the shelf: two shelves (🎲 lucky, 🧠 thinking); Moon Race and Rainbow 
   await shelfEven();
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 1 } }));
   await go("#board-home", "#screen-board-home");
-  assert.deepEqual(await boxes(), ["moon", "rainbow", "apple", "hundred", "hen", "lotto", "spot", "pairs"], "one Moon game is not enough");
+  assert.deepEqual(await boxes(), await want(false), "one Moon game is not enough");
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }));
   await go("#board-home", "#screen-board-home");
-  assert.deepEqual(await boxes(), ["moon", "comet", "rainbow", "apple", "hundred", "hen", "lotto", "spot", "pairs"], "after two, Comet Moon is on the lucky shelf, beside Moon Race");
+  assert.deepEqual(await boxes(), await want(true), "after two, Comet Moon is on the lucky shelf…");
+  assert.deepEqual((await boxes()).slice(0, 2), ["moon", "comet"], "…beside Moon Race");
   await shelfEven();
   // a deep link to a box that is not on the shelf yet goes nowhere
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
@@ -1005,7 +1013,7 @@ test("every finished game earns its box a 🏆 on the shelf, counted — and a f
     const w = b.querySelector(".bn-box__won");
     return [b.dataset.box, w ? w.textContent : null];
   })));
-  assert.deepEqual(await won(), { moon: "🏆 3", comet: null, rainbow: null, apple: null, hundred: null, hen: null, lotto: null, spot: null, pairs: null }, "three Moon games: 🏆 3; the rest none yet");
+  assert.deepEqual(await won(), { moon: "🏆 3", comet: null, rainbow: null, apple: null, hundred: null, hen: null, lotto: null, spot: null, pairs: null, doors: null }, "three Moon games: 🏆 3; the rest none yet");
   assert.match(await page.locator('.bn-box[data-box="moon"]').getAttribute("aria-label"), /played 3 times/);
   // the trophy pill sits in the corner, never on the box's name
   const clear = await page.evaluate(() => {
@@ -1516,6 +1524,71 @@ test("🧠 a pair GLOWS before it leaves (the cards he matched are seen, sound o
   assert.equal(await page.locator(".bn-pairs .bn-pc").count(), 9, "the board keeps its shape: an empty place where the pair was");
   await page.waitForFunction(() => /⭐ 1/.test(document.querySelector(".bn-pad--0 .bn-pad__stars").textContent), null, { timeout: 3000 });
   assert.equal((await st()).turn, 0, "and it is still his turn");
+});
+
+test("🚪 a whole Shut the Doors against the computer: roll, tap the door that makes it or TWO that do (a ⭐), a wrong door only wiggles and a way glows after two, nothing fits means roll again, every door shut, one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("doors", "river", true, 6, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the doors are the pieces");
+  const doors = () => page.evaluate(() => [...document.querySelectorAll(".bn-doors__grid .bn-door")].map((b) => ({ n: Number(b.textContent), button: b.tagName === "BUTTON", held: b.classList.contains("bn-door--held"), hint: b.classList.contains("bn-door--hint"), w: b.offsetWidth, h: b.offsetHeight })));
+  const d0 = await doors();
+  assert.deepEqual(d0.map((d) => d.n), [1, 2, 3, 4, 5, 6], "his six doors, 1 to 6");
+  assert.ok(d0.every((d) => d.button && d.w >= 75 && d.h >= 75), `six big doors (${d0.map((d) => d.w)})`);
+  assert.equal(await page.locator(".bn-doors__other .bn-mini").count(), 6, "his friend's six doors, small, above");
+  let twos = 0, missed = 0, echoed = false, hinted = false;
+  for (let guard = 0; guard < 80; guard++) {
+    await untilTap(0);
+    let s = await st();
+    if (s.phase === "done") break;
+    if (s.phase === "roll") {
+      await page.locator(".bn-pad--0").click();
+      await page.waitForFunction((r) => window.__BOARD.state().rolls > r && !window.__BOARD.busy(), s.rolls, { timeout: 4000 });
+      continue;
+    }
+    // shut: which doors make the roll? (his own six, or his friend's once he helps)
+    const ways = await page.evaluate(() => window.BoardLogic.doorWays(window.__BOARD.state()));
+    const open = [1, 2, 3, 4, 5, 6].filter((n) => s.seats[s.mover].shut.indexOf(n) < 0);
+    const wrong = open.find((n) => !ways.some((w) => w.indexOf(n) >= 0));
+    if (wrong != null && missed < 2) {
+      await page.locator('.bn-doors__grid button.bn-door[data-n="' + wrong + '"]').click();
+      await page.waitForTimeout(60);
+      const a = await st();
+      assert.deepEqual(a.seats[s.mover].shut, s.seats[s.mover].shut, "a wrong door shuts nothing");
+      assert.equal(a.phase, "shut", "the roll still waits");
+      missed++;
+      if (missed === 2) {
+        const hint = (await doors()).filter((d) => d.hint).map((d) => d.n);
+        assert.ok(hint.length && ways.some((w) => w.every((n) => hint.indexOf(n) >= 0)), `after two, a way that makes ${s.die} glows (${hint})`);
+        hinted = true;
+      }
+      continue;
+    }
+    const w = ways.find((x) => x.length === 2) || ways[0];
+    await page.locator('.bn-doors__grid button.bn-door[data-n="' + w[0] + '"]').click();
+    if (w.length === 2) {
+      await page.waitForFunction((n) => window.__BOARD.state().held === n, w[0], { timeout: 3000 });
+      if (!echoed) {
+        echoed = true;
+        await page.waitForTimeout(80);
+        await page.locator('.bn-doors__grid button.bn-door[data-n="' + w[0] + '"]').click();
+        await page.waitForTimeout(60);
+        assert.equal((await st()).held, w[0], "the door already held stays held (the hammer's echo)");
+      }
+      assert.ok((await doors()).find((d) => d.n === w[0]).held, "a held door wears its ring");
+      await page.locator('.bn-doors__grid button.bn-door[data-n="' + w[1] + '"]').click();
+      twos++;
+    }
+    await page.waitForFunction((n) => window.__BOARD.state().rolls === n && window.__BOARD.state().phase !== "shut", s.rolls, { timeout: 4000 });
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.ok(end.seats.every((x) => x.shut.length === 6), "every door of both players shut");
+  assert.ok(twos >= 1 && hinted && echoed, `fixture: two-door shuts, the hint and the echo all ran (${twos})`);
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.doors, 1, "a finished Shut the Doors counts once");
+  } finally { await slow(); }
 });
 
 test("no uncaught page errors in Game Night", () => {

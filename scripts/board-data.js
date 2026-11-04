@@ -236,6 +236,18 @@
       lines: { home: "", end: "Every pair is found! What a memory!" },
     },
     {
+      // 🚪 Shut the Doors (shut-the-box, for a four-year-old: a game of
+      // NUMBER BONDS). Each player has six doors, 1 to 6. Roll the die, then
+      // shut the door with that number — or TWO doors that make it (5 is 4
+      // and 1, or 3 and 2): two at once is a ⭐. No door fits? Roll again,
+      // so every turn shuts a door. First to shut all six helps the other, so
+      // it ends with every door shut and one party. The choice is the skill:
+      // two small doors now can leave a roll that fits nothing later.
+      id: "doors", box: "doors", game: "doors", name: "Shut the Doors",
+      cols: 3, rows: 2, size: 6,
+      lines: { home: "{n} shut every door!", end: "Every door is shut! Hooray!" },
+    },
+    {
       // 🍎 Apple Spin (Hi-Ho Cherry-O's mechanic): no track at all. Each
       // player fills their own TEN-FRAME basket from a big tree; `size` is the
       // basket. A spin says how many apples to pick (one tap, one apple); a
@@ -268,6 +280,7 @@
     { id: "lotto", board: "lotto", name: "Picnic Lotto", pic: "🧺", colour: "#2f9e6e", kind: "think" },
     { id: "spot", board: "spot", name: "Twin Spot", pic: "👀", colour: "#7c3aed", kind: "think" },
     { id: "pairs", board: "pairs", name: "Peek-a-Pair", pic: "🧠", colour: "#db2777", kind: "think" },
+    { id: "doors", board: "doors", name: "Shut the Doors", pic: "🚪", colour: "#b45309", kind: "think" },
   ];
 
   // ---- Every line the game says ------------------------------------------
@@ -321,6 +334,13 @@
     foundTwin: "Yes! {s}!",
     notTwin: "Look again! Is it on both cards?",
     pairsFirst: "Tap two cards!",
+    doorsFirst: "Roll the dice!",
+    doorsPick: "Shut door {d}, or two doors that make {d}!",
+    doorsShut: "Door {d} is shut!",
+    doorsTwo: "{a} and {b} make {d}! Two doors!",
+    doorsHold: "{a}… and what makes {d}?",
+    doorsNo: "No door makes {d}. Roll again!",
+    doorsMiss: "That does not make {d}. Try another!",
     pairYes: "Two {p}! A pair! Go again!",
     pairNo: "Not a pair. Remember where they are!",
     pairStar: "A star! Go again!",

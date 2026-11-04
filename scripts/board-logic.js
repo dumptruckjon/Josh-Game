@@ -107,7 +107,7 @@
   // every slide kept (0.72 a game against 0.76).
   const BACK_CAP = 24;
   // Where a token STARTS: square 1 of a track, or an EMPTY basket
-  const startOf = (board) => (board.game === "spin" || board.game === "lotto" || board.game === "spot" || board.game === "pairs" ? 0 : 1);
+  const startOf = (board) => (board.game === "spin" || board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "doors" ? 0 : 1);
 
   // ---- A new game -----------------------------------------------------------
   // opts: { board, seats: [{ who, cpu }], seed, first }
@@ -123,6 +123,7 @@
       };
       if (spin) seat.bird = false;   // did the 🐦 visit this player's last spin?
       if (board.game === "hen") seat.fox = false;   // was this player's last spin the 🦊?
+      if (board.game === "doors") seat.shut = [];   // the doors this player has shut
       return seat;
     });
     if (seats.length !== 2) throw new Error("a game needs two seats");
@@ -137,6 +138,9 @@
     // 🐔 co-op: ONE hen for both (both seats stand where she stands), the
     // chicks she has brought home, and the chicks out playing with the fox
     if (board.game === "hen") { st.coop = 0; st.out = 0; st.fox = !!opts.fox; }
+    // 🚪 the door held while he looks for the one that makes the rest, and
+    // the misses this roll (so the screen can help after two)
+    if (board.game === "doors") { st.held = null; st.misses = 0; }
     // 🧺 two blankets of six foods (never sharing one), one basket of all
     // twelve in a shuffled order, nothing on a blanket yet. Dealt from seat
     // 0's generator, so the deal is part of the seed. A seat's `pos` is how
@@ -196,8 +200,68 @@
     ev.push({ type: "turn", seat: st.turn, mover: st.mover });
   }
 
+  // ---- 🚪 Shut the Doors -------------------------------------------------------
+  // The ways to make `d` from the mover's open doors: the door itself, or two
+  // different doors that add up to it
+  function doorWays(st) {
+    const shut = st.seats[st.mover].shut, d = st.die, open = (n) => n >= 1 && n <= 6 && shut.indexOf(n) < 0;
+    const ways = [];
+    if (open(d)) ways.push([d]);
+    for (let a = 1; a < d - a; a++) if (open(a) && open(d - a)) ways.push([a, d - a]);
+    return ways;
+  }
+  function rollDoors(st) {
+    const seat = st.seats[st.turn];
+    st.die = draw(seat, () => dieBag(seat, DATA.board(st.board)));
+    st.rolls += 1;
+    st.mover = moverFor(st, st.turn);
+    st.held = null;
+    st.misses = 0;
+    const ev = [{ type: "roll", seat: st.turn, die: st.die, mover: st.mover }];
+    if (!doorWays(st).length) {
+      // nothing fits: never a lost turn — roll again (the fair bag brings
+      // every number within six rolls), so every turn shuts a door
+      ev.push({ type: "stuck", seat: st.turn, mover: st.mover, die: st.die });
+      return ev;
+    }
+    st.phase = "shut";
+    return ev;
+  }
+  // Tap door `n`. The door that IS the roll shuts it; a smaller one with its
+  // partner still open is HELD (then tap the partner); anything else is a
+  // kind miss (the doors stay as they are).
+  function shutDoor(st, n) {
+    if (st.game !== "doors" || st.phase !== "shut") return [];
+    const m = st.mover, s = st.seats[m], d = st.die;
+    if (!int(n) || n < 1 || n > 6 || s.shut.indexOf(n) >= 0) return [];
+    if (st.held === n) return [];   // the door already held (the hammer's echo)
+    const open = (x) => x >= 1 && x <= 6 && s.shut.indexOf(x) < 0;
+    let doors = null;
+    if (n === d) doors = [n];
+    else if (st.held != null && st.held + n === d) doors = [st.held, n];
+    else if (n < d && n * 2 !== d && open(d - n)) { st.held = n; return [{ type: "hold", seat: st.turn, mover: m, door: n, die: d }]; }
+    if (!doors) { st.misses += 1; return [{ type: "miss", seat: st.turn, mover: m, door: n, die: d, misses: st.misses }]; }
+    for (const x of doors) s.shut.push(x);
+    s.pos = s.shut.length;
+    if (doors.length === 2) s.stars += 1;
+    st.held = null;
+    st.misses = 0;
+    const ev = [{ type: "shut", seat: st.turn, mover: m, doors, die: d, count: s.pos }];
+    if (s.pos === 6) arrive(st, m, ev);
+    endTurn(st, ev);
+    return ev;
+  }
+  // The computer's choice: it makes its number, but it is not clever about
+  // WHICH way — a fair, seeded pick among the ways (so planning is his edge)
+  function doorChoice(st) {
+    const ways = doorWays(st);
+    if (!ways.length) return null;
+    return ways[Math.floor(next(st.seats[st.turn]) * ways.length)];
+  }
+
   // ---- 🚀 Moon Race: roll, then one hop per tap ----------------------------
   function roll(st) {
+    if (st.game === "doors" && st.phase === "roll") return rollDoors(st);
     if (st.game !== "dice" || st.phase !== "roll") return [];
     const seat = st.seats[st.turn];
     const board = DATA.board(st.board);
@@ -564,6 +628,13 @@
   function autoTurn(st) {
     if (st.phase === "done") return [];
     if (st.game === "cards") return drawCard(st);
+    if (st.game === "doors") {
+      const ev = [];
+      let g = 0;
+      while (st.phase === "roll" && g++ < 20) ev.push(...roll(st));
+      if (st.phase === "shut") for (const n of doorChoice(st)) ev.push(...shutDoor(st, n));
+      return ev;
+    }
     if (st.game === "pairs") {
       // the whole turn: card after card until the turn passes (a pair, or the
       // star, goes again) or the game is over
@@ -616,7 +687,12 @@
   // What is left of a bag: a die bag is distinct faces 1..6, a card bag at
   // most one full deal of cards this board can deal
   function okBag(board, bag, birds) {
-    if (board.game === "lotto" || board.game === "spot" || board.game === "pairs") return bag.length === 0;   // the basket / deck is shared, not a seat's
+    if (board.game === "lotto" || board.game === "spot" || board.game === "pairs") return bag.length === 0;
+    if (board.game === "doors") {
+      const left = [1, 2, 3, 4, 5, 6];
+      for (const n of bag) { const k = left.indexOf(n); if (!int(n) || k < 0) return false; left.splice(k, 1); }
+      return true;
+    }   // the basket / deck is shared, not a seat's
     if (board.game === "hen") {
       // what is left of ONE bag: each animal at most once, a 🦊 only when the
       // fox is on (here `birds` carries the fox flag)
@@ -651,7 +727,7 @@
       const spinning = board.game === "spin";
       const hen = board.game === "hen";
       const lotto = board.game === "lotto", spotting = board.game === "spot", pairing = board.game === "pairs";
-      const okPhase = board.game === "cards" ? ["draw", "done"] : pairing ? ["flip", "second", "done"] : lotto ? ["draw", "give", "done"] : spotting ? ["flip", "find", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : ["roll", "hop", "done"];
+      const okPhase = board.game === "cards" ? ["draw", "done"] : pairing ? ["flip", "second", "done"] : lotto ? ["draw", "give", "done"] : board.game === "doors" ? ["roll", "shut", "done"] : spotting ? ["flip", "find", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : ["roll", "hop", "done"];
       if (okPhase.indexOf(snap.phase) < 0) return null;
       const moving = spinning ? "pick" : "hop";
       if (spinning) {
@@ -662,7 +738,7 @@
       if (!int(snap.mover) || snap.mover < 0 || snap.mover > 1) return null;
       if (!int(snap.left) || snap.left < 0 || snap.left > 6) return null;
       if (!int(snap.die) || snap.die < 0) return null;
-      if (board.game === "dice" ? snap.die !== 0 && facesOf(board).indexOf(snap.die) < 0 : snap.die > 6) return null;
+      if (board.game === "dice" || board.game === "doors" ? snap.die !== 0 && facesOf(board).indexOf(snap.die) < 0 : snap.die > 6) return null;
       // hops (or apples) are left exactly while hopping (picking): a "hop"
       // turn with none left would be stuck for good (hop() refuses, nothing
       // ends the turn)
@@ -677,6 +753,21 @@
         if (snap.out > 0 && !snap.fox) return null;
         if (snap.card !== null && !DATA.animal(snap.card) && !(snap.card === FOX && snap.fox)) return null;
         if (snap.seats.some((s) => typeof s.fox !== "boolean")) return null;
+      } else if (board.game === "doors") {
+        // each player's shut doors are real doors, each once; a held door is
+        // open, smaller than the roll, with its partner open too; and a shut
+        // turn always has a way to make the roll (else it would be stuck)
+        for (const s of snap.seats) {
+          if (!Array.isArray(s.shut) || s.shut.some((n) => !int(n) || n < 1 || n > 6) || new Set(s.shut).size !== s.shut.length || s.pos !== s.shut.length) return null;
+        }
+        if (!int(snap.misses) || snap.misses < 0 || (snap.phase !== "shut" && snap.misses !== 0)) return null;
+        if (snap.card !== null) return null;
+        if (snap.phase === "shut") {
+          if (!int(snap.die) || snap.die < 1) return null;
+          if (!doorWays(snap).length) return null;
+          const sh = snap.seats[snap.mover].shut;
+          if (snap.held !== null && (!int(snap.held) || snap.held >= snap.die || snap.held * 2 === snap.die || sh.indexOf(snap.held) >= 0 || sh.indexOf(snap.die - snap.held) >= 0)) return null;
+        } else if (snap.held !== null) return null;
       } else if (pairing) {
         // the game's pictures (distinct, real); this board holds its own four
         // twice and one ⭐; cards go in twos (a pair), the ⭐ alone; at most
@@ -766,7 +857,7 @@
   }
 
   const BoardLogic = {
-    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
+    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
     cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN,
   };
   global.BoardLogic = BoardLogic;

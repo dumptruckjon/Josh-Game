@@ -36,7 +36,7 @@
   // grown-up "hop by itself" switch · next: who starts the next two-person
   // game per box · last: the last box and its players.
   // "has been shown how", per kind of game (each kind's first-time hand)
-  const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs"];
+  const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors"];
   function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, next: {}, last: null }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
   function coerce(text) {
@@ -122,7 +122,7 @@
   // ---- The screens -----------------------------------------------------------
   let shelf = null, who = null, pick = null, play = null;
   let boardEl = null, svgWrap = null, tokens = [null, null], pads = [null, null], hand = null, party = null;
-  let applesEl = null, popEl = null, markEl = null, coopEl = null, spotsEl = null, pairsEl = null;
+  let applesEl = null, popEl = null, markEl = null, coopEl = null, spotsEl = null, pairsEl = null, doorsEl = null;
   let whoBox = null, pickMode = null;   // which box the who/pick screens are for
 
   const bar = (cls, backLabel, backIcon, title) =>
@@ -204,6 +204,9 @@
           '<div class="bn-spots" hidden><div class="bn-spotcard bn-spotcard--mid" aria-hidden="true"></div><div class="bn-spotcard bn-spotcard--hand" role="group" aria-label="The card you flipped"></div></div>' +
           // 🧠 Peek-a-Pair: the nine cards, face down (each a button)
           '<div class="bn-pairs" role="group" aria-label="The cards" hidden></div>' +
+          // 🚪 Shut the Doors: the waiting player's doors (small), and the
+          // mover's six (big buttons: tap the ones that make the roll)
+          '<div class="bn-doors" hidden><div class="bn-doors__other" aria-hidden="true"></div><div class="bn-doors__grid" role="group" aria-label="The doors"></div></div>' +
           '<div class="bn-token bn-token--0" aria-hidden="true"><span class="bn-token__face"></span></div>' +
           '<div class="bn-token bn-token--1" aria-hidden="true"><span class="bn-token__face"></span></div>' +
           // the number of the square just reached (or the apples in the
@@ -240,6 +243,11 @@
     spotsEl.addEventListener("click", (e) => {
       const b = e.target.closest(".bn-twin");
       if (b && spotsEl.contains(b) && b.tagName === "BUTTON") pickTwin(Number(b.dataset.p), b);
+    });
+    doorsEl = play.querySelector(".bn-doors");
+    doorsEl.addEventListener("click", (e) => {
+      const b = e.target.closest(".bn-door");
+      if (b && doorsEl.contains(b) && b.tagName === "BUTTON") tapDoor(Number(b.dataset.n), b);
     });
     pairsEl = play.querySelector(".bn-pairs");
     pairsEl.addEventListener("click", (e) => {
@@ -414,7 +422,7 @@
     play.dataset.game = board.game;
     play.dataset.box = box;
     boardEl.classList.toggle("bn-board--chart", board.layout === "chart");
-    svgWrap.innerHTML = board.game === "spot" || board.game === "pairs" ? "" : board.game === "spin" ? R.orchardSVG() : board.game === "lotto" ? R.picnicSVG(board, st.seats.map((s) => DATA.person(s.who).colour)) : R.boardSVG(board);
+    svgWrap.innerHTML = board.game === "spot" || board.game === "pairs" || board.game === "doors" ? "" : board.game === "spin" ? R.orchardSVG() : board.game === "lotto" ? R.picnicSVG(board, st.seats.map((s) => DATA.person(s.who).colour)) : R.boardSVG(board);
     applesEl.innerHTML = "";
     hidePop();
     hideMark();
@@ -425,7 +433,7 @@
       const p = seatPerson(i);
       // 🐔 co-op: ONE token, the hen, that both players walk home
       // 🧺 a picnic has no tokens at all: the foods are the pieces
-      tokens[i].hidden = (farm && i === 1) || board.game === "lotto" || board.game === "spot" || board.game === "pairs";
+      tokens[i].hidden = (farm && i === 1) || board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "doors";
       tokens[i].querySelector(".bn-token__face").innerHTML = farm ? '<span class="bn-emoji">🐔</span>' : R.faceHTML(p);
       tokens[i].style.borderColor = farm ? "#c2410c" : p.colour;
       tokens[i].style.transitionDuration = "0ms";
@@ -450,6 +458,8 @@
     const b = game.board;
     spotsEl.hidden = b.game !== "spot";
     pairsEl.hidden = b.game !== "pairs";
+    doorsEl.hidden = b.game !== "doors";
+    if (b.game === "doors") return layoutDoors(w, h);
     if (b.game === "spot") return layoutSpot(w, h);
     if (b.game === "pairs") return layoutPairs(w, h);
     const cell = Math.max(20, Math.floor(Math.min(w / b.cols, h / b.rows)));
@@ -505,6 +515,99 @@
     boardEl.style.height = h + "px";
     boardEl.style.left = "0px";
     boardEl.style.top = "0px";
+  }
+  // 🚪 the mover's six doors three by two, as big as the field allows, under
+  // the waiting player's six small ones
+  function layoutDoors(w, h) {
+    const GAP = 16, STRIP = 40;
+    const cell = Math.max(40, Math.floor(Math.min((w - 2 * GAP) / 3, (h - STRIP - GAP - GAP) / 2, 130)));
+    doorsEl.style.setProperty("--door", cell + "px");
+    doorsEl.style.fontSize = Math.round(cell * 0.5) + "px";
+    boardEl.style.width = w + "px";
+    boardEl.style.height = h + "px";
+    boardEl.style.left = "0px";
+    boardEl.style.top = "0px";
+  }
+  // The doors shown follow the turn ON SCREEN (`game.showMover`) and the
+  // shut doors as they were SHOWN (`game.shownShut`): the engine has already
+  // handed the turn over while the doors are still closing
+  function paintDoors() {
+    if (!game || game.board.game !== "doors") return;
+    const st = game.st, m = game.showMover == null ? st.mover : game.showMover, o = 1 - m;
+    const shut = game.shownShut, live = st.phase === "shut" && st.mover === m;
+    const ways = live && st.misses >= 2 ? L.doorWays(st) : [];
+    const hint = ways.length ? (ways.find((x) => st.held == null || x.indexOf(st.held) >= 0) || ways[0]) : [];
+    const cpu = st.phase !== "done" && st.seats[game.showTurn == null ? st.turn : game.showTurn].cpu;
+    let html = "";
+    for (let n = 1; n <= 6; n++) {
+      if (shut[m].indexOf(n) >= 0) { html += '<span class="bn-door bn-door--shut' + (game.doorsGo && game.doorsGo.indexOf(n) >= 0 ? " bn-door--go" : "") + '" aria-hidden="true"><span class="bn-door__n">' + n + "</span></span>"; continue; }
+      const held = live && st.held === n;
+      html += '<button class="bn-door tap' + (held ? " bn-door--held" : "") + (hint.indexOf(n) >= 0 && !held ? " bn-door--hint" : "") +
+        '" type="button" data-n="' + n + '" aria-label="Door ' + n + (held ? ", held" : "") + '"><span class="bn-door__n">' + n + "</span></button>";
+    }
+    const grid = doorsEl.querySelector(".bn-doors__grid");
+    grid.innerHTML = html;
+    grid.setAttribute("aria-label", nameOf(m) + "'s doors");
+    grid.classList.toggle("bn-doors__grid--cpu", !!cpu);
+    grid.style.borderColor = seatPerson(m).colour;
+    let other = '<span class="bn-doors__face">' + R.faceHTML(seatPerson(o)) + "</span>";
+    for (let n = 1; n <= 6; n++) other += '<span class="bn-mini' + (shut[o].indexOf(n) >= 0 ? " bn-mini--shut" : "") + '">' + n + "</span>";
+    doorsEl.querySelector(".bn-doors__other").innerHTML = other;
+  }
+  function tapDoor(n, btn) {
+    if (!game || game.board.game !== "doors" || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "shut") return;
+    if (btn && st.seats[st.turn].cpu) return;   // the computer's turn
+    const ev = L.shutDoor(st, n);
+    if (!ev.length) return;   // a shut door, or the one already held (the echo)
+    hideHand();
+    const e = ev[0];
+    if (e.type === "hold") {
+      SFX.plop(n);
+      sayPlay(fill(SAY.doorsHold, { a: n, d: st.die }));
+      paintDoors();
+      persistGame();
+      return;
+    }
+    if (e.type === "miss") {
+      // not a way to make the roll: a kind wiggle (after two, a way glows)
+      paintDoors();
+      const again = doorsEl.querySelector('.bn-door[data-n="' + n + '"]');
+      if (again) wiggle(again);
+      sayPlay(fill(SAY.doorsMiss, { d: st.die }));
+      persistGame();
+      return;
+    }
+    if (!save.intro.doors && !st.seats[e.seat].cpu) { save.intro.doors = true; persist(); }
+    playEvents(ev);
+  }
+  function cpuDoors() {
+    if (!game || game.board.game !== "doors") return;
+    if (!playVisible()) { game.cpuWaiting = true; return; }
+    const st = game.st;
+    if (game.busy || st.phase !== "shut" || !st.seats[st.turn].cpu) return;
+    const way = L.doorChoice(st);
+    tapDoor(way[0], null);
+    if (way.length > 1) later(() => { if (game && game.st.phase === "shut") tapDoor(way[1], null); }, T.cpuHop);
+  }
+  // after a roll: nothing fits (roll again), or tap the doors that make it
+  function afterDoorsRoll(ev) {
+    const st = game.st;
+    if (ev.some((e) => e.type === "stuck")) {
+      game.busy = true;
+      sayPlay(fill(SAY.doorsNo, { d: st.die }));
+      later(() => {
+        if (!game) return;
+        game.busy = false;
+        paintPads();
+        if (st.seats[st.turn].cpu) later(cpuTurn, T.cpuHop);
+      }, T.look);
+      return;
+    }
+    paintDoors();
+    if (st.seats[st.turn].cpu) { later(cpuDoors, T.cpuHop); return; }
+    sayPlay(fill(SAY.doorsPick, { d: st.die }));
   }
   // What the screen shows of the cards (`game.pv`): the engine has already
   // moved on (a pair taken, a miss turned back, a new board dealt) while the
@@ -630,7 +733,7 @@
   function orchardFrac(p) { return { x: p.x / R.ORCH, y: p.y / R.ORCH }; }
   function placeTokens() {
     const st = game.st, b = game.board;
-    if (b.game === "lotto" || b.game === "spot" || b.game === "pairs") return;
+    if (b.game === "lotto" || b.game === "spot" || b.game === "pairs" || b.game === "doors") return;
     if (b.game === "spin") {
       for (let i = 0; i < 2; i++) {
         const sp = orchardFrac(R.ORCHARD.face[i]);
@@ -685,9 +788,12 @@
     game.landed = null;
     game.spotYes = null; game.spotHand = null; game.spotMid = null;
     game.pv = game.board.game === "pairs" ? pairsView() : null;
+    game.shownShut = game.st.seats.map((s) => (s.shut ? s.shut.slice() : []));
+    game.doorsGo = null;
     placeTokens();
     paintSpots();
     paintPairs();
+    paintDoors();
     paintApples();
     paintFoods();
     paintCoop();
@@ -711,6 +817,10 @@
     if (game.board.game === "spin") {
       boardEl.setAttribute("aria-label", st.seats.map((s, i) => nameOf(i) + " has " + game.shown[i] + (game.shown[i] === 1 ? " apple" : " apples")).join(". ") +
         ". " + game.shownPie + " in the pie.");
+      return;
+    }
+    if (game.board.game === "doors") {
+      boardEl.setAttribute("aria-label", [0, 1].map((i) => nameOf(i) + " has shut " + game.shownShut[i].length + " of 6 doors").join(". ") + ".");
       return;
     }
     if (game.board.game === "pairs") {
@@ -748,15 +858,17 @@
       pad.classList.toggle("bn-pad--wait", !active);
       tokens[i].classList.toggle("bn-token--on", st.phase !== "done" && game.showMover === i);
       const act = pad.querySelector(".bn-pad__act");
-      if (game.board.game === "dice") {
+      if (game.board.game === "dice" || game.board.game === "doors") {
         // while the dice tumble, a tumbling face; then the real one, its
         // dots going dark one per hop
         if (active && game.tumbleFace) act.innerHTML = dieHTML(game.tumbleFace, game.tumbleFace);
-        else if (active && game.rolled) act.innerHTML = dieHTML(st.die, st.phase === "hop" && st.turn === i ? st.left : 0);
+        // (🚪 the roll stays lit while he finds the doors that make it)
+        else if (active && game.rolled) act.innerHTML = dieHTML(st.die, game.board.game === "doors" ? (st.phase === "shut" ? st.die : 0) : st.phase === "hop" && st.turn === i ? st.left : 0);
         else act.innerHTML = dieHTML(0, 0);
         pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
         const hopping = active && st.phase === "hop" && st.turn === i;
-        pad.setAttribute("aria-label", nameOf(i) + (active ? (hopping ? (st.die === L.TEN ? ": tap for ten more" : ": tap to hop, " + st.left + " to go") : ": tap to roll the dice") : ": wait for your turn") + (s.home ? ", home" : ""));
+        const shutting = active && st.phase === "shut";
+        pad.setAttribute("aria-label", nameOf(i) + (active ? (shutting ? ": shut the doors that make " + st.die : hopping ? (st.die === L.TEN ? ": tap for ten more" : ": tap to hop, " + st.left + " to go") : ": tap to roll the dice") : ": wait for your turn") + (s.home ? (game.board.game === "doors" ? ", every door shut" : ", home") : ""));
       } else if (game.board.game === "pairs") {
         // 🧠 the cards on the board are the buttons; the pad is whose turn it
         // is and the ⭐ count (a pair or a star found)
@@ -881,10 +993,11 @@
     game.tumbleFace = 0;
     game.showTurn = st.turn;
     game.showMover = st.mover;
-    game.rolled = st.phase === "hop" || st.phase === "pick" || st.phase === "give" || st.phase === "find" || st.phase === "second";   // a game restored mid-move shows its die / spin / food
+    game.rolled = st.phase === "hop" || st.phase === "pick" || st.phase === "give" || st.phase === "find" || st.phase === "second" || st.phase === "shut";   // a game restored mid-move shows its die / spin / food
     game.foodShown = st.phase === "give" ? st.food : null;
     paintPads();
     paintPairs();
+    paintDoors();
     persistGame();
     const i = st.turn;
     if (st.seats[i].cpu) {
@@ -897,6 +1010,7 @@
     if (st.phase === "hop") sayPlay(hopLine());
     else if (st.phase === "pick") sayPlay(SAY.pickFirst);
     else if (st.phase === "second") sayPlay(SAY.pairsFirst);
+    else if (st.phase === "shut") sayPlay(fill(SAY.doorsPick, { d: st.die }));
     else sayPlay(fill(SAY.turn, { n: nameOf(i) }) + (first ? " " + firstLine() : ""));
     if (first) showHand(i);
     if (st.phase === "hop" && save.auto) autoHops();
@@ -907,7 +1021,7 @@
   function hopLine() { return !game ? SAY.hopFirst : game.board.game === "hen" ? SAY.henFirst : game.st.die === L.TEN ? SAY.tenFirst : SAY.hopFirst; }
   // which first-time hand a HOP belongs to: the dice's, or the farm's
   function introKey() { return game && game.board.game === "hen" ? "hen" : "dice"; }
-  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" || g === "hen" ? SAY.spinFirst : g === "lotto" ? SAY.basketFirst : g === "pairs" ? SAY.pairsFirst : SAY.flipFirst; }
+  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" || g === "hen" ? SAY.spinFirst : g === "lotto" ? SAY.basketFirst : g === "pairs" ? SAY.pairsFirst : g === "doors" ? SAY.doorsFirst : SAY.flipFirst; }
 
   function padTap(i) {
     if (!game || !playVisible()) return;
@@ -934,6 +1048,8 @@
     if (game.board.game === "spot") { if (st.phase === "flip") flipSpot(); return; }
     // 🧠 the cards are the buttons: his pad only says (and shows) what to do
     if (game.board.game === "pairs") { sayPlay(SAY.pairsFirst); showHand(i); later(hideHand, 2600); return; }
+    // 🚪 rolled: the doors are the buttons now
+    if (game.board.game === "doors" && st.phase === "shut") { sayPlay(fill(SAY.doorsPick, { d: st.die })); return; }
     if (st.phase === "roll") return rollDice();
     if (st.phase === "hop" && !save.auto) return hopOnce();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
@@ -973,6 +1089,7 @@
       paintPads();
       persistGame();
       const st = game.st;
+      if (game.board.game === "doors") { afterDoorsRoll(ev); return; }
       if (st.seats[st.turn].cpu) { later(cpuHop, T.cpuHop); return; }
       if (!save.intro[introKey()]) { sayPlay(hopLine()); showHand(st.turn); }
       if (save.auto) autoHops();
@@ -1018,6 +1135,7 @@
     if (game.board.game === "lotto") return takeFood();
     if (game.board.game === "spot") return flipSpot();
     if (game.board.game === "pairs") return cpuPair();
+    if (game.board.game === "doors" && st.phase === "shut") return cpuDoors();
     if (st.phase === "roll") return rollDice();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
     if (st.phase === "pick") return cpuPick();
@@ -1269,6 +1387,22 @@
         popOnSquare(e.to, String(e.coop));
         if (e.left === 0) hideMark();
         paintBoardLabel();
+      } else if (e.type === "shut") {
+        // 🚪 the door (or two) swings shut; two at once is a number bond: ⭐
+        at(0, () => {
+          game.shownShut[e.mover] = game.shownShut[e.mover].concat(e.doors);
+          game.doorsGo = e.doors;
+          paintDoors();
+          SFX.thunk();
+          if (e.doors.length === 2) {
+            SFX.boost();
+            sayPlay(fill(SAY.doorsTwo, { a: e.doors[0], b: e.doors[1], d: e.die }));
+            landStar(e.seat);
+            cheer(e.seat, true);
+          } else sayPlay(fill(SAY.doorsShut, { d: e.doors[0] }));
+          paintBoardLabel();
+        });
+        at(T.ride, () => { game.doorsGo = null; });
       } else if (e.type === "peek") {
         // 🧠 a card turns over and its picture is said
         at(0, () => {
@@ -1704,6 +1838,7 @@
     else if (st.phase === "give") say(whoseLine() + " " + SAY.whoseFirst);
     else if (st.phase === "find") say(SAY.findTwin);
     else if (st.phase === "second") say(SAY.pairsFirst);
+    else if (st.phase === "shut") say(fill(SAY.doorsPick, { d: st.die }));
     else say(fill(SAY.turn, { n: nameOf(i) }) + " " + firstLine());
     showHand(i);
     later(hideHand, 2600);
