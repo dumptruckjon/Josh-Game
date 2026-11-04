@@ -107,7 +107,7 @@
   // every slide kept (0.72 a game against 0.76).
   const BACK_CAP = 24;
   // Where a token STARTS: square 1 of a track, or an EMPTY basket
-  const startOf = (board) => (board.game === "spin" || board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "doors" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" ? 0 : 1);
+  const startOf = (board) => (board.game === "spin" || board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "doors" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" || board.game === "nim" || board.game === "lines" || board.game === "top" ? 0 : 1);
 
   // ---- A new game -----------------------------------------------------------
   // opts: { board, seats: [{ who, cpu }], seed, first }
@@ -167,6 +167,24 @@
       st.spot = Math.floor(next(seats[0]) * st.dug.length);
       st.found = 0;
     }
+    // 🍪 the jar open now (0..3) and the cookies still in it
+    if (board.game === "nim") { st.jar = 0; st.cookies = board.jars[0]; }
+    // 🔴 the grid (row 0 is the BOTTOM; -1 empty, else the seat whose counter
+    // it is) and which board of the game this is
+    // (and who dropped first: drops alternate over the whole game, so whose
+    // turn it is and every seat's count follow from it)
+    // 🃏 each player's own ten cards: the pile (face down), the hand (face
+    // up), the card on the table this trick, and the cards of the tricks
+    // played (`gone`, in trick order, so trick t is gone[0][t] v gone[1][t]).
+    // `lead` leads this trick; `first` led the first, and the lead alternates.
+    if (board.game === "top") {
+      st.piles = [0, 1].map((i) => shuffle(seats[i], Array.from({ length: board.deck }, (x, k) => k + 1)));
+      st.hands = st.piles.map((p) => p.splice(0, board.hand));
+      st.table = [null, null];
+      st.gone = [[], []];
+      st.lead = first; st.first = first;
+    }
+    if (board.game === "lines") { st.grid = new Array(board.cols * board.rows).fill(-1); st.boardNo = 0; st.first = first; }
     if (board.game === "acorns") {
       st.pots = [];
       for (let i = 0; i < 2; i++) { for (let k = 0; k < board.pots; k++) st.pots.push(board.start); st.pots.push(0); }
@@ -201,7 +219,7 @@
     }
     return st;
   }
-  function firstPhase(game) { return game === "spot" || game === "pairs" ? "flip" : game === "cards" || game === "lotto" ? "draw" : game === "spin" || game === "hen" ? "spin" : game === "acorns" ? "choose" : game === "dig" ? "dig" : "roll"; }
+  function firstPhase(game) { return game === "spot" || game === "pairs" ? "flip" : game === "cards" || game === "lotto" ? "draw" : game === "spin" || game === "hen" ? "spin" : game === "acorns" ? "choose" : game === "dig" ? "dig" : game === "nim" ? "take" : game === "lines" ? "drop" : game === "top" ? "lead" : "roll"; }
 
   const anyHome = (st) => st.seats.some((s) => s.home);
   const other = (i) => (i === 0 ? 1 : 0);
@@ -336,6 +354,194 @@
     const open = st.dug.map((d, j) => j).filter((j) => !st.dug[j]);
     const maybe = digMaybe(st);
     const from = next(s) < DIG_SHARP ? maybe : open;
+    return from[Math.floor(next(s) * from.length)];
+  }
+
+  // ---- 🍪 Cookie Jar ------------------------------------------------------------
+  // The takes the mover may make: one, two or three, never more than are left
+  function nimTakes(st) {
+    const board = DATA.board(st.board), t = [];
+    for (let k = 1; k <= Math.min(board.take, st.cookies); k++) t.push(k);
+    return t;
+  }
+  // Take k cookies (they go on the mover's plate, `pos`). The last one in the
+  // jar is the golden ⭐: the next jar is opened, or after the last jar it is
+  // the party. The turn always passes, so who starts a jar alternates.
+  function takeCookies(st, k) {
+    if (st.game !== "nim" || st.phase !== "take") return [];
+    const board = DATA.board(st.board);
+    if (!int(k) || k < 1 || k > board.take || k > st.cookies) return [];
+    const i = st.turn, s = st.seats[i];
+    st.cookies -= k; s.pos += k; st.rolls += 1;
+    const ev = [{ type: "nibble", seat: i, n: k, left: st.cookies }];
+    if (st.cookies === 0) {
+      s.stars += 1;
+      ev.push({ type: "golden", seat: i, jar: st.jar });
+      if (st.jar === board.jars.length - 1) {
+        for (const x of st.seats) x.home = true;
+        st.order = [0, 1];
+        st.phase = "done";
+        ev.push({ type: "end" });
+        return ev;
+      }
+      st.jar += 1;
+      st.cookies = board.jars[st.jar];
+      ev.push({ type: "jar", jar: st.jar, n: st.cookies });
+    }
+    endTurn(st, ev);
+    return ev;
+  }
+  // The take that leaves a multiple of four (take+1): then whatever the friend
+  // takes, the golden one is yours. 0 when there is none (a multiple of four
+  // is in the jar already — any take, and hope).
+  function nimBest(st) {
+    const board = DATA.board(st.board), k = st.cookies % (board.take + 1);
+    return k >= 1 && k <= Math.min(board.take, st.cookies) ? k : 0;
+  }
+  // The computer leaves a multiple of four only `NIM_SHARP` of the time (its
+  // own seeded luck), else takes any — so planning is his edge
+  const NIM_SHARP = 0.5;
+  function nimChoice(st) {
+    const s = st.seats[st.turn], best = nimBest(st);
+    if (best && next(s) < NIM_SHARP) return best;
+    const t = nimTakes(st);
+    return t[Math.floor(next(s) * t.length)];
+  }
+
+  // ---- 🃏 Top Card ----------------------------------------------------------------
+  // Play card v from the mover's hand: the lead, or the answer (then the
+  // bigger card wins the trick and a ⭐, both refill to three, and the lead
+  // goes to the other player — or, after the last trick, the party).
+  function playCard(st, v) {
+    if (st.game !== "top" || (st.phase !== "lead" && st.phase !== "follow")) return [];
+    const board = DATA.board(st.board), i = st.turn, hand = st.hands[i];
+    if (!int(v) || hand.indexOf(v) < 0) return [];
+    hand.splice(hand.indexOf(v), 1);
+    st.table[i] = v; st.rolls += 1;
+    if (st.phase === "lead") {
+      st.phase = "follow";
+      st.turn = st.mover = other(i);
+      return [{ type: "lead", seat: i, v }, { type: "turn", seat: st.turn, mover: st.mover }];
+    }
+    const a = st.table[st.lead], b = st.table[other(st.lead)];
+    const win = a === b ? -1 : a > b ? st.lead : other(st.lead);
+    const ev = [{ type: "answer", seat: i, v }, { type: "trick", win, lead: st.lead, cards: st.table.slice() }];
+    if (win >= 0) { st.seats[win].stars += 1; st.seats[win].pos += 1; }
+    for (const j of [0, 1]) {
+      st.gone[j].push(st.table[j]);
+      while (st.hands[j].length < board.hand && st.piles[j].length) st.hands[j].push(st.piles[j].shift());
+    }
+    st.table = [null, null];
+    // (the lead goes on even after the last trick, so lead is always
+    // first + tricks played — a rule restore can check in every state)
+    st.lead = other(st.lead);
+    if (!st.hands[0].length && !st.hands[1].length) {
+      for (const x of st.seats) x.home = true;
+      st.order = [0, 1];
+      st.phase = "done";
+      ev.push({ type: "end" });
+      return ev;
+    }
+    st.phase = "lead";
+    st.turn = st.mover = st.lead;
+    ev.push({ type: "turn", seat: st.turn, mover: st.mover });
+    return ev;
+  }
+  // The answer that wins the trick with the least: the smallest card that
+  // beats the lead — or, when none does, the smallest card (save the big
+  // ones). Leading: the smallest card too, so a big one is never wasted.
+  function topBest(st) {
+    const hand = st.hands[st.turn].slice().sort((x, y) => x - y);
+    if (st.phase !== "follow") return hand[0];
+    const lead = st.table[st.lead], beat = hand.filter((v) => v > lead);
+    return beat.length ? beat[0] : hand[0];
+  }
+  // The computer plays the saving card only `TOP_SHARP` of the time (its own
+  // seeded luck), else any card — so saving is his edge
+  const TOP_SHARP = 0.5;
+  function topChoice(st) {
+    const s = st.seats[st.turn], hand = st.hands[st.turn];
+    if (next(s) < TOP_SHARP) return topBest(st);
+    return hand[Math.floor(next(s) * hand.length)];
+  }
+
+  // ---- 🔴 Line Up -----------------------------------------------------------------
+  // Every line of three on the board: across, up, and both slants. A cell is
+  // row * cols + col, row 0 at the bottom.
+  function linesOf(board) {
+    const out = [], c = board.cols, r = board.rows;
+    for (const [dc, dr] of [[1, 0], [0, 1], [1, 1], [-1, 1]]) {
+      for (let row = 0; row < r; row++) {
+        for (let col = 0; col < c; col++) {
+          const cells = [0, 1, 2].map((k) => [col + k * dc, row + k * dr]);
+          if (cells.every(([x, y]) => x >= 0 && x < c && y >= 0 && y < r)) out.push(cells.map(([x, y]) => y * c + x));
+        }
+      }
+    }
+    return out;
+  }
+  // The row a counter dropped into column `col` lands on (-1: the column is full)
+  function dropRow(st, col) {
+    const board = DATA.board(st.board);
+    for (let row = 0; row < board.rows; row++) if (st.grid[row * board.cols + col] < 0) return row;
+    return -1;
+  }
+  // the columns with room
+  function linesOpen(st) {
+    const board = DATA.board(st.board), out = [];
+    for (let col = 0; col < board.cols; col++) if (dropRow(st, col) >= 0) out.push(col);
+    return out;
+  }
+  // the lines seat `i` would make by dropping into `col`
+  function linesMade(st, col, i) {
+    const board = DATA.board(st.board), row = dropRow(st, col);
+    if (row < 0) return [];
+    const cell = row * board.cols + col;
+    return linesOf(board).filter((ln) => ln.indexOf(cell) >= 0 && ln.every((k) => k === cell || st.grid[k] === i));
+  }
+  // Drop the mover's counter into `col`. Every new line of three is a ⭐. A
+  // full board is set up fresh (or, after the last, the party). The turn
+  // always passes.
+  function dropLine(st, col) {
+    if (st.game !== "lines" || st.phase !== "drop") return [];
+    const board = DATA.board(st.board);
+    if (!int(col) || col < 0 || col >= board.cols) return [];
+    const row = dropRow(st, col);
+    if (row < 0) return [];
+    const i = st.turn, s = st.seats[i], cell = row * board.cols + col;
+    const made = linesMade(st, col, i);
+    st.grid[cell] = i;
+    s.pos += 1; st.rolls += 1;
+    const ev = [{ type: "drop", seat: i, col, row, cell }];
+    for (const ln of made) { s.stars += 1; ev.push({ type: "line", seat: i, cells: ln }); }
+    if (st.grid.every((g) => g >= 0)) {
+      if (st.boardNo === board.boards - 1) {
+        for (const x of st.seats) x.home = true;
+        st.order = [0, 1];
+        st.phase = "done";
+        ev.push({ type: "end" });
+        return ev;
+      }
+      st.boardNo += 1;
+      st.grid = st.grid.map(() => -1);
+      ev.push({ type: "fresh", boardNo: st.boardNo });
+    }
+    endTurn(st, ev);
+    return ev;
+  }
+  // The column that makes a line (or, failing that, stops the friend's)
+  function linesBest(st) {
+    const open = linesOpen(st), i = st.turn;
+    const win = open.filter((c) => linesMade(st, c, i).length);
+    if (win.length) return win;
+    return open.filter((c) => linesMade(st, c, other(i)).length);
+  }
+  // The computer sees a line (or a block) only `LINES_SHARP` of the time
+  // (its own seeded luck), else drops anywhere — so looking is his edge
+  const LINES_SHARP = 0.5;
+  function linesChoice(st) {
+    const s = st.seats[st.turn], best = linesBest(st);
+    const from = best.length && next(s) < LINES_SHARP ? best : linesOpen(st);
     return from[Math.floor(next(s) * from.length)];
   }
 
@@ -890,6 +1096,9 @@
       return ev;
     }
     if (st.game === "dig") return digAt(st, digChoice(st));
+    if (st.game === "nim") return takeCookies(st, nimChoice(st));
+    if (st.game === "lines") return dropLine(st, linesChoice(st));
+    if (st.game === "top") return playCard(st, topChoice(st));
     if (st.game === "dominoes") {
       const ev = [], who = st.turn;
       let guard = 0;
@@ -956,7 +1165,7 @@
   // What is left of a bag: a die bag is distinct faces 1..6, a card bag at
   // most one full deal of cards this board can deal
   function okBag(board, bag, birds) {
-    if (board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig") return bag.length === 0;
+    if (board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" || board.game === "nim" || board.game === "lines" || board.game === "top") return bag.length === 0;
     if (board.game === "doors") {
       const left = [1, 2, 3, 4, 5, 6];
       for (const n of bag) { const k = left.indexOf(n); if (!int(n) || k < 0) return false; left.splice(k, 1); }
@@ -995,8 +1204,8 @@
       if (!Array.isArray(snap.seats) || snap.seats.length !== 2) return null;
       const spinning = board.game === "spin";
       const hen = board.game === "hen";
-      const lotto = board.game === "lotto", spotting = board.game === "spot", pairing = board.game === "pairs", acorning = board.game === "acorns", domino = board.game === "dominoes", digging = board.game === "dig";
-      const okPhase = board.game === "cards" ? ["draw", "done"] : pairing ? ["flip", "second", "done"] : acorning ? ["choose", "done"] : domino ? ["lay", "draw", "done"] : digging ? ["dig", "done"] : lotto ? ["draw", "give", "done"] : board.game === "doors" ? ["roll", "shut", "done"] : spotting ? ["flip", "find", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : ["roll", "hop", "done"];
+      const lotto = board.game === "lotto", spotting = board.game === "spot", pairing = board.game === "pairs", acorning = board.game === "acorns", domino = board.game === "dominoes", digging = board.game === "dig", nimming = board.game === "nim", lining = board.game === "lines", topping = board.game === "top";
+      const okPhase = board.game === "cards" ? ["draw", "done"] : nimming ? ["take", "done"] : lining ? ["drop", "done"] : topping ? ["lead", "follow", "done"] : pairing ? ["flip", "second", "done"] : acorning ? ["choose", "done"] : domino ? ["lay", "draw", "done"] : digging ? ["dig", "done"] : lotto ? ["draw", "give", "done"] : board.game === "doors" ? ["roll", "shut", "done"] : spotting ? ["flip", "find", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : ["roll", "hop", "done"];
       if (okPhase.indexOf(snap.phase) < 0) return null;
       const moving = spinning ? "pick" : "hop";
       if (spinning) {
@@ -1048,6 +1257,66 @@
         if (snap.seats.some((s) => s.stars !== s.pos)) return null;
         if ((snap.phase === "done") !== (snap.found === board.treasures)) return null;
         if (snap.phase === "dig" && (D[snap.spot] || D.every(Boolean))) return null;
+        if (snap.die !== 0 || snap.left !== 0 || snap.card !== null) return null;
+      } else if (topping) {
+        // each player's own ten cards, each in exactly one place (pile, hand,
+        // table, or a trick played); tricks are played in pairs; a hand is
+        // full again after every trick (three, or what the pile has left);
+        // the lead alternates from `first`, and only the leader's card is on
+        // the table while the other answers; every ⭐ is a trick its card won
+        const P = snap.piles, H = snap.hands, Tb = snap.table, Gn = snap.gone;
+        if (![P, H, Tb, Gn].every((a) => Array.isArray(a) && a.length === 2)) return null;
+        if (![P[0], P[1], H[0], H[1], Gn[0], Gn[1]].every(Array.isArray)) return null;
+        if (snap.first !== 0 && snap.first !== 1) return null;
+        const T = Gn[0].length;
+        if (Gn[1].length !== T || T > board.deck) return null;
+        for (const j of [0, 1]) {
+          const here = P[j].concat(H[j], Gn[j], Tb[j] == null ? [] : [Tb[j]]);
+          if (here.length !== board.deck || new Set(here).size !== board.deck || here.some((v) => !int(v) || v < 1 || v > board.deck)) return null;
+          if (H[j].length + (Tb[j] == null ? 0 : 1) !== Math.min(board.hand, board.deck - T)) return null;
+          const won = Gn[j].filter((v, t) => v > Gn[1 - j][t]).length;
+          if (snap.seats[j].stars !== won || snap.seats[j].pos !== won) return null;
+        }
+        if (snap.lead !== (snap.first + T) % 2) return null;
+        if ((snap.phase === "done") !== (T === board.deck)) return null;
+        if (snap.phase === "lead" && (Tb[0] !== null || Tb[1] !== null || snap.turn !== snap.lead)) return null;
+        if (snap.phase === "follow" && (Tb[snap.lead] == null || Tb[1 - snap.lead] !== null || snap.turn !== 1 - snap.lead)) return null;
+        if (snap.phase === "done" && (Tb[0] !== null || Tb[1] !== null)) return null;
+        if (snap.die !== 0 || snap.left !== 0 || snap.card !== null) return null;
+      } else if (lining) {
+        // the board's cells are empty or a seat's; nothing floats (a counter
+        // sits on the bottom or on another); drops alternate over the whole
+        // game from `first`, so after T drops in all the first player has
+        // made ceil(T/2) of them, it is (first + T)'s turn, and the counters
+        // on this board are its own share of the last drops; the lines on the
+        // board now are ⭐s already won; a board is never full mid-game
+        const G = snap.grid, n = board.cols * board.rows;
+        if (!Array.isArray(G) || G.length !== n || G.some((g) => g !== -1 && g !== 0 && g !== 1)) return null;
+        if (!int(snap.boardNo) || snap.boardNo < 0 || snap.boardNo >= board.boards) return null;
+        if (snap.first !== 0 && snap.first !== 1) return null;
+        for (let k = board.cols; k < n; k++) if (G[k] >= 0 && G[k - board.cols] < 0) return null;
+        const on = [0, 1].map((j) => G.filter((g) => g === j).length), before = snap.boardNo * n, T = before + on[0] + on[1];
+        const share = (t, j) => (j === snap.first ? Math.ceil(t / 2) : Math.floor(t / 2));
+        for (const j of [0, 1]) {
+          if (snap.seats[j].pos !== share(T, j)) return null;
+          if (on[j] !== share(T, j) - share(before, j)) return null;
+        }
+        if ((snap.phase === "done") !== (snap.boardNo === board.boards - 1 && G.every((g) => g >= 0))) return null;
+        if (snap.phase === "drop" && (G.every((g) => g >= 0) || snap.turn !== (snap.first + T) % 2)) return null;
+        for (const j of [0, 1]) if (snap.seats[j].stars < linesOf(board).filter((ln) => ln.every((k) => G[k] === j)).length) return null;
+        if (snap.die !== 0 || snap.left !== 0 || snap.card !== null) return null;
+      } else if (nimming) {
+        // the jar open now, the cookies still in it (none only once the last
+        // jar is empty); every cookie eaten is on a plate, and every jar
+        // emptied gave someone its golden ⭐
+        const J = board.jars;
+        if (!int(snap.jar) || snap.jar < 0 || snap.jar >= J.length) return null;
+        if (!int(snap.cookies) || snap.cookies < 0 || snap.cookies > J[snap.jar]) return null;
+        if ((snap.phase === "done") !== (snap.jar === J.length - 1 && snap.cookies === 0)) return null;
+        if (snap.phase === "take" && snap.cookies === 0) return null;
+        const eaten = J.slice(0, snap.jar).reduce((t, n) => t + n, 0) + J[snap.jar] - snap.cookies;
+        if (snap.seats[0].pos + snap.seats[1].pos !== eaten) return null;
+        if (snap.seats[0].stars + snap.seats[1].stars !== snap.jar + (snap.phase === "done" ? 1 : 0)) return null;
         if (snap.die !== 0 || snap.left !== 0 || snap.card !== null) return null;
       } else if (domino) {
         // every tile exactly once — in the line, a hand or the pile; the line
@@ -1158,7 +1427,7 @@
         // home is exactly standing on the last square
         // home is exactly standing on the last square (👀 everyone is home
         // together, once the deck is used up)
-        if (spotting || pairing || acorning || domino || digging ? s.home !== (snap.phase === "done") : s.home !== (s.pos === board.size)) return null;
+        if (spotting || pairing || acorning || domino || digging || nimming || lining || topping ? s.home !== (snap.phase === "done") : s.home !== (s.pos === board.size)) return null;
         if (!Array.isArray(s.bag) || !okBag(board, s.bag, hen ? snap.fox : snap.birds)) return null;
       }
       // the order they got home in names exactly the seats that are home
@@ -1174,7 +1443,7 @@
   }
 
   const BoardLogic = {
-    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
+    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, takeCookies, nimTakes, nimBest, nimChoice, NIM_SHARP, dropLine, dropRow, linesOf, linesOpen, linesMade, linesBest, linesChoice, LINES_SHARP, playCard, topBest, topChoice, TOP_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
     cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN,
   };
   global.BoardLogic = BoardLogic;

@@ -10,7 +10,16 @@ const assert = require("node:assert");
 const { startServer, launchMobileBrowser } = require("./helpers");
 const fs = require("node:fs");
 const path = require("node:path");
-const DATA_BOXES = require("../scripts/board-data.js").BOXES.length;
+const BOARD_DATA = require("../scripts/board-data.js");
+const DATA_BOXES = BOARD_DATA.BOXES.length;
+// Every box on the shelf, each with someone to play it (a friend in the iPad,
+// or a person here, in turn). DERIVED: a hand-typed list of boxes is how a
+// new game would skip this audit entirely. (☄️ Comet Moon is Moon Race's
+// board with comets, so its screen is Moon Race's.)
+const PLAY_BOXES = BOARD_DATA.BOXES.filter((b) => b.id !== "comet").map((b, k) => {
+  const who = ["river", "dad", "viraj", "mom", "raegar", "grandma"][k % 6];
+  return [b.id, who, BOARD_DATA.FRIENDS.some((f) => f.id === who)];
+});
 
 const MIN_TAP = 75;
 const MIN_GAP = 14; // design target is 16px; 2px slack absorbs sub-pixel measurement
@@ -252,7 +261,8 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
         await page.evaluate(() => window.scrollTo(0, 0));
       }
     }
-    for (const [box, who, cpu] of [["moon", "river", true], ["rainbow", "dad", false], ["apple", "viraj", true], ["hundred", "mom", false], ["hen", "raegar", true], ["lotto", "grandma", false], ["spot", "river", true], ["pairs", "dad", false], ["doors", "viraj", true], ["acorns", "raegar", true], ["dominoes", "mom", false], ["dig", "viraj", true]]) {
+    assert.ok(PLAY_BOXES.length >= 13 && PLAY_BOXES.some((p) => p[2]) && PLAY_BOXES.some((p) => !p[2]), "fixture: every box, played against the computer and with a person here");
+    for (const [box, who, cpu] of PLAY_BOXES) {
       await page.evaluate((a) => window.__BOARD.start(a[0], a[1], a[2], 3, 0), [box, who, cpu]);
       await page.locator("#screen-board-play").waitFor({ state: "visible" });
       await page.waitForTimeout(300);

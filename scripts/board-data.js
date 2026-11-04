@@ -287,6 +287,45 @@
       lines: { home: "", end: "Every treasure is found! Hooray!" },
     },
     {
+      // 🍪 Cookie Jar (Nim, for a four-year-old: a game of PLANNING). A jar of
+      // cookies; on your turn take ONE, TWO or THREE. The LAST cookie in the
+      // jar is the golden one, and whoever takes it gets the ⭐. Then the next
+      // jar is opened; four jars, so both players eat plenty and there is one
+      // party. The skill: leave your friend FOUR (or eight) — whatever they
+      // take then, the golden one is yours. `take` is the most a turn takes.
+      id: "cookies", box: "cookies", game: "nim", name: "Cookie Jar", coop: true,
+      cols: 3, rows: 3, jars: [7, 9, 6, 10], take: 3, size: 32,
+      lines: { home: "", end: "Every jar is empty! Yum!" },
+    },
+    {
+      // 🔴 Line Up (connect three, for a four-year-old: a game of LINES).
+      // Three columns, four high: tap a column and your counter drops to the
+      // bottom of it. Three of yours in a row — across, up, or slanting — is a
+      // ⭐ (every new line counts, so one counter can make two). The board
+      // fills, a fresh one is set up, and after two boards there is one party.
+      // The skill: make a line, and stop your friend's. Three columns, because
+      // four 75px columns and their gaps are wider than a 320px phone; five
+      // high (a tall board is a portrait board): measured, five rows give 5.5
+      // ⭐s a game against four rows' 3.5, with the same edge for looking.
+      // `size` is each player's drops in all (every cell of both boards).
+      id: "lineup", box: "lineup", game: "lines", name: "Line Up", coop: true,
+      cols: 3, rows: 5, boards: 2, size: 15,
+      lines: { home: "", end: "Both boards are full! What lines!" },
+    },
+    {
+      // 🃏 Top Card (a trick game, for a four-year-old: a game of BIGGER and of
+      // SAVING). Each player has their own ten cards, 1 to 10, and holds three
+      // face up. The leader plays one; the other answers with one of theirs:
+      // the bigger card wins the trick and a ⭐ (the same number: nobody's).
+      // Both take a card back up to three, the lead goes to the other player,
+      // and after ten tricks there is one party. The skill: beat it with the
+      // SMALLEST card that does, and when you cannot, give your smallest —
+      // keep the big ones for when they count.
+      id: "topcard", box: "topcard", game: "top", name: "Top Card", coop: true,
+      cols: 3, rows: 3, deck: 10, hand: 3, size: 10,
+      lines: { home: "", end: "Every card is played! What a game!" },
+    },
+    {
       // 🍎 Apple Spin (Hi-Ho Cherry-O's mechanic): no track at all. Each
       // player fills their own TEN-FRAME basket from a big tree; `size` is the
       // basket. A spin says how many apples to pick (one tap, one apple); a
@@ -324,6 +363,9 @@
     // (no domino emoji is a picture on every phone, so its box is drawn)
     { id: "dig", board: "dig", name: "Treasure Dig", pic: "🏴‍☠️", colour: "#a16207", kind: "think" },
     { id: "dominoes", board: "dominoes", name: "Dot Dominoes", pic: "", art: "domino", colour: "#0f766e", kind: "think" },
+    { id: "cookies", board: "cookies", name: "Cookie Jar", pic: "🍪", colour: "#9a3412", kind: "think" },
+    { id: "lineup", board: "lineup", name: "Line Up", pic: "🔴", colour: "#be123c", kind: "think" },
+    { id: "topcard", board: "topcard", name: "Top Card", pic: "🃏", colour: "#4338ca", kind: "think" },
   ];
 
   // ---- Every line the game says ------------------------------------------
@@ -400,6 +442,17 @@
     digArrow: "Not here! The arrow points {d}!",
     digFound: "Treasure! {n} found it!",
     digNew: "A new treasure is buried!",
+    nimFirst: "Take one, two or three cookies! The last one is golden!",
+    nimLeft: "{d} left!",
+    nimGold: "{n} got the golden cookie!",
+    nimJar: "A new jar of cookies!",
+    linesFirst: "Tap a column! Three in a row is a star!",
+    linesThree: "Three in a row for {n}!",
+    linesNew: "A new board!",
+    topLead: "Play a card!",
+    topFollow: "Bigger than {d}? Play a card!",
+    topWin: "{d} is bigger than {e}! A star for {n}!",
+    topSame: "{d} and {d}! The same!",
     domWhich: "It fits both ends! Which end?",
     domBack: "Not that one. Back it goes!",
     domOut: "{n} laid every tile! A star!",

@@ -3357,6 +3357,115 @@ button.bn-sand { cursor: pointer; min-height: 75px; }
 .bn-sand--dug { background: radial-gradient(circle at 50% 55%, #6b4a1c, #a77b3a 75%); border-color: #6b4a1c; }
 .bn-sand--fresh { box-shadow: 0 0 0 5px #ffffff, var(--card-shadow); }
 .bn-sand--gem { background: #fff7d6; box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200, var(--card-shadow); }
+/* 🃏 Top Card: the table (each player's card, under their face) over the
+   hand of three; a card is its numeral over a ten-frame of its dots */
+.bn-top {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 6px;
+  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: minmax(0, 1fr) auto;
+  row-gap: 16px; justify-items: center; align-content: center;
+}
+.bn-top__table { display: grid; grid-template-columns: repeat(2, auto); column-gap: 16px; align-items: end; }
+.bn-top__spot {
+  position: relative; display: grid; justify-items: center;
+  padding: 6px; border: 4px solid #2b2b3a; border-radius: 18px; background: rgba(255, 255, 255, 0.6);
+}
+.bn-top__spot--win { box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200; }
+.bn-top__who {
+  position: absolute; left: -12px; top: -12px; z-index: 1;
+  display: block; width: 38px; height: 38px; border: 3px solid #2b2b3a; border-radius: 50%; overflow: hidden; background: #ffffff;
+}
+.bn-top__who > svg, .bn-top__who > .bn-emoji { display: block; width: 100%; height: 100%; }
+.bn-top__hand { display: grid; grid-template-columns: repeat(3, var(--tc-w, 96px)); column-gap: 16px; }
+.bn-tc {
+  width: var(--tc-w, 96px); height: var(--tc-h, 110px); min-height: 75px;
+  display: grid; grid-template-rows: 1fr auto; justify-items: center; align-items: center;
+  padding: 6px 4px 8px; border: 4px solid #312e81; border-radius: 14px;
+  background: #ffffff; color: #1e1b4b; box-shadow: var(--card-shadow); font: inherit; line-height: 1;
+}
+.bn-tc--table { width: var(--tt-w, 110px); height: calc(var(--tt-w, 110px) * 1.2); min-height: 0; }
+.bn-tc--empty { width: var(--tt-w, 110px); height: calc(var(--tt-w, 110px) * 1.2); min-height: 0; border-style: dashed; border-color: #9aa3c7; background: transparent; box-shadow: none; }
+button.bn-tc { cursor: pointer; }
+.bn-tc--still { opacity: 0.92; }
+.bn-tc--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
+.bn-tc--fresh { animation: bnCardIn 0.3s ease-out; }
+@keyframes bnCardIn { from { transform: translateY(40%) scale(0.8); opacity: 0.4; } to { transform: none; opacity: 1; } }
+.bn-tc__n { font-size: 1.6em; font-weight: 900; }
+.bn-tc__dots { display: grid; grid-template-columns: repeat(5, 0.22em); grid-auto-rows: 0.22em; gap: 0.06em; }
+.bn-tc__dot { border-radius: 50%; background: #312e81; }
+.bn-tc__dot--none { background: #dfe3f5; }
+/* 🔴 Line Up: three columns (each one big button), five slots high; a
+   counter is its player's face on their colour; a line's three glow gold */
+.bn-lines {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  display: grid; grid-template-columns: repeat(3, var(--col-w, 100px));
+  column-gap: 16px; justify-content: center; align-content: center;
+}
+.bn-col {
+  display: grid; grid-template-columns: minmax(0, 100%); grid-auto-rows: var(--slot, 48px);
+  row-gap: 6px; justify-items: center; align-content: end;
+  padding: 8px; min-height: 75px;
+  border: 4px solid #1e3a8a; border-radius: 18px;
+  background: linear-gradient(180deg, #3b5bdb, #1e40af);
+  box-shadow: var(--card-shadow); font: inherit; line-height: 1;
+}
+button.bn-col { cursor: pointer; }
+.bn-col--still { opacity: 0.92; }
+.bn-col--hint { box-shadow: 0 0 0 5px #ffffff, 0 0 0 9px #16a34a, var(--card-shadow); }
+.bn-slot {
+  display: block; width: var(--slot, 48px); height: var(--slot, 48px);
+  border-radius: 50%; background: #0b1f5c; border: 4px solid #0b1f5c; overflow: hidden;
+  box-sizing: border-box;
+}
+.bn-slot--on { background: #ffffff; }
+.bn-slot > svg, .bn-slot > .bn-emoji { display: block; width: 100%; height: 100%; }
+.bn-slot--line { box-shadow: 0 0 0 4px #ffd24d, 0 0 0 7px #7a5200; }
+.bn-slot--fresh { animation: bnSlotDrop 0.3s ease-in; }
+@keyframes bnSlotDrop { from { transform: translateY(-260%); } to { transform: translateY(0); } }
+.bn-slot--mini { width: 100%; height: 100%; }
+/* 🍪 Cookie Jar: the glass jar (its count on the lid, the golden cookie at
+   the bottom) over the takes, one, two or three */
+.bn-nim {
+  /* (the takes stop 6px short of the field's foot: with the field's own gap
+     that keeps them 16px from his pad) */
+  position: absolute; left: 0; top: 0; right: 0; bottom: 6px;
+  display: grid; grid-template-columns: minmax(0, 100%);
+  grid-template-rows: minmax(0, 1fr) var(--take-h, 96px);
+  row-gap: 16px; justify-items: center; align-items: center;
+}
+.bn-jar {
+  position: relative; width: var(--jar-w, 240px); height: var(--jar-h, 260px);
+  border: 6px solid #7fb3d5; border-top-width: 18px; border-radius: 26px 26px 44px 44px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), #e6f4fb 60%, #cfe7f5);
+  box-shadow: var(--card-shadow);
+}
+.bn-jar__n {
+  position: absolute; left: 50%; top: -0.2em; transform: translateX(-50%);
+  min-width: 1.6em; padding: 0 0.25em; border-radius: 0.5em;
+  background: #9a3412; color: #ffffff; font-weight: 900; font-size: 0.8em; line-height: 1.25; text-align: center;
+}
+.bn-cookie {
+  position: absolute; transform: translate(-50%, -50%);
+  width: 1.25em; height: 1.25em; display: grid; place-items: center; line-height: 1;
+}
+.bn-cookie--gold { border-radius: 50%; background: radial-gradient(circle, #fff3b0, #ffd24d 70%); box-shadow: 0 0 0 4px #ffd24d, 0 0 0 7px #7a5200; }
+.bn-cookie--go { animation: bnCookieGo 0.5s ease-in forwards; }
+@keyframes bnCookieGo { to { transform: translate(-50%, -160%) scale(1.3); opacity: 0; } }
+.bn-take {
+  width: 100%; height: var(--take-h, 96px);
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 16px;
+}
+.bn-takeb {
+  min-height: 75px; height: 100%; border: 4px solid #9a3412; border-radius: 18px;
+  background: #fff7ed; color: #3b1d02; box-shadow: var(--card-shadow);
+  display: grid; grid-template-rows: auto auto; place-items: center; align-content: center;
+  padding: 4px; font: inherit; line-height: 1;
+}
+button.bn-takeb { cursor: pointer; }
+.bn-takeb__pics { font-size: clamp(1rem, 5.2vw, 1.5rem); letter-spacing: -0.15em; white-space: nowrap; }
+.bn-takeb__n { font-size: 1.9rem; font-weight: 900; margin-top: 4px; }
+.bn-takeb--still { opacity: 0.6; }
+.bn-takeb--none { visibility: hidden; }
+.bn-takeb--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
 /* 🁢 Dot Dominoes: the ends row (two big ends, the line between them) over
    the mover's hand of upright tiles */
 .bn-dom {
@@ -3773,11 +3882,12 @@ button.bn-domt { cursor: pointer; }
   .bn-person__face { width: 52px; height: 52px; }
   .bn-pad { min-height: 92px; }
   /* 🧠 nine cards three high want 257px of field: on a short phone the pads
-     (here only whose turn it is — the cards are the buttons) give way */
-  .bn-play[data-game="pairs"] .bn-pad, .bn-play[data-game="acorns"] .bn-pad, .bn-play[data-game="dominoes"] .bn-pad, .bn-play[data-game="dig"] .bn-pad { min-height: 75px; padding: 4px 8px; }
-  .bn-play[data-game="pairs"] .bn-tray, .bn-play[data-game="acorns"] .bn-tray, .bn-play[data-game="dominoes"] .bn-tray, .bn-play[data-game="dig"] .bn-tray { margin-top: 16px; }
-  .bn-play[data-game="pairs"] .bn-pad__face, .bn-play[data-game="acorns"] .bn-pad__face, .bn-play[data-game="dominoes"] .bn-pad__face, .bn-play[data-game="dig"] .bn-pad__face { width: 40px; height: 40px; }
-  .bn-play[data-game="pairs"] .bn-pad .bn-card, .bn-play[data-game="acorns"] .bn-pad .bn-card, .bn-play[data-game="dominoes"] .bn-pad .bn-card, .bn-play[data-game="dig"] .bn-pad .bn-card { width: 44px; height: 44px; font-size: 1.7rem; }
+     give way wherever they only say whose turn it is (the board is the
+     buttons: `data-pad="turn"`, one list in board-main.js, PAD_TURN) */
+  .bn-play[data-pad="turn"] .bn-pad { min-height: 75px; padding: 4px 8px; }
+  .bn-play[data-pad="turn"] .bn-tray { margin-top: 16px; }
+  .bn-play[data-pad="turn"] .bn-pad__face { width: 40px; height: 40px; }
+  .bn-play[data-pad="turn"] .bn-pad .bn-card { width: 44px; height: 44px; font-size: 1.7rem; }
   .bn-die { width: 56px; height: 56px; padding: 6px; }
   .bn-die__cue { font-size: 2.8rem; }
   .bn-card, .bn-spinner, .bn-spin { width: 56px; height: 56px; font-size: 2.2rem; }
@@ -3812,6 +3922,9 @@ button.bn-domt { cursor: pointer; }
   .bn-pc--flip .bn-pc__pic { animation: none; }
   .bn-door--go { animation: none; }
   .bn-pot__pop { animation: none; }
+  .bn-cookie--go { animation: none; opacity: 0; }
+  .bn-slot--fresh { animation: none; }
+  .bn-tc--fresh { animation: none; }
   .bn-hand { animation: none; }
   .bn-party__face { animation: none; }
   .bn-box:active { transform: none; }

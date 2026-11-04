@@ -1013,7 +1013,11 @@ test("every finished game earns its box a 🏆 on the shelf, counted — and a f
     const w = b.querySelector(".bn-box__won");
     return [b.dataset.box, w ? w.textContent : null];
   })));
-  assert.deepEqual(await won(), { moon: "🏆 3", comet: null, rainbow: null, apple: null, hundred: null, hen: null, lotto: null, spot: null, pairs: null, doors: null, acorns: null, dominoes: null, dig: null }, "three Moon games: 🏆 3; the rest none yet");
+  // (every box on the shelf, derived: a hand-typed list went stale the day a
+  // fourteenth box landed)
+  const want = await page.evaluate(() => Object.fromEntries(window.BoardData.BOXES.map((b) => [b.id, b.id === "moon" ? "🏆 3" : null])));
+  assert.ok(Object.keys(want).length >= 14, "fixture: the whole shelf");
+  assert.deepEqual(await won(), want, "three Moon games: 🏆 3; the rest none yet");
   assert.match(await page.locator('.bn-box[data-box="moon"]').getAttribute("aria-label"), /played 3 times/);
   // the trophy pill sits in the corner, never on the box's name
   const clear = await page.evaluate(() => {
@@ -1635,7 +1639,7 @@ test("🚪 the FIRST Shut the Doors teaches: a way to make the roll glows from t
   assert.ok(hint.length && ways.some((w) => w.every((n) => hint.indexOf(n) >= 0)), `rolled ${s.die}: a way glows at once (${hint})`);
 });
 
-test("🁢 🌰 the FIRST Dot Dominoes and the FIRST Acorn Pots teach too: what fits glows on his turn before any miss — and in a later game it does not", async () => {
+test("🁢 🌰 🍪 🔴 🃏 the FIRST Dot Dominoes, Acorn Pots, Cookie Jar, Line Up and Top Card teach too: what fits glows on his turn before any miss — and in a later game it does not", async () => {
   for (const seen of [false, true]) {
     // 🁢 the tiles in his hand that match an open end
     await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
@@ -1666,6 +1670,45 @@ test("🁢 🌰 the FIRST Dot Dominoes and the FIRST Acorn Pots teach too: what 
     assert.ok(a.again.length && a.again.length < a.pots, `fixture: a pot reaches his nest and another does not (${a.again} of ${a.pots})`);
     if (!seen) assert.deepEqual(a.yes, a.again, "his first Acorn Pots: exactly the pots that reach his nest glow");
     else assert.deepEqual(a.yes, [], "a later Acorn Pots: no pot glows — counting is the skill");
+    // 🍪 the take that leaves his friend a multiple of four
+    await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
+    await startGame("cookies", "river", true, 3, 0);
+    await page.waitForFunction(() => window.__BOARD.state().phase === "take" && window.__BOARD.state().turn === 0 && !window.__BOARD.busy(), null, { timeout: 5000 });
+    const c = await page.evaluate(() => ({
+      best: window.BoardLogic.nimBest(window.__BOARD.state()),
+      hint: [...document.querySelectorAll("button.bn-takeb.bn-takeb--hint")].map((b) => Number(b.dataset.n)),
+    }));
+    assert.ok(c.best >= 1, "fixture: a take leaves four");
+    if (!seen) assert.deepEqual(c.hint, [c.best], "his first Cookie Jar: the take that leaves four glows");
+    else assert.deepEqual(c.hint, [], "a later Cookie Jar: nothing glows — planning is the skill");
+    // 🔴 the column that makes his line (a board where his two counters on
+    // the bottom row leave column 2 to finish it)
+    await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
+    await page.evaluate(() => window.__BOARD.load("lineup", (() => {
+      const g = window.BoardLogic.create({ board: "lineup", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
+      for (const c of [0, 0, 1, 1]) window.BoardLogic.dropLine(g, c);
+      return g;
+    })()));
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    await page.waitForFunction(() => window.__BOARD.state().phase === "drop" && window.__BOARD.state().turn === 0 && !window.__BOARD.busy(), null, { timeout: 5000 });
+    const ln = await page.evaluate(() => ({
+      best: window.BoardLogic.linesBest(window.__BOARD.state()),
+      hint: [...document.querySelectorAll("button.bn-col.bn-col--hint")].map((b) => Number(b.dataset.c)),
+    }));
+    assert.deepEqual(ln.best, [2], "fixture: column 2 finishes his bottom row");
+    if (!seen) assert.deepEqual(ln.hint, [2], "his first Line Up: the column that makes his line glows");
+    else assert.deepEqual(ln.hint, [], "a later Line Up: nothing glows — looking is the skill");
+    // 🃏 the saving card: the smallest that is bigger than the lead (the
+    // computer leads, so he answers)
+    await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
+    await startGame("topcard", "river", true, 3, 1);
+    await page.waitForFunction(() => window.__BOARD.state().phase === "follow" && window.__BOARD.state().turn === 0 && !window.__BOARD.busy(), null, { timeout: 8000 });
+    const tc = await page.evaluate(() => ({
+      best: window.BoardLogic.topBest(window.__BOARD.state()),
+      hint: [...document.querySelectorAll("button.bn-tc.bn-tc--hint")].map((b) => Number(b.dataset.v)),
+    }));
+    if (!seen) assert.deepEqual(tc.hint, [tc.best], "his first Top Card: the saving card glows");
+    else assert.deepEqual(tc.hint, [], "a later Top Card: nothing glows — saving is the skill");
   }
 });
 
@@ -1836,6 +1879,174 @@ test("🏴‍☠️ a whole Treasure Dig against the computer: nine big sand squ
   assert.ok(arrows >= 1 && gems >= 1 && cpuTried, `fixture: arrows, a find and the computer's turn all ran (${arrows}, ${gems})`);
   await page.locator(".bn-party").waitFor({ state: "visible" });
   assert.equal((await page.evaluate(() => window.__BOARD.save())).done.dig, 1, "a finished Treasure Dig counts once");
+  } finally { await slow(); }
+});
+
+test("🍪 a whole Cookie Jar against the computer: three big takes (never more than are left), the jar shows how many are left (sound off), the golden cookie waits at the bottom, a doubled tap takes once, the computer's turn is not his to take, four jars and one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("cookies", "river", true, 3, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the jar is the board");
+  const dom = () => page.evaluate(() => {
+    const cs = [...document.querySelectorAll(".bn-jar .bn-cookie")];
+    const top = (c) => parseFloat(c.style.top);
+    const gold = cs.find((c) => c.classList.contains("bn-cookie--gold"));
+    return {
+      takes: [...document.querySelectorAll(".bn-take .bn-takeb")].map((b) => { const r = b.getBoundingClientRect(); return { n: Number(b.dataset.n || 0), button: b.tagName === "BUTTON", shown: getComputedStyle(b).visibility !== "hidden", hint: b.classList.contains("bn-takeb--hint"), l: r.left, r: r.right, w: r.width, h: r.height }; }),
+      count: Number(document.querySelector(".bn-jar__n").textContent),
+      cookies: cs.length,
+      goldAtBottom: !!gold && cs.every((c) => top(c) <= top(gold)),
+    };
+  });
+  const d0 = await dom();
+  assert.equal(d0.takes.length, 3, "three takes: one, two, three");
+  assert.ok(d0.takes.every((t) => t.button && t.shown && t.w >= 75 && t.h >= 75), `three big takes (${d0.takes.map((t) => Math.round(t.w) + "x" + Math.round(t.h))})`);
+  assert.ok(d0.takes[1].l - d0.takes[0].r >= 16 && d0.takes[2].l - d0.takes[1].r >= 16, "16px apart");
+  assert.equal(d0.count, 7, "the jar shows its seven cookies");
+  assert.equal(d0.cookies, 7, "…and holds seven");
+  assert.ok(d0.goldAtBottom, "the golden cookie is at the bottom: the last one left");
+  assert.ok(d0.takes.every((t) => !t.hint), "nothing glows once he has been shown how");
+  // a doubled tap is ONE take (the hammer's echo)
+  await page.locator('.bn-take button.bn-takeb[data-n="1"]').dblclick();
+  await page.waitForFunction(() => window.__BOARD.state().turn === 1 || window.__BOARD.state().cookies !== 7, null, { timeout: 5000 });
+  assert.equal((await st()).seats[0].pos, 1, "a doubled tap took one cookie, not two");
+  let cpuTried = false, short = false, golden = 0;
+  for (let guard = 0; guard < 80; guard++) {
+    const x = await st();
+    if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      assert.equal(await page.locator(".bn-take button.bn-takeb").count(), 0, "on the computer's turn the takes are not his");
+    }
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    const d = await dom();
+    assert.equal(d.count, s.cookies, `the jar shows how many are left (${d.count} for ${s.cookies})`);
+    // never more than are left
+    const can = d.takes.filter((t) => t.button && t.shown).map((t) => t.n);
+    assert.deepEqual(can, [1, 2, 3].filter((n) => n <= s.cookies), `takes for ${s.cookies} left: ${can}`);
+    if (s.cookies < 3) short = true;
+    // he plans: leave his friend a multiple of four (or take one)
+    const n = (await page.evaluate(() => window.BoardLogic.nimBest(window.__BOARD.state()))) || 1;
+    if (n === s.cookies) golden++;
+    await page.locator('.bn-take button.bn-takeb[data-n="' + n + '"]').click();
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.equal(end.seats[0].stars + end.seats[1].stars, 4, "four jars, four golden cookies");
+  assert.equal(end.seats[0].pos + end.seats[1].pos, 32, "every cookie on a plate");
+  assert.ok(cpuTried && short && golden >= 1, `fixture: the computer's turn, a short jar and a golden cookie all ran (${golden})`);
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.cookies, 1, "a finished Cookie Jar counts once");
+  } finally { await slow(); }
+});
+
+test("🔴 a whole Line Up against the computer: three big columns, a counter drops to the bottom of its column wearing its player's face, three in a row glows and is a ⭐, a full column is no button, the computer's turn is not his, two boards and one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("lineup", "river", true, 3, 0);
+  const dom = () => page.evaluate(() => [...document.querySelectorAll(".bn-lines .bn-col")].map((c) => {
+    const r = c.getBoundingClientRect();
+    return { button: c.tagName === "BUTTON", c: Number(c.dataset.c), w: r.width, h: r.height, l: r.left, r: r.right,
+      // the slots from the BOTTOM up: empty, or whose counter (by colour)
+      slots: [...c.querySelectorAll(".bn-slot")].reverse().map((sl) => (sl.classList.contains("bn-slot--on") ? sl.style.borderColor : null)),
+      lines: c.querySelectorAll(".bn-slot--line").length };
+  }));
+  const colour = await page.evaluate(() => [window.BoardData.person("josh").colour, window.BoardData.person("river").colour]);
+  const rgb = (hex) => "rgb(" + [1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16)).join(", ") + ")";
+  const d0 = await dom();
+  assert.equal(d0.length, 3, "three columns");
+  assert.ok(d0.every((c) => c.button && c.w >= 75 && c.h >= 75), `three big columns (${d0.map((c) => Math.round(c.w) + "x" + Math.round(c.h))})`);
+  assert.ok(d0[1].l - d0[0].r >= 16 && d0[2].l - d0[1].r >= 16, "16px apart");
+  assert.ok(d0.every((c) => c.slots.length === 5 && c.slots.every((x) => x === null)), "five empty slots each");
+  let cpuTried = false, lines = 0, full = false, fresh = false;
+  for (let guard = 0; guard < 80; guard++) {
+    const x = await st();
+    if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      assert.equal(await page.locator(".bn-lines button.bn-col").count(), 0, "on the computer's turn the columns are not his");
+    }
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    if (s.boardNo === 1) fresh = true;
+    // the board on screen is the engine's, slot by slot, bottom up
+    const d = await dom();
+    for (let c = 0; c < 3; c++) {
+      const want = [0, 1, 2, 3, 4].map((r) => { const g = s.grid[r * 3 + c]; return g < 0 ? null : rgb(colour[g]); });
+      assert.deepEqual(d[c].slots, want, `column ${c} shows the engine's counters, bottom up`);
+      const isFull = s.grid[4 * 3 + c] >= 0;
+      if (isFull) { full = true; assert.ok(!d[c].button, `a full column is no button`); }
+    }
+    // he looks: the column that makes his line, or stops his friend's
+    const best = await page.evaluate(() => window.BoardLogic.linesBest(window.__BOARD.state()));
+    const open = await page.evaluate(() => window.BoardLogic.linesOpen(window.__BOARD.state()));
+    const c = best.length ? best[0] : open[0];
+    const makes = await page.evaluate((col) => window.BoardLogic.linesMade(window.__BOARD.state(), col, 0).length, c);
+    await page.locator('.bn-lines button.bn-col[data-c="' + c + '"]').click();
+    if (makes) {
+      // the line's three glow gold
+      await page.waitForFunction(() => document.querySelectorAll(".bn-lines .bn-slot--line").length >= 3, null, { timeout: 5000 });
+      lines++;
+    }
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.equal(end.seats[0].pos + end.seats[1].pos, 30, "every slot of both boards");
+  assert.ok(cpuTried && lines >= 1 && full && fresh, `fixture: the computer's turn, his line, a full column and the second board all ran (${lines})`);
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.lineup, 1, "a finished Line Up counts once");
+  } finally { await slow(); }
+});
+
+test("🃏 a whole Top Card against the computer: his three cards are big buttons showing the engine's hand, the friend's lead waits on the table under their face, the bigger card glows and is a ⭐, the computer's turn is not his, ten tricks and one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("topcard", "river", true, 3, 1);
+  const dom = () => page.evaluate(() => {
+    const spots = [...document.querySelectorAll(".bn-top__spot")];
+    return {
+      hand: [...document.querySelectorAll(".bn-top__hand .bn-tc")].map((b) => { const r = b.getBoundingClientRect(); return { v: Number(b.querySelector(".bn-tc__n").textContent), dots: b.querySelectorAll(".bn-tc__dot:not(.bn-tc__dot--none)").length, button: b.tagName === "BUTTON", w: r.width, h: r.height, l: r.left, r: r.right }; }),
+      table: spots.map((sp) => { const n = sp.querySelector(".bn-tc--table .bn-tc__n"); return n ? Number(n.textContent) : null; }),
+      win: spots.map((sp) => sp.classList.contains("bn-top__spot--win")),
+    };
+  });
+  let follows = 0, leads = 0, cpuTried = false, won = 0;
+  for (let guard = 0; guard < 60; guard++) {
+    const x = await st();
+    if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      assert.equal(await page.locator(".bn-top__hand button.bn-tc").count(), 0, "on the computer's turn his cards are not to play");
+    }
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    const d = await dom();
+    assert.deepEqual(d.hand.map((c) => c.v), s.hands[0].slice().sort((a, b) => a - b), "his hand on screen is the engine's");
+    assert.ok(d.hand.every((c) => c.button && c.w >= 75 && c.h >= 75 && c.dots === c.v), `big cards, each with its dots (${d.hand.map((c) => Math.round(c.w) + "x" + Math.round(c.h))})`);
+    for (let k = 1; k < d.hand.length; k++) assert.ok(d.hand[k].l - d.hand[k - 1].r >= 16, "16px apart");
+    if (s.phase === "follow") {
+      follows++;
+      assert.deepEqual(d.table, [null, s.table[1]], "the friend's lead waits on the table, under their face");
+    } else { leads++; assert.deepEqual(d.table, [null, null], "a fresh trick: the table is clear"); }
+    const v = await page.evaluate(() => window.BoardLogic.topBest(window.__BOARD.state()));
+    const wins = s.phase === "follow" && v > s.table[1];
+    await page.locator('.bn-top__hand button.bn-tc[data-v="' + v + '"]').click();
+    if (wins) {
+      // the bigger card glows on his side
+      await page.waitForFunction(() => { const sp = document.querySelectorAll(".bn-top__spot")[0]; return sp && sp.classList.contains("bn-top__spot--win"); }, null, { timeout: 5000 });
+      won++;
+    }
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.ok(end.gone.every((g) => g.length === 10), "ten tricks: every card played");
+  assert.ok(follows >= 1 && leads >= 1 && cpuTried && won >= 1, `fixture: he answered, he led, the computer played and he won a trick (${follows}, ${leads}, ${won})`);
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.topcard, 1, "a finished Top Card counts once");
   } finally { await slow(); }
 });
 

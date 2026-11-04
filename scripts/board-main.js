@@ -17,7 +17,10 @@
   if (!doc || !DATA || !L || !R) return;
   const SAY = DATA.SAY;
   // the games whose FIRST game teaches its rule with a glow (see `teach`)
-  const TEACH = ["doors", "dominoes", "acorns"];
+  const TEACH = ["doors", "dominoes", "acorns", "nim", "lines", "top"];
+  // the games whose BOARD is the buttons, so a pad only says whose turn it is
+  // (and the ⭐s): on a short phone those pads give way to the board
+  const PAD_TURN = ["pairs", "acorns", "dominoes", "dig", "nim", "lines", "top"];
   const KEY = "josh-board-v1";
   // A double-tap is a PLACE and a TIME (the framework's echo guard): a screen
   // that has just appeared ignores a finger for this long.
@@ -38,7 +41,7 @@
   // grown-up "hop by itself" switch · next: who starts the next two-person
   // game per box · last: the last box and its players.
   // "has been shown how", per kind of game (each kind's first-time hand)
-  const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors", "acorns", "dominoes", "dig"];
+  const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors", "acorns", "dominoes", "dig", "nim", "lines", "top"];
   function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, next: {}, last: null }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
   function coerce(text) {
@@ -124,7 +127,7 @@
   // ---- The screens -----------------------------------------------------------
   let shelf = null, who = null, pick = null, play = null;
   let boardEl = null, svgWrap = null, tokens = [null, null], pads = [null, null], hand = null, party = null;
-  let applesEl = null, popEl = null, markEl = null, coopEl = null, spotsEl = null, pairsEl = null, doorsEl = null, acornsEl = null, domEl = null, digEl = null;
+  let applesEl = null, popEl = null, markEl = null, coopEl = null, spotsEl = null, pairsEl = null, doorsEl = null, acornsEl = null, domEl = null, digEl = null, nimEl = null, linesEl = null, topEl = null;
   let whoBox = null, pickMode = null;   // which box the who/pick screens are for
 
   const bar = (cls, backLabel, backIcon, title) =>
@@ -211,6 +214,15 @@
           '<div class="bn-acorns" role="group" aria-label="The pots" hidden></div>' +
           // 🏴‍☠️ Treasure Dig: nine sand squares (each a button to dig)
           '<div class="bn-dig" role="group" aria-label="The sand" hidden></div>' +
+          // 🍪 Cookie Jar: the jar (the cookies in it, the golden one at the
+          // bottom) over the takes — one, two or three (the buttons)
+          // 🔴 Line Up: three columns (each a button: the counter drops to its
+          // bottom), five slots high
+          '<div class="bn-lines" role="group" aria-label="The board" hidden></div>' +
+          // 🃏 Top Card: the table (each player's card this trick, under their
+          // face) over the hand of three (the buttons)
+          '<div class="bn-top" hidden><div class="bn-top__table" aria-hidden="true"></div><div class="bn-top__hand" role="group" aria-label="Your cards"></div></div>' +
+          '<div class="bn-nim" hidden><div class="bn-jar" role="img"></div><div class="bn-take" role="group" aria-label="How many cookies?"></div></div>' +
           // 🁢 Dot Dominoes: the line's two open ends (big; buttons while a
           // tile waits for him to choose), the line itself small between
           // them, and the mover's hand (the tiles are buttons)
@@ -269,6 +281,21 @@
     digEl.addEventListener("click", (e) => {
       const b = e.target.closest(".bn-sand");
       if (b && digEl.contains(b) && b.tagName === "BUTTON") tapDig(Number(b.dataset.k), b);
+    });
+    topEl = play.querySelector(".bn-top");
+    topEl.addEventListener("click", (e) => {
+      const b = e.target.closest(".bn-tc");
+      if (b && topEl.contains(b) && b.tagName === "BUTTON") tapCard(Number(b.dataset.v), b);
+    });
+    linesEl = play.querySelector(".bn-lines");
+    linesEl.addEventListener("click", (e) => {
+      const b = e.target.closest(".bn-col");
+      if (b && linesEl.contains(b) && b.tagName === "BUTTON") tapColumn(Number(b.dataset.c), b);
+    });
+    nimEl = play.querySelector(".bn-nim");
+    nimEl.addEventListener("click", (e) => {
+      const b = e.target.closest(".bn-takeb");
+      if (b && nimEl.contains(b) && b.tagName === "BUTTON") tapTake(Number(b.dataset.n), b);
     });
     domEl = play.querySelector(".bn-dom");
     domEl.addEventListener("click", (e) => {
@@ -452,9 +479,10 @@
       teach: TEACH.indexOf(board.game) >= 0 && !save.intro[board.game] };
     play.querySelector(".bn-title").textContent = DATA.box(box).name;
     play.dataset.game = board.game;
+    play.dataset.pad = PAD_TURN.indexOf(board.game) >= 0 ? "turn" : "act";
     play.dataset.box = box;
     boardEl.classList.toggle("bn-board--chart", board.layout === "chart");
-    svgWrap.innerHTML = board.game === "spot" || board.game === "pairs" || board.game === "doors" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" ? "" : board.game === "spin" ? R.orchardSVG() : board.game === "lotto" ? R.picnicSVG(board, st.seats.map((s) => DATA.person(s.who).colour)) : R.boardSVG(board);
+    svgWrap.innerHTML = board.game === "spot" || board.game === "pairs" || board.game === "doors" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" || board.game === "nim" || board.game === "lines" || board.game === "top" ? "" : board.game === "spin" ? R.orchardSVG() : board.game === "lotto" ? R.picnicSVG(board, st.seats.map((s) => DATA.person(s.who).colour)) : R.boardSVG(board);
     applesEl.innerHTML = "";
     hidePop();
     hideMark();
@@ -465,7 +493,7 @@
       const p = seatPerson(i);
       // 🐔 co-op: ONE token, the hen, that both players walk home
       // 🧺 a picnic has no tokens at all: the foods are the pieces
-      tokens[i].hidden = (farm && i === 1) || board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "doors" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig";
+      tokens[i].hidden = (farm && i === 1) || board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "doors" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" || board.game === "nim" || board.game === "lines" || board.game === "top";
       tokens[i].querySelector(".bn-token__face").innerHTML = farm ? '<span class="bn-emoji">🐔</span>' : R.faceHTML(p);
       tokens[i].style.borderColor = farm ? "#c2410c" : p.colour;
       tokens[i].style.transitionDuration = "0ms";
@@ -494,7 +522,13 @@
     acornsEl.hidden = b.game !== "acorns";
     domEl.hidden = b.game !== "dominoes";
     digEl.hidden = b.game !== "dig";
+    nimEl.hidden = b.game !== "nim";
+    linesEl.hidden = b.game !== "lines";
+    topEl.hidden = b.game !== "top";
+    if (b.game === "top") return layoutTop(w, h);
+    if (b.game === "lines") return layoutLines(w, h);
     if (b.game === "dig") return layoutDig(w, h);
+    if (b.game === "nim") return layoutNim(w, h);
     if (b.game === "dominoes") return layoutDom(w, h);
     if (b.game === "acorns") return layoutAcorns(w, h);
     if (b.game === "doors") return layoutDoors(w, h);
@@ -724,6 +758,206 @@
     const st = game.st;
     if (game.busy || st.phase !== "dig" || !st.seats[st.turn].cpu) return;
     tapDig(L.digChoice(st), null);
+  }
+  // 🃏 the table (two cards side by side) over the hand of three
+  function layoutTop(w, h) {
+    const GAP = 16;
+    // the hand first (three big buttons, a card 1.15 times as tall as wide),
+    // then the table takes the height that is left (its two cards are only
+    // looked at, so they may be smaller on a short phone)
+    const hw = Math.max(75, Math.min(120, Math.floor((w - 2 * GAP) / 3))), hh = Math.max(75, Math.round(hw * 1.15));
+    const room = h - hh - GAP - 14;
+    const tw = Math.max(48, Math.min(150, Math.floor(room / 1.2), Math.floor((w - GAP) / 2) - 12));
+    topEl.style.setProperty("--tc-w", hw + "px");
+    topEl.style.setProperty("--tc-h", hh + "px");
+    topEl.style.setProperty("--tt-w", tw + "px");
+    topEl.style.fontSize = Math.round(Math.min(hw, tw) * 0.42) + "px";
+    boardEl.style.width = w + "px";
+    boardEl.style.height = h + "px";
+    boardEl.style.left = "0px";
+    boardEl.style.top = "0px";
+  }
+  // What the table SHOWS (`game.tv`): the engine has already cleared the
+  // table and refilled the hands while the trick's winner is still glowing
+  function topView() { const st = game.st; return { hands: st.hands.map((h) => h.slice()), table: st.table.slice(), win: null, fresh: -1 }; }
+  // a number card: the numeral and its dots in a ten-frame (two rows of five)
+  function numCardHTML(v) {
+    let dots = "";
+    for (let k = 0; k < 10; k++) dots += '<span class="bn-tc__dot' + (k < v ? "" : " bn-tc__dot--none") + '"></span>';
+    return '<span class="bn-tc__n" aria-hidden="true">' + v + '</span><span class="bn-tc__dots" aria-hidden="true">' + dots + "</span>";
+  }
+  function paintTop() {
+    if (!game || game.board.game !== "top" || !game.tv) return;
+    const v = game.tv, st = game.st;
+    const turn = game.showTurn == null ? st.turn : game.showTurn;
+    const mine = (st.phase === "lead" || st.phase === "follow") && !game.busy && !st.seats[turn].cpu;
+    // the table: each player's card under their face, in the pads' order
+    // (his on the left, over his pad)
+    let table = "";
+    for (const j of [0, 1]) {
+      const card = v.table[j], p = seatPerson(j);
+      // (the face is a badge on the spot's corner, so the card keeps the height)
+      table += '<span class="bn-top__spot' + (v.win === j ? " bn-top__spot--win" : "") + '" style="border-color:' + p.colour + '"><span class="bn-top__who" style="border-color:' + p.colour + '">' + R.faceHTML(p) + "</span>" +
+        (card != null ? '<span class="bn-tc bn-tc--table' + (v.fresh === j ? " bn-tc--fresh" : "") + '">' + numCardHTML(card) + "</span>" : '<span class="bn-tc bn-tc--empty"></span>') + "</span>";
+    }
+    topEl.querySelector(".bn-top__table").innerHTML = table;
+    // the hand: the player on the move (or, while the computer plays, his
+    // own, so he can plan); his first game lights the saving card
+    const hs = st.seats[turn].cpu ? 1 - turn : turn;
+    const best = mine && game.teach && st.phase === "follow" ? L.topBest(st) : null;
+    let hand = "";
+    for (const c of v.hands[hs].slice().sort((x, y) => x - y)) {
+      if (mine && hs === turn) hand += '<button class="tap bn-tc' + (c === best ? " bn-tc--hint" : "") + '" type="button" data-v="' + c + '" aria-label="Play ' + c + '">' + numCardHTML(c) + "</button>";
+      else hand += '<span class="bn-tc bn-tc--still" role="img" aria-label="' + c + '">' + numCardHTML(c) + "</span>";
+    }
+    const handEl = topEl.querySelector(".bn-top__hand");
+    handEl.innerHTML = hand;
+    handEl.setAttribute("aria-label", nameOf(hs) + "'s cards");
+    topEl.querySelector(".bn-top__table").setAttribute("aria-label", [0, 1].map((j) => nameOf(j) + (v.table[j] != null ? " played " + v.table[j] : " has not played")).join(". "));
+  }
+  function tapCard(c, btn) {
+    if (!game || game.board.game !== "top" || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "lead" && st.phase !== "follow") return;
+    if (btn && st.seats[st.turn].cpu) return;
+    const ev = L.playCard(st, c);
+    if (!ev.length) return;
+    hideHand();
+    if (!save.intro.top && !st.seats[ev[0].seat].cpu) { save.intro.top = true; persist(); }
+    playEvents(ev);
+  }
+  function cpuTop() {
+    if (!game || game.board.game !== "top") return;
+    if (!playVisible()) { game.cpuWaiting = true; return; }
+    const st = game.st;
+    if (game.busy || (st.phase !== "lead" && st.phase !== "follow") || !st.seats[st.turn].cpu) return;
+    tapCard(L.topChoice(st), null);
+  }
+  // 🔴 three columns, five slots high, as big as the field allows
+  function layoutLines(w, h) {
+    const b = game.board, GAP = 16, PAD = 8, SGAP = 6;
+    const colW = Math.max(75, Math.min(130, Math.floor((w - (b.cols - 1) * GAP) / b.cols)));
+    const slot = Math.max(30, Math.min(colW - 2 * PAD, Math.floor((h - 8 - 2 * PAD - (b.rows - 1) * SGAP) / b.rows)));
+    linesEl.style.setProperty("--col-w", colW + "px");
+    linesEl.style.setProperty("--slot", slot + "px");
+    boardEl.style.width = w + "px";
+    boardEl.style.height = h + "px";
+    boardEl.style.left = "0px";
+    boardEl.style.top = "0px";
+  }
+  // What the board SHOWS (`game.lv`): the counters, the cells of the lines
+  // made (they glow), and the counter just dropped (it falls in)
+  function linesView() {
+    const st = game.st, b = game.board, lines = [];
+    for (const ln of L.linesOf(b)) if (st.grid[ln[0]] >= 0 && ln.every((k) => st.grid[k] === st.grid[ln[0]])) lines.push(...ln);
+    return { grid: st.grid.slice(), lines, fresh: -1 };
+  }
+  function paintLines() {
+    if (!game || game.board.game !== "lines" || !game.lv) return;
+    const v = game.lv, st = game.st, b = game.board;
+    const turn = game.showTurn == null ? st.turn : game.showTurn;
+    const mine = st.phase === "drop" && !game.busy && !st.seats[turn].cpu;
+    // his first game: the column that makes his line (or stops his friend's)
+    const best = mine && game.teach ? L.linesBest(st) : [];
+    let html = "";
+    for (let c = 0; c < b.cols; c++) {
+      let slots = "";
+      for (let r = b.rows - 1; r >= 0; r--) {
+        const k = r * b.cols + c, g = v.grid[k];
+        if (g < 0) { slots += '<span class="bn-slot"></span>'; continue; }
+        slots += '<span class="bn-slot bn-slot--on' + (v.lines.indexOf(k) >= 0 ? " bn-slot--line" : "") + (k === v.fresh ? " bn-slot--fresh" : "") + '" style="border-color:' + seatPerson(g).colour + '">' + R.faceHTML(seatPerson(g)) + "</span>";
+      }
+      const full = L.dropRow(st, c) < 0;
+      const filled = v.grid.filter((x, k) => k % b.cols === c && x >= 0).length;
+      const label = "Column " + (c + 1) + ": " + (full ? "full" : filled + (filled === 1 ? " counter" : " counters"));
+      if (mine && !full) html += '<button class="tap bn-col' + (best.indexOf(c) >= 0 ? " bn-col--hint" : "") + '" type="button" data-c="' + c + '" aria-label="' + label + ', drop here">' + slots + "</button>";
+      else html += '<span class="bn-col bn-col--still' + (full ? " bn-col--full" : "") + '" role="img" aria-label="' + label + '">' + slots + "</span>";
+    }
+    linesEl.innerHTML = html;
+  }
+  function tapColumn(c, btn) {
+    if (!game || game.board.game !== "lines" || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "drop") return;
+    if (btn && st.seats[st.turn].cpu) return;
+    const ev = L.dropLine(st, c);
+    if (!ev.length) return;   // a full column (or the hammer's echo)
+    hideHand();
+    if (!save.intro.lines && !st.seats[ev[0].seat].cpu) { save.intro.lines = true; persist(); }
+    playEvents(ev);
+  }
+  function cpuLines() {
+    if (!game || game.board.game !== "lines") return;
+    if (!playVisible()) { game.cpuWaiting = true; return; }
+    const st = game.st;
+    if (game.busy || st.phase !== "drop" || !st.seats[st.turn].cpu) return;
+    tapColumn(L.linesChoice(st), null);
+  }
+  // 🍪 the jar over the takes, as big as the field allows
+  function layoutNim(w, h) {
+    const GAP = 16, row = Math.max(80, Math.min(112, Math.floor(h * 0.24)));
+    const jarH = Math.max(150, h - row - GAP - 8), jarW = Math.max(150, Math.min(w - 8, Math.round(jarH * 0.92), 340));
+    nimEl.style.setProperty("--jar-w", jarW + "px");
+    nimEl.style.setProperty("--jar-h", jarH + "px");
+    nimEl.style.setProperty("--take-h", row + "px");
+    // (a cookie is 1.25em and they stand 24% of the jar apart, so a cookie
+    // never pokes out of its place or the jar)
+    nimEl.style.fontSize = Math.round(Math.min(jarW, jarH) / 5.6) + "px";
+    boardEl.style.width = w + "px";
+    boardEl.style.height = h + "px";
+    boardEl.style.left = "0px";
+    boardEl.style.top = "0px";
+  }
+  // What the jar SHOWS (`game.cv`): the engine has already opened the next
+  // jar while the golden cookie is still glowing
+  function nimView() { const st = game.st; return { cookies: st.cookies, jar: st.jar, going: 0, gold: false }; }
+  // where cookie k sits in the jar: four a row, filled from the bottom, the
+  // golden one (k = 0) at the bottom, so it is the last one left
+  function cookieAt(k) { const row = Math.floor(k / 4), col = k % 4; return { x: 14 + col * 24, y: 86 - row * 24 }; }
+  function paintNim() {
+    if (!game || game.board.game !== "nim" || !game.cv) return;
+    const v = game.cv, st = game.st;
+    const turn = game.showTurn == null ? st.turn : game.showTurn;
+    const mine = st.phase === "take" && !game.busy && !st.seats[turn].cpu;
+    const jar = nimEl.querySelector(".bn-jar");
+    let html = '<span class="bn-jar__n" aria-hidden="true">' + (v.cookies - v.going) + "</span>";
+    for (let k = 0; k < v.cookies; k++) {
+      const p = cookieAt(k), gold = k === 0;
+      const going = k >= v.cookies - v.going || (gold && v.gold);
+      html += '<span class="bn-cookie' + (gold ? " bn-cookie--gold" : "") + (going ? " bn-cookie--go" : "") + '" style="left:' + p.x + "%;top:" + p.y + '%" aria-hidden="true">🍪</span>';
+    }
+    jar.innerHTML = html;
+    jar.setAttribute("aria-label", (v.cookies - v.going) + ((v.cookies - v.going) === 1 ? " cookie" : " cookies") + " in the jar. The last one is golden.");
+    // the takes: one, two or three (never more than are left); his first game
+    // lights the one that leaves his friend a multiple of four
+    const best = mine && game.teach ? L.nimBest(st) : 0;
+    let take = "";
+    for (let n = 1; n <= game.board.take; n++) {
+      const pics = '<span class="bn-takeb__pics" aria-hidden="true">' + "🍪".repeat(n) + '</span><span class="bn-takeb__n" aria-hidden="true">' + n + "</span>";
+      const can = n <= st.cookies && st.phase === "take";
+      const label = "Take " + (n === 1 ? "one cookie" : n === 2 ? "two cookies" : "three cookies");
+      if (mine && can) take += '<button class="tap bn-takeb' + (n === best ? " bn-takeb--hint" : "") + '" type="button" data-n="' + n + '" aria-label="' + label + '">' + pics + "</button>";
+      else take += '<span class="bn-takeb bn-takeb--still' + (can ? "" : " bn-takeb--none") + '" role="img" aria-label="' + label + '">' + pics + "</span>";
+    }
+    nimEl.querySelector(".bn-take").innerHTML = take;
+  }
+  function tapTake(n, btn) {
+    if (!game || game.board.game !== "nim" || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "take") return;
+    if (btn && st.seats[st.turn].cpu) return;
+    const ev = L.takeCookies(st, n);
+    if (!ev.length) return;
+    hideHand();
+    if (!save.intro.nim && !st.seats[ev[0].seat].cpu) { save.intro.nim = true; persist(); }
+    playEvents(ev);
+  }
+  function cpuNim() {
+    if (!game || game.board.game !== "nim") return;
+    if (!playVisible()) { game.cpuWaiting = true; return; }
+    const st = game.st;
+    if (game.busy || st.phase !== "take" || !st.seats[st.turn].cpu) return;
+    tapTake(L.nimChoice(st), null);
   }
   // 🁢 one domino, drawn: two halves of dots (1 to 5), side by side or one
   // above the other. The dots are the same five patterns as the die.
@@ -1078,7 +1312,7 @@
   function orchardFrac(p) { return { x: p.x / R.ORCH, y: p.y / R.ORCH }; }
   function placeTokens() {
     const st = game.st, b = game.board;
-    if (b.game === "lotto" || b.game === "spot" || b.game === "pairs" || b.game === "doors" || b.game === "acorns" || b.game === "dominoes" || b.game === "dig") return;
+    if (b.game === "lotto" || b.game === "spot" || b.game === "pairs" || b.game === "doors" || b.game === "acorns" || b.game === "dominoes" || b.game === "dig" || b.game === "nim" || b.game === "lines" || b.game === "top") return;
     if (b.game === "spin") {
       for (let i = 0; i < 2; i++) {
         const sp = orchardFrac(R.ORCHARD.face[i]);
@@ -1136,6 +1370,9 @@
     game.av = game.board.game === "acorns" ? acornsView() : null;
     game.dv = game.board.game === "dominoes" ? domView() : null;
     game.gv = game.board.game === "dig" ? digView() : null;
+    game.cv = game.board.game === "nim" ? nimView() : null;
+    game.lv = game.board.game === "lines" ? linesView() : null;
+    game.tv = game.board.game === "top" ? topView() : null;
     game.shownShut = game.st.seats.map((s) => (s.shut ? s.shut.slice() : []));
     game.doorsGo = null;
     placeTokens();
@@ -1145,6 +1382,9 @@
     paintAcorns();
     paintDom();
     paintDig();
+    paintNim();
+    paintLines();
+    paintTop();
     paintApples();
     paintFoods();
     paintCoop();
@@ -1172,6 +1412,19 @@
     }
     if (game.board.game === "doors") {
       boardEl.setAttribute("aria-label", [0, 1].map((i) => nameOf(i) + " has shut " + game.shownShut[i].length + " of 6 doors").join(". ") + ".");
+      return;
+    }
+    if (game.board.game === "top") {
+      const t = st.gone[0].length;
+      boardEl.setAttribute("aria-label", (t < game.board.deck ? "Trick " + (t + 1) + " of " + game.board.deck + ". " : "") + [0, 1].map((i) => nameOf(i) + " has " + game.shownStars[i] + (game.shownStars[i] === 1 ? " star" : " stars")).join(". ") + ".");
+      return;
+    }
+    if (game.board.game === "lines") {
+      boardEl.setAttribute("aria-label", "Board " + (st.boardNo + 1) + " of " + game.board.boards + ". " + [0, 1].map((i) => nameOf(i) + " has " + game.shownStars[i] + (game.shownStars[i] === 1 ? " star" : " stars")).join(". ") + ".");
+      return;
+    }
+    if (game.board.game === "nim") {
+      boardEl.setAttribute("aria-label", "Jar " + (st.jar + 1) + " of " + game.board.jars.length + ". " + [0, 1].map((i) => nameOf(i) + " has " + st.seats[i].stars + (st.seats[i].stars === 1 ? " golden cookie" : " golden cookies")).join(". ") + ".");
       return;
     }
     if (game.board.game === "dig") {
@@ -1232,6 +1485,23 @@
         const hopping = active && st.phase === "hop" && st.turn === i;
         const shutting = active && st.phase === "shut";
         pad.setAttribute("aria-label", nameOf(i) + (active ? (shutting ? ": shut the doors that make " + st.die : hopping ? (st.die === L.TEN ? ": tap for ten more" : ": tap to hop, " + st.left + " to go") : ": tap to roll the dice") : ": wait for your turn") + (s.home ? (game.board.game === "doors" ? ", every door shut" : ", home") : ""));
+      } else if (game.board.game === "top") {
+        // 🃏 the hand is the buttons; the pad is whose turn it is and the ⭐s
+        act.innerHTML = '<span class="bn-card bn-card--basket">🃏</span>';
+        pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
+        pad.setAttribute("aria-label", nameOf(i) + (active ? (st.phase === "follow" ? ": play a card bigger than " + st.table[st.lead] : ": play a card") : ": wait for your turn"));
+      } else if (game.board.game === "lines") {
+        // 🔴 the columns are the buttons; the pad shows the player's own
+        // counter (their face on their colour) and the ⭐s
+        act.innerHTML = '<span class="bn-card bn-card--basket"><span class="bn-slot bn-slot--on bn-slot--mini" style="border-color:' + seatPerson(i).colour + '">' + R.faceHTML(seatPerson(i)) + "</span></span>";
+        pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
+        pad.setAttribute("aria-label", nameOf(i) + (active ? ": tap a column to drop your counter" : ": wait for your turn"));
+      } else if (game.board.game === "nim") {
+        // 🍪 the takes under the jar are the buttons; the pad is whose turn it
+        // is and the ⭐s (a golden cookie each)
+        act.innerHTML = '<span class="bn-card bn-card--basket">🍪</span>';
+        pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
+        pad.setAttribute("aria-label", nameOf(i) + (active ? ": take one, two or three cookies" : ": wait for your turn"));
       } else if (game.board.game === "dig") {
         // 🏴‍☠️ the sand is the buttons; the pad is whose turn and the ⭐s
         act.innerHTML = '<span class="bn-card bn-card--basket">⛏️</span>';
@@ -1384,6 +1654,9 @@
     if (game.dv) { game.dv.held = st.held; game.dv.glow = game.teach && !st.seats[st.turn].cpu && st.phase === "lay" ? domFits() : []; }
     paintDom();
     paintDig();
+    paintNim();
+    paintLines();
+    paintTop();
     persistGame();
     const i = st.turn;
     if (st.seats[i].cpu) {
@@ -1398,6 +1671,7 @@
     else if (st.phase === "second") sayPlay(SAY.pairsFirst);
     else if (st.phase === "shut") sayPlay(fill(SAY.doorsPick, { d: st.die }));
     else if (st.phase === "draw") sayPlay(fill(SAY.turn, { n: nameOf(i) }) + " " + SAY.domDraw);
+    else if (st.phase === "follow") sayPlay(fill(SAY.turn, { n: nameOf(i) }) + " " + fill(SAY.topFollow, { d: st.table[st.lead] }));
     else sayPlay(fill(SAY.turn, { n: nameOf(i) }) + (first ? " " + firstLine() : ""));
     if (first) showHand(i);
     if (st.phase === "hop" && save.auto) autoHops();
@@ -1408,7 +1682,7 @@
   function hopLine() { return !game ? SAY.hopFirst : game.board.game === "hen" ? SAY.henFirst : game.st.die === L.TEN ? SAY.tenFirst : SAY.hopFirst; }
   // which first-time hand a HOP belongs to: the dice's, or the farm's
   function introKey() { return game && game.board.game === "hen" ? "hen" : "dice"; }
-  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" || g === "hen" ? SAY.spinFirst : g === "lotto" ? SAY.basketFirst : g === "pairs" ? SAY.pairsFirst : g === "doors" ? SAY.doorsFirst : g === "acorns" ? SAY.acornsFirst : g === "dominoes" ? SAY.domFirst : g === "dig" ? SAY.digFirst : SAY.flipFirst; }
+  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" || g === "hen" ? SAY.spinFirst : g === "lotto" ? SAY.basketFirst : g === "pairs" ? SAY.pairsFirst : g === "doors" ? SAY.doorsFirst : g === "acorns" ? SAY.acornsFirst : g === "dominoes" ? SAY.domFirst : g === "dig" ? SAY.digFirst : g === "nim" ? SAY.nimFirst : g === "lines" ? SAY.linesFirst : g === "top" ? SAY.topLead : SAY.flipFirst; }
 
   function padTap(i) {
     if (!game || !playVisible()) return;
@@ -1437,6 +1711,9 @@
     if (game.board.game === "pairs") { sayPlay(SAY.pairsFirst); showHand(i); later(hideHand, 2600); return; }
     if (game.board.game === "acorns") { sayPlay(SAY.acornsFirst); showHand(i); later(hideHand, 2600); return; }
     if (game.board.game === "dig") { sayPlay(SAY.digFirst); showHand(i); later(hideHand, 2600); return; }
+    if (game.board.game === "nim") { sayPlay(SAY.nimFirst); showHand(i); later(hideHand, 2600); return; }
+    if (game.board.game === "lines") { sayPlay(SAY.linesFirst); showHand(i); later(hideHand, 2600); return; }
+    if (game.board.game === "top") { sayPlay(st.phase === "follow" ? fill(SAY.topFollow, { d: st.table[st.lead] }) : SAY.topLead); showHand(i); later(hideHand, 2600); return; }
     if (game.board.game === "dominoes") {
       if (st.phase === "draw") return fishTile();
       sayPlay(SAY.domFirst); showHand(i); later(hideHand, 2600); return;
@@ -1531,6 +1808,9 @@
     if (game.board.game === "acorns") return cpuAcorn();
     if (game.board.game === "dominoes") return cpuDom();
     if (game.board.game === "dig") return cpuDig();
+    if (game.board.game === "nim") return cpuNim();
+    if (game.board.game === "lines") return cpuLines();
+    if (game.board.game === "top") return cpuTop();
     if (game.board.game === "doors" && st.phase === "shut") return cpuDoors();
     if (st.phase === "roll") return rollDice();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
@@ -1817,6 +2097,73 @@
           cheer(e.seat, true);
         });
         at(T.ride, () => { landStar(e.seat); paintBoardLabel(); });
+      } else if (e.type === "lead" || e.type === "answer") {
+        // 🃏 a card goes from the hand onto the table, under its player's face
+        at(0, () => {
+          const v = game.tv;
+          v.hands[e.seat] = v.hands[e.seat].filter((x) => x !== e.v);
+          v.table[e.seat] = e.v; v.fresh = e.seat;
+          paintTop();
+          SFX.flip();
+          sayPlay(String(e.v));
+        });
+        at(T.glide, () => { game.tv.fresh = -1; });
+      } else if (e.type === "trick") {
+        // the bigger one glows and its player gets the ⭐; then the table is
+        // cleared and both hands fill back up
+        at(T.glide, () => {
+          game.tv.win = e.win;
+          paintTop();
+          if (e.win >= 0) {
+            SFX.boost();
+            sayPlay(fill(SAY.topWin, { d: e.cards[e.win], e: e.cards[1 - e.win], n: nameOf(e.win) }));
+            cheer(e.win, true);
+          } else { SFX.thunk(); sayPlay(fill(SAY.topSame, { d: e.cards[0] })); }
+        });
+        at(T.ride, () => { if (e.win >= 0) landStar(e.win); paintBoardLabel(); });
+        at(T.look - T.ride, () => { game.tv = topView(); paintTop(); });
+      } else if (e.type === "drop") {
+        // 🔴 the counter falls to the bottom of its column
+        at(0, () => {
+          game.lv.grid[e.cell] = e.seat; game.lv.fresh = e.cell;
+          paintLines();
+          SFX.plop(e.row);
+        });
+        at(T.glide, () => { game.lv.fresh = -1; });
+      } else if (e.type === "line") {
+        // three in a row: the three glow gold, a ⭐
+        at(0, () => {
+          game.lv.lines = game.lv.lines.concat(e.cells);
+          paintLines();
+          SFX.boost();
+          sayPlay(fill(SAY.linesThree, { n: nameOf(e.seat) }));
+          cheer(e.seat, true);
+        });
+        at(T.ride, () => { landStar(e.seat); paintBoardLabel(); });
+      } else if (e.type === "fresh") {
+        at(T.look, () => { game.lv = linesView(); SFX.whoosh(); sayPlay(SAY.linesNew); paintLines(); paintBoardLabel(); });
+      } else if (e.type === "nibble") {
+        // 🍪 the cookies taken leave the jar (from the top), and the jar's
+        // count is said: he counts how many are left
+        at(0, () => {
+          game.cv.going = e.n;
+          paintNim();
+          SFX.plop(e.left);
+          if (e.left > 0) sayPlay(fill(SAY.nimLeft, { d: e.left }));
+        });
+        at(T.glide * 2, () => { game.cv.cookies = e.left; game.cv.going = 0; paintNim(); });
+      } else if (e.type === "golden") {
+        // the last one is the golden cookie: a ⭐
+        at(0, () => {
+          game.cv.gold = true;
+          paintNim();
+          SFX.home();
+          sayPlay(fill(SAY.nimGold, { n: nameOf(e.seat) }));
+          cheer(e.seat, true);
+        });
+        at(T.ride, () => { landStar(e.seat); paintBoardLabel(); });
+      } else if (e.type === "jar") {
+        at(T.cheer - T.ride, () => { game.cv = { cookies: e.n, jar: e.jar, going: 0, gold: false }; SFX.whoosh(); sayPlay(SAY.nimJar); paintNim(); paintBoardLabel(); });
       } else if (e.type === "bury") {
         at(T.look, () => { game.gv = digView(); SFX.whoosh(); sayPlay(SAY.digNew); paintDig(); });
       } else if (e.type === "lay") {
@@ -2338,6 +2685,9 @@
     const again = game && game.board.game === "acorns" ? L.acornAgains(game.st) : [];
     const card = game && game.board.game === "pairs" ? pairsEl.querySelector("button.bn-pc:not(.bn-pc--up)")
       : game && game.board.game === "dig" ? digEl.querySelector("button.bn-sand")
+      : game && game.board.game === "top" ? topEl.querySelector("button.bn-tc--hint") || topEl.querySelector("button.bn-tc")
+      : game && game.board.game === "lines" ? linesEl.querySelector("button.bn-col--hint") || linesEl.querySelector("button.bn-col")
+      : game && game.board.game === "nim" ? nimEl.querySelector("button.bn-takeb--hint") || nimEl.querySelector("button.bn-takeb")
       : game && game.board.game === "dominoes" ? (game.st.phase === "lay" && (domEl.querySelector("button.bn-domt") && [...domEl.querySelectorAll("button.bn-domt")].find((b) => L.domSides(game.st, b.dataset.id).length))) || null
       : game && game.board.game === "acorns" ? (again.length && acornsEl.querySelector('button.bn-pot[data-k="' + again[again.length - 1] + '"]')) || acornsEl.querySelector("button.bn-pot") : null;
     const pad = card || pads[i];
@@ -2361,6 +2711,7 @@
     else if (st.phase === "second") say(SAY.pairsFirst);
     else if (st.phase === "shut") say(fill(SAY.doorsPick, { d: st.die }));
     else if (st.phase === "draw") say(SAY.domDraw);
+    else if (st.phase === "follow") say(fill(SAY.topFollow, { d: st.table[st.lead] }));
     else say(fill(SAY.turn, { n: nameOf(i) }) + " " + firstLine());
     showHand(i);
     later(hideHand, 2600);

@@ -1,10 +1,11 @@
 # 🎲 Game Night — board games for Josh (and a friend)
 
-**Status: BATCHES 1, 2, 3 AND 4 BUILT** (batches 1-2
+**Status: BATCHES 1-4 BUILT, BATCH 5 IN PROGRESS** (batches 1-2
 audited twice; §11 is batch 3: 💯 Hundred Hop, 🐔 Hen House, 🧺 Picnic Lotto,
 and 👀 Twin Spot, the owner's Spot It ask; §12 is batch 4, games of SKILL:
 🧠 Peek-a-Pair, 🚪 Shut the Doors, 🌰 Acorn Pots, 🁢 Dot Dominoes and
-🏴‍☠️ Treasure Dig, all built) — the door, the shelf, the shared turn
+🏴‍☠️ Treasure Dig, all built; §13 is batch 5, games of STRATEGY: 🍪 Cookie
+Jar, 🔴 Line Up and 🃏 Top Card built, 🎨 Colour Grab and 🎲 Pick a Die next) — the door, the shelf, the shared turn
 routine, the engine, 🚀 Moon Race (with ☄️ Comet Moon), 🌈 Rainbow Trail, and
 🍎 Apple Spin (the owner's go, 2026-10-28, with "deeply audit the first 2
 games … to make them even more high quality and fun and exciting": §8).
@@ -436,3 +437,60 @@ even 50%; two doors at once 64% against 51%; counting acorns 62% of the ⭐s
 against 36%; choosing the domino's end 86% laid against 75%; reading the
 arrows 66% against 26%) — so a sharp four-year-old genuinely wins more, and
 nobody ever loses.
+
+## 13. Batch 5 — games of STRATEGY (the owner, 2026-11-04)
+
+The ask: "More game night games that take skill and strategy". Batch 4 gave
+every game a choice; batch 5 is the classic STRATEGY shapes, each one a
+different one, each with a computer that plays it half-well and a measured
+edge for playing it well, and each teaching its rule in his first game (the
+`TEACH` glow: what a good player would do lights up, that game only).
+
+**The constraint that shaped the list: three taps across.** The kid law is
+75px targets 16px apart, and a 320px phone has about 288px of row: three
+targets fit (3 x 75 + 2 x 16 = 257) and four do not (348). So the two 4x4
+designs first drafted — a four-column connect-four and a 4x4 Reversi — were
+measured out before a line was written: Line Up became three columns (each
+one TALL button, so its height is free), and Reversi was replaced by a card
+game whose taps are a hand of three.
+
+1. **🍪 Cookie Jar (BUILT)** — Nim. A jar of cookies; take one, two or three;
+   the LAST cookie is the golden one and a ⭐, and the next jar opens (four
+   jars: 7, 9, 6, 10). Every cookie taken is on your plate, so both players
+   eat plenty, and there is one party. The skill is leaving your friend a
+   multiple of four. The jar shows its count on the lid and says what is
+   left, the golden cookie sits at the bottom (the last one left). Measured
+   over 1500 games: always leaving four takes 72% of the golden cookies
+   against 38% taking any.
+
+2. **🔴 Line Up (BUILT)** — connect three. Three columns, five high: tap a
+   column and your counter (your own face, on your colour) drops to its
+   bottom. Three of yours in a row — across, up or slanting — is a ⭐, every
+   new line counts (one counter can make two), and lines glow gold. Two
+   boards, one party. Five rows, not four: measured, 5.5 ⭐s a game against
+   3.5, the same edge. Taking a line when there is one, and stopping the
+   friend's when there is not, wins 58% of the ⭐s against 42% dropping
+   anywhere. 3 x 5 is an odd number of cells, so who starts each board flips:
+   the engine keeps who started the GAME, and every state's turn and counts
+   follow from it (restore checks them exactly).
+
+3. **🃏 Top Card (BUILT)** — a trick game. Each player has their own ten
+   cards, 1 to 10, and holds three face up (a card is its numeral over a
+   ten-frame of its dots). The leader plays one; the other answers; the
+   bigger card wins the trick and a ⭐ (the same number: nobody's). Both fill
+   back up to three, the lead goes to the other player, ten tricks, one party.
+   The skill is the ANSWER: the smallest card that is bigger, or, when none
+   is, the smallest of all — save the big ones. Measured: 55% of the tricks
+   against 44%; what he LEADS barely matters (55-56% whatever the lead), so
+   the first game lights only the answer. "Beat" is on the guardrail's list
+   of words a four-year-old hears as losing, so it says "bigger than".
+
+4. **🎨 Colour Grab** — next. Two players grow from opposite corners of a
+   grid of colours: pick a colour, and your patch takes it and swallows every
+   touching square of that colour. Never your friend's colour or your own,
+   so it is a choice of three.
+
+5. **🎲 Pick a Die** — next. Moon Race with two dice: roll both, see the
+   square each would reach light up, and pick one — the one that lands on a
+   rocket.
+
