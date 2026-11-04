@@ -3357,6 +3357,34 @@ button.bn-sand { cursor: pointer; min-height: 75px; }
 .bn-sand--dug { background: radial-gradient(circle at 50% 55%, #6b4a1c, #a77b3a 75%); border-color: #6b4a1c; }
 .bn-sand--fresh { box-shadow: 0 0 0 5px #ffffff, var(--card-shadow); }
 .bn-sand--gem { background: #fff7d6; box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200, var(--card-shadow); }
+/* 🎨 Colour Grab: the grid (one picture; each patch outlined in its
+   player's colour, their face on its corner) over the three colours */
+.bn-grab {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 6px;
+  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: minmax(0, 1fr) var(--pick-h, 90px);
+  row-gap: 16px; justify-items: center; align-items: center;
+}
+.bn-grab__grid { position: relative; width: var(--grab-w, 300px); height: var(--grab-h, 350px); }
+.bn-grab__svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.bn-grab__fresh { fill: #ffffff; fill-opacity: 0.55; animation: bnGrabPulse 0.6s ease-out forwards; }
+@keyframes bnGrabPulse { to { fill-opacity: 0; } }
+.bn-grab__who {
+  position: absolute; z-index: 1; width: 36px; height: 36px;
+  border: 3px solid #2b2b3a; border-radius: 50%; overflow: hidden; background: #ffffff;
+}
+.bn-grab__who > svg, .bn-grab__who > .bn-emoji { display: block; width: 100%; height: 100%; }
+.bn-grab__who--0 { left: -14px; bottom: -14px; }
+.bn-grab__who--1 { right: -14px; top: -14px; }
+.bn-grab__pick { width: 100%; height: var(--pick-h, 90px); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 16px; }
+.bn-swatch {
+  min-height: 75px; height: 100%; display: grid; place-items: center; padding: 6px;
+  border: 4px solid #2b2b3a; border-radius: 18px; background: #ffffff; box-shadow: var(--card-shadow); font: inherit;
+}
+.bn-swatch > svg { width: 100%; height: 100%; max-height: 72px; }
+button.bn-swatch { cursor: pointer; }
+.bn-swatch--still { opacity: 0.6; }
+.bn-swatch--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
+.bn-swatch--pad > svg { width: 80%; height: 80%; }
 /* 🃏 Top Card: the table (each player's card, under their face) over the
    hand of three; a card is its numeral over a ten-frame of its dots */
 .bn-top {
@@ -3466,6 +3494,83 @@ button.bn-takeb { cursor: pointer; }
 .bn-takeb--still { opacity: 0.6; }
 .bn-takeb--none { visibility: hidden; }
 .bn-takeb--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
+/* 🐭 Mouse Maze: the garden (a grid of squares, plant pots, the cheese and a
+   mouse each, ringed in its player's colour) over the three arrow cards */
+.bn-maze {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 6px;
+  display: grid; grid-template-columns: minmax(0, 100%);
+  grid-template-rows: minmax(0, 1fr) var(--maze-row, 96px);
+  row-gap: 16px; justify-items: center; align-items: center;
+}
+.bn-maze__grid {
+  display: grid; grid-template-columns: repeat(4, var(--maze-cell, 64px)); grid-template-rows: repeat(5, var(--maze-cell, 64px));
+  padding: 6px; border-radius: 18px; background: #86c56a; box-shadow: var(--card-shadow);
+}
+.bn-maze__sq {
+  position: relative; display: grid; grid-template-columns: minmax(0, 100%); place-items: center;
+  margin: 2px; border-radius: 12px; background: #b6e39a; font-size: calc(var(--maze-cell, 64px) * 0.5); line-height: 1;
+}
+.bn-maze__sq--pot { background: #6b8e4e; }
+.bn-maze__cheese--eaten { animation: bnMazeEat 0.6s ease-in forwards; }
+@keyframes bnMazeEat { to { transform: scale(0.2); opacity: 0; } }
+.bn-mouse {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 78%; height: 78%; border-radius: 50%; border: 4px solid #1f2937; background: #ffffff;
+  display: grid; place-items: center; font-size: 0.8em; line-height: 1; box-sizing: border-box;
+}
+.bn-mouse--pair.bn-mouse--0 { left: 32%; width: 58%; height: 58%; }
+.bn-mouse--pair.bn-mouse--1 { left: 68%; width: 58%; height: 58%; }
+.bn-mouse--go { box-shadow: 0 0 0 4px #ffd24d; }
+.bn-mouse--mini { position: static; transform: none; width: 52px; height: 52px; font-size: 30px; }
+.bn-maze__hand { width: 100%; height: var(--maze-row, 96px); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 16px; }
+.bn-arrow {
+  min-height: 75px; height: 100%; border: 4px solid #a16207; border-radius: 18px;
+  background: #fffbeb; color: #3b2a02; box-shadow: var(--card-shadow);
+  display: grid; place-items: center; padding: 4px; font: inherit; line-height: 1;
+}
+button.bn-arrow { cursor: pointer; }
+.bn-arrow__pic { font-size: clamp(1.3rem, 7vw, 2.2rem); white-space: nowrap; letter-spacing: -0.1em; }
+.bn-arrow--still { opacity: 0.6; }
+.bn-arrow--used { opacity: 0.25; }
+.bn-arrow--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
+/* 🎯 Dice Match: three big dice (tap to keep: a gold ring and a ✋) over the
+   roll button */
+.bn-m3 {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 6px;
+  display: grid; grid-template-columns: minmax(0, 100%);
+  grid-template-rows: minmax(0, 1fr) var(--m3-roll, 96px);
+  row-gap: 16px; justify-items: center; align-items: center;
+}
+.bn-m3__dice { display: grid; grid-template-columns: repeat(3, var(--m3-die, 100px)); column-gap: 16px; }
+.bn-m3d {
+  position: relative; width: var(--m3-die, 100px); height: var(--m3-die, 100px); min-height: 75px;
+  border: 4px solid #7f1d1d; border-radius: 22%; background: #ffffff; box-shadow: var(--card-shadow);
+  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: minmax(0, 100%); place-items: center;
+  padding: 0; font: inherit; color: inherit;
+}
+button.bn-m3d { cursor: pointer; }
+.bn-m3d .bn-die { width: 82%; height: 82%; padding: 9%; gap: 6%; border: none; box-shadow: none; background: none; }
+.bn-m3d .bn-die__cue { font-size: calc(var(--m3-die, 100px) * 0.48); }
+.bn-m3d--held { box-shadow: 0 0 0 6px #ffd24d, 0 0 0 10px #7a5200, var(--card-shadow); transform: translateY(-6px); }
+.bn-m3d--win { background: #fff3b0; border-color: #a16207; box-shadow: 0 0 0 6px #16a34a, 0 0 0 10px #0b4f24, var(--card-shadow); }
+.bn-m3d--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
+.bn-m3d--go .bn-die { animation: bnM3Go 0.35s linear infinite; }
+@keyframes bnM3Go { 50% { transform: rotate(18deg) scale(0.9); } }
+.bn-m3d__keep {
+  position: absolute; right: 4px; top: 4px; width: 30px; height: 30px; border-radius: 50%;
+  background: #ffd24d; border: 3px solid #7a5200; display: grid; place-items: center; font-size: 16px; line-height: 1;
+}
+.bn-m3__roll { width: 100%; height: var(--m3-roll, 96px); display: grid; grid-template-columns: minmax(0, 100%); }
+.bn-m3roll {
+  min-height: 75px; height: 100%; border: 4px solid #7f1d1d; border-radius: 22px;
+  background: #b91c1c; color: #ffffff; box-shadow: var(--card-shadow);
+  display: grid; grid-template-columns: auto auto; column-gap: 14px; place-content: center; align-items: center;
+  padding: 4px 12px; font: inherit; line-height: 1;
+}
+button.bn-m3roll { cursor: pointer; }
+.bn-m3roll__pic { font-size: 2.6rem; }
+.bn-m3roll__left { font-size: 1.6rem; letter-spacing: 0.15em; color: #ffd24d; }
+.bn-m3roll--still { opacity: 0.6; }
 /* 🁢 Dot Dominoes: the ends row (two big ends, the line between them) over
    the mover's hand of upright tiles */
 .bn-dom {
@@ -3600,7 +3705,32 @@ button.bn-domt { cursor: pointer; }
 .bn-doors__grid--cpu .bn-door { cursor: default; }
 
 /* the pads: each player's own big button — the die, or the card pile */
-.bn-tray { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); margin-top: 12px; }
+.bn-tray { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); margin-top: 12px; }
+/* 🎲 Pick a Die: the two dice to pick from cover the pads while he picks
+   (one, when both dice are the same) */
+.bn-tray--choose .bn-pad { visibility: hidden; }
+.bn-choose {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 2;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--pad);
+}
+.bn-choose[data-n="1"] { grid-template-columns: minmax(0, 1fr); }
+.bn-pickd {
+  min-height: 75px; display: grid; grid-auto-flow: column; justify-content: center; align-items: center; column-gap: 12px;
+  border: 5px solid #2563eb; border-radius: 24px; background: #ffffff; color: #1e3a8a;
+  box-shadow: var(--card-shadow); font: inherit; font-weight: 900; font-size: 1.6rem; line-height: 1;
+}
+button.bn-pickd { cursor: pointer; }
+.bn-pickd--still { opacity: 0.7; }
+.bn-pickd--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
+.bn-pickd__to { white-space: nowrap; }
+.bn-dice2 { display: grid; grid-auto-flow: column; column-gap: 6px; }
+.bn-dice2 .bn-die { width: 44px; height: 44px; padding: 4px; }
+.bn-target {
+  position: absolute; z-index: 1; box-sizing: border-box; display: grid; place-items: center;
+  border: 4px solid #ffd24d; border-radius: 16px; background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 0 3px #2b2b3a; pointer-events: none;
+}
+.bn-target .bn-die { width: 60%; height: 60%; padding: 2px; }
 .bn-pad {
   position: relative;
   min-height: 112px;
@@ -3923,8 +4053,12 @@ button.bn-domt { cursor: pointer; }
   .bn-door--go { animation: none; }
   .bn-pot__pop { animation: none; }
   .bn-cookie--go { animation: none; opacity: 0; }
+  .bn-m3d--go .bn-die { animation: none; }
+  .bn-maze__cheese--eaten { animation: none; opacity: 0; }
+  .bn-m3d--held { transform: none; }
   .bn-slot--fresh { animation: none; }
   .bn-tc--fresh { animation: none; }
+  .bn-grab__fresh { animation: none; fill-opacity: 0; }
   .bn-hand { animation: none; }
   .bn-party__face { animation: none; }
   .bn-box:active { transform: none; }

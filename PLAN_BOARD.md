@@ -1,11 +1,13 @@
 # 🎲 Game Night — board games for Josh (and a friend)
 
-**Status: BATCHES 1-4 BUILT, BATCH 5 IN PROGRESS** (batches 1-2
+**Status: BATCHES 1-5 BUILT, BATCH 6 IN PROGRESS** (batches 1-2
 audited twice; §11 is batch 3: 💯 Hundred Hop, 🐔 Hen House, 🧺 Picnic Lotto,
 and 👀 Twin Spot, the owner's Spot It ask; §12 is batch 4, games of SKILL:
 🧠 Peek-a-Pair, 🚪 Shut the Doors, 🌰 Acorn Pots, 🁢 Dot Dominoes and
 🏴‍☠️ Treasure Dig, all built; §13 is batch 5, games of STRATEGY: 🍪 Cookie
-Jar, 🔴 Line Up and 🃏 Top Card built, 🎨 Colour Grab and 🎲 Pick a Die next) — the door, the shelf, the shared turn
+Jar, 🔴 Line Up, 🃏 Top Card, 🎨 Colour Grab and 🎲 Pick a Die, all built;
+§14 is batch 6, ten more of varied types: 🎯 Dice Match and 🐭 Mouse Maze
+built so far) — the door, the shelf, the shared turn
 routine, the engine, 🚀 Moon Race (with ☄️ Comet Moon), 🌈 Rainbow Trail, and
 🍎 Apple Spin (the owner's go, 2026-10-28, with "deeply audit the first 2
 games … to make them even more high quality and fun and exciting": §8).
@@ -485,12 +487,52 @@ game whose taps are a hand of three.
    the first game lights only the answer. "Beat" is on the guardrail's list
    of words a four-year-old hears as losing, so it says "bigger than".
 
-4. **🎨 Colour Grab** — next. Two players grow from opposite corners of a
-   grid of colours: pick a colour, and your patch takes it and swallows every
-   touching square of that colour. Never your friend's colour or your own,
-   so it is a choice of three.
+4. **🎨 Colour Grab (BUILT)** — the Filler shape. Two patches grow from
+   opposite corners of a 6 x 7 grid of the five colours (each colour wears
+   its shape, so it reads in any colour vision): pick a colour, and your
+   patch turns that colour and swallows every touching square of it. Never
+   your own colour or your friend's, so it is always a choice of three; a
+   grab of four or more squares is a ⭐; every square grabbed, one party.
+   Each patch is outlined in its player's colour with their face on its
+   corner. Picking the colour that grabs the most wins 60% of the squares
+   against 36% picking any.
 
-5. **🎲 Pick a Die** — next. Moon Race with two dice: roll both, see the
-   square each would reach light up, and pick one — the one that lands on a
-   rocket.
+5. **🎲 Pick a Die (BUILT)** — Moon Race with TWO dice. Roll both; two big
+   dice cover the pads, and on the board the square each would reach lights
+   up wearing that die's dots, so the button and its square are one picture.
+   Pick one and hop it. Its own board has five rockets. Picking the die that
+   lands on a rocket (or the bigger one) gets home first 70% of the time
+   against 29%. The pick hides in the same tap, so a doubled tap finds
+   nothing left to pick.
+
+## 14. Batch 6 — ten more, of varied types (the owner, 2026-11-04)
+
+The ask: "add 10 more games, varying types. High quality. E2E. Can be dice or
+card or line or whatever. Then also loop the entire board game suite doing a
+deep audit". Ten shapes the shelf does not have yet, each with a choice:
+
+1. **🎯 Dice Match (BUILT)** — keep-or-roll, the Yahtzee shape at four. Three
+   big dice and a big roll button: roll, tap the dice to KEEP (a gold ring and
+   a ✋), roll the rest, twice. Two the same is a ⭐, three the same three ⭐s;
+   five turns each. Each die is its own seeded luck, NOT the fair bag the other
+   dice games use — measured, a bag of 1-6 deals three DIFFERENT faces every
+   roll, so three dice could never match. Keeping the matching dice wins 59%
+   of the stars against 42% keeping any.
+
+2. **🐭 Mouse Maze (BUILT)** — direction cards. A 4 x 5 garden of plant pots,
+   a mouse EACH and one cheese; each player holds three arrow cards (up,
+   down, left or right, one step or two) and plays one to move their own
+   mouse. Reaching the cheese is a ⭐ and new cheese appears about as far from
+   both; five cheeses. Every hand holds an arrow that goes nearer the cheese
+   (a hand without one is dealt again), and the cheese is never in a pocket
+   with one way in. Measured: ONE shared mouse was built first — the friend's
+   arrow undid his, a median 39 turns and only 51% for the skill — so it is a
+   mouse each; then the cheese sat in one-way pockets for up to 175 turns.
+   Now: picking the nearest arrow wins 65% of the cheese against 30%, in a
+   median 19 turns.
+
+3. 🕵️ Who's Hiding (co-op: ask about a trait), 4. 🌈 Colour Match (an
+   UNO-lite: colour OR number), 5. 🔢 Number Bingo, 6. ⛄ Snowman Build,
+   7. 🐟 Go Fish, 8. 🍯 Honey Ten (make exactly ten), 9. 🔼 Higher or Lower,
+   10. 🦉 Owl Flight (co-op colour cards) — next.
 

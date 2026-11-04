@@ -135,6 +135,21 @@
       ],
     },
     {
+      // 🎲 Pick a Die (a dice race with a CHOICE): roll TWO dice, see the
+      // square each would take you to light up, and pick one. Five rockets, so
+      // two dice can often reach one: the skill is picking the die that lands
+      // on a rocket. Boosters only (his Moon Race rules), no comets.
+      id: "pickdie", box: "pickdie", game: "dice", name: "Pick a Die", two: true,
+      cols: 6, rows: 6, size: 36,
+      jumps: [
+        { from: 3, to: 13, kind: "boost" },
+        { from: 8, to: 16, kind: "boost" },
+        { from: 15, to: 23, kind: "boost" },
+        { from: 21, to: 29, kind: "boost" },
+        { from: 26, to: 34, kind: "boost" },
+      ],
+    },
+    {
       id: "comet", box: "comet", game: "dice", name: "Comet Moon",
       cols: 6, rows: 6, size: 36,
       jumps: [
@@ -326,6 +341,41 @@
       lines: { home: "", end: "Every card is played! What a game!" },
     },
     {
+      // 🎨 Colour Grab (a territory game, for a four-year-old: a game of
+      // LOOKING AHEAD). A grid of colours (each with its shape, so it reads in
+      // any colour vision). Josh starts in the bottom left corner and his
+      // friend in the top right. Pick a colour: your patch turns that colour
+      // and swallows every touching square of it. Never your own colour or
+      // your friend's, so it is a choice of three. A grab of `big` squares or
+      // more is a ⭐; every square grabbed, one party. The skill: pick the
+      // colour that grabs the most.
+      id: "grab", box: "grab", game: "grab", name: "Colour Grab", coop: true,
+      cols: 6, rows: 7, big: 4, size: 42,
+      lines: { home: "", end: "Every square is grabbed! What a picture!" },
+    },
+    {
+      // 🎲 Dice Match (keep or roll again, for a four-year-old: a game of
+      // MATCHING). Roll three dice, then twice: tap the dice to KEEP and roll
+      // the rest again. Two the same is a ⭐; all three the same is three ⭐s.
+      // Five turns each, one party. The skill: keep the ones that match.
+      id: "dicematch", box: "dicematch", game: "match3", name: "Dice Match", coop: true,
+      cols: 3, rows: 3, rounds: 5, rerolls: 2, size: 9,
+      lines: { home: "", end: "Every turn is rolled! What dice!" },
+    },
+    {
+      // 🐭 Mouse Maze: a mouse EACH in a garden of plant pots, and one piece
+      // of cheese. Each player holds three ARROW cards (up, down, left or
+      // right, one step or two); play one and your mouse scurries that way.
+      // Whoever's mouse reaches the cheese gets the ⭐, and new cheese appears
+      // about as far from both. (One shared mouse was built first and
+      // measured: the friend's arrow undid his, a median 39 turns, and the
+      // skill was worth only 51% of the cheese.)
+      // Five cheeses, one party. The skill: which arrow takes it there.
+      id: "maze", box: "maze", game: "maze", name: "Mouse Maze", coop: true,
+      cols: 4, rows: 5, pots: 3, cheese: 5, hand: 3, size: 20,
+      lines: { home: "", end: "Every cheese is found! Squeak!" },
+    },
+    {
       // 🍎 Apple Spin (Hi-Ho Cherry-O's mechanic): no track at all. Each
       // player fills their own TEN-FRAME basket from a big tree; `size` is the
       // basket. A spin says how many apples to pick (one tap, one apple); a
@@ -348,6 +398,7 @@
     { id: "moon", board: "moon", name: "Moon Race", pic: "🚀", colour: "#3b4cc0" },
     { id: "comet", board: "comet", name: "Comet Moon", pic: "☄️", colour: "#6a3fb8", unlockAfter: { box: "moon", games: 2 } },
     { id: "rainbow", board: "rainbow", name: "Rainbow Trail", pic: "🌈", colour: "#e0569b" },
+    { id: "pickdie", board: "pickdie", name: "Pick a Die", pic: "🎲", colour: "#2563eb" },
     // the 🐦 joins from his THIRD Apple game, exactly as the comets do
     { id: "apple", board: "apple", name: "Apple Spin", pic: "🍎", colour: "#d63b3b", birdsAfter: 2 },
     { id: "hundred", board: "hundred", name: "Hundred Hop", pic: "💯", colour: "#e08a00" },
@@ -366,6 +417,9 @@
     { id: "cookies", board: "cookies", name: "Cookie Jar", pic: "🍪", colour: "#9a3412", kind: "think" },
     { id: "lineup", board: "lineup", name: "Line Up", pic: "🔴", colour: "#be123c", kind: "think" },
     { id: "topcard", board: "topcard", name: "Top Card", pic: "🃏", colour: "#4338ca", kind: "think" },
+    { id: "grab", board: "grab", name: "Colour Grab", pic: "🎨", colour: "#0e7490", kind: "think" },
+    { id: "dicematch", board: "dicematch", name: "Dice Match", pic: "🎯", colour: "#b91c1c", kind: "think" },
+    { id: "maze", board: "maze", name: "Mouse Maze", pic: "🐭", colour: "#a16207", kind: "think" },
   ];
 
   // ---- Every line the game says ------------------------------------------
@@ -453,6 +507,23 @@
     topFollow: "Bigger than {d}? Play a card!",
     topWin: "{d} is bigger than {e}! A star for {n}!",
     topSame: "{d} and {d}! The same!",
+    grabFirst: "Pick a colour! Your patch grabs every square of it it touches!",
+    grabGot: "{d} squares!",
+    grabOne: "One square!",
+    grabNone: "No squares this time!",
+    grabBig: "A big grab for {n}!",
+    pickFirstDie: "Two dice! Tap the one you want!",
+    pickDieAgain: "Pick a die!",
+    mazeFirst: "Play an arrow to move the mouse!",
+    mazeCheese: "Cheese! A star for {n}!",
+    mazeNew: "New cheese!",
+    mazeSteps: "{d} steps {w}!",
+    mazeStep: "One step {w}!",
+    m3First: "Roll your three dice!",
+    m3Keep: "Tap the dice to keep, then roll the rest!",
+    m3Pair: "Two the same! A star for {n}!",
+    m3Three: "Three the same! Three stars for {n}!",
+    m3None: "No match this time!",
     domWhich: "It fits both ends! Which end?",
     domBack: "Not that one. Back it goes!",
     domOut: "{n} laid every tile! A star!",

@@ -1639,7 +1639,7 @@ test("🚪 the FIRST Shut the Doors teaches: a way to make the roll glows from t
   assert.ok(hint.length && ways.some((w) => w.every((n) => hint.indexOf(n) >= 0)), `rolled ${s.die}: a way glows at once (${hint})`);
 });
 
-test("🁢 🌰 🍪 🔴 🃏 the FIRST Dot Dominoes, Acorn Pots, Cookie Jar, Line Up and Top Card teach too: what fits glows on his turn before any miss — and in a later game it does not", async () => {
+test("🁢 🌰 🍪 🔴 🃏 🎨 the FIRST Dot Dominoes, Acorn Pots, Cookie Jar, Line Up, Top Card and Colour Grab teach too: what fits glows on his turn before any miss — and in a later game it does not", async () => {
   for (const seen of [false, true]) {
     // 🁢 the tiles in his hand that match an open end
     await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
@@ -1709,6 +1709,41 @@ test("🁢 🌰 🍪 🔴 🃏 the FIRST Dot Dominoes, Acorn Pots, Cookie Jar, L
     }));
     if (!seen) assert.deepEqual(tc.hint, [tc.best], "his first Top Card: the saving card glows");
     else assert.deepEqual(tc.hint, [], "a later Top Card: nothing glows — saving is the skill");
+    // 🎨 the colour that grabs the most
+    await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
+    await startGame("grab", "river", true, 3, 0);
+    await page.waitForFunction(() => window.__BOARD.state().phase === "pick" && window.__BOARD.state().turn === 0 && !window.__BOARD.busy(), null, { timeout: 5000 });
+    const gb = await page.evaluate(() => ({
+      best: window.BoardLogic.grabBest(window.__BOARD.state()).slice().sort(),
+      hint: [...document.querySelectorAll("button.bn-swatch.bn-swatch--hint")].map((b) => b.dataset.c).sort(),
+    }));
+    assert.ok(gb.best.length && gb.best.length < 3, `fixture: some colour grabs more than another (${gb.best})`);
+    if (!seen) assert.deepEqual(gb.hint, gb.best, "his first Colour Grab: the colour that grabs the most glows");
+    else assert.deepEqual(gb.hint, [], "a later Colour Grab: nothing glows — looking is the skill");
+    // 🐭 the arrow that takes his mouse nearest the cheese
+    await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
+    await startGame("maze", "river", true, 1, 0);
+    await page.waitForFunction(() => window.__BOARD.state().phase === "move" && window.__BOARD.state().turn === 0 && !window.__BOARD.busy(), null, { timeout: 5000 });
+    const mz = await page.evaluate(() => ({
+      best: window.BoardLogic.mazeBest(window.__BOARD.state()).slice().sort(),
+      moves: document.querySelectorAll(".bn-maze__hand button.bn-arrow").length,
+      hint: [...document.querySelectorAll("button.bn-arrow.bn-arrow--hint")].map((b) => Number(b.dataset.k)).sort(),
+    }));
+    assert.ok(mz.best.length && mz.best.length < mz.moves, `fixture: one arrow is better than another (${mz.best} of ${mz.moves})`);
+    if (!seen) assert.deepEqual(mz.hint, mz.best, "his first Mouse Maze: the nearest arrow glows");
+    else assert.deepEqual(mz.hint, [], "a later Mouse Maze: nothing glows — finding the way is the skill");
+    // 🎯 the dice that match, once rolled
+    await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
+    await startGame("dicematch", "river", true, 3, 0);
+    await page.locator(".bn-m3__roll button.bn-m3roll").click();
+    await page.waitForFunction(() => window.__BOARD.state().phase === "keep" && !window.__BOARD.busy(), null, { timeout: 5000 });
+    const dm = await page.evaluate(() => ({
+      keep: window.BoardLogic.m3Keep(window.__BOARD.state().dice),
+      hint: [...document.querySelectorAll(".bn-m3__dice .bn-m3d")].map((b) => b.classList.contains("bn-m3d--hint")),
+    }));
+    assert.ok(dm.keep.some(Boolean) && !dm.keep.every(Boolean), `fixture: a pair to keep (${dm.keep})`);
+    if (!seen) assert.deepEqual(dm.hint, dm.keep, "his first Dice Match: the dice that match glow");
+    else assert.deepEqual(dm.hint, [false, false, false], "a later Dice Match: nothing glows — matching is the skill");
   }
 });
 
@@ -1882,6 +1917,132 @@ test("🏴‍☠️ a whole Treasure Dig against the computer: nine big sand squ
   } finally { await slow(); }
 });
 
+test("🐭 a whole Mouse Maze against the computer: the garden shows the engine's pots, cheese and both mice; three big arrow cards (a blocked one is no button); his arrow moves HIS mouse that many steps; a doubled tap moves once; the computer's cards are not his; five cheeses and one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("maze", "river", true, 3, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the garden is the board");
+  const dom = () => page.evaluate(() => {
+    const sq = [...document.querySelectorAll(".bn-maze__grid .bn-maze__sq")];
+    return {
+      squares: sq.length,
+      pots: sq.map((q, k) => (q.querySelector(".bn-maze__pot") ? k : -1)).filter((k) => k >= 0),
+      cheese: sq.findIndex((q) => q.querySelector(".bn-maze__cheese:not(.bn-maze__cheese--eaten)")),
+      mice: [0, 1].map((i) => sq.findIndex((q) => q.querySelector(".bn-mouse--" + i))),
+      cards: [...document.querySelectorAll(".bn-maze__hand .bn-arrow")].map((c) => { const r = c.getBoundingClientRect(); return { k: Number(c.dataset.k), button: c.tagName === "BUTTON", l: r.left, r: r.right, w: r.width, h: r.height }; }),
+    };
+  });
+  const d0 = await dom(), s0 = await st();
+  assert.equal(d0.squares, 20, "a 4 by 5 garden");
+  assert.deepEqual(d0.pots, s0.pots, "the pots are the engine's");
+  assert.equal(d0.cheese, s0.cheese, "…and the cheese");
+  assert.deepEqual(d0.mice, s0.mice, "…and a mouse each");
+  assert.equal(d0.cards.length, 3, "three arrow cards");
+  assert.ok(d0.cards.every((c) => c.w >= 75 && c.h >= 75), `big cards (${d0.cards.map((c) => Math.round(c.w) + "x" + Math.round(c.h))})`);
+  assert.ok(d0.cards[1].l - d0.cards[0].r >= 16 && d0.cards[2].l - d0.cards[1].r >= 16, "16px apart");
+  const goes = await page.evaluate(() => { const st = window.__BOARD.state(); return st.hands[0].map((id) => window.BoardLogic.mazePath(st, id, st.mice[0]).length > 0); });
+  assert.deepEqual(d0.cards.map((c) => c.button), goes, "an arrow that cannot move his mouse is no button");
+  // a doubled tap is ONE move (the hammer's echo)
+  const k0 = await page.evaluate(() => window.BoardLogic.mazeBest(window.__BOARD.state())[0]);
+  const path0 = await page.evaluate((k) => { const st = window.__BOARD.state(); return window.BoardLogic.mazePath(st, st.hands[0][k], st.mice[0]); }, k0);
+  await page.locator('.bn-maze__hand button.bn-arrow[data-k="' + k0 + '"]').dblclick();
+  await page.waitForFunction(() => window.__BOARD.state().turn === 1 || window.__BOARD.state().phase === "done", null, { timeout: 5000 });
+  assert.equal((await st()).mice[0], path0[path0.length - 1], "one move, along the arrow");
+  let cpuTried = false, cheese = 0;
+  for (let guard = 0; guard < 80; guard++) {
+    const x = await st();
+    if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      assert.equal(await page.locator(".bn-maze__hand button.bn-arrow").count(), 0, "on the computer's turn the cards are not his");
+    }
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    const d = await dom();
+    assert.deepEqual(d.mice, s.mice, "the mice stand where the engine says");
+    assert.equal(d.cheese, s.cheese, "the cheese is where the engine says");
+    const k = await page.evaluate(() => window.BoardLogic.mazeBest(window.__BOARD.state())[0]);
+    const path = await page.evaluate((kk) => { const st = window.__BOARD.state(); return window.BoardLogic.mazePath(st, st.hands[0][kk], st.mice[0]); }, k);
+    if (path[path.length - 1] === s.cheese) cheese++;
+    await page.locator('.bn-maze__hand button.bn-arrow[data-k="' + k + '"]').click();
+    await page.waitForFunction((m) => window.__BOARD.state().mice[0] === m, path[path.length - 1], { timeout: 5000 });
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.equal(end.seats[0].stars + end.seats[1].stars, 5, "five cheeses, five stars");
+  assert.ok(cpuTried && cheese >= 1, `fixture: the computer's turn and his cheese both ran (${cheese})`);
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.maze, 1, "a finished Mouse Maze counts once");
+  } finally { await slow(); }
+});
+
+test("🎯 a whole Dice Match against the computer: three big dice and a big roll; a rolled die is tapped to keep it (a ring and a ✋) and a kept die stays put on the next roll; a doubled roll is one roll; the computer's dice are not his; five turns each, stars for matches, one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("dicematch", "river", true, 3, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the dice are the board");
+  const dom = () => page.evaluate(() => {
+    const box = (b) => { const r = b.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height }; };
+    const dice = [...document.querySelectorAll(".bn-m3__dice .bn-m3d")];
+    const roll = document.querySelector(".bn-m3__roll .bn-m3roll");
+    return {
+      dice: dice.map((d) => ({ ...box(d), button: d.tagName === "BUTTON", held: d.classList.contains("bn-m3d--held"), pressed: d.getAttribute("aria-pressed"), n: Number((d.querySelector(".bn-die") || {}).dataset ? d.querySelector(".bn-die").dataset.n : 0), hint: d.classList.contains("bn-m3d--hint") })),
+      roll: roll ? { ...box(roll), button: roll.tagName === "BUTTON" } : null,
+    };
+  });
+  const d0 = await dom();
+  assert.equal(d0.dice.length, 3, "three dice");
+  assert.ok(d0.dice.every((d) => d.w >= 75 && d.h >= 75 && !d.button), `three big dice, not yet to keep (${d0.dice.map((d) => Math.round(d.w))})`);
+  assert.ok(d0.dice[1].l - d0.dice[0].r >= 16 && d0.dice[2].l - d0.dice[1].r >= 16, "16px apart");
+  assert.ok(d0.roll && d0.roll.button && d0.roll.w >= 75 && d0.roll.h >= 75, "a big roll button");
+  assert.ok(d0.roll.t - Math.max(...d0.dice.map((d) => d.b)) >= 16, "the roll is 16px below the dice");
+  // a doubled roll is ONE roll (the hammer's echo)
+  await page.locator(".bn-m3__roll button.bn-m3roll").dblclick();
+  await page.waitForFunction(() => window.__BOARD.state().rolls === 1 && !window.__BOARD.busy(), null, { timeout: 8000 });
+  const s1 = await st();
+  if (s1.turn === 0 && s1.phase === "keep") assert.equal(s1.left, 2, "a doubled roll rolled once: two rolls are left");
+  let cpuTried = false, kept = 0, starred = false;
+  for (let guard = 0; guard < 60; guard++) {
+    const x = await st();
+    if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      assert.equal(await page.locator(".bn-m3 button").count(), 0, "on the computer's turn the dice and the roll are not his");
+    }
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    if (s.seats[0].stars + s.seats[1].stars > 0) starred = true;
+    if (s.phase === "keep") {
+      const d = await dom();
+      assert.deepEqual(d.dice.map((q) => q.n), s.dice, "the dice show the roll");
+      assert.ok(d.dice.every((q) => q.button), "a rolled die is a button");
+      const want = await page.evaluate(() => window.BoardLogic.m3Keep(window.__BOARD.state().dice));
+      for (let k = 0; k < 3; k++) if (want[k] !== s.held[k]) await page.locator('.bn-m3__dice button.bn-m3d[data-k="' + k + '"]').click();
+      const d2 = await dom();
+      assert.deepEqual(d2.dice.map((q) => q.held), want, "the kept dice wear a ring");
+      assert.deepEqual(d2.dice.map((q) => q.pressed), want.map(String), "…and say they are kept");
+      const before = s.dice.slice();
+      if (want.some(Boolean)) kept++;
+      await page.locator(".bn-m3__roll button.bn-m3roll").click();
+      await page.waitForFunction(() => !window.__BOARD.busy() || window.__BOARD.state().turn === 1, null, { timeout: 8000 });
+      await page.waitForFunction(() => { const x = window.__BOARD.state(); return x.rolls > 0; }, null, { timeout: 8000 });
+      const after = await st();
+      if (after.turn === 0 && after.phase === "keep") for (let k = 0; k < 3; k++) if (want[k]) assert.equal(after.dice[k], before[k], "a kept die stays put");
+      continue;
+    }
+    await page.locator(".bn-m3__roll button.bn-m3roll").click();
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.ok(end.seats.every((x) => x.pos === 5), "five turns each");
+  assert.ok(cpuTried && kept >= 1 && (starred || end.seats[0].stars + end.seats[1].stars > 0), `fixture: the computer's turn, a keep and a star all ran (${kept})`);
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.dicematch, 1, "a finished Dice Match counts once");
+  } finally { await slow(); }
+});
+
 test("🍪 a whole Cookie Jar against the computer: three big takes (never more than are left), the jar shows how many are left (sound off), the golden cookie waits at the bottom, a doubled tap takes once, the computer's turn is not his to take, four jars and one party", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await quick();
@@ -2047,6 +2208,126 @@ test("🃏 a whole Top Card against the computer: his three cards are big button
   assert.ok(follows >= 1 && leads >= 1 && cpuTried && won >= 1, `fixture: he answered, he led, the computer played and he won a trick (${follows}, ${leads}, ${won})`);
   await page.locator(".bn-party").waitFor({ state: "visible" });
   assert.equal((await page.evaluate(() => window.__BOARD.save())).done.topcard, 1, "a finished Top Card counts once");
+  } finally { await slow(); }
+});
+
+test("🎨 a whole Colour Grab against the computer: three big colours (never his own, never his friend's), his pick turns his patch that colour and grabs what it touches, each patch outlined in its player's colour with their face on its corner, the computer's turn is not his, every square grabbed and one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("grab", "river", true, 3, 0);
+  const dom = () => page.evaluate(() => ({
+    swatches: [...document.querySelectorAll(".bn-grab__pick .bn-swatch")].map((b) => { const r = b.getBoundingClientRect(); return { c: b.dataset.c || null, button: b.tagName === "BUTTON", w: r.width, h: r.height, l: r.left, r: r.right }; }),
+    // the squares drawn, in the engine's order (row 0 is the BOTTOM row)
+    // each square by WHERE it is drawn: row 0 is the BOTTOM row on screen
+    fills: (() => { const out = []; for (const r of document.querySelectorAll(".bn-grab__svg > rect:not(.bn-grab__fresh)")) { const x = Math.floor(Number(r.getAttribute("x")) / 100), y = Math.floor(Number(r.getAttribute("y")) / 100); out[(7 - 1 - y) * 6 + x] = r.getAttribute("fill"); } return out; })(),
+    edges: [...document.querySelectorAll(".bn-grab__svg line")].map((l) => l.getAttribute("stroke")),
+    faces: document.querySelectorAll(".bn-grab__who").length,
+  }));
+  const colours = await page.evaluate(() => Object.fromEntries(window.BoardData.COLOURS.map((c) => [c.id, c.fill])));
+  const people = await page.evaluate(() => [window.BoardData.person("josh").colour, window.BoardData.person("river").colour]);
+  let cpuTried = false, picks = 0, grew = 0;
+  for (let guard = 0; guard < 60; guard++) {
+    const x = await st();
+    if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      assert.equal(await page.locator(".bn-grab__pick button.bn-swatch").count(), 0, "on the computer's turn the colours are not his");
+    }
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    const d = await dom();
+    // the three colours: never his own, never his friend's
+    const own = s.paint[s.owner.indexOf(0)], theirs = s.paint[s.owner.indexOf(1)];
+    assert.deepEqual(d.swatches.map((w) => w.c).sort(), await page.evaluate(() => window.BoardLogic.grabOptions(window.__BOARD.state()).slice().sort()), "the three colours he may pick");
+    assert.ok(d.swatches.every((w) => w.c !== own && w.c !== theirs), "never his own or his friend's");
+    assert.ok(d.swatches.every((w) => w.button && w.w >= 75 && w.h >= 75), `three big colours (${d.swatches.map((w) => Math.round(w.w) + "x" + Math.round(w.h))})`);
+    assert.ok(d.swatches[1].l - d.swatches[0].r >= 16 && d.swatches[2].l - d.swatches[1].r >= 16, "16px apart");
+    // the grid on screen is the engine's, square by square
+    const want = s.paint.map((p) => colours[p]);
+    assert.deepEqual(d.fills, want, "the grid shows the engine's colours (row 0 at the bottom)");
+    // both patches outlined in their players' colours, and both faces shown
+    assert.ok(d.edges.indexOf(people[0]) >= 0 && d.edges.indexOf(people[1]) >= 0, "each patch is outlined in its player's colour");
+    assert.equal(d.faces, 2, "each player's face on their corner");
+    // he looks: the colour that grabs the most
+    const c = (await page.evaluate(() => window.BoardLogic.grabBest(window.__BOARD.state())))[0];
+    const gain = await page.evaluate((col) => window.BoardLogic.grabGain(window.__BOARD.state(), col), c);
+    const before = s.seats[0].pos;
+    await page.locator('.bn-grab__pick button.bn-swatch[data-c="' + c + '"]').click();
+    await page.waitForFunction((b) => window.__BOARD.state().seats[0].pos !== b || window.__BOARD.state().phase === "done", before, { timeout: 5000 }).catch(() => {});
+    picks++;
+    if (gain > 0) grew++;
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.ok(end.owner.every((o) => o >= 0), "every square grabbed");
+  assert.equal(end.seats[0].pos + end.seats[1].pos, 42, "every square on someone's patch");
+  assert.ok(cpuTried && picks >= 3 && grew >= 2, `fixture: the computer's turn and his grabs all ran (${picks}, ${grew})`);
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.grab, 1, "a finished Colour Grab counts once");
+  } finally { await slow(); }
+});
+
+test("🎲 a whole Pick a Die against the computer: his roll is two dice, two big dice to pick from cover the pads, each die's square lights on the board wearing its dots, the picked die is hopped one tap a hop, the computer picks for itself, and it ends in one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("pickdie", "river", true, 3, 0);
+  // the computer's pick is over in a moment at the quick pace, so a poll
+  // can miss it: count every pick the shell asks the engine for
+  await page.evaluate(() => { const L = window.BoardLogic, o = L.chooseDie; window.__chose = []; L.chooseDie = (st, k) => { window.__chose.push(st.turn); return o(st, k); }; window.__choseUndo = () => { L.chooseDie = o; }; });
+  let choices = 0, rocket = false, cpuChose = false, hops = 0;
+  for (let guard = 0; guard < 400; guard++) {
+    const x = await st();
+    if (x.phase === "choose" && x.turn === 1) {
+      cpuChose = true;
+      assert.equal(await page.locator(".bn-choose button.bn-pickd").count(), 0, "the computer's dice are not his to pick");
+    }
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    if (s.phase === "roll") {
+      await page.locator(".bn-pad--0").click();
+      await page.waitForFunction(() => window.__BOARD.state().phase !== "roll" && !window.__BOARD.busy(), null, { timeout: 5000 });
+      continue;
+    }
+    if (s.phase === "choose") {
+      choices++;
+      await page.locator(".bn-choose").waitFor({ state: "visible" });
+      const d = await page.evaluate(() => ({
+        buttons: [...document.querySelectorAll(".bn-choose button.bn-pickd")].map((b) => { const r = b.getBoundingClientRect(); return { k: Number(b.dataset.k), w: r.width, h: r.height, l: r.left, r: r.right }; }),
+        padsHidden: [...document.querySelectorAll(".bn-pad")].every((p) => getComputedStyle(p).visibility === "hidden"),
+        targets: [...document.querySelectorAll(".bn-target")].filter((t) => !t.hidden).map((t) => ({ n: Number(t.dataset.n), dots: t.querySelectorAll(".bn-dot:not(.bn-dot--none)").length })),
+      }));
+      const same = s.dice[0] === s.dice[1];
+      assert.equal(d.buttons.length, same ? 1 : 2, "a die to pick for each different face");
+      assert.ok(d.buttons.every((b) => b.w >= 75 && b.h >= 75), `big dice (${d.buttons.map((b) => Math.round(b.w) + "x" + Math.round(b.h))})`);
+      if (!same) assert.ok(d.buttons[1].l - d.buttons[0].r >= 16, "16px apart");
+      assert.ok(d.padsHidden, "the dice cover the pads while he picks");
+      const want = (same ? [0] : [0, 1]).map((k) => ({ n: Math.min(36, s.seats[s.mover].pos + s.dice[k]), dots: s.dice[k] }));
+      assert.deepEqual(d.targets, want, "each die's square lights, wearing its dots");
+      // he looks ahead: the die that lands on a rocket (or the bigger one)
+      const k = (await page.evaluate(() => window.BoardLogic.dieBest(window.__BOARD.state())))[0];
+      if (await page.evaluate((kk) => { const st = window.__BOARD.state(), j = window.BoardLogic.jumpAt(window.BoardData.board("pickdie"), window.BoardLogic.dieTarget(st, kk)); return !!(j && j.kind === "boost"); }, k)) rocket = true;
+      const pick = same ? 0 : k;
+      await page.locator('.bn-choose button.bn-pickd[data-k="' + pick + '"]').click();
+      await page.waitForFunction(() => window.__BOARD.state().phase !== "choose", null, { timeout: 5000 });
+      assert.ok(await page.evaluate(() => document.querySelector(".bn-choose").hidden && [...document.querySelectorAll(".bn-target")].every((t) => t.hidden)), "the choice and its squares go once he has picked");
+      continue;
+    }
+    // a hop
+    hops++;
+    await page.locator(".bn-pad--0").click();
+    await page.waitForTimeout(60);
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.ok(end.seats.every((x) => x.home), "both home — nobody loses");
+  cpuChose = cpuChose || (await page.evaluate(() => window.__chose.indexOf(1) >= 0));
+  await page.evaluate(() => window.__choseUndo());
+  assert.ok(choices >= 2 && hops >= 2 && rocket && cpuChose, `fixture: he picked (${choices}), hopped (${hops}), took a rocket die (${rocket}), and the computer picked (${cpuChose})`);
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.pickdie, 1, "a finished Pick a Die counts once");
   } finally { await slow(); }
 });
 

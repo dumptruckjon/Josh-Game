@@ -298,5 +298,5 @@
     return s + "</svg>";
   }
 
-  global.BoardRender = { picnicSVG, spotOf, PIC, farmSpinnerSVG, boardSVG, shapeSVG, faceHTML, spot, centre, CELL, orchardSVG, spinnerSVG, slotOf, pieSpot, treeSpot, ORCHARD, ORCH };
+  global.BoardRender = { shapePath, picnicSVG, spotOf, PIC, farmSpinnerSVG, boardSVG, shapeSVG, faceHTML, spot, centre, CELL, orchardSVG, spinnerSVG, slotOf, pieSpot, treeSpot, ORCHARD, ORCH };
 })(typeof window !== "undefined" ? window : globalThis);

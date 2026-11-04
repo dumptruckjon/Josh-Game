@@ -107,7 +107,7 @@
   // every slide kept (0.72 a game against 0.76).
   const BACK_CAP = 24;
   // Where a token STARTS: square 1 of a track, or an EMPTY basket
-  const startOf = (board) => (board.game === "spin" || board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "doors" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" || board.game === "nim" || board.game === "lines" || board.game === "top" ? 0 : 1);
+  const startOf = (board) => (board.game === "spin" || board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "doors" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" || board.game === "nim" || board.game === "lines" || board.game === "top" || board.game === "grab" || board.game === "match3" || board.game === "maze" ? 0 : 1);
 
   // ---- A new game -----------------------------------------------------------
   // opts: { board, seats: [{ who, cpu }], seed, first }
@@ -135,6 +135,8 @@
       die: 0, left: 0, card: null, rolls: 0, order: [],
     };
     if (spin) { st.pie = 0; st.birds = !!opts.birds; }
+    // 🎲 a two-dice board: the two dice rolled, while he picks one
+    if (board.two) st.dice = [];
     // 🐔 co-op: ONE hen for both (both seats stand where she stands), the
     // chicks she has brought home, and the chicks out playing with the fox
     if (board.game === "hen") { st.coop = 0; st.out = 0; st.fox = !!opts.fox; }
@@ -184,6 +186,25 @@
       st.gone = [[], []];
       st.lead = first; st.first = first;
     }
+    // 🎨 the grid of colours (row 0 at the BOTTOM), who owns each square (-1
+    // nobody), and each seat's patch starting in its corner: seat 0 the
+    // bottom left, seat 1 the top right — two different colours
+    if (board.game === "grab") {
+      const n = board.cols * board.rows, ids = DATA.COLOURS.map((c) => c.id);
+      st.paint = Array.from({ length: n }, () => ids[Math.floor(next(seats[0]) * ids.length)]);
+      const a = 0, b = n - 1;
+      if (st.paint[b] === st.paint[a]) st.paint[b] = ids[(ids.indexOf(st.paint[a]) + 1 + Math.floor(next(seats[0]) * (ids.length - 1))) % ids.length];
+      st.owner = new Array(n).fill(-1);
+      st.owner[a] = 0; st.owner[b] = 1;
+      // each patch swallows what already touches it in its own colour
+      for (const j of [0, 1]) for (const k of grabCells(board, st.paint, st.owner, j, st.paint[j === 0 ? a : b])) st.owner[k] = j;
+      seats[0].pos = st.owner.filter((o) => o === 0).length;
+      seats[1].pos = st.owner.filter((o) => o === 1).length;
+    }
+    // 🎯 three dice, which are kept, the re-rolls left this turn, and the
+    // turns each player has played (`pos`)
+    if (board.game === "maze") mazeSetup(st, board);
+    if (board.game === "match3") { st.dice = [0, 0, 0]; st.held = [false, false, false]; st.left = 0; }
     if (board.game === "lines") { st.grid = new Array(board.cols * board.rows).fill(-1); st.boardNo = 0; st.first = first; }
     if (board.game === "acorns") {
       st.pots = [];
@@ -219,7 +240,7 @@
     }
     return st;
   }
-  function firstPhase(game) { return game === "spot" || game === "pairs" ? "flip" : game === "cards" || game === "lotto" ? "draw" : game === "spin" || game === "hen" ? "spin" : game === "acorns" ? "choose" : game === "dig" ? "dig" : game === "nim" ? "take" : game === "lines" ? "drop" : game === "top" ? "lead" : "roll"; }
+  function firstPhase(game) { return game === "spot" || game === "pairs" ? "flip" : game === "cards" || game === "lotto" ? "draw" : game === "spin" || game === "hen" ? "spin" : game === "acorns" ? "choose" : game === "dig" ? "dig" : game === "nim" ? "take" : game === "lines" ? "drop" : game === "top" ? "lead" : game === "grab" ? "pick" : game === "maze" ? "move" : "roll"; }
 
   const anyHome = (st) => st.seats.some((s) => s.home);
   const other = (i) => (i === 0 ? 1 : 0);
@@ -406,6 +427,287 @@
     if (best && next(s) < NIM_SHARP) return best;
     const t = nimTakes(st);
     return t[Math.floor(next(s) * t.length)];
+  }
+
+  // ---- 🐭 Mouse Maze -----------------------------------------------------------------
+  // An arrow card is a number 0-7: its direction is id >> 1 (up, down, left,
+  // right) and its steps (id & 1) + 1. Each player has a fair bag of all eight.
+  const MAZE_DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+  const MAZE_WORDS = ["up", "down", "left", "right"];
+  const arrowBag = (seat) => shuffle(seat, [0, 1, 2, 3, 4, 5, 6, 7]);
+  const mazeFree = (st, board, k) => k >= 0 && k < board.cols * board.rows && st.pots.indexOf(k) < 0;
+  // the squares the mouse steps on for card `id`, from `from`: it stops at
+  // the garden's edge, a plant pot, or the cheese (it eats it on the way)
+  function mazePath(st, id, from) {
+    const board = DATA.board(st.board), d = MAZE_DIRS[id >> 1];
+    let c = from % board.cols, r = Math.floor(from / board.cols);
+    const path = [];
+    for (let s = 0; s < (id & 1) + 1; s++) {
+      const nc = c + d[0], nr = r + d[1];
+      if (nc < 0 || nc >= board.cols || nr < 0 || nr >= board.rows || !mazeFree(st, board, nr * board.cols + nc)) break;
+      c = nc; r = nr;
+      path.push(r * board.cols + c);
+      if (r * board.cols + c === st.cheese) break;
+    }
+    return path;
+  }
+  // steps between two squares round the pots (Infinity if walled in)
+  function mazeDist(st, a, b) {
+    const board = DATA.board(st.board), n = board.cols * board.rows;
+    const dist = new Array(n).fill(Infinity);
+    dist[a] = 0;
+    const q = [a];
+    while (q.length) {
+      const k = q.shift();
+      if (k === b) return dist[k];
+      const c = k % board.cols, r = Math.floor(k / board.cols);
+      for (const d of MAZE_DIRS) {
+        const nc = c + d[0], nr = r + d[1], j = nr * board.cols + nc;
+        if (nc < 0 || nc >= board.cols || nr < 0 || nr >= board.rows || !mazeFree(st, board, j) || dist[j] !== Infinity) continue;
+        dist[j] = dist[k] + 1; q.push(j);
+      }
+    }
+    return Infinity;
+  }
+  // the free squares beside square k
+  function mazeWays(st, board, k) {
+    const c = k % board.cols, r = Math.floor(k / board.cols);
+    return MAZE_DIRS.filter((d) => { const nc = c + d[0], nr = r + d[1]; return nc >= 0 && nc < board.cols && nr >= 0 && nr < board.rows && mazeFree(st, board, nr * board.cols + nc); }).length;
+  }
+  // a new cheese: on a free square two to four steps from BOTH mice (about
+  // as far from each), and
+  // never in a pocket with one way in (the mouse could circle it for ever,
+  // waiting for that one arrow)
+  function placeCheese(st, seat) {
+    const board = DATA.board(st.board), n = board.cols * board.rows;
+    const far = [];
+    for (let k = 0; k < n; k++) {
+      if (!mazeFree(st, board, k) || st.mice.indexOf(k) >= 0 || mazeWays(st, board, k) < 2) continue;
+      const a = mazeDist(st, st.mice[0], k), b = mazeDist(st, st.mice[1], k);
+      if (a >= 2 && b >= 2 && a <= 4 && b <= 4 && Math.abs(a - b) <= 1) far.push(k);
+    }
+    if (!far.length) for (let k = 0; k < n; k++) if (mazeFree(st, board, k) && st.mice.indexOf(k) < 0 && mazeDist(st, st.mice[0], k) < Infinity) far.push(k);
+    st.cheese = far[Math.floor(next(seat) * far.length)];
+  }
+  function mazeSetup(st, board) {
+    const s0 = st.seats[0], n = board.cols * board.rows;
+    // each player's own mouse: his in the bottom left, his friend's top right
+    st.mice = [(board.rows - 1) * board.cols, board.cols - 1];
+    // the pots: never on a mouse, never walling a square in
+    for (let guard = 0; guard < 200; guard++) {
+      const pots = [];
+      while (pots.length < board.pots) {
+        const k = Math.floor(next(s0) * n);
+        if (st.mice.indexOf(k) < 0 && pots.indexOf(k) < 0) pots.push(k);
+      }
+      st.pots = pots.sort((a, b) => a - b);
+      let ok = true;
+      for (let k = 0; k < n && ok; k++) if (mazeFree(st, board, k) && mazeDist(st, st.mice[0], k) === Infinity) ok = false;
+      if (ok) break;
+    }
+    st.cheese = -1;
+    placeCheese(st, s0);
+    st.found = 0;
+    st.hands = st.seats.map((s) => { const h = []; while (h.length < board.hand) h.push(draw(s, () => arrowBag(s))); return h; });
+    mazeRedeal(st, st.turn);
+  }
+  // does card `id` take mouse i nearer the cheese (or onto it)?
+  function mazeNearer(st, i, id) {
+    const p = mazePath(st, id, st.mice[i]);
+    if (!p.length) return false;
+    const at = p[p.length - 1];
+    return at === st.cheese || mazeDist(st, at, st.cheese) < mazeDist(st, st.mice[i], st.cheese);
+  }
+  // a hand with no arrow that takes his mouse nearer the cheese is dealt
+  // again: there is always a good move to find (and never a lost turn)
+  function mazeRedeal(st, i) {
+    const s = st.seats[i];
+    let changed = false;
+    for (let guard = 0; guard < 24 && (st.cheese < 0 ? !st.hands[i].some((id) => mazePath(st, id, st.mice[i]).length) : !st.hands[i].some((id) => mazeNearer(st, i, id))); guard++) {
+      st.hands[i][guard % st.hands[i].length] = draw(s, () => arrowBag(s));
+      changed = true;
+    }
+    return changed;
+  }
+  // play card k of the mover's hand: the mouse scurries; the cheese is a ⭐
+  function moveMouse(st, k) {
+    if (st.game !== "maze" || st.phase !== "move") return [];
+    const board = DATA.board(st.board), i = st.turn, s = st.seats[i];
+    const id = st.hands[i][k];
+    if (id == null) return [];
+    const path = mazePath(st, id, st.mice[i]);
+    if (!path.length) return [];
+    st.mice[i] = path[path.length - 1];
+    st.hands[i][k] = draw(s, () => arrowBag(s));
+    const ev = [{ type: "scurry", seat: i, card: id, path, dir: id >> 1 }];
+    if (st.mice[i] === st.cheese) {
+      s.stars += 1; s.pos += 1; st.found += 1;
+      ev.push({ type: "cheese", seat: i, found: st.found });
+      if (st.found >= board.cheese) {
+        for (const x of st.seats) x.home = true;
+        st.order = [0, 1];
+        st.phase = "done";
+        st.cheese = -1;
+        ev.push({ type: "end" });
+        return ev;
+      }
+      placeCheese(st, s);
+      ev.push({ type: "newcheese", at: st.cheese });
+      mazeRedeal(st, i);
+    }
+    endTurn(st, ev);
+    if (mazeRedeal(st, st.turn)) ev.push({ type: "redeal", seat: st.turn });
+    return ev;
+  }
+  // the cards that move the mouse closest to the cheese (onto it, best of all)
+  function mazeBest(st) {
+    const h = st.hands[st.turn];
+    let best = Infinity, out = [];
+    h.forEach((id, k) => {
+      const p = mazePath(st, id, st.mice[st.turn]);
+      if (!p.length) return;
+      const at = p[p.length - 1], d = at === st.cheese ? -1 : mazeDist(st, at, st.cheese);
+      if (d < best) { best = d; out = [k]; } else if (d === best) out.push(k);
+    });
+    return out;
+  }
+  // the computer sees the best arrow only `MAZE_SHARP` of the time
+  const MAZE_SHARP = 0.5;
+  function mazeChoice(st) {
+    const s = st.seats[st.turn];
+    const moves = st.hands[st.turn].map((id, k) => k).filter((k) => mazePath(st, st.hands[st.turn][k], st.mice[st.turn]).length);
+    const best = mazeBest(st);
+    return next(s) < MAZE_SHARP ? best[0] : moves[Math.floor(next(s) * moves.length)];
+  }
+
+  // ---- 🎯 Dice Match -----------------------------------------------------------------
+  // A die's face, from the mover's own seeded luck. NOT a fair bag: a bag of
+  // 1-6 deals three DIFFERENT faces every time, so three dice could never
+  // match — the whole game. Three independent dice are the honest ones.
+  const m3Die = (st) => 1 + Math.floor(next(st.seats[st.turn]) * 6);
+  // How the three dice score: three the same 3, two the same 1, else 0
+  function m3Score(dice) {
+    const a = dice[0], b = dice[1], c = dice[2];
+    return a === b && b === c ? 3 : a === b || b === c || a === c ? 1 : 0;
+  }
+  // The roll: the first of a turn rolls all three; after that, the dice not
+  // kept. When the re-rolls are used up (or every die is kept) the turn
+  // scores: two the same a ⭐, three the same three ⭐s.
+  function rollMatch(st) {
+    if (st.game !== "match3" || (st.phase !== "roll" && st.phase !== "keep")) return [];
+    const board = DATA.board(st.board), i = st.turn, s = st.seats[i];
+    const ev = [];
+    if (st.phase === "roll") {
+      st.dice = [m3Die(st), m3Die(st), m3Die(st)];
+      st.held = [false, false, false];
+      st.left = board.rerolls;
+      st.rolls += 1;
+      ev.push({ type: "roll3", seat: i, dice: st.dice.slice(), all: true });
+      if (m3Score(st.dice) === 3) return scoreMatch(st, ev);
+      st.phase = "keep";
+      return ev;
+    }
+    if (st.held.every(Boolean)) return scoreMatch(st, ev);
+    st.dice = st.dice.map((d, k) => (st.held[k] ? d : m3Die(st)));
+    st.left -= 1;
+    ev.push({ type: "roll3", seat: i, dice: st.dice.slice(), all: false });
+    if (st.left <= 0 || m3Score(st.dice) === 3) return scoreMatch(st, ev);
+    return ev;
+  }
+  function scoreMatch(st, ev) {
+    const board = DATA.board(st.board), i = st.turn, s = st.seats[i];
+    const got = m3Score(st.dice);
+    s.stars += got; s.pos += 1;
+    ev.push({ type: "match", seat: i, stars: got, dice: st.dice.slice() });
+    st.held = [false, false, false]; st.left = 0;
+    if (st.seats.every((x) => x.pos >= board.rounds)) {
+      for (const x of st.seats) x.home = true;
+      st.order = [0, 1];
+      st.phase = "done";
+      ev.push({ type: "end" });
+      return ev;
+    }
+    endTurn(st, ev);
+    return ev;
+  }
+  // Keep (or let go of) die k, between rolls
+  function holdDie(st, k) {
+    if (st.game !== "match3" || st.phase !== "keep" || (k !== 0 && k !== 1 && k !== 2)) return [];
+    st.held[k] = !st.held[k];
+    return [{ type: "hold", seat: st.turn, k, held: st.held[k] }];
+  }
+  // The dice worth keeping: the ones that match another (or, with no match,
+  // none — roll all three again)
+  function m3Keep(dice) {
+    return dice.map((d, k) => dice.some((e, j) => j !== k && e === d));
+  }
+  // The computer keeps the matching dice only `M3_SHARP` of the time (its own
+  // seeded luck), else keeps any — so matching is his edge
+  const M3_SHARP = 0.5;
+  function m3Choice(st) {
+    const s = st.seats[st.turn];
+    if (next(s) < M3_SHARP) return m3Keep(st.dice);
+    return st.dice.map(() => next(s) < 0.5);
+  }
+
+  // ---- 🎨 Colour Grab --------------------------------------------------------------
+  // The squares seat j's patch would grab by turning colour c: every square
+  // nobody owns, of colour c, joined to the patch through squares of c
+  function grabCells(board, paint, owner, j, c) {
+    const C = board.cols, n = paint.length, got = [], seen = new Set();
+    const near = (k) => { const out = [], x = k % C; if (x > 0) out.push(k - 1); if (x < C - 1) out.push(k + 1); if (k >= C) out.push(k - C); if (k + C < n) out.push(k + C); return out; };
+    const stack = [];
+    for (let k = 0; k < n; k++) if (owner[k] === j) for (const m of near(k)) if (owner[m] < 0 && paint[m] === c && !seen.has(m)) { seen.add(m); stack.push(m); }
+    while (stack.length) {
+      const k = stack.pop();
+      got.push(k);
+      for (const m of near(k)) if (owner[m] < 0 && paint[m] === c && !seen.has(m)) { seen.add(m); stack.push(m); }
+    }
+    return got;
+  }
+  // a seat's colour: the colour of its patch
+  const grabColourOf = (st, j) => st.paint[st.owner.indexOf(j)];
+  // The three colours the mover may pick: never its own, never its friend's
+  function grabOptions(st) {
+    const mine = grabColourOf(st, st.turn), theirs = grabColourOf(st, other(st.turn));
+    return DATA.COLOURS.map((c) => c.id).filter((c) => c !== mine && c !== theirs);
+  }
+  // How many squares picking colour c grabs
+  function grabGain(st, c) { return grabCells(DATA.board(st.board), st.paint, st.owner, st.turn, c).length; }
+  // Pick colour c: the mover's patch turns c and swallows every touching
+  // square of it. A grab of `big` or more is a ⭐. Every square owned: the
+  // party. The turn always passes.
+  function grabColour(st, c) {
+    if (st.game !== "grab" || st.phase !== "pick") return [];
+    if (grabOptions(st).indexOf(c) < 0) return [];
+    const board = DATA.board(st.board), i = st.turn, s = st.seats[i];
+    const got = grabCells(board, st.paint, st.owner, i, c);
+    for (let k = 0; k < st.paint.length; k++) if (st.owner[k] === i) st.paint[k] = c;
+    for (const k of got) { st.owner[k] = i; st.paint[k] = c; }
+    s.pos += got.length; st.rolls += 1;
+    const ev = [{ type: "grab", seat: i, c, cells: got }];
+    if (got.length >= board.big) { s.stars += 1; ev.push({ type: "bigGrab", seat: i, n: got.length }); }
+    if (st.owner.every((o) => o >= 0)) {
+      for (const x of st.seats) x.home = true;
+      st.order = [0, 1];
+      st.phase = "done";
+      ev.push({ type: "end" });
+      return ev;
+    }
+    endTurn(st, ev);
+    return ev;
+  }
+  // The colours that grab the most
+  function grabBest(st) {
+    const opts = grabOptions(st), g = opts.map((c) => grabGain(st, c)), top = Math.max(...g);
+    return opts.filter((c, k) => g[k] === top);
+  }
+  // The computer picks the biggest grab only `GRAB_SHARP` of the time (its own
+  // seeded luck), else any of the three — so looking is his edge
+  const GRAB_SHARP = 0.5;
+  function grabChoice(st) {
+    const s = st.seats[st.turn], best = grabBest(st), from = next(s) < GRAB_SHARP ? best : grabOptions(st);
+    return from[Math.floor(next(s) * from.length)];
   }
 
   // ---- 🃏 Top Card ----------------------------------------------------------------
@@ -726,11 +1028,50 @@
     const seat = st.seats[st.turn];
     const board = DATA.board(st.board);
     const die = draw(seat, () => dieBag(seat, board));
-    // a ten-bar is ONE tap: ten more, straight down a row
-    st.die = die; st.left = tapsOf(die); st.rolls += 1;
     st.mover = moverFor(st, st.turn);
+    st.rolls += 1;
+    // 🎲 two dice: both from his own fair bag, and he picks one
+    if (board.two) {
+      st.dice = [die, draw(seat, () => dieBag(seat, board))];
+      st.die = 0; st.left = 0;
+      st.phase = "choose";
+      return [{ type: "roll", seat: st.turn, mover: st.mover, die: 0, dice: st.dice.slice() }];
+    }
+    // a ten-bar is ONE tap: ten more, straight down a row
+    st.die = die; st.left = tapsOf(die);
     st.phase = "hop";
     return [{ type: "roll", seat: st.turn, mover: st.mover, die }];
+  }
+
+  // 🎲 Pick one of the two dice: it is the roll, hopped one tap a hop
+  function chooseDie(st, k) {
+    if (st.game !== "dice" || st.phase !== "choose" || (k !== 0 && k !== 1)) return [];
+    const die = st.dice[k];
+    st.die = die; st.left = tapsOf(die); st.dice = [];
+    st.phase = "hop";
+    return [{ type: "choose", seat: st.turn, mover: st.mover, k, die }];
+  }
+  // Where die k would take the mover (overshoot is the Moon)
+  function dieTarget(st, k) {
+    const board = DATA.board(st.board);
+    return Math.min(board.size, st.seats[st.mover].pos + st.dice[k]);
+  }
+  // The dice that land on a rocket — or, failing that, the bigger one (the
+  // nearer the Moon). Two the same are one choice.
+  function dieBest(st) {
+    const board = DATA.board(st.board), ks = [0, 1];
+    const rocket = ks.filter((k) => { const j = jumpAt(board, dieTarget(st, k)); return j && j.kind === "boost"; });
+    if (rocket.length) return rocket;
+    const top = Math.max(st.dice[0], st.dice[1]);
+    return ks.filter((k) => st.dice[k] === top);
+  }
+  // The computer sees the rocket only `DIE_SHARP` of the time (its own seeded
+  // luck), else picks either — so looking ahead is his edge
+  const DIE_SHARP = 0.5;
+  function dieChoice(st) {
+    const s = st.seats[st.turn], best = dieBest(st);
+    const from = next(s) < DIE_SHARP ? best : [0, 1];
+    return from[Math.floor(next(s) * from.length)];
   }
 
   // How many taps a face is: one per hop, and one for a ten-bar
@@ -1099,6 +1440,18 @@
     if (st.game === "nim") return takeCookies(st, nimChoice(st));
     if (st.game === "lines") return dropLine(st, linesChoice(st));
     if (st.game === "top") return playCard(st, topChoice(st));
+    if (st.game === "grab") return grabColour(st, grabChoice(st));
+    if (st.game === "maze") return moveMouse(st, mazeChoice(st));
+    if (st.game === "match3") {
+      const ev = rollMatch(st), who = st.turn;
+      let guard = 0;
+      while (st.phase === "keep" && st.turn === who && guard++ < 10) {
+        const want = m3Choice(st);
+        for (let k = 0; k < 3; k++) if (st.held[k] !== want[k]) ev.push(...holdDie(st, k));
+        ev.push(...rollMatch(st));
+      }
+      return ev;
+    }
     if (st.game === "dominoes") {
       const ev = [], who = st.turn;
       let guard = 0;
@@ -1149,6 +1502,7 @@
       return ev;
     }
     const ev = roll(st);
+    if (st.phase === "choose") ev.push(...chooseDie(st, dieChoice(st)));
     while (st.phase === "hop" && guard++ < 20) ev.push(...hop(st));
     return ev;
   }
@@ -1165,7 +1519,9 @@
   // What is left of a bag: a die bag is distinct faces 1..6, a card bag at
   // most one full deal of cards this board can deal
   function okBag(board, bag, birds) {
-    if (board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" || board.game === "nim" || board.game === "lines" || board.game === "top") return bag.length === 0;
+    if (board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" || board.game === "nim" || board.game === "lines" || board.game === "top" || board.game === "grab") return bag.length === 0;
+    if (board.game === "match3") return bag.length === 0;
+    if (board.game === "maze") return bag.length <= 8 && new Set(bag).size === bag.length && bag.every((n) => int(n) && n >= 0 && n <= 7);
     if (board.game === "doors") {
       const left = [1, 2, 3, 4, 5, 6];
       for (const n of bag) { const k = left.indexOf(n); if (!int(n) || k < 0) return false; left.splice(k, 1); }
@@ -1204,8 +1560,8 @@
       if (!Array.isArray(snap.seats) || snap.seats.length !== 2) return null;
       const spinning = board.game === "spin";
       const hen = board.game === "hen";
-      const lotto = board.game === "lotto", spotting = board.game === "spot", pairing = board.game === "pairs", acorning = board.game === "acorns", domino = board.game === "dominoes", digging = board.game === "dig", nimming = board.game === "nim", lining = board.game === "lines", topping = board.game === "top";
-      const okPhase = board.game === "cards" ? ["draw", "done"] : nimming ? ["take", "done"] : lining ? ["drop", "done"] : topping ? ["lead", "follow", "done"] : pairing ? ["flip", "second", "done"] : acorning ? ["choose", "done"] : domino ? ["lay", "draw", "done"] : digging ? ["dig", "done"] : lotto ? ["draw", "give", "done"] : board.game === "doors" ? ["roll", "shut", "done"] : spotting ? ["flip", "find", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : ["roll", "hop", "done"];
+      const lotto = board.game === "lotto", spotting = board.game === "spot", pairing = board.game === "pairs", acorning = board.game === "acorns", domino = board.game === "dominoes", digging = board.game === "dig", nimming = board.game === "nim", lining = board.game === "lines", topping = board.game === "top", grabbing = board.game === "grab", matching3 = board.game === "match3", mazing = board.game === "maze";
+      const okPhase = board.game === "cards" ? ["draw", "done"] : matching3 ? ["roll", "keep", "done"] : mazing ? ["move", "done"] : grabbing ? ["pick", "done"] : nimming ? ["take", "done"] : lining ? ["drop", "done"] : topping ? ["lead", "follow", "done"] : pairing ? ["flip", "second", "done"] : acorning ? ["choose", "done"] : domino ? ["lay", "draw", "done"] : digging ? ["dig", "done"] : lotto ? ["draw", "give", "done"] : board.game === "doors" ? ["roll", "shut", "done"] : spotting ? ["flip", "find", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : board.two ? ["roll", "choose", "hop", "done"] : ["roll", "hop", "done"];
       if (okPhase.indexOf(snap.phase) < 0) return null;
       const moving = spinning ? "pick" : "hop";
       if (spinning) {
@@ -1220,7 +1576,13 @@
       // hops (or apples) are left exactly while hopping (picking): a "hop"
       // turn with none left would be stuck for good (hop() refuses, nothing
       // ends the turn)
-      if ((snap.phase === moving) !== (snap.left > 0)) return null;
+      if (!matching3 && (snap.phase === moving) !== (snap.left > 0)) return null;
+      // 🎲 two dice wait exactly while he picks one, both faces of his die
+      if (board.two) {
+        if (!Array.isArray(snap.dice) || snap.dice.length !== (snap.phase === "choose" ? 2 : 0)) return null;
+        if (snap.dice.some((d) => facesOf(board).indexOf(d) < 0)) return null;
+        if (snap.phase === "choose" && snap.die !== 0) return null;
+      } else if (snap.dice !== undefined && !matching3) return null;
       if (snap.phase === moving && snap.left > (spinning ? snap.die : tapsOf(snap.die))) return null;
       if (!int(snap.rolls) || snap.rolls < 0) return null;
       if (hen) {
@@ -1257,6 +1619,62 @@
         if (snap.seats.some((s) => s.stars !== s.pos)) return null;
         if ((snap.phase === "done") !== (snap.found === board.treasures)) return null;
         if (snap.phase === "dig" && (D[snap.spot] || D.every(Boolean))) return null;
+        if (snap.die !== 0 || snap.left !== 0 || snap.card !== null) return null;
+      } else if (mazing) {
+        // the pots (distinct, never walling a square in), the mouse on a free
+        // square, the cheese on another free square (none once done), three
+        // arrows a hand, and the cheeses found are the ⭐s
+        const n = board.cols * board.rows, sq = (k) => int(k) && k >= 0 && k < n;
+        if (!Array.isArray(snap.pots) || snap.pots.length !== board.pots || !snap.pots.every(sq) || new Set(snap.pots).size !== board.pots) return null;
+        if (!Array.isArray(snap.mice) || snap.mice.length !== 2 || snap.mice.some((m) => !sq(m) || snap.pots.indexOf(m) >= 0)) return null;
+        if (snap.phase === "done" ? snap.cheese !== -1 : !sq(snap.cheese) || snap.mice.indexOf(snap.cheese) >= 0 || snap.pots.indexOf(snap.cheese) >= 0) return null;
+        if (!Array.isArray(snap.hands) || snap.hands.length !== 2 || snap.hands.some((h) => !Array.isArray(h) || h.length !== board.hand || !h.every((id) => int(id) && id >= 0 && id <= 7))) return null;
+        if (!int(snap.found) || snap.found !== snap.seats[0].stars + snap.seats[1].stars || snap.found > board.cheese) return null;
+        if (snap.seats.some((x) => x.pos !== x.stars)) return null;
+        if ((snap.phase === "done") !== (snap.found === board.cheese)) return null;
+        if (snap.die !== 0 || snap.card !== null || snap.left !== 0) return null;
+        const t = { board: board.id, pots: snap.pots, cheese: snap.cheese };
+        for (let k = 0; k < n; k++) if (snap.pots.indexOf(k) < 0 && mazeDist(t, snap.mice[0], k) === Infinity) return null;
+        if (snap.phase === "move" && !snap.hands[snap.turn].some((id) => mazePath(t, id, snap.mice[snap.turn]).length)) return null;
+      } else if (matching3) {
+        // three dice of 1-6 while keeping (and nothing kept or left between
+        // turns); the re-rolls left while keeping are 1 or 2; turns played
+        // alternate, so the counts differ by at most one; a turn never ends
+        // on three the same still to keep (three the same scores at once)
+        const D = snap.dice, Hd = snap.held;
+        if (!Array.isArray(D) || D.length !== 3 || !Array.isArray(Hd) || Hd.length !== 3 || Hd.some((h) => typeof h !== "boolean")) return null;
+        if (snap.phase === "keep") {
+          if (D.some((d) => !int(d) || d < 1 || d > 6)) return null;
+          if (!int(snap.left) || snap.left < 1 || snap.left > board.rerolls) return null;
+          if (m3Score(D) === 3) return null;
+        } else if (snap.left !== 0 || Hd.some(Boolean)) return null;
+        if (snap.seats.some((x) => !int(x.pos) || x.pos > board.rounds)) return null;
+        if (Math.abs(snap.seats[0].pos - snap.seats[1].pos) > 1) return null;
+        if (snap.seats.some((x) => x.stars > x.pos * 3)) return null;
+        if ((snap.phase === "done") !== snap.seats.every((x) => x.pos >= board.rounds)) return null;
+        if (snap.die !== 0 || snap.card !== null) return null;
+      } else if (grabbing) {
+        // every square a real colour, owned by nobody or a seat; each patch is
+        // ONE colour, holds its corner and is joined up; a seat's count is its
+        // patch; the corners' patches already swallowed what touched them;
+        // the game is over exactly when every square is owned
+        const Pt = snap.paint, Ow = snap.owner, n = board.cols * board.rows, ids = DATA.COLOURS.map((c) => c.id);
+        if (!Array.isArray(Pt) || Pt.length !== n || Pt.some((c) => ids.indexOf(c) < 0)) return null;
+        if (!Array.isArray(Ow) || Ow.length !== n || Ow.some((o) => o !== -1 && o !== 0 && o !== 1)) return null;
+        if (Ow[0] !== 0 || Ow[n - 1] !== 1) return null;
+        for (const j of [0, 1]) {
+          const mine = Ow.map((o, k) => k).filter((k) => Ow[k] === j);
+          if (snap.seats[j].pos !== mine.length) return null;
+          if (mine.some((k) => Pt[k] !== Pt[mine[0]])) return null;
+          // joined up: a flood from the corner reaches every one of its squares
+          const C = board.cols, seen = new Set([j === 0 ? 0 : n - 1]), stack = [j === 0 ? 0 : n - 1];
+          while (stack.length) { const k = stack.pop(), x = k % C; for (const m of [x > 0 ? k - 1 : -1, x < C - 1 ? k + 1 : -1, k - C, k + C]) if (m >= 0 && m < n && Ow[m] === j && !seen.has(m)) { seen.add(m); stack.push(m); } }
+          if (seen.size !== mine.length) return null;
+          // a patch next to a free square of its own colour would have grabbed it
+          if (grabCells(board, Pt, Ow, j, Pt[mine[0]]).length) return null;
+        }
+        if (Pt[0] === Pt[n - 1]) return null;
+        if ((snap.phase === "done") !== Ow.every((o) => o >= 0)) return null;
         if (snap.die !== 0 || snap.left !== 0 || snap.card !== null) return null;
       } else if (topping) {
         // each player's own ten cards, each in exactly one place (pile, hand,
@@ -1427,7 +1845,7 @@
         // home is exactly standing on the last square
         // home is exactly standing on the last square (👀 everyone is home
         // together, once the deck is used up)
-        if (spotting || pairing || acorning || domino || digging || nimming || lining || topping ? s.home !== (snap.phase === "done") : s.home !== (s.pos === board.size)) return null;
+        if (spotting || pairing || acorning || domino || digging || nimming || lining || topping || grabbing || matching3 || mazing ? s.home !== (snap.phase === "done") : s.home !== (s.pos === board.size)) return null;
         if (!Array.isArray(s.bag) || !okBag(board, s.bag, hen ? snap.fox : snap.birds)) return null;
       }
       // the order they got home in names exactly the seats that are home
@@ -1443,7 +1861,7 @@
   }
 
   const BoardLogic = {
-    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, takeCookies, nimTakes, nimBest, nimChoice, NIM_SHARP, dropLine, dropRow, linesOf, linesOpen, linesMade, linesBest, linesChoice, LINES_SHARP, playCard, topBest, topChoice, TOP_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
+    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, takeCookies, nimTakes, nimBest, nimChoice, NIM_SHARP, dropLine, dropRow, linesOf, linesOpen, linesMade, linesBest, linesChoice, LINES_SHARP, playCard, topBest, topChoice, TOP_SHARP, grabColour, grabCells, grabOptions, grabGain, grabBest, grabChoice, GRAB_SHARP, chooseDie, dieTarget, dieBest, dieChoice, DIE_SHARP, moveMouse, mazePath, mazeDist, mazeBest, mazeChoice, MAZE_SHARP, MAZE_WORDS, rollMatch, holdDie, m3Score, m3Keep, m3Choice, M3_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
     cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN,
   };
   global.BoardLogic = BoardLogic;

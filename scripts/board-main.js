@@ -17,10 +17,13 @@
   if (!doc || !DATA || !L || !R) return;
   const SAY = DATA.SAY;
   // the games whose FIRST game teaches its rule with a glow (see `teach`)
-  const TEACH = ["doors", "dominoes", "acorns", "nim", "lines", "top"];
+  const TEACH = ["doors", "dominoes", "acorns", "nim", "lines", "top", "grab", "match3", "maze"];
   // the games whose BOARD is the buttons, so a pad only says whose turn it is
   // (and the ⭐s): on a short phone those pads give way to the board
-  const PAD_TURN = ["pairs", "acorns", "dominoes", "dig", "nim", "lines", "top"];
+  // The games that draw their OWN board (no track picture, no tokens): ONE
+  // list, where there used to be the same eleven names typed out three times
+  const OWN_BOARD = ["spot", "pairs", "doors", "acorns", "dominoes", "dig", "nim", "lines", "top", "grab", "match3", "maze"];
+  const PAD_TURN = ["pairs", "acorns", "dominoes", "dig", "nim", "lines", "top", "grab", "match3", "maze"];
   const KEY = "josh-board-v1";
   // A double-tap is a PLACE and a TIME (the framework's echo guard): a screen
   // that has just appeared ignores a finger for this long.
@@ -41,7 +44,7 @@
   // grown-up "hop by itself" switch · next: who starts the next two-person
   // game per box · last: the last box and its players.
   // "has been shown how", per kind of game (each kind's first-time hand)
-  const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors", "acorns", "dominoes", "dig", "nim", "lines", "top"];
+  const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors", "acorns", "dominoes", "dig", "nim", "lines", "top", "grab", "match3", "maze"];
   function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, next: {}, last: null }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
   function coerce(text) {
@@ -127,7 +130,7 @@
   // ---- The screens -----------------------------------------------------------
   let shelf = null, who = null, pick = null, play = null;
   let boardEl = null, svgWrap = null, tokens = [null, null], pads = [null, null], hand = null, party = null;
-  let applesEl = null, popEl = null, markEl = null, coopEl = null, spotsEl = null, pairsEl = null, doorsEl = null, acornsEl = null, domEl = null, digEl = null, nimEl = null, linesEl = null, topEl = null;
+  let applesEl = null, popEl = null, markEl = null, coopEl = null, spotsEl = null, pairsEl = null, doorsEl = null, acornsEl = null, domEl = null, digEl = null, nimEl = null, linesEl = null, topEl = null, grabEl = null, m3El = null, mazeEl = null, chooseEl = null, targetEls = [];
   let whoBox = null, pickMode = null;   // which box the who/pick screens are for
 
   const bar = (cls, backLabel, backIcon, title) =>
@@ -200,6 +203,9 @@
           '<div class="bn-svgwrap"></div>' +
           // 🌈 the square a card sends you to, ringed until you get there
           '<div class="bn-mark" aria-hidden="true" hidden></div>' +
+          // 🎲 Pick a Die: the square each die would take him to, wearing that
+          // die's dots
+          '<div class="bn-target" aria-hidden="true" hidden></div><div class="bn-target" aria-hidden="true" hidden></div>' +
           // 🐔 the chicks home in the hen house, counted as she brings them
           '<div class="bn-coop" aria-hidden="true" hidden></div>' +
           // 🍎 the apples that move (in the baskets, the pie, and flying)
@@ -221,7 +227,12 @@
           '<div class="bn-lines" role="group" aria-label="The board" hidden></div>' +
           // 🃏 Top Card: the table (each player's card this trick, under their
           // face) over the hand of three (the buttons)
+          // 🎨 Colour Grab: the grid (a picture: each patch outlined in its
+          // player's colour) over the three colours to pick (the buttons)
+          '<div class="bn-grab" hidden><div class="bn-grab__grid" role="img"></div><div class="bn-grab__pick" role="group" aria-label="Pick a colour"></div></div>' +
           '<div class="bn-top" hidden><div class="bn-top__table" aria-hidden="true"></div><div class="bn-top__hand" role="group" aria-label="Your cards"></div></div>' +
+          '<div class="bn-maze" hidden><div class="bn-maze__grid" role="img"></div><div class="bn-maze__hand" role="group" aria-label="Your arrow cards"></div></div>' +
+          '<div class="bn-m3" hidden><div class="bn-m3__dice" role="group" aria-label="The three dice"></div><div class="bn-m3__roll"></div></div>' +
           '<div class="bn-nim" hidden><div class="bn-jar" role="img"></div><div class="bn-take" role="group" aria-label="How many cookies?"></div></div>' +
           // 🁢 Dot Dominoes: the line's two open ends (big; buttons while a
           // tile waits for him to choose), the line itself small between
@@ -251,6 +262,8 @@
         "</div>" +
       "</div>" +
       '<div class="bn-tray">' +
+        // 🎲 Pick a Die: the two dice to pick from, over the pads while he picks
+        '<div class="bn-choose" role="group" aria-label="Pick a die" hidden></div>' +
         '<button class="bn-pad bn-pad--0" type="button" data-seat="0"><span class="bn-pad__face" aria-hidden="true"></span><span class="bn-pad__act" aria-hidden="true"></span><span class="bn-pad__stars" aria-hidden="true"></span><span class="bn-pad__help" aria-hidden="true" hidden></span><span class="bn-pad__cheer" aria-hidden="true" hidden>🎉</span></button>' +
         '<button class="bn-pad bn-pad--1" type="button" data-seat="1"><span class="bn-pad__face" aria-hidden="true"></span><span class="bn-pad__act" aria-hidden="true"></span><span class="bn-pad__stars" aria-hidden="true"></span><span class="bn-pad__help" aria-hidden="true" hidden></span><span class="bn-pad__cheer" aria-hidden="true" hidden>🎉</span></button>' +
       "</div>" +
@@ -282,6 +295,11 @@
       const b = e.target.closest(".bn-sand");
       if (b && digEl.contains(b) && b.tagName === "BUTTON") tapDig(Number(b.dataset.k), b);
     });
+    grabEl = play.querySelector(".bn-grab");
+    grabEl.addEventListener("click", (e) => {
+      const b = e.target.closest(".bn-swatch");
+      if (b && grabEl.contains(b) && b.tagName === "BUTTON") tapSwatch(b.dataset.c, b);
+    });
     topEl = play.querySelector(".bn-top");
     topEl.addEventListener("click", (e) => {
       const b = e.target.closest(".bn-tc");
@@ -291,6 +309,18 @@
     linesEl.addEventListener("click", (e) => {
       const b = e.target.closest(".bn-col");
       if (b && linesEl.contains(b) && b.tagName === "BUTTON") tapColumn(Number(b.dataset.c), b);
+    });
+    mazeEl = play.querySelector(".bn-maze");
+    mazeEl.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (b && mazeEl.contains(b) && b.dataset.k != null) tapArrow(Number(b.dataset.k), b);
+    });
+    m3El = play.querySelector(".bn-m3");
+    m3El.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b || !m3El.contains(b)) return;
+      if (b.classList.contains("bn-m3roll")) tapRoll3(b);
+      else if (b.dataset.k != null) tapKeep(Number(b.dataset.k), b);
     });
     nimEl = play.querySelector(".bn-nim");
     nimEl.addEventListener("click", (e) => {
@@ -311,6 +341,12 @@
     });
     popEl = play.querySelector(".bn-pop");
     markEl = play.querySelector(".bn-mark");
+    targetEls = [...play.querySelectorAll(".bn-target")];
+    chooseEl = play.querySelector(".bn-choose");
+    chooseEl.addEventListener("click", (e) => {
+      const b = e.target.closest(".bn-pickd");
+      if (b && chooseEl.contains(b) && b.tagName === "BUTTON") tapChoose(Number(b.dataset.k), b);
+    });
     coopEl = play.querySelector(".bn-coop");
     play.querySelector(".bn-playback").addEventListener("click", () => { location.hash = "#board-home"; });
     play.querySelector(".bn-hear").addEventListener("click", () => { hint(true); });
@@ -482,7 +518,7 @@
     play.dataset.pad = PAD_TURN.indexOf(board.game) >= 0 ? "turn" : "act";
     play.dataset.box = box;
     boardEl.classList.toggle("bn-board--chart", board.layout === "chart");
-    svgWrap.innerHTML = board.game === "spot" || board.game === "pairs" || board.game === "doors" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" || board.game === "nim" || board.game === "lines" || board.game === "top" ? "" : board.game === "spin" ? R.orchardSVG() : board.game === "lotto" ? R.picnicSVG(board, st.seats.map((s) => DATA.person(s.who).colour)) : R.boardSVG(board);
+    svgWrap.innerHTML = OWN_BOARD.indexOf(board.game) >= 0 ? "" : board.game === "spin" ? R.orchardSVG() : board.game === "lotto" ? R.picnicSVG(board, st.seats.map((s) => DATA.person(s.who).colour)) : R.boardSVG(board);
     applesEl.innerHTML = "";
     hidePop();
     hideMark();
@@ -493,7 +529,7 @@
       const p = seatPerson(i);
       // 🐔 co-op: ONE token, the hen, that both players walk home
       // 🧺 a picnic has no tokens at all: the foods are the pieces
-      tokens[i].hidden = (farm && i === 1) || board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "doors" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" || board.game === "nim" || board.game === "lines" || board.game === "top";
+      tokens[i].hidden = (farm && i === 1) || board.game === "lotto" || OWN_BOARD.indexOf(board.game) >= 0;
       tokens[i].querySelector(".bn-token__face").innerHTML = farm ? '<span class="bn-emoji">🐔</span>' : R.faceHTML(p);
       tokens[i].style.borderColor = farm ? "#c2410c" : p.colour;
       tokens[i].style.transitionDuration = "0ms";
@@ -523,12 +559,18 @@
     domEl.hidden = b.game !== "dominoes";
     digEl.hidden = b.game !== "dig";
     nimEl.hidden = b.game !== "nim";
+    m3El.hidden = b.game !== "match3";
+    mazeEl.hidden = b.game !== "maze";
     linesEl.hidden = b.game !== "lines";
     topEl.hidden = b.game !== "top";
+    grabEl.hidden = b.game !== "grab";
+    if (b.game === "grab") return layoutGrab(w, h);
     if (b.game === "top") return layoutTop(w, h);
     if (b.game === "lines") return layoutLines(w, h);
     if (b.game === "dig") return layoutDig(w, h);
     if (b.game === "nim") return layoutNim(w, h);
+    if (b.game === "match3") return layoutM3(w, h);
+    if (b.game === "maze") return layoutMaze(w, h);
     if (b.game === "dominoes") return layoutDom(w, h);
     if (b.game === "acorns") return layoutAcorns(w, h);
     if (b.game === "doors") return layoutDoors(w, h);
@@ -759,6 +801,148 @@
     if (game.busy || st.phase !== "dig" || !st.seats[st.turn].cpu) return;
     tapDig(L.digChoice(st), null);
   }
+  // 🎲 Pick a Die: the two dice (big buttons, over the pads) and, on the
+  // board, the square each would take him to — wearing that die's dots, so
+  // the button and its square are the same picture. His first game lights the
+  // die that lands on a rocket (or, with none, the bigger one).
+  function showChoice() {
+    const st = game && game.st;
+    if (!st || st.phase !== "choose" || !st.dice || st.dice.length !== 2) { hideChoice(); return; }
+    const mine = !st.seats[st.turn].cpu, best = mine && game.teach ? L.dieBest(st) : [], b = game.board;
+    const same = st.dice[0] === st.dice[1];
+    let html = "";
+    for (const k of same ? [0] : [0, 1]) {
+      const to = L.dieTarget(st, k), j = L.jumpAt(b, to), rocket = j && j.kind === "boost" && to < b.size;
+      const label = "Pick the " + st.dice[k] + ": to square " + to + (rocket ? ", a rocket" : to >= b.size ? ", the Moon" : "");
+      html += mine
+        ? '<button class="tap bn-pickd' + (best.indexOf(k) >= 0 ? " bn-pickd--hint" : "") + '" type="button" data-k="' + k + '" aria-label="' + label + '">' + dieHTML(st.dice[k], st.dice[k]) + '<span class="bn-pickd__to" aria-hidden="true">' + to + (rocket ? " 🚀" : "") + "</span></button>"
+        : '<span class="bn-pickd bn-pickd--still" role="img" aria-label="' + label + '">' + dieHTML(st.dice[k], st.dice[k]) + '<span class="bn-pickd__to" aria-hidden="true">' + to + "</span></span>";
+    }
+    chooseEl.innerHTML = html;
+    chooseEl.dataset.n = same ? "1" : "2";
+    chooseEl.hidden = false;
+    play.querySelector(".bn-tray").classList.add("bn-tray--choose");
+    for (let k = 0; k < 2; k++) {
+      const el = targetEls[k];
+      if (same && k === 1) { el.hidden = true; continue; }
+      const to = L.dieTarget(st, k), c = L.cellOf(b, to);
+      el.style.left = (c.col / b.cols * 100) + "%";
+      el.style.top = ((b.rows - 1 - c.row) / b.rows * 100) + "%";
+      el.style.width = (100 / b.cols) + "%";
+      el.style.height = (100 / b.rows) + "%";
+      el.innerHTML = dieHTML(st.dice[k], st.dice[k]);
+      el.dataset.n = String(to);
+      el.hidden = false;
+    }
+  }
+  function hideChoice() {
+    if (chooseEl) { chooseEl.hidden = true; chooseEl.innerHTML = ""; }
+    if (play) { const t = play.querySelector(".bn-tray"); if (t) t.classList.remove("bn-tray--choose"); }
+    for (const el of targetEls) el.hidden = true;
+  }
+  function tapChoose(k, btn) {
+    if (!game || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "choose") return;
+    if (btn && st.seats[st.turn].cpu) return;
+    const ev = L.chooseDie(st, k);
+    if (!ev.length) return;
+    // (gone in the same tap: a doubled tap must find nothing left to pick)
+    hideChoice();
+    hideHand();
+    if (!save.intro.pickdie && !st.seats[st.turn].cpu) { save.intro.pickdie = true; persist(); }
+    persistGame();
+    playEvents(ev);
+    // (the pick is not a hop, so it held the board: after its beat the hops
+    // are his to tap — or the computer's, or the grown-up's auto-hop)
+    later(() => {
+      if (!game || game.st.phase !== "hop") return;
+      game.busy = false;
+      paintPads();
+      if (game.st.seats[game.st.turn].cpu) later(cpuHop, T.cpuHop);
+      else if (save.auto) autoHops();
+      else if (!save.intro[introKey()]) { sayPlay(hopLine()); showHand(game.st.turn); }
+    }, T.glide + 20);
+  }
+  function cpuChoose() {
+    if (!game) return;
+    if (!playVisible()) { game.cpuWaiting = true; return; }
+    const st = game.st;
+    if (game.busy || st.phase !== "choose" || !st.seats[st.turn].cpu) return;
+    tapChoose(L.dieChoice(st), null);
+  }
+  // 🎨 the grid over the three colours, as big as the field allows
+  function layoutGrab(w, h) {
+    const b = game.board, GAP = 16, row = Math.max(80, Math.min(104, Math.floor(h * 0.22)));
+    const cell = Math.max(18, Math.min(64, Math.floor(w / b.cols), Math.floor((h - row - GAP - 10) / b.rows)));
+    grabEl.style.setProperty("--grab-w", cell * b.cols + "px");
+    grabEl.style.setProperty("--grab-h", cell * b.rows + "px");
+    grabEl.style.setProperty("--pick-h", row + "px");
+    boardEl.style.width = w + "px";
+    boardEl.style.height = h + "px";
+    boardEl.style.left = "0px";
+    boardEl.style.top = "0px";
+  }
+  // What the grid SHOWS (`game.gbv`): the squares grabbed this turn pulse
+  function grabView() { const st = game.st; return { paint: st.paint.slice(), owner: st.owner.slice(), fresh: [] }; }
+  // The grid as one picture: each square its colour and its white shape; each
+  // patch outlined in its player's colour, with their face on its corner
+  function grabSVG(v) {
+    const b = game.board, C = b.cols, Rw = b.rows, U = 100, W = C * U, H = Rw * U;
+    let sq = "", edge = "", pulse = "";
+    for (let k = 0; k < v.paint.length; k++) {
+      const col = DATA.colour(v.paint[k]), x = (k % C) * U, y = (Rw - 1 - Math.floor(k / C)) * U;
+      sq += '<rect x="' + (x + 3) + '" y="' + (y + 3) + '" width="94" height="94" rx="16" fill="' + col.fill + '"/>';
+      sq += '<g transform="translate(' + (x + 50) + " " + (y + 50) + ') scale(26)" fill="#ffffff" fill-opacity="0.9">' + R.shapePath(col.shape) + "</g>";
+      if (v.fresh.indexOf(k) >= 0) pulse += '<rect class="bn-grab__fresh" x="' + (x + 6) + '" y="' + (y + 6) + '" width="88" height="88" rx="14"/>';
+      const o = v.owner[k];
+      if (o < 0) continue;
+      // the patch's outline: every side that is not the same player's square
+      const stroke = seatPerson(o).colour, same = (m) => m >= 0 && m < v.paint.length && v.owner[m] === o;
+      const sides = [[k % C > 0 ? k - 1 : -1, x, y, x, y + U], [k % C < C - 1 ? k + 1 : -1, x + U, y, x + U, y + U], [k + C, x, y, x + U, y], [k - C, x, y + U, x + U, y + U]];
+      for (const [m, x1, y1, x2, y2] of sides) if (!same(m)) edge += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + stroke + '" stroke-width="14" stroke-linecap="round"/>';
+    }
+    return '<svg class="bn-grab__svg" viewBox="-8 -8 ' + (W + 16) + " " + (H + 16) + '" aria-hidden="true" focusable="false">' + sq + pulse + '<g stroke-opacity="1">' + edge + "</g></svg>";
+  }
+  function paintGrab() {
+    if (!game || game.board.game !== "grab" || !game.gbv) return;
+    const v = game.gbv, st = game.st, b = game.board;
+    const turn = game.showTurn == null ? st.turn : game.showTurn;
+    const mine = st.phase === "pick" && !game.busy && !st.seats[turn].cpu;
+    const grid = grabEl.querySelector(".bn-grab__grid");
+    // each player's face sits on their corner (seat 0 the bottom left)
+    grid.innerHTML = grabSVG(v) + [0, 1].map((j) => '<span class="bn-grab__who bn-grab__who--' + j + '" style="border-color:' + seatPerson(j).colour + '" aria-hidden="true">' + R.faceHTML(seatPerson(j)) + "</span>").join("");
+    grid.setAttribute("aria-label", boardEl.getAttribute("aria-label") || "The grid");
+    // the three colours: never the mover's own, never the friend's; his first
+    // game lights the one that grabs the most
+    const opts = st.phase === "pick" ? L.grabOptions(st) : [];
+    const best = mine && game.teach ? L.grabBest(st) : [];
+    let pick = "";
+    for (const c of opts) {
+      const col = DATA.colour(c), label = col.name + " " + col.shape;
+      if (mine) pick += '<button class="tap bn-swatch' + (best.indexOf(c) >= 0 ? " bn-swatch--hint" : "") + '" type="button" data-c="' + c + '" aria-label="Pick ' + label + '">' + R.shapeSVG(c) + "</button>";
+      else pick += '<span class="bn-swatch bn-swatch--still" role="img" aria-label="' + label + '">' + R.shapeSVG(c) + "</span>";
+    }
+    grabEl.querySelector(".bn-grab__pick").innerHTML = pick;
+  }
+  function tapSwatch(c, btn) {
+    if (!game || game.board.game !== "grab" || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "pick") return;
+    if (btn && st.seats[st.turn].cpu) return;
+    const ev = L.grabColour(st, c);
+    if (!ev.length) return;
+    hideHand();
+    if (!save.intro.grab && !st.seats[ev[0].seat].cpu) { save.intro.grab = true; persist(); }
+    playEvents(ev);
+  }
+  function cpuGrab() {
+    if (!game || game.board.game !== "grab") return;
+    if (!playVisible()) { game.cpuWaiting = true; return; }
+    const st = game.st;
+    if (game.busy || st.phase !== "pick" || !st.seats[st.turn].cpu) return;
+    tapSwatch(L.grabChoice(st), null);
+  }
   // 🃏 the table (two cards side by side) over the hand of three
   function layoutTop(w, h) {
     const GAP = 16;
@@ -892,6 +1076,156 @@
     const st = game.st;
     if (game.busy || st.phase !== "drop" || !st.seats[st.turn].cpu) return;
     tapColumn(L.linesChoice(st), null);
+  }
+  // 🐭 the garden over the three arrow cards, as big as the field allows
+  function layoutMaze(w, h) {
+    const b = game.board, GAP = 16, row = Math.max(80, Math.min(104, Math.floor(h * 0.22)));
+    const cell = Math.max(30, Math.min(96, Math.floor((w - 8) / b.cols), Math.floor((h - row - GAP - 8) / b.rows)));
+    mazeEl.style.setProperty("--maze-cell", cell + "px");
+    mazeEl.style.setProperty("--maze-row", row + "px");
+    boardEl.style.width = w + "px";
+    boardEl.style.height = h + "px";
+    boardEl.style.left = "0px";
+    boardEl.style.top = "0px";
+  }
+  // What the garden SHOWS (`game.zv`): a mouse is still scurrying, and the
+  // cheese still sits there being eaten, after the engine has moved on
+  function mazeView() { const st = game.st; return { mice: st.mice.slice(), cheese: st.cheese, eaten: false, used: null }; }
+  const ARROWS = ["⬆️", "⬇️", "⬅️", "➡️"];
+  function paintMaze() {
+    if (!game || game.board.game !== "maze" || !game.zv) return;
+    const v = game.zv, st = game.st, b = game.board;
+    const turn = game.showTurn == null ? st.turn : game.showTurn;
+    const mine = st.phase === "move" && !game.busy && !st.seats[turn].cpu && st.turn === turn;
+    let html = "";
+    for (let r = 0; r < b.rows; r++) for (let c = 0; c < b.cols; c++) {
+      const k = r * b.cols + c, here = [0, 1].filter((i) => v.mice[i] === k);
+      let inner = "";
+      if (st.pots.indexOf(k) >= 0) inner = '<span class="bn-maze__pot" aria-hidden="true">🪴</span>';
+      else if (k === v.cheese) inner = '<span class="bn-maze__cheese' + (v.eaten ? " bn-maze__cheese--eaten" : "") + '" aria-hidden="true">🧀</span>';
+      for (const i of here) inner += '<span class="bn-mouse bn-mouse--' + i + (here.length === 2 ? " bn-mouse--pair" : "") + (i === turn && st.phase !== "done" ? " bn-mouse--go" : "") + '" style="border-color:' + seatPerson(i).colour + '" aria-hidden="true">🐭</span>';
+      html += '<span class="bn-maze__sq' + (st.pots.indexOf(k) >= 0 ? " bn-maze__sq--pot" : "") + '">' + inner + "</span>";
+    }
+    const grid = mazeEl.querySelector(".bn-maze__grid");
+    grid.innerHTML = html;
+    grid.setAttribute("aria-label", "The garden. " + [0, 1].map((i) => nameOf(i) + "'s mouse").join(" and ") + " and the cheese.");
+    // the mover's three arrows: an arrow each step (one or two); his first
+    // game lights the one that takes his mouse nearest the cheese
+    const hand = st.phase === "move" ? st.hands[turn] : [];
+    const best = mine && game.teach ? L.mazeBest(st) : [];
+    let cards = "";
+    hand.forEach((id, k) => {
+      const n = (id & 1) + 1, word = L.MAZE_WORDS[id >> 1];
+      const goes = L.mazePath(st, id, st.mice[turn]).length > 0;
+      const pics = '<span class="bn-arrow__pic" aria-hidden="true">' + ARROWS[id >> 1].repeat(n) + "</span>";
+      const label = (n === 1 ? "One step " : "Two steps ") + word + (goes ? "" : ", but the way is blocked");
+      if (mine && goes && v.used == null) cards += '<button class="tap bn-arrow' + (best.indexOf(k) >= 0 ? " bn-arrow--hint" : "") + '" type="button" data-k="' + k + '" aria-label="' + label + '">' + pics + "</button>";
+      else cards += '<span class="bn-arrow bn-arrow--still' + (v.used === id ? " bn-arrow--used" : "") + '" role="img" aria-label="' + label + '">' + pics + "</span>";
+    });
+    mazeEl.querySelector(".bn-maze__hand").innerHTML = cards;
+  }
+  function tapArrow(k, btn) {
+    if (!game || game.board.game !== "maze" || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "move") return;
+    if (btn && st.seats[st.turn].cpu) return;
+    const ev = L.moveMouse(st, k);
+    if (!ev.length) return;
+    hideHand();
+    if (!save.intro.maze && !st.seats[ev[0].seat].cpu) { save.intro.maze = true; persist(); }
+    playEvents(ev);
+  }
+  function cpuMaze() {
+    if (!game || game.board.game !== "maze") return;
+    if (!playVisible()) { game.cpuWaiting = true; return; }
+    const st = game.st;
+    if (game.busy || st.phase !== "move" || !st.seats[st.turn].cpu) return;
+    tapArrow(L.mazeChoice(st), null);
+  }
+  // 🎯 three big dice over the roll button, as big as the field allows (three
+  // across fits a 320 phone: the tap ceiling)
+  function layoutM3(w, h) {
+    const GAP = 16, row = Math.max(80, Math.min(110, Math.floor(h * 0.26)));
+    const die = Math.max(80, Math.min(150, Math.floor((w - 2 * GAP - 8) / 3), Math.floor(h - row - GAP - 40)));
+    m3El.style.setProperty("--m3-die", die + "px");
+    m3El.style.setProperty("--m3-roll", row + "px");
+    boardEl.style.width = w + "px";
+    boardEl.style.height = h + "px";
+    boardEl.style.left = "0px";
+    boardEl.style.top = "0px";
+  }
+  // What the dice SHOW (`game.mv`): before the first roll of a turn, three
+  // dice to roll; the engine has already scored a turn while its last roll
+  // is still tumbling
+  function m3View() {
+    const st = game.st, rolled = st.phase === "keep";
+    return { dice: rolled ? st.dice.slice() : [0, 0, 0], held: rolled ? st.held.slice() : [false, false, false], left: rolled ? st.left : 0, rolling: false, glow: [] };
+  }
+  function paintM3() {
+    if (!game || game.board.game !== "match3" || !game.mv) return;
+    const v = game.mv, st = game.st;
+    const turn = game.showTurn == null ? st.turn : game.showTurn;
+    const mine = !game.busy && !st.seats[turn].cpu && st.turn === turn && (st.phase === "roll" || st.phase === "keep");
+    const keeping = mine && st.phase === "keep" && !v.rolling;
+    // his first game: the dice worth keeping glow (the ones that match)
+    const hint = keeping && game.teach ? L.m3Keep(v.dice) : [false, false, false];
+    let html = "";
+    for (let k = 0; k < 3; k++) {
+      const n = v.dice[k], held = v.held[k], go = v.rolling && !held;
+      const cls = "bn-m3d" + (held ? " bn-m3d--held" : "") + (go ? " bn-m3d--go" : "") + (v.glow[k] ? " bn-m3d--win" : "") + (hint[k] && !held ? " bn-m3d--hint" : "");
+      const face = go || !n ? dieHTML(0, 0) : dieHTML(n, n);
+      const label = !n ? "A die to roll" : "A " + n + (held ? ", kept" : "");
+      if (keeping) html += '<button class="tap ' + cls + '" type="button" data-k="' + k + '" aria-pressed="' + held + '" aria-label="' + label + (held ? ". Tap to roll it again" : ". Tap to keep it") + '">' + face + (held ? '<span class="bn-m3d__keep" aria-hidden="true">✋</span>' : "") + "</button>";
+      else html += '<span class="' + cls + '" role="img" aria-label="' + label + '">' + face + (held ? '<span class="bn-m3d__keep" aria-hidden="true">✋</span>' : "") + "</span>";
+    }
+    m3El.querySelector(".bn-m3__dice").innerHTML = html;
+    // the roll: three dice first, then the ones not kept (a dot per roll left)
+    const left = st.phase === "keep" ? v.left : game.board.rerolls;
+    const pips = '<span class="bn-m3roll__left" aria-hidden="true">' + "●".repeat(left) + "</span>";
+    const label = st.phase === "keep" ? "Roll the dice not kept again. " + left + (left === 1 ? " roll left" : " rolls left") : "Roll the three dice";
+    m3El.querySelector(".bn-m3__roll").innerHTML = mine && !v.rolling
+      ? '<button class="tap bn-m3roll" type="button" aria-label="' + label + '"><span class="bn-m3roll__pic" aria-hidden="true">🎲</span>' + pips + "</button>"
+      : '<span class="bn-m3roll bn-m3roll--still" role="img" aria-label="' + label + '"><span class="bn-m3roll__pic" aria-hidden="true">🎲</span>' + pips + "</span>";
+  }
+  function tapRoll3(btn) {
+    if (!game || game.board.game !== "match3" || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "roll" && st.phase !== "keep") return;
+    if (btn && st.seats[st.turn].cpu) return;
+    const ev = L.rollMatch(st);
+    if (!ev.length) return;
+    hideHand();
+    if (!save.intro.match3 && !st.seats[ev[0].seat].cpu) { save.intro.match3 = true; persist(); }
+    playEvents(ev);
+  }
+  // keep (or let go of) a die: no wait, so it never holds the board
+  function tapKeep(k, btn) {
+    if (!game || game.board.game !== "match3" || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "keep" || game.mv.rolling) return;
+    if (btn && st.seats[st.turn].cpu) return;
+    const ev = L.holdDie(st, k);
+    if (!ev.length) return;
+    game.mv.held = st.held.slice();
+    SFX.tick();
+    paintM3();
+    persistGame();
+  }
+  function cpuM3() {
+    if (!game || game.board.game !== "match3") return;
+    if (!playVisible()) { game.cpuWaiting = true; return; }
+    const st = game.st;
+    if (game.busy || !st.seats[st.turn].cpu) return;
+    if (st.phase === "roll") return tapRoll3(null);
+    if (st.phase !== "keep") return;
+    const want = L.m3Choice(st);
+    for (let k = 0; k < 3; k++) if (st.held[k] !== want[k]) L.holdDie(st, k);
+    game.mv.held = st.held.slice();
+    SFX.tick();
+    paintM3();
+    persistGame();
+    game.busy = true;
+    later(() => { if (!game) return; game.busy = false; tapRoll3(null); }, T.cpuThink);
   }
   // 🍪 the jar over the takes, as big as the field allows
   function layoutNim(w, h) {
@@ -1312,7 +1646,7 @@
   function orchardFrac(p) { return { x: p.x / R.ORCH, y: p.y / R.ORCH }; }
   function placeTokens() {
     const st = game.st, b = game.board;
-    if (b.game === "lotto" || b.game === "spot" || b.game === "pairs" || b.game === "doors" || b.game === "acorns" || b.game === "dominoes" || b.game === "dig" || b.game === "nim" || b.game === "lines" || b.game === "top") return;
+    if (b.game === "lotto" || OWN_BOARD.indexOf(b.game) >= 0) return;
     if (b.game === "spin") {
       for (let i = 0; i < 2; i++) {
         const sp = orchardFrac(R.ORCHARD.face[i]);
@@ -1371,8 +1705,11 @@
     game.dv = game.board.game === "dominoes" ? domView() : null;
     game.gv = game.board.game === "dig" ? digView() : null;
     game.cv = game.board.game === "nim" ? nimView() : null;
+    game.mv = game.board.game === "match3" ? m3View() : null;
+    game.zv = game.board.game === "maze" ? mazeView() : null;
     game.lv = game.board.game === "lines" ? linesView() : null;
     game.tv = game.board.game === "top" ? topView() : null;
+    game.gbv = game.board.game === "grab" ? grabView() : null;
     game.shownShut = game.st.seats.map((s) => (s.shut ? s.shut.slice() : []));
     game.doorsGo = null;
     placeTokens();
@@ -1383,8 +1720,11 @@
     paintDom();
     paintDig();
     paintNim();
+    paintM3();
+    paintMaze();
     paintLines();
     paintTop();
+    paintGrab();
     paintApples();
     paintFoods();
     paintCoop();
@@ -1414,6 +1754,11 @@
       boardEl.setAttribute("aria-label", [0, 1].map((i) => nameOf(i) + " has shut " + game.shownShut[i].length + " of 6 doors").join(". ") + ".");
       return;
     }
+    if (game.board.game === "grab") {
+      const v = game.gbv || grabView();
+      boardEl.setAttribute("aria-label", [0, 1].map((i) => nameOf(i) + " has " + v.owner.filter((o) => o === i).length + " squares, " + DATA.colour(v.paint[v.owner.indexOf(i)]).name).join(". ") + ". " + v.owner.filter((o) => o < 0).length + " squares to grab.");
+      return;
+    }
     if (game.board.game === "top") {
       const t = st.gone[0].length;
       boardEl.setAttribute("aria-label", (t < game.board.deck ? "Trick " + (t + 1) + " of " + game.board.deck + ". " : "") + [0, 1].map((i) => nameOf(i) + " has " + game.shownStars[i] + (game.shownStars[i] === 1 ? " star" : " stars")).join(". ") + ".");
@@ -1421,6 +1766,14 @@
     }
     if (game.board.game === "lines") {
       boardEl.setAttribute("aria-label", "Board " + (st.boardNo + 1) + " of " + game.board.boards + ". " + [0, 1].map((i) => nameOf(i) + " has " + game.shownStars[i] + (game.shownStars[i] === 1 ? " star" : " stars")).join(". ") + ".");
+      return;
+    }
+    if (game.board.game === "maze") {
+      boardEl.setAttribute("aria-label", "Cheese " + (Math.min(st.found + 1, game.board.cheese)) + " of " + game.board.cheese + ". " + [0, 1].map((i) => nameOf(i) + " has " + game.shownStars[i] + (game.shownStars[i] === 1 ? " star" : " stars")).join(". ") + ".");
+      return;
+    }
+    if (game.board.game === "match3") {
+      boardEl.setAttribute("aria-label", [0, 1].map((i) => nameOf(i) + " has played " + st.seats[i].pos + " of " + game.board.rounds + " turns and has " + game.shownStars[i] + (game.shownStars[i] === 1 ? " star" : " stars")).join(". ") + ".");
       return;
     }
     if (game.board.game === "nim") {
@@ -1477,14 +1830,25 @@
       if (game.board.game === "dice" || game.board.game === "doors") {
         // while the dice tumble, a tumbling face; then the real one, its
         // dots going dark one per hop
-        if (active && game.tumbleFace) act.innerHTML = dieHTML(game.tumbleFace, game.tumbleFace);
+        if (active && game.tumbleFace && game.board.two) act.innerHTML = '<span class="bn-dice2">' + dieHTML(game.tumbleFace, game.tumbleFace) + dieHTML(7 - game.tumbleFace, 7 - game.tumbleFace) + "</span>";
+        else if (active && game.tumbleFace) act.innerHTML = dieHTML(game.tumbleFace, game.tumbleFace);
+        // 🎲 his two dice, while he picks one (the big ones are in the choice)
+        else if (active && st.phase === "choose" && st.dice && st.dice.length === 2) act.innerHTML = '<span class="bn-dice2">' + dieHTML(st.dice[0], st.dice[0]) + dieHTML(st.dice[1], st.dice[1]) + "</span>";
         // (🚪 the roll stays lit while he finds the doors that make it)
         else if (active && game.rolled) act.innerHTML = dieHTML(st.die, game.board.game === "doors" ? (st.phase === "shut" ? st.die : 0) : st.phase === "hop" && st.turn === i ? st.left : 0);
         else act.innerHTML = dieHTML(0, 0);
         pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
         const hopping = active && st.phase === "hop" && st.turn === i;
         const shutting = active && st.phase === "shut";
-        pad.setAttribute("aria-label", nameOf(i) + (active ? (shutting ? ": shut the doors that make " + st.die : hopping ? (st.die === L.TEN ? ": tap for ten more" : ": tap to hop, " + st.left + " to go") : ": tap to roll the dice") : ": wait for your turn") + (s.home ? (game.board.game === "doors" ? ", every door shut" : ", home") : ""));
+        const choosing = active && st.phase === "choose";
+        pad.setAttribute("aria-label", nameOf(i) + (active ? (choosing ? ": pick one of the two dice" : shutting ? ": shut the doors that make " + st.die : hopping ? (st.die === L.TEN ? ": tap for ten more" : ": tap to hop, " + st.left + " to go") : ": tap to roll the dice") : ": wait for your turn") + (s.home ? (game.board.game === "doors" ? ", every door shut" : ", home") : ""));
+      } else if (game.board.game === "grab") {
+        // 🎨 the colours under the grid are the buttons; the pad shows the
+        // player's own colour now (their patch's) and the ⭐s
+        const v = game.gbv || grabView(), c = v.paint[v.owner.indexOf(i)];
+        act.innerHTML = '<span class="bn-card bn-card--basket bn-swatch--pad">' + R.shapeSVG(c) + "</span>";
+        pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
+        pad.setAttribute("aria-label", nameOf(i) + "'s colour is " + DATA.colour(c).name + (active ? ": pick a colour" : ": wait for your turn"));
       } else if (game.board.game === "top") {
         // 🃏 the hand is the buttons; the pad is whose turn it is and the ⭐s
         act.innerHTML = '<span class="bn-card bn-card--basket">🃏</span>';
@@ -1496,6 +1860,19 @@
         act.innerHTML = '<span class="bn-card bn-card--basket"><span class="bn-slot bn-slot--on bn-slot--mini" style="border-color:' + seatPerson(i).colour + '">' + R.faceHTML(seatPerson(i)) + "</span></span>";
         pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
         pad.setAttribute("aria-label", nameOf(i) + (active ? ": tap a column to drop your counter" : ": wait for your turn"));
+      } else if (game.board.game === "maze") {
+        // 🐭 the arrow cards are the buttons; the pad is the player's own
+        // mouse (in their colour) and the ⭐s
+        act.innerHTML = '<span class="bn-card bn-card--basket"><span class="bn-mouse bn-mouse--mini" style="border-color:' + seatPerson(i).colour + '">🐭</span></span>';
+        pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
+        pad.setAttribute("aria-label", nameOf(i) + (active ? ": play an arrow to move your mouse" : ": wait for your turn"));
+      } else if (game.board.game === "match3") {
+        // 🎯 the dice and the roll are on the board; the pad is whose turn it
+        // is and the ⭐s (five 🎲s, one a turn left, ran off the pad)
+        const left = game.board.rounds - st.seats[i].pos;
+        act.innerHTML = '<span class="bn-card bn-card--basket">🎲</span>';
+        pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
+        pad.setAttribute("aria-label", nameOf(i) + (active ? ": roll, then tap the dice to keep" : ": wait for your turn") + ". " + left + (left === 1 ? " turn left" : " turns left"));
       } else if (game.board.game === "nim") {
         // 🍪 the takes under the jar are the buttons; the pad is whose turn it
         // is and the ⭐s (a golden cookie each)
@@ -1644,7 +2021,7 @@
     game.tumbleFace = 0;
     game.showTurn = st.turn;
     game.showMover = st.mover;
-    game.rolled = st.phase === "hop" || st.phase === "pick" || st.phase === "give" || st.phase === "find" || st.phase === "second" || st.phase === "shut";   // a game restored mid-move shows its die / spin / food
+    game.rolled = st.phase === "hop" || st.phase === "choose" || st.phase === "pick" || st.phase === "give" || st.phase === "find" || st.phase === "second" || st.phase === "shut";   // a game restored mid-move shows its die / spin / food
     game.foodShown = st.phase === "give" ? st.food : null;
     paintPads();
     paintPairs();
@@ -1655,8 +2032,12 @@
     paintDom();
     paintDig();
     paintNim();
+    if (game.board.game === "match3") game.mv = m3View();
+    paintM3();
+    paintMaze();
     paintLines();
     paintTop();
+    paintGrab();
     persistGame();
     const i = st.turn;
     if (st.seats[i].cpu) {
@@ -1671,8 +2052,11 @@
     else if (st.phase === "second") sayPlay(SAY.pairsFirst);
     else if (st.phase === "shut") sayPlay(fill(SAY.doorsPick, { d: st.die }));
     else if (st.phase === "draw") sayPlay(fill(SAY.turn, { n: nameOf(i) }) + " " + SAY.domDraw);
+    else if (st.phase === "choose") sayPlay(SAY.pickDieAgain);
     else if (st.phase === "follow") sayPlay(fill(SAY.turn, { n: nameOf(i) }) + " " + fill(SAY.topFollow, { d: st.table[st.lead] }));
     else sayPlay(fill(SAY.turn, { n: nameOf(i) }) + (first ? " " + firstLine() : ""));
+    if (st.phase === "choose") showChoice();
+    else hideChoice();
     if (first) showHand(i);
     if (st.phase === "hop" && save.auto) autoHops();
     if (st.phase === "pick" && save.auto) autoPicks();
@@ -1682,7 +2066,7 @@
   function hopLine() { return !game ? SAY.hopFirst : game.board.game === "hen" ? SAY.henFirst : game.st.die === L.TEN ? SAY.tenFirst : SAY.hopFirst; }
   // which first-time hand a HOP belongs to: the dice's, or the farm's
   function introKey() { return game && game.board.game === "hen" ? "hen" : "dice"; }
-  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" || g === "hen" ? SAY.spinFirst : g === "lotto" ? SAY.basketFirst : g === "pairs" ? SAY.pairsFirst : g === "doors" ? SAY.doorsFirst : g === "acorns" ? SAY.acornsFirst : g === "dominoes" ? SAY.domFirst : g === "dig" ? SAY.digFirst : g === "nim" ? SAY.nimFirst : g === "lines" ? SAY.linesFirst : g === "top" ? SAY.topLead : SAY.flipFirst; }
+  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" || g === "hen" ? SAY.spinFirst : g === "lotto" ? SAY.basketFirst : g === "pairs" ? SAY.pairsFirst : g === "doors" ? SAY.doorsFirst : g === "acorns" ? SAY.acornsFirst : g === "dominoes" ? SAY.domFirst : g === "dig" ? SAY.digFirst : g === "nim" ? SAY.nimFirst : g === "match3" ? SAY.m3First : g === "maze" ? SAY.mazeFirst : g === "lines" ? SAY.linesFirst : g === "top" ? SAY.topLead : g === "grab" ? SAY.grabFirst : SAY.flipFirst; }
 
   function padTap(i) {
     if (!game || !playVisible()) return;
@@ -1712,7 +2096,10 @@
     if (game.board.game === "acorns") { sayPlay(SAY.acornsFirst); showHand(i); later(hideHand, 2600); return; }
     if (game.board.game === "dig") { sayPlay(SAY.digFirst); showHand(i); later(hideHand, 2600); return; }
     if (game.board.game === "nim") { sayPlay(SAY.nimFirst); showHand(i); later(hideHand, 2600); return; }
+    if (game.board.game === "match3") return tapRoll3(pads[i]);
+    if (game.board.game === "maze") { sayPlay(SAY.mazeFirst); showHand(i); later(hideHand, 2600); return; }
     if (game.board.game === "lines") { sayPlay(SAY.linesFirst); showHand(i); later(hideHand, 2600); return; }
+    if (game.board.game === "grab") { sayPlay(SAY.grabFirst); showHand(i); later(hideHand, 2600); return; }
     if (game.board.game === "top") { sayPlay(st.phase === "follow" ? fill(SAY.topFollow, { d: st.table[st.lead] }) : SAY.topLead); showHand(i); later(hideHand, 2600); return; }
     if (game.board.game === "dominoes") {
       if (st.phase === "draw") return fishTile();
@@ -1720,6 +2107,7 @@
     }
     // 🚪 rolled: the doors are the buttons now
     if (game.board.game === "doors" && st.phase === "shut") { sayPlay(fill(SAY.doorsPick, { d: st.die })); return; }
+    if (st.phase === "choose") { sayPlay(SAY.pickDieAgain); showChoice(); showHand(i); later(hideHand, 2600); return; }
     if (st.phase === "roll") return rollDice();
     if (st.phase === "hop" && !save.auto) return hopOnce();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
@@ -1760,6 +2148,7 @@
       persistGame();
       const st = game.st;
       if (game.board.game === "doors") { afterDoorsRoll(ev); return; }
+      if (st.phase === "choose") { showChoice(); if (st.seats[st.turn].cpu) later(cpuChoose, T.cpuHop); else sayPlay(save.intro.pickdie ? SAY.pickDieAgain : SAY.pickFirstDie); return; }
       if (st.seats[st.turn].cpu) { later(cpuHop, T.cpuHop); return; }
       if (!save.intro[introKey()]) { sayPlay(hopLine()); showHand(st.turn); }
       if (save.auto) autoHops();
@@ -1809,9 +2198,13 @@
     if (game.board.game === "dominoes") return cpuDom();
     if (game.board.game === "dig") return cpuDig();
     if (game.board.game === "nim") return cpuNim();
+    if (game.board.game === "match3") return cpuM3();
+    if (game.board.game === "maze") return cpuMaze();
     if (game.board.game === "lines") return cpuLines();
     if (game.board.game === "top") return cpuTop();
+    if (game.board.game === "grab") return cpuGrab();
     if (game.board.game === "doors" && st.phase === "shut") return cpuDoors();
+    if (st.phase === "choose") return cpuChoose();
     if (st.phase === "roll") return rollDice();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
     if (st.phase === "pick") return cpuPick();
@@ -2097,6 +2490,34 @@
           cheer(e.seat, true);
         });
         at(T.ride, () => { landStar(e.seat); paintBoardLabel(); });
+      } else if (e.type === "choose") {
+        // 🎲 the die he picked is the roll: the choice goes, its dots light
+        at(0, () => {
+          hideChoice();
+          paintPads();
+          SFX.thunk();
+          sayPlay(String(e.die));
+        });
+        at(T.glide, () => {});
+      } else if (e.type === "grab") {
+        // 🎨 the patch turns its new colour and swallows the squares that
+        // touch it (they pulse), and the count is said
+        at(0, () => {
+          const v = game.gbv;
+          for (let k = 0; k < v.paint.length; k++) if (v.owner[k] === e.seat) v.paint[k] = e.c;
+          for (const k of e.cells) { v.owner[k] = e.seat; v.paint[k] = e.c; }
+          v.fresh = e.cells.slice();
+          paintGrab();
+          paintPads();
+          paintBoardLabel();
+          SFX.plop(e.cells.length);
+          sayPlay(e.cells.length > 1 ? fill(SAY.grabGot, { d: e.cells.length }) : e.cells.length ? SAY.grabOne : SAY.grabNone);
+        });
+        at(T.glide, () => { game.gbv.fresh = []; });
+      } else if (e.type === "bigGrab") {
+        // a big grab is a ⭐
+        at(0, () => { SFX.boost(); sayPlay(fill(SAY.grabBig, { n: nameOf(e.seat) })); cheer(e.seat, true); });
+        at(T.ride, () => { landStar(e.seat); paintGrab(); });
       } else if (e.type === "lead" || e.type === "answer") {
         // 🃏 a card goes from the hand onto the table, under its player's face
         at(0, () => {
@@ -2142,6 +2563,51 @@
         at(T.ride, () => { landStar(e.seat); paintBoardLabel(); });
       } else if (e.type === "fresh") {
         at(T.look, () => { game.lv = linesView(); SFX.whoosh(); sayPlay(SAY.linesNew); paintLines(); paintBoardLabel(); });
+      } else if (e.type === "scurry") {
+        // 🐭 the mouse scurries square by square; the steps are counted
+        const word = L.MAZE_WORDS[e.dir];
+        at(0, () => { game.zv.used = e.card; paintMaze(); sayPlay(e.path.length === 1 ? fill(SAY.mazeStep, { w: word }) : fill(SAY.mazeSteps, { d: e.path.length, w: word })); });
+        e.path.forEach((sq, k) => at(k ? T.hop + 60 : T.glide, () => {
+          game.zv.mice[e.seat] = sq;
+          game.zv.used = null;
+          paintMaze();
+          SFX.hop(k);
+        }));
+        at(T.hop, () => {});
+      } else if (e.type === "cheese") {
+        at(0, () => {
+          game.zv.eaten = true;
+          paintMaze();
+          SFX.home();
+          sayPlay(fill(SAY.mazeCheese, { n: nameOf(e.seat) }));
+          cheer(e.seat, true);
+        });
+        at(T.ride, () => { landStar(e.seat); paintBoardLabel(); });
+      } else if (e.type === "newcheese") {
+        at(T.look - T.ride, () => { game.zv.cheese = e.at; game.zv.eaten = false; SFX.whoosh(); sayPlay(SAY.mazeNew); paintMaze(); });
+      } else if (e.type === "roll3") {
+        // 🎯 the dice not kept tumble, then land: the faces are said
+        at(0, () => { game.mv.rolling = true; game.mv.glow = []; paintM3(); SFX.thunk(); });
+        at(T.tumble, () => {
+          const v = game.mv;
+          v.rolling = false; v.dice = e.dice.slice(); v.left = game.st.phase === "keep" && game.st.turn === e.seat ? game.st.left : 0;
+          v.held = e.all ? [false, false, false] : v.held;
+          paintM3();
+          SFX.tick();
+          sayPlay(e.dice.join(", "));
+        });
+      } else if (e.type === "match") {
+        // two the same is a ⭐, three the same three ⭐s: the matching dice glow
+        at(T.glide, () => {
+          const v = game.mv;
+          v.dice = e.dice.slice(); v.held = [false, false, false]; v.left = 0;
+          v.glow = e.stars ? L.m3Keep(e.dice) : [];
+          paintM3();
+          if (e.stars) { SFX.home(); sayPlay(fill(e.stars === 3 ? SAY.m3Three : SAY.m3Pair, { n: nameOf(e.seat) })); cheer(e.seat, true); }
+          else { SFX.whoosh(); sayPlay(SAY.m3None); }
+        });
+        for (let k = 0; k < e.stars; k++) at(k ? T.glide : T.ride, () => { landStar(e.seat); paintBoardLabel(); });
+        if (!e.stars) at(T.ride, () => {});
       } else if (e.type === "nibble") {
         // 🍪 the cookies taken leave the jar (from the top), and the jar's
         // count is said: he counts how many are left
@@ -2516,6 +2982,18 @@
           else if (st.phase === "lay") sayPlay(SAY.domFirst);
         });
       }
+      // 🎯 dice rolled, and the turn goes on: keep some, roll again
+      if (game.board.game === "match3") {
+        at(0, () => {
+          if (!game) return;
+          game.busy = false;
+          paintPads();
+          paintM3();
+          const st = game.st;
+          if (st.phase === "keep" && st.seats[st.turn].cpu) later(cpuM3, T.cpuThink);
+          else if (st.phase === "keep" && !game.m3Told) { game.m3Told = true; sayPlay(SAY.m3Keep); }
+        });
+      }
       // 🌰 a last acorn in the nest: his next pot (or the computer's)
       if (game.board.game === "acorns") {
         at(0, () => {
@@ -2685,8 +3163,12 @@
     const again = game && game.board.game === "acorns" ? L.acornAgains(game.st) : [];
     const card = game && game.board.game === "pairs" ? pairsEl.querySelector("button.bn-pc:not(.bn-pc--up)")
       : game && game.board.game === "dig" ? digEl.querySelector("button.bn-sand")
+      : game && game.st.phase === "choose" && !chooseEl.hidden ? chooseEl.querySelector("button.bn-pickd--hint") || chooseEl.querySelector("button.bn-pickd")
+      : game && game.board.game === "grab" ? grabEl.querySelector("button.bn-swatch--hint") || grabEl.querySelector("button.bn-swatch")
       : game && game.board.game === "top" ? topEl.querySelector("button.bn-tc--hint") || topEl.querySelector("button.bn-tc")
       : game && game.board.game === "lines" ? linesEl.querySelector("button.bn-col--hint") || linesEl.querySelector("button.bn-col")
+      : game && game.board.game === "maze" ? mazeEl.querySelector("button.bn-arrow--hint") || mazeEl.querySelector("button.bn-arrow")
+      : game && game.board.game === "match3" ? m3El.querySelector("button.bn-m3d--hint") || m3El.querySelector("button.bn-m3roll")
       : game && game.board.game === "nim" ? nimEl.querySelector("button.bn-takeb--hint") || nimEl.querySelector("button.bn-takeb")
       : game && game.board.game === "dominoes" ? (game.st.phase === "lay" && (domEl.querySelector("button.bn-domt") && [...domEl.querySelectorAll("button.bn-domt")].find((b) => L.domSides(game.st, b.dataset.id).length))) || null
       : game && game.board.game === "acorns" ? (again.length && acornsEl.querySelector('button.bn-pot[data-k="' + again[again.length - 1] + '"]')) || acornsEl.querySelector("button.bn-pot") : null;
@@ -2711,6 +3193,7 @@
     else if (st.phase === "second") say(SAY.pairsFirst);
     else if (st.phase === "shut") say(fill(SAY.doorsPick, { d: st.die }));
     else if (st.phase === "draw") say(SAY.domDraw);
+    else if (st.phase === "choose") say(SAY.pickDieAgain);
     else if (st.phase === "follow") say(fill(SAY.topFollow, { d: st.table[st.lead] }));
     else say(fill(SAY.turn, { n: nameOf(i) }) + " " + firstLine());
     showHand(i);
@@ -2725,6 +3208,7 @@
     hideHand();
     hidePop();
     hideMark();
+    hideChoice();
     endRides();
     endCheer();
     if (game) {
