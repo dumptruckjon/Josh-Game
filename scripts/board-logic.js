@@ -107,7 +107,7 @@
   // every slide kept (0.72 a game against 0.76).
   const BACK_CAP = 24;
   // Where a token STARTS: square 1 of a track, or an EMPTY basket
-  const startOf = (board) => (board.game === "spin" || board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "doors" ? 0 : 1);
+  const startOf = (board) => (board.game === "spin" || board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "doors" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" ? 0 : 1);
 
   // ---- A new game -----------------------------------------------------------
   // opts: { board, seats: [{ who, cpu }], seed, first }
@@ -141,6 +141,36 @@
     // 🚪 the door held while he looks for the one that makes the rest, and
     // the misses this roll (so the screen can help after two)
     if (board.game === "doors") { st.held = null; st.misses = 0; }
+    // 🌰 the ring of pots: seat i's three pots are i*4+0..2 and its nest is
+    // i*4+3; acorns go round 0 → 7 and back to 0. A seat's `pos` is its nest.
+    // 🁢 the line (its tiles oriented, so the dots at each open end are
+    // `ends`), the two hands (face up) and the pile; one tile starts the line
+    // and is never a double. A seat's `pos` is the tiles it has laid.
+    if (board.game === "dominoes") {
+      const deck = shuffle(seats[0], domSet(board));
+      const k = deck.findIndex((id) => { const t = tileOf(id); return t[0] !== t[1]; });
+      const start = tileOf(deck.splice(k, 1)[0]);
+      st.line = [start];
+      st.ends = [start[0], start[1]];
+      st.hands = [deck.splice(0, board.hand), deck.splice(0, board.hand)];
+      st.pile = deck;
+      st.misses = 0;
+      st.held = null;
+      // (if every tile that fits is in the friend's hand, the friend starts)
+      if (!domCanMove(st, first)) st.turn = st.mover = other(first);
+      st.phase = domCanLay(st, st.turn) ? "lay" : "draw";
+    }
+    // 🏴‍☠️ the treasure's square (dealt from seat 0's generator, so it is
+    // part of the seed) and the squares dug this round
+    if (board.game === "dig") {
+      st.dug = new Array(board.cols * board.rows).fill(false);
+      st.spot = Math.floor(next(seats[0]) * st.dug.length);
+      st.found = 0;
+    }
+    if (board.game === "acorns") {
+      st.pots = [];
+      for (let i = 0; i < 2; i++) { for (let k = 0; k < board.pots; k++) st.pots.push(board.start); st.pots.push(0); }
+    }
     // 🧺 two blankets of six foods (never sharing one), one basket of all
     // twelve in a shuffled order, nothing on a blanket yet. Dealt from seat
     // 0's generator, so the deal is part of the seed. A seat's `pos` is how
@@ -171,7 +201,7 @@
     }
     return st;
   }
-  function firstPhase(game) { return game === "spot" || game === "pairs" ? "flip" : game === "cards" || game === "lotto" ? "draw" : game === "spin" || game === "hen" ? "spin" : "roll"; }
+  function firstPhase(game) { return game === "spot" || game === "pairs" ? "flip" : game === "cards" || game === "lotto" ? "draw" : game === "spin" || game === "hen" ? "spin" : game === "acorns" ? "choose" : game === "dig" ? "dig" : "roll"; }
 
   const anyHome = (st) => st.seats.some((s) => s.home);
   const other = (i) => (i === 0 ? 1 : 0);
@@ -257,6 +287,230 @@
     const ways = doorWays(st);
     if (!ways.length) return null;
     return ways[Math.floor(next(st.seats[st.turn]) * ways.length)];
+  }
+
+  // ---- 🏴‍☠️ Treasure Dig ------------------------------------------------------
+  // The arrow from square k toward square j: one of eight, by row and column
+  const DIRS = ["up-left", "up", "up-right", "left", "", "right", "down-left", "down", "down-right"];
+  function digDir(board, k, j) {
+    const c = board.cols, dc = Math.sign((j % c) - (k % c)), dr = Math.sign(Math.floor(j / c) - Math.floor(k / c));
+    return DIRS[(dr + 1) * 3 + (dc + 1)];
+  }
+  // the squares the arrows dug so far still allow
+  function digMaybe(st) {
+    const board = DATA.board(st.board);
+    return st.dug.map((d, j) => j).filter((j) => !st.dug[j] && st.dug.every((d, k) => !d || digDir(board, k, j) === digDir(board, k, st.spot)));
+  }
+  // Dig square k: the treasure (a ⭐; a new one is buried, or after the last
+  // one the party), or an arrow toward it. Either way the turn passes.
+  function digAt(st, k) {
+    if (st.game !== "dig" || st.phase !== "dig") return [];
+    const board = DATA.board(st.board);
+    if (!int(k) || k < 0 || k >= st.dug.length || st.dug[k]) return [];
+    const i = st.turn, s = st.seats[i];
+    st.dug[k] = true;
+    st.rolls += 1;
+    const ev = [];
+    if (k === st.spot) {
+      s.pos += 1; s.stars += 1; st.found += 1;
+      ev.push({ type: "treasure", seat: i, k, n: st.found });
+      if (st.found >= board.treasures) {
+        for (const x of st.seats) x.home = true;
+        st.order = [0, 1];
+        st.phase = "done";
+        ev.push({ type: "end" });
+        return ev;
+      }
+      st.dug = st.dug.map(() => false);
+      st.spot = Math.floor(next(st.seats[0]) * st.dug.length);
+      ev.push({ type: "bury" });
+    } else ev.push({ type: "hole", seat: i, k, dir: digDir(board, k, st.spot) });
+    endTurn(st, ev);
+    return ev;
+  }
+  // The computer reads the arrows only `DIG_SHARP` of the time (its own
+  // seeded luck), else digs anywhere — so reasoning is his edge
+  const DIG_SHARP = 0.5;
+  function digChoice(st) {
+    const s = st.seats[st.turn];
+    const open = st.dug.map((d, j) => j).filter((j) => !st.dug[j]);
+    const maybe = digMaybe(st);
+    const from = next(s) < DIG_SHARP ? maybe : open;
+    return from[Math.floor(next(s) * from.length)];
+  }
+
+  // ---- 🁢 Dot Dominoes ------------------------------------------------------
+  // A tile is "a-b" (a <= b); every pair of 1..max dots once
+  function domSet(board) {
+    const all = [];
+    for (let a = 1; a <= board.max; a++) for (let b = a; b <= board.max; b++) all.push(a + "-" + b);
+    return all;
+  }
+  const tileOf = (id) => String(id).split("-").map(Number);
+  // the ends a tile can go on: "right" and/or "left"
+  function domSides(st, id) {
+    const t = tileOf(id), out = [];
+    if (t[0] === st.ends[1] || t[1] === st.ends[1]) out.push("right");
+    if (t[0] === st.ends[0] || t[1] === st.ends[0]) out.push("left");
+    return out;
+  }
+  const domCanLay = (st, i) => st.hands[i].some((id) => domSides(st, id).length > 0);
+  // a pile tile that would fit: fishing for it is worth it
+  const domPileFits = (st) => st.pile.some((id) => domSides(st, id).length > 0);
+  // a seat can MOVE: lay a tile, or fish one that fits from the pile
+  const domCanMove = (st, i) => st.hands[i].length > 0 && (domCanLay(st, i) || domPileFits(st));
+  // after a tile (or a pass): the line is finished when every tile is laid
+  // or nobody can lay one with the pile empty; else the friend goes (or, out
+  // of tiles, the one who still has some keeps going), laying or drawing
+  function domNext(st, ev, from) {
+    const done = () => {
+      for (const s of st.seats) s.home = true;
+      st.order = [0, 1];
+      st.phase = "done";
+      st.misses = 0;
+      st.held = null;
+      ev.push({ type: "end" });
+    };
+    if (!st.hands[0].length && !st.hands[1].length) return done();
+    if (!domCanMove(st, 0) && !domCanMove(st, 1)) return done();
+    let t = other(from);
+    if (!st.hands[t].length) t = from;
+    if (!domCanMove(st, t)) { ev.push({ type: "pass", seat: t }); t = other(t); }
+    st.turn = st.mover = t;
+    st.phase = domCanLay(st, t) ? "lay" : "draw";
+    st.misses = 0;
+    st.held = null;
+    ev.push({ type: "turn", seat: t, mover: t });
+  }
+  // The open ends a tile would leave, laid on `side`
+  function domEndsAfter(st, id, side) {
+    const t = tileOf(id), e = st.ends.slice();
+    if (side === "right") e[1] = t[0] === e[1] ? t[1] : t[0];
+    else e[0] = t[1] === e[0] ? t[0] : t[1];
+    return e;
+  }
+  // Does it matter which end? Only when the tile fits both and leaves
+  // different dots open — then HE chooses (that is the skill)
+  function domChoosy(st, id) {
+    const sides = domSides(st, id);
+    if (sides.length < 2) return false;
+    const a = domEndsAfter(st, id, "right"), b = domEndsAfter(st, id, "left");
+    return a[0] !== b[0] || a[1] !== b[1];
+  }
+  // Tap tile `id` in your hand: it goes on the end it matches; one that fits
+  // either end (leaving different dots) is HELD until he taps an end
+  // (`want`). A double is a ⭐, and so is laying your last tile. One that
+  // matches no end is a kind miss.
+  function layTile(st, id, want) {
+    if (st.game !== "dominoes" || st.phase !== "lay") return [];
+    const i = st.turn, hand = st.hands[i], k = hand.indexOf(id);
+    if (k < 0) return [];
+    const sides = domSides(st, id);
+    if (!sides.length) { st.held = null; st.misses += 1; return [{ type: "miss", seat: i, id, misses: st.misses }]; }
+    if (domChoosy(st, id) && sides.indexOf(want) < 0) {
+      if (st.held === id) return [];   // already held (the hammer's echo)
+      st.held = id;
+      return [{ type: "hold", seat: i, id }];
+    }
+    st.held = null;
+    const t = tileOf(id), side = sides.indexOf(want) >= 0 ? want : sides[0];
+    let laid;
+    if (side === "right") { laid = t[0] === st.ends[1] ? t : [t[1], t[0]]; st.line.push(laid); st.ends[1] = laid[1]; }
+    else { laid = t[1] === st.ends[0] ? t : [t[1], t[0]]; st.line.unshift(laid); st.ends[0] = laid[0]; }
+    hand.splice(k, 1);
+    const s = st.seats[i];
+    s.pos += 1;
+    const double = t[0] === t[1];
+    if (double) s.stars += 1;
+    const out = !hand.length;
+    if (out) s.stars += 1;
+    st.rolls += 1;
+    const ev = [{ type: "lay", seat: i, id, side, tile: laid, double, out, ends: st.ends.slice(), count: st.line.length }];
+    domNext(st, ev, i);
+    return ev;
+  }
+  // Nothing in his hand matches: FISH. Turn over the pile's top tile; one
+  // that matches joins his hand (then he lays it), one that does not goes
+  // back under the pile. He fishes only while some pile tile WILL match, so
+  // fishing always ends — and his hand never grows past four.
+  function drawTile(st) {
+    if (st.game !== "dominoes" || st.phase !== "draw" || !st.pile.length) return [];
+    const i = st.turn, id = st.pile.shift();
+    st.held = null;
+    const fits = domSides(st, id).length > 0;
+    if (fits) { st.hands[i].push(id); st.phase = "lay"; }
+    else st.pile.push(id);
+    return [{ type: "take", seat: i, id, fits, left: st.pile.length }];
+  }
+  // The computer lays any tile that matches (a fair, seeded pick): which one
+  // is his edge
+  function domChoice(st) {
+    const opts = [];
+    for (const id of st.hands[st.turn]) for (const side of domSides(st, id)) opts.push([id, side]);
+    return opts.length ? opts[Math.floor(next(st.seats[st.turn]) * opts.length)] : null;
+  }
+
+  // ---- 🌰 Acorn Pots ---------------------------------------------------------
+  const RING = 8, NEST = 3;
+  const nestOf = (i) => i * 4 + NEST;
+  const potsOf = (st, i) => [0, 1, 2].map((k) => i * 4 + k);
+  const sideEmpty = (st, i) => potsOf(st, i).every((k) => st.pots[k] === 0);
+  // Tap pot `k` (a ring index): its acorns go one by one round the ring,
+  // skipping the friend's nest. The last one in your own nest is a ⭐ and you
+  // go again; once a side is empty, every acorn left goes to its own nest.
+  function sowPot(st, k) {
+    if (st.game !== "acorns" || st.phase !== "choose") return [];
+    const i = st.turn, s = st.seats[i];
+    if (!int(k) || potsOf(st, i).indexOf(k) < 0 || st.pots[k] === 0) return [];
+    const n = st.pots[k];
+    st.pots[k] = 0;
+    const ev = [{ type: "scoop", seat: i, from: k, n }];
+    let at = k;
+    for (let c = 1; c <= n; c++) {
+      at = (at + 1) % RING;
+      if (at === nestOf(other(i))) at = (at + 1) % RING;
+      st.pots[at] += 1;
+      ev.push({ type: "sow", seat: i, to: at, c, left: n - c });
+    }
+    st.rolls += 1;
+    for (const j of [0, 1]) st.seats[j].pos = st.pots[nestOf(j)];
+    const again = at === nestOf(i);
+    if (again) { s.stars += 1; ev.push({ type: "again", seat: i, n: st.pots[at] }); }
+    else ev.push({ type: "landed", seat: i, at });
+    if (sideEmpty(st, 0) || sideEmpty(st, 1)) {
+      // a side is empty: the acorns still in pots go home to their own nests
+      for (const j of [0, 1]) {
+        const left = potsOf(st, j).reduce((t, p) => t + st.pots[p], 0);
+        for (const p of potsOf(st, j)) st.pots[p] = 0;
+        st.pots[nestOf(j)] += left;
+        st.seats[j].pos = st.pots[nestOf(j)];
+        if (left) ev.push({ type: "sweep", seat: j, n: left });
+      }
+      for (const j of [0, 1]) st.seats[j].home = true;
+      st.order = [0, 1];
+      st.phase = "done";
+      ev.push({ type: "end" });
+      return ev;
+    }
+    if (!again) endTurn(st, ev);
+    return ev;
+  }
+  // The pots that put the last acorn in the mover's own nest
+  function acornAgains(st) {
+    const i = st.turn;
+    return potsOf(st, i).filter((k) => st.pots[k] > 0 && st.pots[k] === nestOf(i) - k);
+  }
+  // The computer's pick: it SEES a go-again only `ACORN_SHARP` of the time
+  // (its own seeded luck), else any pot with acorns in it — so counting is
+  // his edge
+  const ACORN_SHARP = 0.5;
+  function acornChoice(st) {
+    const s = st.seats[st.turn];
+    const full = potsOf(st, st.turn).filter((k) => st.pots[k] > 0);
+    if (!full.length) return -1;
+    const again = acornAgains(st);
+    if (again.length && next(s) < ACORN_SHARP) return again[again.length - 1];
+    return full[Math.floor(next(s) * full.length)];
   }
 
   // ---- 🚀 Moon Race: roll, then one hop per tap ----------------------------
@@ -635,6 +889,21 @@
       if (st.phase === "shut") for (const n of doorChoice(st)) ev.push(...shutDoor(st, n));
       return ev;
     }
+    if (st.game === "dig") return digAt(st, digChoice(st));
+    if (st.game === "dominoes") {
+      const ev = [], who = st.turn;
+      let guard = 0;
+      while (st.phase === "draw" && st.turn === who && guard++ < 20) ev.push(...drawTile(st));
+      if (st.phase === "lay" && st.turn === who) { const c = domChoice(st); ev.push(...layTile(st, c[0], c[1])); }
+      return ev;
+    }
+    if (st.game === "acorns") {
+      // the whole turn: pot after pot while the last acorn lands in the nest
+      const ev = [], who = st.turn;
+      let guard = 0;
+      while (st.phase === "choose" && st.turn === who && guard++ < 30) ev.push(...sowPot(st, acornChoice(st)));
+      return ev;
+    }
     if (st.game === "pairs") {
       // the whole turn: card after card until the turn passes (a pair, or the
       // star, goes again) or the game is over
@@ -687,7 +956,7 @@
   // What is left of a bag: a die bag is distinct faces 1..6, a card bag at
   // most one full deal of cards this board can deal
   function okBag(board, bag, birds) {
-    if (board.game === "lotto" || board.game === "spot" || board.game === "pairs") return bag.length === 0;
+    if (board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig") return bag.length === 0;
     if (board.game === "doors") {
       const left = [1, 2, 3, 4, 5, 6];
       for (const n of bag) { const k = left.indexOf(n); if (!int(n) || k < 0) return false; left.splice(k, 1); }
@@ -726,8 +995,8 @@
       if (!Array.isArray(snap.seats) || snap.seats.length !== 2) return null;
       const spinning = board.game === "spin";
       const hen = board.game === "hen";
-      const lotto = board.game === "lotto", spotting = board.game === "spot", pairing = board.game === "pairs";
-      const okPhase = board.game === "cards" ? ["draw", "done"] : pairing ? ["flip", "second", "done"] : lotto ? ["draw", "give", "done"] : board.game === "doors" ? ["roll", "shut", "done"] : spotting ? ["flip", "find", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : ["roll", "hop", "done"];
+      const lotto = board.game === "lotto", spotting = board.game === "spot", pairing = board.game === "pairs", acorning = board.game === "acorns", domino = board.game === "dominoes", digging = board.game === "dig";
+      const okPhase = board.game === "cards" ? ["draw", "done"] : pairing ? ["flip", "second", "done"] : acorning ? ["choose", "done"] : domino ? ["lay", "draw", "done"] : digging ? ["dig", "done"] : lotto ? ["draw", "give", "done"] : board.game === "doors" ? ["roll", "shut", "done"] : spotting ? ["flip", "find", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : ["roll", "hop", "done"];
       if (okPhase.indexOf(snap.phase) < 0) return null;
       const moving = spinning ? "pick" : "hop";
       if (spinning) {
@@ -768,6 +1037,54 @@
           const sh = snap.seats[snap.mover].shut;
           if (snap.held !== null && (!int(snap.held) || snap.held >= snap.die || snap.held * 2 === snap.die || sh.indexOf(snap.held) >= 0 || sh.indexOf(snap.die - snap.held) >= 0)) return null;
         } else if (snap.held !== null) return null;
+      } else if (digging) {
+        // nine squares, the treasure under one not yet dug; the treasures
+        // found are the players' piles and their ⭐s; over after the last
+        const D = snap.dug, n = board.cols * board.rows;
+        if (!Array.isArray(D) || D.length !== n || D.some((d) => typeof d !== "boolean")) return null;
+        if (!int(snap.spot) || snap.spot < 0 || snap.spot >= n) return null;
+        if (!int(snap.found) || snap.found < 0 || snap.found > board.treasures) return null;
+        if (snap.seats[0].pos + snap.seats[1].pos !== snap.found) return null;
+        if (snap.seats.some((s) => s.stars !== s.pos)) return null;
+        if ((snap.phase === "done") !== (snap.found === board.treasures)) return null;
+        if (snap.phase === "dig" && (D[snap.spot] || D.every(Boolean))) return null;
+        if (snap.die !== 0 || snap.left !== 0 || snap.card !== null) return null;
+      } else if (domino) {
+        // every tile exactly once — in the line, a hand or the pile; the line
+        // joins up dot to dot and its open ends are `ends`; the tiles laid are
+        // the players' counts; the turn is one that can lay ("lay") or draw
+        // ("draw"), and it is over exactly when no tile can be laid any more
+        const H = snap.hands, Ln = snap.line, Pi = snap.pile;
+        if (!Array.isArray(H) || H.length !== 2 || !H.every(Array.isArray) || !Array.isArray(Ln) || !Ln.length || !Array.isArray(Pi)) return null;
+        if (Ln.some((t) => !Array.isArray(t) || t.length !== 2 || !int(t[0]) || !int(t[1]))) return null;
+        for (let k = 0; k + 1 < Ln.length; k++) if (Ln[k][1] !== Ln[k + 1][0]) return null;
+        if (!Array.isArray(snap.ends) || snap.ends[0] !== Ln[0][0] || snap.ends[1] !== Ln[Ln.length - 1][1]) return null;
+        const ids = Ln.map((t) => Math.min(t[0], t[1]) + "-" + Math.max(t[0], t[1])).concat(H[0], H[1], Pi);
+        const set = domSet(board);
+        if (ids.length !== set.length || new Set(ids).size !== ids.length || ids.some((id) => set.indexOf(id) < 0)) return null;
+        if (snap.seats[0].pos + snap.seats[1].pos !== Ln.length - 1) return null;
+        if (snap.seats.some((s, j) => !int(s.stars) || s.stars < 0 || s.stars > s.pos + (H[j].length ? 0 : 1))) return null;
+        if (snap.held !== null && (snap.phase !== "lay" || H[snap.turn].indexOf(snap.held) < 0 || !domChoosy(snap, snap.held))) return null;
+        const over = !domCanMove(snap, 0) && !domCanMove(snap, 1);
+        if ((snap.phase === "done") !== over) return null;
+        if (snap.phase === "lay" && !domCanLay(snap, snap.turn)) return null;
+        if (snap.phase === "draw" && (domCanLay(snap, snap.turn) || !domPileFits(snap))) return null;
+        if (snap.phase !== "done" && !H[snap.turn].length) return null;
+        if (!int(snap.misses) || snap.misses < 0 || (snap.phase !== "lay" && snap.misses !== 0)) return null;
+        if (snap.die !== 0 || snap.left !== 0 || snap.card !== null) return null;
+      } else if (acorning) {
+        // eight places round the ring, every acorn in one of them; each nest
+        // is its seat's count; the game is over exactly when every pot is
+        // empty, and until then neither side is (an empty side ends it)
+        const P = snap.pots;
+        if (!Array.isArray(P) || P.length !== RING || P.some((n) => !int(n) || n < 0)) return null;
+        if (P.reduce((t, n) => t + n, 0) !== board.size) return null;
+        for (const j of [0, 1]) if (snap.seats[j].pos !== P[nestOf(j)]) return null;
+        const potsLeft = P.some((n, k) => k % 4 !== NEST && n > 0);
+        if ((snap.phase === "done") === potsLeft) return null;
+        if (snap.phase === "choose" && (sideEmpty(snap, 0) || sideEmpty(snap, 1))) return null;
+        if (snap.die !== 0 || snap.left !== 0 || snap.card !== null) return null;
+        if (snap.seats.some((s) => !int(s.stars) || s.stars < 0)) return null;
       } else if (pairing) {
         // the game's pictures (distinct, real); this board holds its own four
         // twice and one ⭐; cards go in twos (a pair), the ⭐ alone; at most
@@ -841,7 +1158,7 @@
         // home is exactly standing on the last square
         // home is exactly standing on the last square (👀 everyone is home
         // together, once the deck is used up)
-        if (spotting || pairing ? s.home !== (snap.phase === "done") : s.home !== (s.pos === board.size)) return null;
+        if (spotting || pairing || acorning || domino || digging ? s.home !== (snap.phase === "done") : s.home !== (s.pos === board.size)) return null;
         if (!Array.isArray(s.bag) || !okBag(board, s.bag, hen ? snap.fox : snap.birds)) return null;
       }
       // the order they got home in names exactly the seats that are home
@@ -857,7 +1174,7 @@
   }
 
   const BoardLogic = {
-    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
+    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
     cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN,
   };
   global.BoardLogic = BoardLogic;

@@ -1013,7 +1013,7 @@ test("every finished game earns its box a 🏆 on the shelf, counted — and a f
     const w = b.querySelector(".bn-box__won");
     return [b.dataset.box, w ? w.textContent : null];
   })));
-  assert.deepEqual(await won(), { moon: "🏆 3", comet: null, rainbow: null, apple: null, hundred: null, hen: null, lotto: null, spot: null, pairs: null, doors: null }, "three Moon games: 🏆 3; the rest none yet");
+  assert.deepEqual(await won(), { moon: "🏆 3", comet: null, rainbow: null, apple: null, hundred: null, hen: null, lotto: null, spot: null, pairs: null, doors: null, acorns: null, dominoes: null, dig: null }, "three Moon games: 🏆 3; the rest none yet");
   assert.match(await page.locator('.bn-box[data-box="moon"]').getAttribute("aria-label"), /played 3 times/);
   // the trophy pill sits in the corner, never on the box's name
   const clear = await page.evaluate(() => {
@@ -1366,6 +1366,12 @@ test("👀 a whole Twin Spot against the computer: flip a card, find the ONE pic
       continue;
     }
     // the middle card and the flipped card are on screen, and share ONE picture
+    // (the screen follows a moment behind the engine: a loaded machine can
+    // still be painting the card that just moved to the middle)
+    await page.waitForFunction((want) => {
+      const mid = [...document.querySelectorAll(".bn-spotcard--mid .bn-twin")].map((x) => Number(x.dataset.p)).sort((a, b) => a - b);
+      return JSON.stringify(mid) === JSON.stringify(want);
+    }, deck[s.centre].slice().sort((a, b) => a - b), { timeout: 5000 }).catch(() => {});
     const shown = await page.evaluate(() => ({
       mid: [...document.querySelectorAll(".bn-spotcard--mid .bn-twin")].map((x) => Number(x.dataset.p)),
       hand: [...document.querySelectorAll(".bn-spotcard--hand .bn-twin")].map((x) => Number(x.dataset.p)),
@@ -1588,6 +1594,176 @@ test("🚪 a whole Shut the Doors against the computer: roll, tap the door that 
   assert.ok(twos >= 1 && hinted && echoed, `fixture: two-door shuts, the hint and the echo all ran (${twos})`);
   await page.locator(".bn-party").waitFor({ state: "visible" });
   assert.equal((await page.evaluate(() => window.__BOARD.save())).done.doors, 1, "a finished Shut the Doors counts once");
+  } finally { await slow(); }
+});
+
+test("🌰 a whole Acorn Pots against the computer: his three pots are the buttons, the acorns drop in one by one counting (sound off), a last acorn in his nest glows and is a ⭐ (go again), an empty pot does nothing, every acorn ends in a nest, one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  try {
+  await startGame("acorns", "river", true, 3, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the acorns are the pieces");
+  const dom = () => page.evaluate(() => [...document.querySelectorAll(".bn-acorns > *")].map((b) => ({
+    nest: b.classList.contains("bn-nest"), button: b.tagName === "BUTTON", k: b.dataset.k == null ? null : Number(b.dataset.k),
+    n: Number((b.querySelector(".bn-pot__n, .bn-nest__n") || {}).textContent.replace(/\D/g, "")), yes: b.classList.contains("bn-pot--yes"),
+    pop: (b.querySelector(".bn-pot__pop") || {}).textContent || "", w: b.offsetWidth, h: b.offsetHeight })));
+  const d0 = await dom();
+  assert.equal(d0.length, 8, "six pots and two nests");
+  assert.equal(d0.filter((d) => d.nest).length, 2, "two nests");
+  const mine = d0.filter((d) => d.button);
+  assert.deepEqual(mine.map((d) => d.k).sort(), [0, 1, 2], "his three pots are the buttons (his friend's are not)");
+  assert.ok(mine.every((d) => d.w >= 75 && d.h >= 75), `his pots are big (${mine.map((d) => d.w + "x" + d.h)})`);
+  assert.ok(d0.filter((d) => !d.nest).every((d) => d.n === 3) && d0.filter((d) => d.nest).every((d) => d.n === 0), "three acorns in every pot, the nests empty");
+  // at the real pace: pot 0 is three from his nest, so its three acorns drop
+  // in counting 1, 2, 3, the last in his nest — which glows: a ⭐, go again
+  const pops = [];
+  await page.locator('.bn-acorns button.bn-pot[data-k="0"]').click();
+  let glowed = false;
+  for (let i = 0; i < 40; i++) {
+    const d = await dom();
+    for (const x of d) if (x.pop && pops[pops.length - 1] !== x.pop) pops.push(x.pop);
+    if (d.find((x) => x.k == null && x.nest && x.yes)) glowed = true;
+    if (glowed && pops.length >= 3) break;
+    await page.waitForTimeout(80);
+  }
+  assert.deepEqual(pops.slice(0, 3), ["1", "2", "3"], "each acorn drops in with its count showing");
+  assert.ok(glowed, "his nest glows when the last acorn lands in it");
+  await untilTap(0);
+  let s = await st();
+  assert.equal(s.turn, 0, "the last acorn in his nest: he goes again");
+  assert.equal(s.seats[0].stars, 1, "and that is a ⭐");
+  assert.equal(await page.locator(".bn-pad--0 .bn-pad__stars").textContent(), "⭐ 1", "his ⭐ lands on his pad");
+  // an empty pot is no button: tapping it does nothing
+  await page.locator(".bn-acorns .bn-pot--0").first().click({ force: true });
+  assert.deepEqual((await st()).pots, s.pots, "his empty pot does nothing");
+  await quick();
+  let cpuTried = false, againSeen = 1;
+  for (let guard = 0; guard < 80; guard++) {
+    const x = await st();
+    if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      await page.locator(".bn-acorns .bn-pot--1").first().click({ force: true }).catch(() => {});
+      assert.equal((await st()).rolls, x.rolls, "his tap on the computer's pots does nothing");
+    }
+    await untilTap(0);
+    s = await st();
+    if (s.phase === "done") break;
+    const again = await page.evaluate(() => window.BoardLogic.acornAgains(window.__BOARD.state()));
+    const k = again.length ? again[again.length - 1] : [0, 1, 2].find((j) => s.pots[j] > 0);
+    const before = s.seats[0].stars;
+    await page.locator('.bn-acorns button.bn-pot[data-k="' + k + '"]').click();
+    // (the engine sows the whole pot the moment he taps)
+    if (again.length) { againSeen += 1; assert.equal((await st()).seats[0].stars, before + 1, "a go-again pot is a ⭐"); }
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.equal(end.pots[3] + end.pots[7], 18, "every acorn is in a nest");
+  assert.ok(cpuTried && againSeen >= 2, `fixture: the computer's turn and two go-agains ran (${againSeen})`);
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.acorns, 1, "a finished Acorn Pots counts once");
+  } finally { await slow(); }
+});
+
+test("🁢 a whole Dot Dominoes against the computer: his four tiles are big buttons, a tile goes on the end it matches, one that fits both ends waits for him to tap an end, one that matches nothing only wiggles, nothing matches means fishing from the pile on his pad, every tile that can be laid is laid, one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("dominoes", "river", true, 3, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the tiles are the pieces");
+  const dom = () => page.evaluate(() => ({
+    hand: [...document.querySelectorAll(".bn-dom__hand .bn-domt")].map((b) => ({ id: b.dataset.id || null, button: b.tagName === "BUTTON", held: b.classList.contains("bn-domt--held"), w: b.offsetWidth, h: b.offsetHeight })),
+    ends: [...document.querySelectorAll(".bn-dom__end")].map((b) => ({ side: b.dataset.side, button: b.tagName === "BUTTON", w: b.offsetWidth })),
+    line: document.querySelectorAll(".bn-dom__line .bn-dom__bit").length,
+  }));
+  const d0 = await dom();
+  assert.equal(d0.hand.length, 4, "his four tiles");
+  assert.ok(d0.hand.every((t) => t.button && t.w >= 75 && t.h >= 75), `four big tiles (${d0.hand.map((t) => t.w + "x" + t.h)})`);
+  assert.deepEqual(d0.ends.map((e) => e.side), ["left", "right"], "the line's two ends");
+  assert.ok(d0.ends.every((e) => !e.button && e.w >= 75), "the ends are big, and not buttons until a tile waits for one");
+  assert.equal(d0.line, 1, "one tile starts the line");
+  let fished = 0, held = 0, missed = 0;
+  for (let guard = 0; guard < 120; guard++) {
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    if (s.phase === "draw") {
+      // nothing matches: his pad fishes from the pile
+      await page.locator(".bn-pad--0").click();
+      fished++;
+      await page.waitForFunction(() => !window.__BOARD.busy(), null, { timeout: 20000 }).catch(() => {});
+      continue;
+    }
+    const fits = await page.evaluate(() => { const x = window.__BOARD.state(); return x.hands[0].map((id) => [id, window.BoardLogic.domSides(x, id).length, window.BoardLogic.domChoosy(x, id)]); });
+    const wrong = fits.find((f) => !f[1]);
+    if (wrong && !missed) {
+      await page.locator('.bn-dom__hand button.bn-domt[data-id="' + wrong[0] + '"]').click();
+      missed++;
+      const after = await st();
+      assert.equal(after.line.length, s.line.length, "a tile that matches no end is not laid");
+      assert.equal(after.misses, 1, "only a kind miss");
+    }
+    const pick = fits.find((f) => f[1]);
+    await page.locator('.bn-dom__hand button.bn-domt[data-id="' + pick[0] + '"]').click();
+    if (pick[2]) {
+      // it fits both ends: it waits (a gold ring) and both ends light up
+      held++;
+      const d = await dom();
+      assert.ok(d.hand.find((t) => t.id === pick[0]).held, "the tile waits, ringed");
+      assert.deepEqual(d.ends.filter((e) => e.button).map((e) => e.side), ["left", "right"], "both ends are buttons now");
+      await page.locator('.bn-dom__hand button.bn-domt[data-id="' + pick[0] + '"]').click();
+      assert.equal((await st()).held, pick[0], "the held tile again (the echo) changes nothing");
+      const was = (await st()).ends;
+      await page.locator('button.bn-dom__end[data-side="left"]').click();
+      const after = await st();
+      assert.equal(after.line[0][1], was[0], "it goes on the end he tapped");
+    }
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.ok(fished >= 1 && held >= 1 && missed >= 1, `fixture: fishing, a held tile and a miss all ran (${fished}, ${held}, ${missed})`);
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.dominoes, 1, "a finished Dot Dominoes counts once");
+  } finally { await slow(); }
+});
+
+test("🏴‍☠️ a whole Treasure Dig against the computer: nine big sand squares, a dug one shows the arrow toward the treasure (sound off), a dug square is no button, the computer's turn cannot be dug, four treasures and one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("dig", "river", true, 7, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the sand is the board");
+  const dom = () => page.evaluate(() => [...document.querySelectorAll(".bn-dig .bn-sand")].map((b) => ({ k: b.dataset.k == null ? null : Number(b.dataset.k), button: b.tagName === "BUTTON", dug: b.classList.contains("bn-sand--dug"), gem: b.classList.contains("bn-sand--gem"), pic: (b.querySelector(".bn-sand__pic") || {}).textContent || "", w: b.offsetWidth, h: b.offsetHeight })));
+  const d0 = await dom();
+  assert.equal(d0.length, 9, "nine squares");
+  assert.ok(d0.every((d) => d.button && d.w >= 75 && d.h >= 75), `nine big sand squares to dig (${d0.map((d) => d.w)})`);
+  const ARROW = { "up-left": "↖️", up: "⬆️", "up-right": "↗️", left: "⬅️", right: "➡️", "down-left": "↙️", down: "⬇️", "down-right": "↘️" };
+  let arrows = 0, cpuTried = false, gems = 0;
+  for (let guard = 0; guard < 80; guard++) {
+    const x = await st();
+    if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      assert.equal(await page.locator(".bn-dig button.bn-sand").count(), 0, "on the computer's turn the sand is not his to dig");
+    }
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    // he reads the arrows: a square every arrow still points to
+    const k = await page.evaluate(() => window.BoardLogic.digMaybe(window.__BOARD.state())[0]);
+    const findIt = k === s.spot;
+    await page.locator('.bn-dig button.bn-sand[data-k="' + k + '"]').click();
+    if (findIt) { gems++; continue; }
+    // (the hole is painted a moment after the engine digs it)
+    await page.waitForFunction((j) => { const e = document.querySelectorAll(".bn-dig .bn-sand")[j]; return e && e.classList.contains("bn-sand--dug"); }, k, { timeout: 5000 });
+    const d = (await dom())[k];
+    const want = ARROW[await page.evaluate((a) => window.BoardLogic.digDir(window.BoardData.board("dig"), a[0], a[1]), [k, s.spot])];
+    assert.ok(d.dug && !d.button && d.pic === want, `the dug square shows the arrow toward the treasure (${d.pic} for ${want})`);
+    arrows++;
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.equal(end.found, 4, "four treasures");
+  assert.ok(arrows >= 1 && gems >= 1 && cpuTried, `fixture: arrows, a find and the computer's turn all ran (${arrows}, ${gems})`);
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.dig, 1, "a finished Treasure Dig counts once");
   } finally { await slow(); }
 });
 

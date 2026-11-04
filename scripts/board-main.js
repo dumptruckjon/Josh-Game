@@ -36,7 +36,7 @@
   // grown-up "hop by itself" switch · next: who starts the next two-person
   // game per box · last: the last box and its players.
   // "has been shown how", per kind of game (each kind's first-time hand)
-  const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors"];
+  const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors", "acorns", "dominoes", "dig"];
   function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, next: {}, last: null }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
   function coerce(text) {
@@ -122,7 +122,7 @@
   // ---- The screens -----------------------------------------------------------
   let shelf = null, who = null, pick = null, play = null;
   let boardEl = null, svgWrap = null, tokens = [null, null], pads = [null, null], hand = null, party = null;
-  let applesEl = null, popEl = null, markEl = null, coopEl = null, spotsEl = null, pairsEl = null, doorsEl = null;
+  let applesEl = null, popEl = null, markEl = null, coopEl = null, spotsEl = null, pairsEl = null, doorsEl = null, acornsEl = null, domEl = null, digEl = null;
   let whoBox = null, pickMode = null;   // which box the who/pick screens are for
 
   const bar = (cls, backLabel, backIcon, title) =>
@@ -204,6 +204,15 @@
           '<div class="bn-spots" hidden><div class="bn-spotcard bn-spotcard--mid" aria-hidden="true"></div><div class="bn-spotcard bn-spotcard--hand" role="group" aria-label="The card you flipped"></div></div>' +
           // 🧠 Peek-a-Pair: the nine cards, face down (each a button)
           '<div class="bn-pairs" role="group" aria-label="The cards" hidden></div>' +
+          // 🌰 Acorn Pots: the ring of pots and the two nests (his pots are
+          // the buttons)
+          '<div class="bn-acorns" role="group" aria-label="The pots" hidden></div>' +
+          // 🏴‍☠️ Treasure Dig: nine sand squares (each a button to dig)
+          '<div class="bn-dig" role="group" aria-label="The sand" hidden></div>' +
+          // 🁢 Dot Dominoes: the line's two open ends (big; buttons while a
+          // tile waits for him to choose), the line itself small between
+          // them, and the mover's hand (the tiles are buttons)
+          '<div class="bn-dom" hidden><div class="bn-dom__row"><span class="bn-dom__end" data-side="left"></span><div class="bn-dom__line" aria-hidden="true"></div><span class="bn-dom__end" data-side="right"></span></div><div class="bn-dom__hand" role="group" aria-label="The tiles"></div></div>' +
           // 🚪 Shut the Doors: the waiting player's doors (small), and the
           // mover's six (big buttons: tap the ones that make the roll)
           '<div class="bn-doors" hidden><div class="bn-doors__other" aria-hidden="true"></div><div class="bn-doors__grid" role="group" aria-label="The doors"></div></div>' +
@@ -253,6 +262,23 @@
     pairsEl.addEventListener("click", (e) => {
       const b = e.target.closest(".bn-pc");
       if (b && pairsEl.contains(b) && b.tagName === "BUTTON") tapPair(Number(b.dataset.k), b);
+    });
+    digEl = play.querySelector(".bn-dig");
+    digEl.addEventListener("click", (e) => {
+      const b = e.target.closest(".bn-sand");
+      if (b && digEl.contains(b) && b.tagName === "BUTTON") tapDig(Number(b.dataset.k), b);
+    });
+    domEl = play.querySelector(".bn-dom");
+    domEl.addEventListener("click", (e) => {
+      const t = e.target.closest("button.bn-domt, button.bn-dom__end");
+      if (!t || !domEl.contains(t)) return;
+      if (t.classList.contains("bn-dom__end")) tapEnd(t.dataset.side, t);
+      else tapTile(t.dataset.id, t);
+    });
+    acornsEl = play.querySelector(".bn-acorns");
+    acornsEl.addEventListener("click", (e) => {
+      const b = e.target.closest(".bn-pot");
+      if (b && acornsEl.contains(b) && b.tagName === "BUTTON") tapPot(Number(b.dataset.k), b);
     });
     popEl = play.querySelector(".bn-pop");
     markEl = play.querySelector(".bn-mark");
@@ -329,7 +355,7 @@
       btn.style.borderBottomColor = b.colour;
       const g = save.games[b.id], played = save.done[b.id] || 0;
       btn.setAttribute("aria-label", b.name + (played ? ", played " + played + (played === 1 ? " time" : " times") : "") + (g ? ", a game is waiting" : ""));
-      btn.innerHTML = '<span class="bn-box__pic" aria-hidden="true">' + b.pic + "</span>" +
+      btn.innerHTML = '<span class="bn-box__pic" aria-hidden="true">' + (b.art === "domino" ? domSVG(5, 2, false) : b.pic) + "</span>" +
         // every game finished here earns the box a 🏆 — he sees the pile grow
         (played ? '<span class="bn-box__won" aria-hidden="true">🏆 ' + played + "</span>" : "") +
         '<span class="bn-box__label">' + b.name + "</span>" +
@@ -422,7 +448,7 @@
     play.dataset.game = board.game;
     play.dataset.box = box;
     boardEl.classList.toggle("bn-board--chart", board.layout === "chart");
-    svgWrap.innerHTML = board.game === "spot" || board.game === "pairs" || board.game === "doors" ? "" : board.game === "spin" ? R.orchardSVG() : board.game === "lotto" ? R.picnicSVG(board, st.seats.map((s) => DATA.person(s.who).colour)) : R.boardSVG(board);
+    svgWrap.innerHTML = board.game === "spot" || board.game === "pairs" || board.game === "doors" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" ? "" : board.game === "spin" ? R.orchardSVG() : board.game === "lotto" ? R.picnicSVG(board, st.seats.map((s) => DATA.person(s.who).colour)) : R.boardSVG(board);
     applesEl.innerHTML = "";
     hidePop();
     hideMark();
@@ -433,7 +459,7 @@
       const p = seatPerson(i);
       // 🐔 co-op: ONE token, the hen, that both players walk home
       // 🧺 a picnic has no tokens at all: the foods are the pieces
-      tokens[i].hidden = (farm && i === 1) || board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "doors";
+      tokens[i].hidden = (farm && i === 1) || board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "doors" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig";
       tokens[i].querySelector(".bn-token__face").innerHTML = farm ? '<span class="bn-emoji">🐔</span>' : R.faceHTML(p);
       tokens[i].style.borderColor = farm ? "#c2410c" : p.colour;
       tokens[i].style.transitionDuration = "0ms";
@@ -459,6 +485,12 @@
     spotsEl.hidden = b.game !== "spot";
     pairsEl.hidden = b.game !== "pairs";
     doorsEl.hidden = b.game !== "doors";
+    acornsEl.hidden = b.game !== "acorns";
+    domEl.hidden = b.game !== "dominoes";
+    digEl.hidden = b.game !== "dig";
+    if (b.game === "dig") return layoutDig(w, h);
+    if (b.game === "dominoes") return layoutDom(w, h);
+    if (b.game === "acorns") return layoutAcorns(w, h);
     if (b.game === "doors") return layoutDoors(w, h);
     if (b.game === "spot") return layoutSpot(w, h);
     if (b.game === "pairs") return layoutPairs(w, h);
@@ -609,6 +641,287 @@
     if (st.seats[st.turn].cpu) { later(cpuDoors, T.cpuHop); return; }
     sayPlay(fill(SAY.doorsPick, { d: st.die }));
   }
+  // 🏴‍☠️ the nine squares, three by three, as big as the field allows
+  function layoutDig(w, h) {
+    const GAP = 16, cell = Math.max(40, Math.min(140, Math.floor((w - 2 * GAP) / 3), Math.floor((h - 2 * GAP) / 3)));
+    digEl.style.setProperty("--sand", cell + "px");
+    digEl.style.fontSize = Math.round(cell * 0.5) + "px";
+    boardEl.style.width = w + "px";
+    boardEl.style.height = h + "px";
+    boardEl.style.left = "0px";
+    boardEl.style.top = "0px";
+  }
+  // the arrow a dug square shows (with VS16: a picture, not a thin glyph)
+  const ARROW = { "up-left": "↖️", up: "⬆️", "up-right": "↗️", left: "⬅️", right: "➡️", "down-left": "↙️", down: "⬇️", "down-right": "↘️" };
+  const ARROW_SAY = { "up-left": "up and left", up: "up", "up-right": "up and right", left: "left", right: "right", "down-left": "down and left", down: "down", "down-right": "down and right" };
+  // What the sand SHOWS (`game.gv`): the engine has buried the next treasure
+  // while the found one is still glowing
+  function digView() {
+    const st = game.st, b = game.board, arrows = {};
+    st.dug.forEach((d, k) => { if (d) arrows[k] = L.digDir(b, k, st.spot); });
+    return { dug: st.dug.slice(), arrows, gem: -1, fresh: -1 };
+  }
+  function paintDig() {
+    if (!game || game.board.game !== "dig" || !game.gv) return;
+    const v = game.gv, st = game.st;
+    const turn = game.showTurn == null ? st.turn : game.showTurn;
+    const mine = st.phase === "dig" && !game.busy && !st.seats[turn].cpu;
+    let html = "";
+    v.dug.forEach((d, k) => {
+      if (k === v.gem) { html += '<span class="bn-sand bn-sand--gem" role="img" aria-label="The treasure!"><span class="bn-sand__pic" aria-hidden="true">💎</span></span>'; return; }
+      if (d) {
+        const a = v.arrows[k];
+        html += '<span class="bn-sand bn-sand--dug' + (k === v.fresh ? " bn-sand--fresh" : "") + '" role="img" aria-label="Dug: the arrow points ' + (ARROW_SAY[a] || "") + '"><span class="bn-sand__pic" aria-hidden="true">' + (ARROW[a] || "") + "</span></span>";
+        return;
+      }
+      const cls = "bn-sand";
+      html += mine ? '<button class="tap ' + cls + '" type="button" data-k="' + k + '" aria-label="Dig here"></button>' : '<span class="' + cls + ' bn-sand--still" role="img" aria-label="Sand"></span>';
+    });
+    digEl.innerHTML = html;
+  }
+  function tapDig(k, btn) {
+    if (!game || game.board.game !== "dig" || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "dig") return;
+    if (btn && st.seats[st.turn].cpu) return;
+    const ev = L.digAt(st, k);
+    if (!ev.length) return;   // a square already dug (the hammer's echo)
+    hideHand();
+    if (!save.intro.dig && !st.seats[ev[0].seat].cpu) { save.intro.dig = true; persist(); }
+    playEvents(ev);
+  }
+  function cpuDig() {
+    if (!game || game.board.game !== "dig") return;
+    if (!playVisible()) { game.cpuWaiting = true; return; }
+    const st = game.st;
+    if (game.busy || st.phase !== "dig" || !st.seats[st.turn].cpu) return;
+    tapDig(L.digChoice(st), null);
+  }
+  // 🁢 one domino, drawn: two halves of dots (1 to 5), side by side or one
+  // above the other. The dots are the same five patterns as the die.
+  const PIPS = { 1: [[50, 50]], 2: [[27, 27], [73, 73]], 3: [[25, 25], [50, 50], [75, 75]], 4: [[27, 27], [73, 27], [27, 73], [73, 73]], 5: [[25, 25], [75, 25], [50, 50], [25, 75], [75, 75]] };
+  function domSVG(a, b, upright) {
+    const half = (n, dx, dy) => (PIPS[n] || []).map((p) => '<circle cx="' + (p[0] + dx) + '" cy="' + (p[1] + dy) + '" r="10" fill="#1f2937"/>').join("");
+    const w = upright ? 100 : 200, h = upright ? 200 : 100;
+    return '<svg class="bn-domsvg" viewBox="0 0 ' + w + " " + h + '" aria-hidden="true"><rect x="3" y="3" width="' + (w - 6) + '" height="' + (h - 6) + '" rx="16" fill="#fffdf6" stroke="#1f2937" stroke-width="5"/>' +
+      (upright ? '<line x1="14" y1="100" x2="86" y2="100" stroke="#1f2937" stroke-width="4"/>' + half(a, 0, 0) + half(b, 0, 100)
+        : '<line x1="100" y1="14" x2="100" y2="86" stroke="#1f2937" stroke-width="4"/>' + half(a, 0, 0) + half(b, 100, 0)) + "</svg>";
+  }
+  function dotFace(n) {
+    return '<svg class="bn-domsvg" viewBox="0 0 100 100" aria-hidden="true"><rect x="3" y="3" width="94" height="94" rx="16" fill="#fffdf6" stroke="#1f2937" stroke-width="5"/>' +
+      (PIPS[n] || []).map((p) => '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="11" fill="#1f2937"/>').join("") + "</svg>";
+  }
+  // the room: the ends row (two big ends, the line between them), then the
+  // hand as many across as fit, every tile 75px+ and 16px from the next
+  function layoutDom(w, h) {
+    const GAP = 16;
+    const end = Math.max(75, Math.min(120, Math.floor(h * 0.26)));
+    const handH = h - end - GAP;
+    // four across when they fit (a hand is four tiles; a fished fifth wraps),
+    // else three; room for two rows, since a fished tile makes five
+    const cols = (w - 3 * GAP) / 4 >= 75 ? 4 : 3;
+    const cw = Math.floor((w - (cols - 1) * GAP) / cols);
+    const th = Math.max(75, Math.min(Math.floor((handH - GAP) / 2), Math.round(cw * 1.7), 170));
+    const best = { tw: Math.max(75, Math.min(cw, Math.round(th / 1.4))), th, cols };
+    game.domLine = { w: Math.max(40, w - 2 * end - 2 * GAP), h: end };
+    domEl.style.setProperty("--end", end + "px");
+    domEl.style.setProperty("--tw", best.tw + "px");
+    domEl.style.setProperty("--th", best.th + "px");
+    domEl.style.setProperty("--tcols", String(best.cols));
+    boardEl.style.width = w + "px";
+    boardEl.style.height = h + "px";
+    boardEl.style.left = "0px";
+    boardEl.style.top = "0px";
+  }
+  // What the tiles SHOW (`game.dv`): the engine has laid the tile and
+  // handed the turn on while the tile is still sliding into the line
+  function domView() {
+    const st = game.st;
+    return { line: st.line.map((t) => t.slice()), ends: st.ends.slice(), hands: st.hands.map((h) => h.slice()), held: st.held, glow: [], fish: null, fishOk: false, fresh: null };
+  }
+  const domName = (id) => { const t = String(id).split("-"); return t[0] + " and " + t[1]; };
+  function paintDom() {
+    if (!game || game.board.game !== "dominoes" || !game.dv) return;
+    const v = game.dv, st = game.st;
+    const turn = game.showTurn == null ? st.turn : game.showTurn;
+    const mine = st.phase === "lay" && !game.busy && !st.seats[turn].cpu && turn === st.turn;
+    // the two ends: buttons only while a held tile waits for him to choose
+    const sides = v.held && mine ? L.domSides(st, v.held) : [];
+    for (const side of ["left", "right"]) {
+      const old = domEl.querySelector('.bn-dom__end[data-side="' + side + '"]');
+      const n = v.ends[side === "left" ? 0 : 1], live = sides.indexOf(side) >= 0;
+      const el = document.createElement(live ? "button" : "span");
+      el.className = "bn-dom__end" + (live ? " tap bn-dom__end--go" : "");
+      el.dataset.side = side;
+      if (live) { el.type = "button"; el.setAttribute("aria-label", "Put it on the " + side + " end, the " + n); }
+      else { el.setAttribute("role", "img"); el.setAttribute("aria-label", "The " + side + " end: " + n); }
+      el.innerHTML = dotFace(n) + '<span class="bn-dom__arrow" aria-hidden="true">' + (side === "left" ? "◀️" : "▶️") + "</span>";
+      old.replaceWith(el);
+    }
+    // the line, small, end to end (the fished tile shows here a moment)
+    let line = v.line.map((t, k) => '<span class="bn-dom__bit' + (k === v.fresh ? " bn-dom__bit--new" : "") + '">' + domSVG(t[0], t[1], false) + "</span>").join("");
+    if (v.fish) line = '<span class="bn-dom__fish' + (v.fishOk ? " bn-dom__fish--ok" : "") + '">' + domSVG(...v.fish.split("-").map(Number), false) + "</span>";
+    const lineEl = domEl.querySelector(".bn-dom__line");
+    lineEl.innerHTML = line;
+    // the line's tiles as big as lets all of them fit between the ends
+    const room = game.domLine || { w: 120, h: 90 }, n = v.line.length;
+    let bw = 48;
+    while (bw > 12 && Math.ceil(n / Math.max(1, Math.floor((room.w + 4) / (bw + 4)))) * (bw / 2 + 4) > room.h) bw -= 2;
+    lineEl.style.setProperty("--bitw", bw + "px");
+    // the mover's hand: big tiles, buttons on his turn
+    const hand = v.hands[turn] || [];
+    let html = "";
+    for (const id of hand) {
+      const t = id.split("-").map(Number), cls = "bn-domt" + (v.held === id ? " bn-domt--held" : "") + (v.glow.indexOf(id) >= 0 ? " bn-domt--hint" : "");
+      html += mine ? '<button class="tap ' + cls + '" type="button" data-id="' + id + '" aria-label="The ' + domName(id) + (v.held === id ? ", held" : "") + '">' + domSVG(t[0], t[1], true) + "</button>"
+        : '<span class="' + cls + '" role="img" aria-label="The ' + domName(id) + '">' + domSVG(t[0], t[1], true) + "</span>";
+    }
+    const handEl = domEl.querySelector(".bn-dom__hand");
+    handEl.innerHTML = html;
+    handEl.setAttribute("aria-label", nameOf(turn) + "'s tiles");
+    handEl.classList.toggle("bn-dom__hand--cpu", !!st.seats[turn].cpu);
+  }
+  function tapTile(id, btn) {
+    if (!game || game.board.game !== "dominoes" || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "lay") return;
+    if (btn && st.seats[st.turn].cpu) return;
+    domMove(L.layTile(st, id), id);
+  }
+  function tapEnd(side) {
+    if (!game || game.board.game !== "dominoes" || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "lay" || !st.held || st.seats[st.turn].cpu) return;
+    domMove(L.layTile(st, st.held, side), st.held);
+  }
+  function domMove(ev, id) {
+    if (!ev.length) return;   // the tile already held (the hammer's echo), or not his
+    const e = ev[0], st = game.st;
+    hideHand();
+    if (e.type === "hold") {
+      game.dv.held = id;
+      paintDom();
+      sayPlay(SAY.domWhich);
+      persistGame();
+      return;
+    }
+    if (e.type === "miss") {
+      game.dv.held = null;
+      // after two, the tiles that match glow
+      if (e.misses >= 2) game.dv.glow = st.hands[st.turn].filter((x) => L.domSides(st, x).length);
+      paintDom();
+      const again = domEl.querySelector('.bn-domt[data-id="' + id + '"]');
+      if (again) wiggle(again);
+      sayPlay(SAY.domMiss);
+      persistGame();
+      return;
+    }
+    if (!save.intro.dominoes && !st.seats[e.seat].cpu) { save.intro.dominoes = true; persist(); }
+    playEvents(ev);
+  }
+  function fishTile() {
+    if (!game || game.board.game !== "dominoes" || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "draw") return;
+    const ev = L.drawTile(st);
+    if (ev.length) playEvents(ev);
+  }
+  function cpuDom() {
+    if (!game || game.board.game !== "dominoes") return;
+    if (!playVisible()) { game.cpuWaiting = true; return; }
+    const st = game.st;
+    if (game.busy || st.phase === "done" || !st.seats[st.turn].cpu) return;
+    if (st.phase === "draw") return fishTile();
+    const c = L.domChoice(st);
+    if (c) domMove(L.layTile(st, c[0], c[1]), c[0]);
+  }
+  // 🌰 where the pots stand. Three shapes, the one that gives the biggest pots:
+  // TALL (a phone held upright) — the board stood on its end between the
+  // pads: seat 0's pots down the left into its nest at the bottom, seat 1's
+  // up the right into its nest at the top, round the way the acorns go; MID
+  // (a short phone) — the same ring with the nests in a middle column; WIDE
+  // (a phone on its side) — the classic board, a nest at each end.
+  // For each ring place: [grid-column, grid-row].
+  const ACORN_SHAPES = {
+    tall: { cols: "repeat(2, minmax(0, 1fr))", at: [["1", "2"], ["1", "3"], ["1", "4"], ["1 / span 2", "5"], ["2", "4"], ["2", "3"], ["2", "2"], ["1 / span 2", "1"]] },
+    mid: { cols: "repeat(3, minmax(0, 1fr))", at: [["1", "1"], ["1", "2"], ["1", "3"], ["2", "3"], ["3", "3"], ["3", "2"], ["3", "1"], ["2", "1"]] },
+    wide: { cols: "var(--nestw, 56px) repeat(3, minmax(0, 1fr)) var(--nestw, 56px)", at: [["2", "2"], ["3", "2"], ["4", "2"], ["5", "1 / span 2"], ["4", "1"], ["3", "1"], ["2", "1"], ["1", "1 / span 2"]] },
+  };
+  function layoutAcorns(w, h) {
+    const GAP = 16, NW = 60, cap = (n) => Math.max(40, Math.min(140, Math.floor(n)));
+    const nest = Math.max(48, Math.min(96, Math.round((h - 4 * GAP) * 0.17)));
+    const fits = {
+      tall: cap(Math.min((h - 2 * nest - 4 * GAP) / 3, (w - GAP) / 2)),
+      mid: cap(Math.min((h - 2 * GAP) / 3, (w - 2 * GAP) / 3)),
+      wide: cap(Math.min((h - GAP) / 2, (w - 2 * NW - 4 * GAP) / 3)),
+    };
+    // upright, the tall board is the clearest (big nests) whenever it fits
+    const shape = fits.tall >= 80 ? "tall" : fits.mid >= fits.wide ? "mid" : "wide";
+    const pot = fits[shape];
+    const sh = ACORN_SHAPES[shape];
+    acornsEl.style.gridTemplateColumns = sh.cols;
+    acornsEl.style.gridTemplateRows = shape === "tall" ? "var(--nest) repeat(3, var(--pot)) var(--nest)" : shape === "mid" ? "repeat(3, var(--pot))" : "repeat(2, var(--pot))";
+    acornsEl.style.setProperty("--pot", pot + "px");
+    acornsEl.style.setProperty("--nest", nest + "px");
+    acornsEl.style.setProperty("--nestw", NW + "px");
+    acornsEl.style.fontSize = Math.round(pot * 0.2) + "px";
+    const changed = acornsEl.dataset.shape !== shape;
+    acornsEl.dataset.shape = shape;
+    boardEl.style.width = w + "px";
+    boardEl.style.height = h + "px";
+    boardEl.style.left = "0px";
+    boardEl.style.top = "0px";
+    if (changed) paintAcorns();
+  }
+  // What the pots SHOW (`game.av`): the engine has sown the whole pot while
+  // the acorns are still dropping in one by one
+  function acornsView() { return { pots: game.st.pots.slice(), drop: -1, c: 0, from: -1, glow: -1 }; }
+  function acornPile(n) {
+    if (!n) return "";
+    if (n > 6) return '<span class="bn-pot__acorn">🌰</span><span class="bn-pot__x">×' + n + "</span>";
+    return '<span class="bn-pot__acorn">' + "🌰".repeat(n) + "</span>";
+  }
+  function paintAcorns() {
+    if (!game || game.board.game !== "acorns" || !game.av) return;
+    const v = game.av, st = game.st;
+    const turn = game.showTurn == null ? st.turn : game.showTurn;
+    const mine = st.phase !== "done" && !game.busy && !st.seats[turn].cpu;
+    let html = "";
+    v.pots.forEach((n, k) => {
+      const seat = k < 4 ? 0 : 1, nest = k % 4 === 3, [col, row] = (ACORN_SHAPES[acornsEl.dataset.shape] || ACORN_SHAPES.tall).at[k];
+      const cls = (nest ? "bn-nest" : "bn-pot") + " bn-pot--" + seat + (k === v.drop ? " bn-pot--drop" : "") + (k === v.from ? " bn-pot--from" : "") + (k === v.glow ? " bn-pot--yes" : "");
+      const style = ' style="grid-column:' + col + ";grid-row:" + row + ";border-color:" + seatPerson(seat).colour + '"';
+      const pop = k === v.drop ? '<span class="bn-pot__pop">' + v.c + "</span>" : "";
+      const label = nameOf(seat) + (nest ? "'s nest: " : "'s pot: ") + n + (n === 1 ? " acorn" : " acorns");
+      if (nest) {
+        html += '<span class="' + cls + '"' + style + ' aria-label="' + label + '" role="img"><span class="bn-nest__face" aria-hidden="true">' + R.faceHTML(seatPerson(seat)) + '</span><span class="bn-nest__n" aria-hidden="true">🐿️ ' + n + "</span>" + pop + "</span>";
+      } else if (mine && seat === turn && n > 0) {
+        html += '<button class="tap ' + cls + '" type="button"' + style + ' data-k="' + k + '" aria-label="' + label + '"><span class="bn-pot__pile" aria-hidden="true">' + acornPile(n) + '</span><span class="bn-pot__n" aria-hidden="true">' + n + "</span>" + pop + "</button>";
+      } else {
+        html += '<span class="' + cls + ' bn-pot--still"' + style + ' role="img" aria-label="' + label + '"><span class="bn-pot__pile" aria-hidden="true">' + acornPile(n) + '</span><span class="bn-pot__n" aria-hidden="true">' + n + "</span>" + pop + "</span>";
+      }
+    });
+    acornsEl.innerHTML = html;
+  }
+  function tapPot(k, btn) {
+    if (!game || game.board.game !== "acorns" || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "choose") return;
+    if (btn && st.seats[st.turn].cpu) return;   // the computer's turn
+    const ev = L.sowPot(st, k);
+    if (!ev.length) return;   // an empty pot, or not his (the hammer's echo)
+    hideHand();
+    if (!save.intro.acorns && !st.seats[ev[0].seat].cpu) { save.intro.acorns = true; persist(); }
+    game.busy = true;
+    playEvents(ev);
+  }
+  function cpuAcorn() {
+    if (!game || game.board.game !== "acorns") return;
+    if (!playVisible()) { game.cpuWaiting = true; return; }
+    const st = game.st;
+    if (game.busy || st.phase === "done" || !st.seats[st.turn].cpu) return;
+    tapPot(L.acornChoice(st), null);
+  }
   // What the screen shows of the cards (`game.pv`): the engine has already
   // moved on (a pair taken, a miss turned back, a new board dealt) while the
   // screen still shows the moment, so the pictures follow these, not the state
@@ -733,7 +1046,7 @@
   function orchardFrac(p) { return { x: p.x / R.ORCH, y: p.y / R.ORCH }; }
   function placeTokens() {
     const st = game.st, b = game.board;
-    if (b.game === "lotto" || b.game === "spot" || b.game === "pairs" || b.game === "doors") return;
+    if (b.game === "lotto" || b.game === "spot" || b.game === "pairs" || b.game === "doors" || b.game === "acorns" || b.game === "dominoes" || b.game === "dig") return;
     if (b.game === "spin") {
       for (let i = 0; i < 2; i++) {
         const sp = orchardFrac(R.ORCHARD.face[i]);
@@ -788,12 +1101,18 @@
     game.landed = null;
     game.spotYes = null; game.spotHand = null; game.spotMid = null;
     game.pv = game.board.game === "pairs" ? pairsView() : null;
+    game.av = game.board.game === "acorns" ? acornsView() : null;
+    game.dv = game.board.game === "dominoes" ? domView() : null;
+    game.gv = game.board.game === "dig" ? digView() : null;
     game.shownShut = game.st.seats.map((s) => (s.shut ? s.shut.slice() : []));
     game.doorsGo = null;
     placeTokens();
     paintSpots();
     paintPairs();
     paintDoors();
+    paintAcorns();
+    paintDom();
+    paintDig();
     paintApples();
     paintFoods();
     paintCoop();
@@ -821,6 +1140,18 @@
     }
     if (game.board.game === "doors") {
       boardEl.setAttribute("aria-label", [0, 1].map((i) => nameOf(i) + " has shut " + game.shownShut[i].length + " of 6 doors").join(". ") + ".");
+      return;
+    }
+    if (game.board.game === "dig") {
+      boardEl.setAttribute("aria-label", st.found + (st.found === 1 ? " treasure" : " treasures") + " found of " + game.board.treasures + ".");
+      return;
+    }
+    if (game.board.game === "dominoes") {
+      boardEl.setAttribute("aria-label", "The line has " + st.line.length + " tiles. Its ends are " + st.ends[0] + " and " + st.ends[1] + ". " + [0, 1].map((i) => nameOf(i) + " has " + st.hands[i].length + (st.hands[i].length === 1 ? " tile" : " tiles")).join(". ") + ".");
+      return;
+    }
+    if (game.board.game === "acorns") {
+      boardEl.setAttribute("aria-label", [0, 1].map((i) => nameOf(i) + " has " + st.seats[i].pos + (st.seats[i].pos === 1 ? " acorn" : " acorns") + " in the nest").join(". ") + ".");
       return;
     }
     if (game.board.game === "pairs") {
@@ -869,6 +1200,24 @@
         const hopping = active && st.phase === "hop" && st.turn === i;
         const shutting = active && st.phase === "shut";
         pad.setAttribute("aria-label", nameOf(i) + (active ? (shutting ? ": shut the doors that make " + st.die : hopping ? (st.die === L.TEN ? ": tap for ten more" : ": tap to hop, " + st.left + " to go") : ": tap to roll the dice") : ": wait for your turn") + (s.home ? (game.board.game === "doors" ? ", every door shut" : ", home") : ""));
+      } else if (game.board.game === "dig") {
+        // 🏴‍☠️ the sand is the buttons; the pad is whose turn and the ⭐s
+        act.innerHTML = '<span class="bn-card bn-card--basket">⛏️</span>';
+        pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
+        pad.setAttribute("aria-label", nameOf(i) + (active ? ": dig a square" : ": wait for your turn"));
+      } else if (game.board.game === "dominoes") {
+        // 🁢 the tiles are the buttons; the pad fishes from the pile when
+        // nothing in his hand matches (a face-down tile to tap)
+        const fishing = active && st.phase === "draw" && st.turn === i;
+        act.innerHTML = fishing ? '<span class="bn-card bn-card--back bn-dom__pile">🎣</span>' : '<span class="bn-card bn-card--basket bn-dom__count">' + domSVG(5, 3, true) + '<span class="bn-dom__n">' + (game.dv ? game.dv.hands[i].length : st.hands[i].length) + "</span></span>";
+        pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
+        pad.setAttribute("aria-label", nameOf(i) + (active ? (fishing ? ": tap to take a tile from the pile" : ": tap a tile that matches an end") : ": wait for your turn"));
+      } else if (game.board.game === "acorns") {
+        // 🌰 the pots on the board are the buttons; the pad is whose turn it
+        // is and the ⭐ count (a last acorn in the nest)
+        act.innerHTML = '<span class="bn-card bn-card--basket">🌰</span>';
+        pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
+        pad.setAttribute("aria-label", nameOf(i) + (active ? ": tap one of your pots" : ": wait for your turn"));
       } else if (game.board.game === "pairs") {
         // 🧠 the cards on the board are the buttons; the pad is whose turn it
         // is and the ⭐ count (a pair or a star found)
@@ -998,6 +1347,10 @@
     paintPads();
     paintPairs();
     paintDoors();
+    paintAcorns();
+    if (game.dv) { game.dv.held = st.held; game.dv.glow = []; }
+    paintDom();
+    paintDig();
     persistGame();
     const i = st.turn;
     if (st.seats[i].cpu) {
@@ -1011,6 +1364,7 @@
     else if (st.phase === "pick") sayPlay(SAY.pickFirst);
     else if (st.phase === "second") sayPlay(SAY.pairsFirst);
     else if (st.phase === "shut") sayPlay(fill(SAY.doorsPick, { d: st.die }));
+    else if (st.phase === "draw") sayPlay(fill(SAY.turn, { n: nameOf(i) }) + " " + SAY.domDraw);
     else sayPlay(fill(SAY.turn, { n: nameOf(i) }) + (first ? " " + firstLine() : ""));
     if (first) showHand(i);
     if (st.phase === "hop" && save.auto) autoHops();
@@ -1021,7 +1375,7 @@
   function hopLine() { return !game ? SAY.hopFirst : game.board.game === "hen" ? SAY.henFirst : game.st.die === L.TEN ? SAY.tenFirst : SAY.hopFirst; }
   // which first-time hand a HOP belongs to: the dice's, or the farm's
   function introKey() { return game && game.board.game === "hen" ? "hen" : "dice"; }
-  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" || g === "hen" ? SAY.spinFirst : g === "lotto" ? SAY.basketFirst : g === "pairs" ? SAY.pairsFirst : g === "doors" ? SAY.doorsFirst : SAY.flipFirst; }
+  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" || g === "hen" ? SAY.spinFirst : g === "lotto" ? SAY.basketFirst : g === "pairs" ? SAY.pairsFirst : g === "doors" ? SAY.doorsFirst : g === "acorns" ? SAY.acornsFirst : g === "dominoes" ? SAY.domFirst : g === "dig" ? SAY.digFirst : SAY.flipFirst; }
 
   function padTap(i) {
     if (!game || !playVisible()) return;
@@ -1048,6 +1402,12 @@
     if (game.board.game === "spot") { if (st.phase === "flip") flipSpot(); return; }
     // 🧠 the cards are the buttons: his pad only says (and shows) what to do
     if (game.board.game === "pairs") { sayPlay(SAY.pairsFirst); showHand(i); later(hideHand, 2600); return; }
+    if (game.board.game === "acorns") { sayPlay(SAY.acornsFirst); showHand(i); later(hideHand, 2600); return; }
+    if (game.board.game === "dig") { sayPlay(SAY.digFirst); showHand(i); later(hideHand, 2600); return; }
+    if (game.board.game === "dominoes") {
+      if (st.phase === "draw") return fishTile();
+      sayPlay(SAY.domFirst); showHand(i); later(hideHand, 2600); return;
+    }
     // 🚪 rolled: the doors are the buttons now
     if (game.board.game === "doors" && st.phase === "shut") { sayPlay(fill(SAY.doorsPick, { d: st.die })); return; }
     if (st.phase === "roll") return rollDice();
@@ -1135,6 +1495,9 @@
     if (game.board.game === "lotto") return takeFood();
     if (game.board.game === "spot") return flipSpot();
     if (game.board.game === "pairs") return cpuPair();
+    if (game.board.game === "acorns") return cpuAcorn();
+    if (game.board.game === "dominoes") return cpuDom();
+    if (game.board.game === "dig") return cpuDig();
     if (game.board.game === "doors" && st.phase === "shut") return cpuDoors();
     if (st.phase === "roll") return rollDice();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
@@ -1403,6 +1766,103 @@
           paintBoardLabel();
         });
         at(T.ride, () => { game.doorsGo = null; });
+      } else if (e.type === "hole") {
+        // 🏴‍☠️ not here: the hole shows an arrow toward the treasure
+        at(0, () => {
+          game.gv.dug[e.k] = true; game.gv.arrows[e.k] = e.dir; game.gv.fresh = e.k;
+          paintDig();
+          SFX.thunk();
+          sayPlay(fill(SAY.digArrow, { d: ARROW_SAY[e.dir] || "" }));
+        });
+        at(T.look, () => { game.gv.fresh = -1; paintDig(); });
+      } else if (e.type === "treasure") {
+        at(0, () => {
+          game.gv.dug[e.k] = true; game.gv.gem = e.k;
+          paintDig();
+          SFX.home();
+          sayPlay(fill(SAY.digFound, { n: nameOf(e.seat) }));
+          cheer(e.seat, true);
+        });
+        at(T.ride, () => { landStar(e.seat); paintBoardLabel(); });
+      } else if (e.type === "bury") {
+        at(T.look, () => { game.gv = digView(); SFX.whoosh(); sayPlay(SAY.digNew); paintDig(); });
+      } else if (e.type === "lay") {
+        // 🁢 the tile goes on its end: the dots that match are said
+        at(0, () => {
+          const v = game.dv;
+          v.hands[e.seat] = v.hands[e.seat].filter((x) => x !== e.id);
+          if (e.side === "right") { v.line.push(e.tile); v.fresh = v.line.length - 1; } else { v.line.unshift(e.tile); v.fresh = 0; }
+          v.ends = e.ends.slice();
+          v.held = null; v.glow = [];
+          paintDom();
+          SFX.glide();
+          const n = e.side === "right" ? e.tile[0] : e.tile[1];
+          sayPlay(e.double ? SAY.domDouble : fill(SAY.domLay, { n }));
+          if (e.double || e.out) cheer(e.seat, true);
+        });
+        at(T.ride, () => {
+          game.dv.fresh = null;
+          if (e.double) landStar(e.seat);
+          paintDom();
+          paintBoardLabel();
+        });
+        if (e.out) at(400, () => { landStar(e.seat); SFX.home(); sayPlay(fill(SAY.domOut, { n: nameOf(e.seat) })); paintPads(); });
+      } else if (e.type === "take") {
+        // fishing: the pile's top tile turns over — it matches (into his
+        // hand), or back under the pile it goes
+        at(0, () => {
+          game.dv.fish = e.id; game.dv.fishOk = e.fits;
+          paintDom();
+          SFX.flip();
+          sayPlay(e.fits ? SAY.domTake : SAY.domBack);
+        });
+        at(T.look, () => {
+          game.dv.fish = null;
+          if (e.fits) { game.dv.hands[e.seat].push(e.id); game.dv.glow = [e.id]; }
+          paintDom();
+          paintPads();
+        });
+      } else if (e.type === "pass") {
+        at(0, () => sayPlay(fill(SAY.domPass, { n: nameOf(e.seat) })));
+        at(900, () => {});
+      } else if (e.type === "scoop") {
+        // 🌰 he lifts the pot's acorns...
+        at(0, () => { game.av.pots[e.from] = 0; game.av.from = e.from; paintAcorns(); SFX.flip(); });
+        at(300, () => {});
+      } else if (e.type === "sow") {
+        // ...and they drop in one by one, each pot counting "1, 2, 3"
+        at(0, () => {
+          game.av.pots[e.to] += 1;
+          game.av.drop = e.to;
+          game.av.c = e.c;
+          paintAcorns();
+          SFX.glide();
+        });
+        at(T.hop + 160, () => {});
+      } else if (e.type === "again") {
+        // the last one in his own nest: a ⭐, and he goes again
+        at(0, () => {
+          game.av.drop = -1; game.av.from = -1; game.av.glow = L.ACORN_NEST(e.seat);
+          paintAcorns();
+          SFX.boost();
+          sayPlay(SAY.acornsAgain);
+          cheer(e.seat, true);
+        });
+        at(T.ride, () => { game.av.glow = -1; landStar(e.seat); paintAcorns(); paintBoardLabel(); });
+      } else if (e.type === "landed") {
+        at(0, () => { game.av.drop = -1; game.av.from = -1; paintAcorns(); paintBoardLabel(); });
+        at(400, () => {});
+      } else if (e.type === "sweep") {
+        // a side is empty: what is left goes home to its own nest
+        at(0, () => {
+          for (const k of [0, 1, 2]) game.av.pots[e.seat * 4 + k] = 0;
+          game.av.pots[L.ACORN_NEST(e.seat)] += e.n;
+          game.av.drop = -1; game.av.from = -1;
+          paintAcorns();
+          SFX.whoosh();
+          sayPlay(SAY.acornsRest);
+        });
+        at(T.ride, () => {});
       } else if (e.type === "peek") {
         // 🧠 a card turns over and its picture is said
         at(0, () => {
@@ -1664,6 +2124,29 @@
       if (then) then();
       // 🧠 a card, a pair or a star: the turn goes on (his next card, or the
       // computer's) once the moment has been shown
+      // 🁢 a fished tile: fish again, or lay it (his, or the computer's)
+      if (game.board.game === "dominoes") {
+        at(0, () => {
+          if (!game) return;
+          game.busy = false;
+          paintPads();
+          paintDom();
+          const st = game.st;
+          if (st.phase !== "done" && st.seats[st.turn].cpu) later(cpuDom, T.cpuHop);
+          else if (st.phase === "lay") sayPlay(SAY.domFirst);
+        });
+      }
+      // 🌰 a last acorn in the nest: his next pot (or the computer's)
+      if (game.board.game === "acorns") {
+        at(0, () => {
+          if (!game) return;
+          game.busy = false;
+          paintPads();
+          paintAcorns();
+          const st = game.st;
+          if (st.phase !== "done" && st.seats[st.turn].cpu) later(cpuAcorn, T.cpuThink);
+        });
+      }
       if (game.board.game === "pairs") {
         at(0, () => {
           if (!game) return;
@@ -1818,7 +2301,12 @@
   // ---- The hand that shows how (first time, and on 👂) ---------------------------
   function showHand(i) {
     // 🧠 the cards are the buttons, so the hand points at one face down
-    const card = game && game.board.game === "pairs" ? pairsEl.querySelector("button.bn-pc:not(.bn-pc--up)") : null;
+    // (🌰 a pot: the one whose last acorn reaches his nest, if there is one)
+    const again = game && game.board.game === "acorns" ? L.acornAgains(game.st) : [];
+    const card = game && game.board.game === "pairs" ? pairsEl.querySelector("button.bn-pc:not(.bn-pc--up)")
+      : game && game.board.game === "dig" ? digEl.querySelector("button.bn-sand")
+      : game && game.board.game === "dominoes" ? (game.st.phase === "lay" && (domEl.querySelector("button.bn-domt") && [...domEl.querySelectorAll("button.bn-domt")].find((b) => L.domSides(game.st, b.dataset.id).length))) || null
+      : game && game.board.game === "acorns" ? (again.length && acornsEl.querySelector('button.bn-pot[data-k="' + again[again.length - 1] + '"]')) || acornsEl.querySelector("button.bn-pot") : null;
     const pad = card || pads[i];
     if (!pad) return;
     const r = pad.getBoundingClientRect(), pr = play.getBoundingClientRect();
@@ -1839,6 +2327,7 @@
     else if (st.phase === "find") say(SAY.findTwin);
     else if (st.phase === "second") say(SAY.pairsFirst);
     else if (st.phase === "shut") say(fill(SAY.doorsPick, { d: st.die }));
+    else if (st.phase === "draw") say(SAY.domDraw);
     else say(fill(SAY.turn, { n: nameOf(i) }) + " " + firstLine());
     showHand(i);
     later(hideHand, 2600);

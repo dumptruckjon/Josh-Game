@@ -248,6 +248,45 @@
       lines: { home: "{n} shut every door!", end: "Every door is shut! Hooray!" },
     },
     {
+      // 🌰 Acorn Pots (mancala, for a four-year-old — the bean emoji is Emoji 14.0,
+      // invisible on his iPad, so the seeds are acorns and the store is a
+      // squirrel's NEST). Each player has three pots of three acorns and a
+      // nest. Tap one of your pots: its acorns go one by one into the next
+      // pots round the board (yours, your nest, then your friend's pots —
+      // never your friend's nest). The LAST acorn in your own nest is a ⭐
+      // and you go again: the skill is counting how far each pot is from the
+      // nest. When a side runs out, the acorns left go to their own nests.
+      // Co-op: one party, and every acorn ends in a nest.
+      id: "acorns", box: "acorns", game: "acorns", name: "Acorn Pots", coop: true,
+      cols: 2, rows: 5, pots: 3, start: 3, size: 18,
+      lines: { home: "", end: "Every acorn is in a nest! Hooray!" },
+    },
+    {
+      // 🁢 Dot Dominoes: fifteen tiles, every pair of 1 to 5 dots once (no
+      // blanks: a four-year-old matches DOTS). One tile starts the line; each
+      // player holds four, face up, and six wait in the pile. On your turn lay
+      // a tile whose dots match an open end of the line (it goes on by
+      // itself); a double is a ⭐. Nothing matches? Take one from the pile.
+      // Nothing matches and the pile is empty: your friend goes on. Co-op:
+      // the line is finished when every tile is laid (or nobody can lay
+      // one), and there is one party. The skill is WHICH tile: keep the ones
+      // that match each other.
+      id: "dominoes", box: "dominoes", game: "dominoes", name: "Dot Dominoes", coop: true,
+      cols: 4, rows: 4, max: 5, hand: 4, size: 15,
+      lines: { home: "", end: "The line is finished! What a long line!" },
+    },
+    {
+      // 🏴‍☠️ Treasure Dig (co-op, a game of REASONING): a treasure is buried
+      // under one of nine sand squares. Take turns digging one; a square
+      // without it shows an ARROW pointing toward it, so the next dig is
+      // worked out, not guessed — and the arrows his friend dug count too.
+      // Whoever finds it gets the ⭐ and a new treasure is buried; four
+      // treasures, one party.
+      id: "dig", box: "dig", game: "dig", name: "Treasure Dig", coop: true,
+      cols: 3, rows: 3, treasures: 4, size: 4,
+      lines: { home: "", end: "Every treasure is found! Hooray!" },
+    },
+    {
       // 🍎 Apple Spin (Hi-Ho Cherry-O's mechanic): no track at all. Each
       // player fills their own TEN-FRAME basket from a big tree; `size` is the
       // basket. A spin says how many apples to pick (one tap, one apple); a
@@ -281,6 +320,10 @@
     { id: "spot", board: "spot", name: "Twin Spot", pic: "👀", colour: "#7c3aed", kind: "think" },
     { id: "pairs", board: "pairs", name: "Peek-a-Pair", pic: "🧠", colour: "#db2777", kind: "think" },
     { id: "doors", board: "doors", name: "Shut the Doors", pic: "🚪", colour: "#b45309", kind: "think" },
+    { id: "acorns", board: "acorns", name: "Acorn Pots", pic: "🌰", colour: "#92400e", kind: "think" },
+    // (no domino emoji is a picture on every phone, so its box is drawn)
+    { id: "dig", board: "dig", name: "Treasure Dig", pic: "🏴‍☠️", colour: "#a16207", kind: "think" },
+    { id: "dominoes", board: "dominoes", name: "Dot Dominoes", pic: "", art: "domino", colour: "#0f766e", kind: "think" },
   ];
 
   // ---- Every line the game says ------------------------------------------
@@ -345,6 +388,24 @@
     pairNo: "Not a pair. Remember where they are!",
     pairStar: "A star! Go again!",
     pairsNew: "A new board!",
+    acornsFirst: "Tap one of your pots!",
+    domFirst: "Tap a tile that matches an end!",
+    domLay: "{n} matches {n}!",
+    domDouble: "A double! A star!",
+    domDraw: "Nothing matches. Take one from the pile!",
+    domTake: "You found one that matches!",
+    domPass: "Nothing to lay. {n}'s turn!",
+    domMiss: "That one does not match. Look at the ends!",
+    digFirst: "Dig a square! The arrows point to the treasure!",
+    digArrow: "Not here! The arrow points {d}!",
+    digFound: "Treasure! {n} found it!",
+    digNew: "A new treasure is buried!",
+    domWhich: "It fits both ends! Which end?",
+    domBack: "Not that one. Back it goes!",
+    domOut: "{n} laid every tile! A star!",
+    acornsAgain: "In your nest! Go again!",
+    acornsSome: "{n} in your nest!",
+    acornsRest: "The last acorns go home to their nests!",
     ten: "{to}! Ten more!",
     tens: "{to}! A star!",
   };

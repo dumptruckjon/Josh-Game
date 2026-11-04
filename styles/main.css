@@ -3291,6 +3291,134 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
 .bn-pc--gone { border: 3px dashed #d8b4c8; background: transparent; box-shadow: none; min-height: 0; }
 .bn-pc--flip .bn-pc__pic { animation: bnFlip 0.32s ease-out; }
 .bn-pairs--cpu .bn-pc { cursor: default; }
+/* 🌰 Acorn Pots: two columns of three pots, a nest at each end (seat 0's
+   pots go down the left into its nest at the bottom, seat 1's up the right) */
+.bn-acorns {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-content: center;
+}
+.bn-pot, .bn-nest {
+  position: relative;
+  border: 4px solid #92400e;
+  border-radius: 999px;
+  background: radial-gradient(circle at 50% 35%, #fde7c2, #e9b779);
+  box-shadow: var(--card-shadow);
+  display: grid; place-items: center; align-content: center;
+  padding: 0;
+  font: inherit;
+  line-height: 1;
+  color: #3b1d06;
+  min-height: 40px;
+}
+button.bn-pot { min-height: 75px; cursor: pointer; }
+.bn-pot--still { opacity: 0.92; }
+.bn-nest { border-radius: 24px; background: linear-gradient(#a16207, #7c4a03); color: #fff7e6; grid-template-columns: auto auto; column-gap: 12px; }
+.bn-nest__face { width: 2.2em; height: 2.2em; display: block; }
+.bn-acorns[data-shape="mid"] .bn-nest, .bn-acorns[data-shape="wide"] .bn-nest { grid-template-columns: auto; row-gap: 4px; }
+.bn-acorns[data-shape="wide"] .bn-nest__n { font-size: 1.1em; }
+.bn-nest__n { font-weight: 900; font-size: 1.6em; }
+.bn-pot__pile { font-size: 1em; max-width: 90%; text-align: center; word-break: break-all; line-height: 1.15; }
+.bn-pot__x { font-weight: 900; font-size: 1.2em; }
+.bn-pot__n { font-weight: 900; font-size: 1.5em; margin-top: 2px; }
+.bn-pot--from { box-shadow: 0 0 0 5px #ffffff, var(--card-shadow); }
+.bn-pot--yes { box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200, var(--card-shadow); }
+.bn-pot__pop {
+  position: absolute; right: -6px; top: -10px;
+  min-width: 1.8em; height: 1.8em; border-radius: 999px;
+  background: #ffffff; color: #7a2e10; border: 3px solid #92400e;
+  display: grid; place-items: center;
+  font-weight: 900; font-size: 1.3em;
+  animation: bnAcornPop 0.3s ease-out;
+  pointer-events: none;
+}
+@keyframes bnAcornPop { from { transform: scale(0.4); } to { transform: scale(1); } }
+/* 🏴‍☠️ Treasure Dig: nine squares of sand; a dug one is a hole with an arrow */
+.bn-dig {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(3, var(--sand, 90px));
+  grid-auto-rows: var(--sand, 90px);
+  gap: 16px;
+  justify-content: center; align-content: center;
+}
+.bn-sand {
+  width: var(--sand, 90px); height: var(--sand, 90px);
+  border: 4px solid #a16207; border-radius: 18px;
+  background: radial-gradient(circle at 35% 30%, #fff2c4, #f2c86b 70%);
+  box-shadow: var(--card-shadow);
+  display: grid; place-items: center;
+  padding: 0; font: inherit; line-height: 1;
+}
+button.bn-sand { cursor: pointer; min-height: 75px; }
+.bn-sand--still { opacity: 0.92; }
+.bn-sand--dug { background: radial-gradient(circle at 50% 55%, #6b4a1c, #a77b3a 75%); border-color: #6b4a1c; }
+.bn-sand--fresh { box-shadow: 0 0 0 5px #ffffff, var(--card-shadow); }
+.bn-sand--gem { background: #fff7d6; box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200, var(--card-shadow); }
+/* 🁢 Dot Dominoes: the ends row (two big ends, the line between them) over
+   the mover's hand of upright tiles */
+.bn-dom {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  display: grid;
+  grid-template-rows: var(--end, 90px) auto;
+  grid-template-columns: minmax(0, 100%);
+  row-gap: 16px;
+  align-content: center;
+}
+.bn-dom__row { display: grid; grid-template-columns: var(--end, 90px) minmax(0, 1fr) var(--end, 90px); column-gap: 16px; align-items: center; }
+.bn-dom__end {
+  position: relative;
+  width: var(--end, 90px); height: var(--end, 90px);
+  border: 4px solid #0f766e; border-radius: 20px;
+  background: #ccfbf1;
+  display: grid; place-items: center;
+  padding: 6px;
+  font: inherit;
+  box-shadow: var(--card-shadow);
+}
+.bn-dom__end .bn-domsvg { width: 100%; height: 100%; }
+.bn-dom__end--go { cursor: pointer; background: #ffffff; box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200, var(--card-shadow); }
+.bn-dom__arrow { position: absolute; top: -12px; font-size: 0.95rem; color: #0f766e; background: #ffffff; border-radius: 999px; padding: 0 6px; }
+.bn-dom__end[data-side="left"] .bn-dom__arrow { left: -6px; }
+.bn-dom__end[data-side="right"] .bn-dom__arrow { right: -6px; }
+.bn-dom__line {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, var(--bitw, 36px));
+  grid-auto-rows: calc(var(--bitw, 36px) / 2);
+  gap: 4px;
+  justify-content: center; align-content: center;
+  max-height: 100%; overflow: hidden;
+}
+.bn-dom__bit .bn-domsvg { width: var(--bitw, 36px); height: calc(var(--bitw, 36px) / 2); display: block; }
+.bn-dom__bit--new .bn-domsvg { box-shadow: 0 0 0 3px #ffd24d; border-radius: 4px; }
+.bn-dom__fish { grid-column: 1 / -1; justify-self: center; }
+.bn-dom__fish .bn-domsvg { width: 96px; height: 48px; display: block; }
+.bn-dom__fish--ok .bn-domsvg { box-shadow: 0 0 0 4px #22c55e; border-radius: 10px; }
+.bn-dom__hand {
+  display: grid;
+  grid-template-columns: repeat(var(--tcols, 4), var(--tw, 80px));
+  grid-auto-rows: var(--th, 130px);
+  gap: 16px;
+  justify-content: center;
+}
+.bn-domt {
+  width: var(--tw, 80px); height: var(--th, 130px);
+  min-height: 75px;
+  border: 0; border-radius: 16px; background: transparent;
+  padding: 0; font: inherit;
+  display: grid; place-items: center;
+}
+.bn-domt .bn-domsvg { width: 100%; height: 100%; filter: none; }
+button.bn-domt { cursor: pointer; }
+.bn-domt--held { box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200; }
+.bn-domt--hint { box-shadow: 0 0 0 5px #22c55e; }
+.bn-dom__hand--cpu .bn-domt { opacity: 0.85; }
+.bn-dom__count { position: relative; }
+.bn-dom__count .bn-domsvg { width: 60%; height: 80%; }
+.bn-dom__n { position: absolute; right: 4px; bottom: 2px; font-size: 1.1rem; font-weight: 900; color: #1f2937; }
+.bn-box__pic .bn-domsvg { width: 1.6em; height: 0.8em; display: block; }
 
 /* 🚪 Shut the Doors: the waiting player's six small doors in a strip (their
    face first), then the mover's six as big buttons, three by two, in a frame
@@ -3625,10 +3753,10 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
   .bn-pad { min-height: 92px; }
   /* 🧠 nine cards three high want 257px of field: on a short phone the pads
      (here only whose turn it is — the cards are the buttons) give way */
-  .bn-play[data-game="pairs"] .bn-pad { min-height: 75px; padding: 4px 8px; }
-  .bn-play[data-game="pairs"] .bn-tray { margin-top: 16px; }
-  .bn-play[data-game="pairs"] .bn-pad__face { width: 40px; height: 40px; }
-  .bn-play[data-game="pairs"] .bn-pad .bn-card { width: 44px; height: 44px; font-size: 1.7rem; }
+  .bn-play[data-game="pairs"] .bn-pad, .bn-play[data-game="acorns"] .bn-pad, .bn-play[data-game="dominoes"] .bn-pad, .bn-play[data-game="dig"] .bn-pad { min-height: 75px; padding: 4px 8px; }
+  .bn-play[data-game="pairs"] .bn-tray, .bn-play[data-game="acorns"] .bn-tray, .bn-play[data-game="dominoes"] .bn-tray, .bn-play[data-game="dig"] .bn-tray { margin-top: 16px; }
+  .bn-play[data-game="pairs"] .bn-pad__face, .bn-play[data-game="acorns"] .bn-pad__face, .bn-play[data-game="dominoes"] .bn-pad__face, .bn-play[data-game="dig"] .bn-pad__face { width: 40px; height: 40px; }
+  .bn-play[data-game="pairs"] .bn-pad .bn-card, .bn-play[data-game="acorns"] .bn-pad .bn-card, .bn-play[data-game="dominoes"] .bn-pad .bn-card, .bn-play[data-game="dig"] .bn-pad .bn-card { width: 44px; height: 44px; font-size: 1.7rem; }
   .bn-die { width: 56px; height: 56px; padding: 6px; }
   .bn-die__cue { font-size: 2.8rem; }
   .bn-card, .bn-spinner, .bn-spin { width: 56px; height: 56px; font-size: 2.2rem; }
@@ -3652,6 +3780,9 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
   .bn-play .bn-tray { grid-column: 2; grid-row: 2; grid-template-columns: minmax(0, 100%); align-content: center; margin-top: 0; }
   /* 🧠 five cards across want the width: the pads' column gives a little */
   body.in-game .screen.bn-play[data-game="pairs"] { grid-template-columns: minmax(0, 1fr) 150px; }
+  /* 🏴‍☠️ three rows of 75px sand and two 16px gaps is 257px: the bar gives
+     6px (the sand sits between the bar's buttons, never under one) */
+  .bn-play[data-game="dig"] .bn-bar { margin-bottom: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .bn-token { transition: none; }
@@ -3659,6 +3790,7 @@ body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: co
   .bn-wiggle { animation: none; }
   .bn-pc--flip .bn-pc__pic { animation: none; }
   .bn-door--go { animation: none; }
+  .bn-pot__pop { animation: none; }
   .bn-hand { animation: none; }
   .bn-party__face { animation: none; }
   .bn-box:active { transform: none; }

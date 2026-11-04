@@ -25,7 +25,8 @@ test("data: every box opens a real board, every board is a real grid, every pers
     const board = DATA.board(b.board);
     assert.ok(board, `${b.id} opens a real board`);
     assert.equal(board.box, b.id, `${board.id} names the box that opens it`);
-    assert.ok(b.name && b.pic && b.colour, `${b.id} has a name, a picture and a colour`);
+    // (a picture, or drawn art: no domino emoji is a picture on every phone)
+    assert.ok(b.name && (b.pic || b.art === "domino") && b.colour, `${b.id} has a name, a picture and a colour`);
     if (b.unlockAfter) assert.ok(DATA.box(b.unlockAfter.box), `${b.id} unlocks after a real box`);
   }
   for (const board of DATA.BOARDS) {
@@ -36,8 +37,11 @@ test("data: every box opens a real board, every board is a real grid, every pers
     else if (board.game === "spot") assert.equal(board.size, board.deck.length - 1, `${board.id}: every card but the first is found`);
     else if (board.game === "pairs") assert.equal(board.size, board.pairsPer * 2 + 1, `${board.id}: a board is its pairs and one star`);
     else if (board.game === "doors") assert.equal(board.size, 6, `${board.id}: six doors a player`);
+    else if (board.game === "acorns") assert.equal(board.size, 2 * board.pots * board.start, `${board.id}: every acorn of both sides`);
+    else if (board.game === "dominoes") assert.equal(board.size, L.domSet(board).length, `${board.id}: every tile of the set`);
+    else if (board.game === "dig") assert.equal(board.size, board.treasures, `${board.id}: a pile is the treasures found`);
     else assert.equal(board.size, board.cols * board.rows, `${board.id} fills its grid exactly`);
-    assert.ok(["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors"].indexOf(board.game) >= 0, `${board.id} is a dice, card, spinner, farm, lotto, spot, pairs or doors game`);
+    assert.ok(["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors", "acorns", "dominoes", "dig"].indexOf(board.game) >= 0, `${board.id} is a dice, card, spinner, farm, lotto, spot, pairs, doors, acorns, dominoes or dig game`);
     assert.ok(DATA.BOXES.some((b) => b.board === board.id), `${board.id} is on the shelf (no dead board)`);
   }
   for (const p of [DATA.JOSH, ...DATA.PEOPLE]) {
@@ -126,6 +130,9 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
       assert.equal(g.st.phase, "done", `${board.id} seed ${seed} never ended`);
       // (👀 Twin Spot's seats share the twelve twins between their piles)
       if (board.game === "pairs") assert.ok(g.st.seats.every((s) => s.home) && g.st.seats[0].pos + g.st.seats[1].pos === board.boards * board.pairsPer, `${board.id} seed ${seed}: every pair found`);
+      else if (board.game === "dominoes") assert.ok(g.st.seats.every((s) => s.home) && g.st.seats[0].pos + g.st.seats[1].pos === g.st.line.length - 1 && [0, 1].every((i) => !g.st.hands[i].length || !g.st.hands[i].some((id) => L.domSides(g.st, id).length) && !g.st.pile.some((id) => L.domSides(g.st, id).length)), `${board.id} seed ${seed}: every tile laid, or none that can be`);
+      else if (board.game === "dig") assert.ok(g.st.seats.every((s) => s.home) && g.st.found === board.treasures && g.st.seats[0].pos + g.st.seats[1].pos === board.treasures, `${board.id} seed ${seed}: every treasure found`);
+      else if (board.game === "acorns") assert.ok(g.st.seats.every((s) => s.home) && g.st.seats[0].pos + g.st.seats[1].pos === board.size && g.st.pots.every((n, k) => k % 4 === 3 || n === 0), `${board.id} seed ${seed}: every acorn in a nest`);
       else if (board.game === "spot") assert.ok(g.st.seats.every((s) => s.home) && g.st.seats[0].pos + g.st.seats[1].pos === board.size, `${board.id} seed ${seed}: every twin found`);
       else assert.ok(g.st.seats.every((s) => s.home && s.pos === board.size), `${board.id} seed ${seed}: everyone is home`);
       assert.equal(g.ev.filter((e) => e.type === "end").length, 1, "one ending");
@@ -137,10 +144,11 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
       // board's turns got short: 💯 Hundred Hop takes twice Moon Race's turns
       // and has FEWER taps, because a ten is one tap.
       // (a lotto turn is two taps: the basket, then whose it is)
-      const taps = g.ev.filter((e) => e.type === "hop" || e.type === "pick" || e.type === "card" || e.type === "draw" || e.type === "give" || e.type === "flip" || e.type === "found" || e.type === "peek" || (e.type === "roll" && board.game === "doors") || e.type === "shut").length;
+      const taps = g.ev.filter((e) => e.type === "hop" || e.type === "pick" || e.type === "card" || e.type === "draw" || e.type === "give" || e.type === "flip" || e.type === "found" || e.type === "peek" || (e.type === "roll" && board.game === "doors") || e.type === "shut" || e.type === "scoop" || e.type === "lay" || e.type === "take" || e.type === "hole" || e.type === "treasure").length;
       // (🧠 a pair or a star glows a moment; a miss stays up to be LOOKED at)
       const extras = g.ev.filter((e) => e.type === "ride" || e.type === "tens" || e.type === "pair" || e.type === "star").length +
-        1.5 * g.ev.filter((e) => e.type === "nopair" || e.type === "stuck").length;
+        1.5 * g.ev.filter((e) => e.type === "nopair" || e.type === "stuck").length +
+        0.4 * g.ev.filter((e) => e.type === "sow").length + g.ev.filter((e) => e.type === "again" || e.type === "sweep").length;
       secs.push(g.turns * 2.3 + taps * 0.5 + extras);
     }
     turns.sort((a, b) => a - b);
@@ -154,7 +162,7 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
     // and a track board is still a handful of turns each, not a marathon
     // (🧠 a memory turn can find pair after pair, so it has fewer, longer turns)
     // (🚪 every turn shuts a door or two, so six doors each is a short race)
-    assert.ok(q(turns, 0.5) >= (board.game === "pairs" ? 5 : board.game === "spin" || board.game === "doors" ? 8 : 12), `${board.id}: median ${q(turns, 0.5)} turns in all`);
+    assert.ok(q(turns, 0.5) >= (board.game === "pairs" ? 5 : board.game === "spin" || board.game === "doors" || board.game === "dominoes" || board.game === "dig" ? 8 : 12), `${board.id}: median ${q(turns, 0.5)} turns in all`);
   }
 });
 
@@ -372,6 +380,9 @@ test("RESTORE takes back EVERY state a real game passes through, and refuses eac
         else if (st.game === "lotto") { if (st.phase === "draw") L.takeFood(st); else L.giveFood(st, L.ownerOf(st, st.food)); }
         else if (st.game === "spot") { if (st.phase === "flip") L.flipSpot(st); else L.findSpot(st, L.twinOf(DATA.board("spot"), st.centre, st.hand)); }
         else if (st.game === "pairs") L.peekPair(st, L.pairChoice(st));
+        else if (st.game === "acorns") L.sowPot(st, L.acornChoice(st));
+        else if (st.game === "dig") L.digAt(st, L.digChoice(st));
+        else if (st.game === "dominoes") { if (st.phase === "draw") L.drawTile(st); else { const c = L.domChoice(st); L.layTile(st, c[0], c[1]); } }
         else if (st.game === "doors") {
           if (st.phase === "roll") L.roll(st);
           else { const w = L.doorWays(st).find((x) => st.held == null || x[0] === st.held); L.shutDoor(st, st.held == null ? w[0] : w[1]); }
@@ -1050,4 +1061,282 @@ test("🚪 SHUT THE DOORS: a roll shuts its door or TWO that make it (a ⭐), a 
   ];
   for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
   assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
+test("🌰 ACORN POTS: a pot's acorns go one by one round the ring and never into the friend's nest, the last in your own nest is a ⭐ and goes again, an empty side sends the rest home, every acorn ends in a nest, counting how far a pot is from the nest wins the ⭐s, and broken saves are refused", () => {
+  const b = DATA.board("acorns");
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  // the very first move: pot 0 is three from his nest, so its three acorns
+  // go 1, 2, nest — a ⭐ and his turn again
+  let st = L.create({ board: "acorns", seats: SEATS, seed: 3 });
+  assert.deepEqual(st.pots, [3, 3, 3, 0, 3, 3, 3, 0], "three in every pot, the nests empty");
+  assert.deepEqual(L.acornAgains(st), [0], "only pot 0 is exactly three from his nest");
+  let ev = L.sowPot(st, 0);
+  assert.deepEqual(ev.filter((e) => e.type === "sow").map((e) => [e.to, e.c]), [[1, 1], [2, 2], [3, 3]], "one by one, counting");
+  assert.ok(ev.some((e) => e.type === "again") && st.turn === 0 && st.seats[0].stars === 1 && st.seats[0].pos === 1, "the last in his nest: a ⭐, go again");
+  // pot 2 now holds 4: nest, then the friend's three pots
+  ev = L.sowPot(st, 2);
+  assert.deepEqual(ev.filter((e) => e.type === "sow").map((e) => e.to), [3, 4, 5, 6], "into his nest and on round his friend's pots");
+  assert.equal(st.turn, 1, "the last one elsewhere passes the turn");
+  // never into the friend's nest: a big pot skips it
+  st = L.create({ board: "acorns", seats: SEATS, seed: 3 });
+  st.pots = [0, 0, 9, 0, 3, 3, 3, 0];
+  ev = L.sowPot(st, 2);
+  const to = ev.filter((e) => e.type === "sow").map((e) => e.to);
+  assert.ok(to.indexOf(7) < 0, `his acorns never go in his friend's nest (${to})`);
+  assert.deepEqual(to, [3, 4, 5, 6, 0, 1, 2, 3, 4], "round the ring, skipping 7");
+  // an empty side ends it: the rest go home to their own nests
+  st = L.create({ board: "acorns", seats: SEATS, seed: 3 });
+  st.pots = [0, 0, 1, 5, 4, 4, 4, 0];
+  for (const j of [0, 1]) st.seats[j].pos = st.pots[j * 4 + 3];
+  ev = L.sowPot(st, 2);
+  assert.equal(st.phase, "done", "his side is empty: the game is over");
+  assert.deepEqual(st.pots, [0, 0, 0, 6, 0, 0, 0, 12], "his friend's twelve go to her own nest");
+  assert.ok(ev.some((e) => e.type === "sweep" && e.seat === 1 && e.n === 12) && st.seats.every((x) => x.home), "said, and both are home");
+  // taps that are not moves do nothing
+  st = L.create({ board: "acorns", seats: SEATS, seed: 3 });
+  assert.deepEqual(L.sowPot(st, 4), [], "not his pot");
+  assert.deepEqual(L.sowPot(st, 3), [], "a nest is not a pot");
+  L.sowPot(st, 0);
+  assert.deepEqual(L.sowPot(st, 0), [], "an empty pot (the hammer's echo) does nothing");
+  assert.deepEqual(L.sowPot(st, 1.5), [], "no such pot");
+  // every game: all eighteen acorns end in the nests, and the ⭐s are the
+  // go-agains; a player who COUNTS (always the pot that reaches the nest)
+  // takes most of them against the computer, which sees one only half the time
+  let mine = 0, theirs = 0, more = 0, evenMine = 0, evenTheirs = 0;
+  const N = 1500;
+  for (let seed = 1; seed <= N; seed++) {
+    for (const sharp of [true, false]) {
+      const g = L.create({ board: "acorns", seats: SEATS, seed, first: seed % 2 });
+      let guard = 0, againCount = [0, 0];
+      while (g.phase !== "done" && guard++ < 300) {
+        if (g.turn === 0) {
+          const a = L.acornAgains(g), full = [0, 1, 2].filter((k) => g.pots[k] > 0);
+          const k = sharp && a.length ? a[a.length - 1] : full[(seed * 7 + guard) % full.length];
+          const e = L.sowPot(g, k);
+          if (e.some((x) => x.type === "again")) againCount[0]++;
+        } else for (const e of L.autoTurn(g)) if (e.type === "again") againCount[1]++;
+      }
+      assert.equal(g.phase, "done", `seed ${seed} ends`);
+      assert.equal(g.pots[3] + g.pots[7], 18, "every acorn in a nest");
+      assert.deepEqual(g.seats.map((x) => x.stars), againCount, "a ⭐ is exactly a last acorn in your own nest");
+      if (sharp) { mine += g.seats[0].stars; theirs += g.seats[1].stars; if (g.seats[0].stars > g.seats[1].stars) more++; }
+      else { evenMine += g.seats[0].stars; evenTheirs += g.seats[1].stars; }
+    }
+  }
+  const sh = mine / (mine + theirs), ev2 = evenMine / (evenMine + evenTheirs);
+  // (measured: 62% of the ⭐s counting, 36% without, more ⭐s than the
+  // computer in 64% of games — whoever goes first gets the opening ⭐)
+  assert.ok(sh > 0.56 && sh < 0.9, `counting wins the ⭐s: ${(100 * sh).toFixed(0)}% of them`);
+  assert.ok(ev2 < 0.45 && sh - ev2 > 0.18, `counting is the edge: ${(100 * sh).toFixed(0)}% counting against ${(100 * ev2).toFixed(0)}% without`);
+  assert.ok(more / N > 0.56, `and more ⭐s than the computer ${(100 * more / N).toFixed(0)}% of the time`);
+  // states no game reaches
+  st = L.create({ board: "acorns", seats: SEATS, seed: 5 });
+  L.sowPot(st, 0); L.sowPot(st, 1);
+  const g = L.snapshot(st);
+  const bad = [
+    ["an acorn too many", { ...g, pots: g.pots.map((n, k) => (k === 0 ? n + 1 : n)) }],
+    ["a pot with minus acorns", { ...g, pots: g.pots.map((n, k) => (k === 0 ? -1 : k === 1 ? n + 1 : n)) }],
+    ["a nest count that is not the nest", { ...g, seats: [{ ...g.seats[0], pos: g.seats[0].pos + 1 }, g.seats[1]] }],
+    ["a side empty but the game going on", { ...g, pots: [0, 0, 0, g.pots[3] + g.pots[0] + g.pots[1] + g.pots[2], ...g.pots.slice(4)], seats: [{ ...g.seats[0], pos: g.pots[3] + g.pots[0] + g.pots[1] + g.pots[2] }, g.seats[1]] }],
+    ["done with acorns still in pots", { ...g, phase: "done", seats: g.seats.map((x) => ({ ...x, home: true })), order: [0, 1] }],
+    ["seven places", { ...g, pots: g.pots.slice(0, 7) }],
+    ["a die rolled", { ...g, die: 3 }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
+test("🁢 DOT DOMINOES: fifteen tiles once each, a tile goes on the end its dots match (he chooses when it fits both), a double and the last tile are ⭐s, fishing finds a match or puts it back, every game ends with nothing left that can be laid, choosing the end is the skill, and broken saves are refused", () => {
+  const b = DATA.board("dominoes");
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  const T = (id) => id.split("-").map(Number);
+  assert.equal(L.domSet(b).length, 15, "every pair of 1 to 5 dots once");
+  let starts = 0;
+  for (let seed = 1; seed <= 400; seed++) {
+    const st = L.create({ board: "dominoes", seats: SEATS, seed, first: seed % 2 });
+    assert.equal(st.line.length, 1, "one tile starts the line");
+    assert.notEqual(st.line[0][0], st.line[0][1], "never a double");
+    assert.ok(st.hands.every((h) => h.length === b.hand) && st.pile.length === 15 - 1 - 2 * b.hand, "four each, six in the pile");
+    if (st.turn !== seed % 2) starts++;
+  }
+  assert.ok(starts < 40, "only when every match is in the friend's hand does the friend start");
+  // a tile that fits both ends (leaving different dots) waits for him to
+  // choose; then it goes on that end, turned to match
+  let found = false;
+  for (let seed = 1; seed <= 400 && !found; seed++) {
+    // (never on the first move: the ends are the start tile's two numbers)
+    const st = L.create({ board: "dominoes", seats: SEATS, seed, first: 0 });
+    let id = null, guard = 0;
+    while (st.phase !== "done" && guard++ < 40) {
+      if (st.phase === "lay") id = st.hands[st.turn].find((x) => L.domChoosy(st, x));
+      if (id) break;
+      L.autoTurn(st);
+    }
+    if (!id) continue;
+    found = true;
+    const ev = L.layTile(st, id);
+    assert.deepEqual(ev.map((e) => e.type), ["hold"], "held: which end?");
+    assert.deepEqual(L.layTile(st, id), [], "the held tile again (the hammer's echo) does nothing");
+    const was = st.ends.slice(), lay = L.layTile(st, id, "left");
+    assert.equal(lay[0].type, "lay");
+    assert.equal(st.line[0][1], was[0], "it went on the LEFT end, its matching dots against the end");
+    assert.equal(st.ends[1], was[1], "the right end is unchanged");
+  }
+  assert.ok(found, "fixture: a tile that fits both ends was found");
+  // a tile that matches nothing is a kind miss; fishing a tile that does not
+  // match puts it back under the pile
+  {
+    const st = L.create({ board: "dominoes", seats: SEATS, seed: 9, first: 0 });
+    st.ends = [1, 1]; st.line = [[1, 1]];
+    st.hands = [["2-3", "4-5", "2-2", "3-3"], st.hands[1]];
+    const miss = L.layTile(st, "2-3");
+    assert.equal(miss[0].type, "miss", "2 and 3 do not match a 1");
+    assert.deepEqual(L.layTile(st, "9-9"), [], "no such tile in his hand");
+  }
+  // every game, and the ⭐s: a double is one, laying your last tile is one
+  let outSharp = 0, outPlain = 0, firstSharp = 0, firstPlain = 0, fishes = 0, backs = 0, passes = 0;
+  const N = 1500;
+  for (let seed = 1; seed <= N; seed++) {
+    for (const sharp of [true, false]) {
+      const st = L.create({ board: "dominoes", seats: SEATS, seed, first: seed % 2 });
+      let guard = 0, firstOut = -1, stars = [0, 0];
+      while (st.phase !== "done" && guard++ < 300) {
+        const ev = [];
+        if (st.turn === 0) {
+          if (st.phase === "draw") ev.push(...L.drawTile(st));
+          else {
+            const opts = [];
+            for (const id of st.hands[0]) for (const side of L.domSides(st, id)) opts.push([id, side]);
+            let pick = opts[(seed * 7 + guard) % opts.length];
+            if (sharp) {
+              // keep the tiles that match each other: choose the tile AND the
+              // end that leaves the most of his other tiles a place to go
+              let best = -1;
+              for (const [id, side] of opts) {
+                const e = L.domEndsAfter(st, id, side), t = T(id);
+                const sc = 2 * st.hands[0].filter((x) => x !== id && T(x).some((v) => e.indexOf(v) >= 0)).length + (t[0] === t[1] ? 3 : 0);
+                if (sc > best) { best = sc; pick = [id, side]; }
+              }
+            }
+            ev.push(...L.layTile(st, pick[0], pick[1]));
+          }
+        } else ev.push(...L.autoTurn(st));
+        for (const e of ev) {
+          if (e.type === "lay") stars[e.seat] += (e.double ? 1 : 0) + (e.out ? 1 : 0);
+          if (e.type === "take") { fishes++; if (!e.fits) backs++; }
+          if (e.type === "pass") passes++;
+        }
+        assert.ok(st.hands.every((h) => h.length <= b.hand + 1), "fishing never grows a hand past four (and one to lay)");
+        if (firstOut < 0) { if (!st.hands[0].length) firstOut = 0; else if (!st.hands[1].length) firstOut = 1; }
+      }
+      assert.equal(st.phase, "done", `seed ${seed} ends`);
+      assert.deepEqual(st.seats.map((x) => x.stars), stars, "a ⭐ is a double or the last tile");
+      const out = !st.hands[0].length;
+      if (sharp) { outSharp += out; firstSharp += firstOut === 0; } else { outPlain += out; firstPlain += firstOut === 0; }
+    }
+  }
+  assert.ok(fishes > 1000 && backs > 200 && passes > 10, `fixture: fishing, putting back and passing all happen (${fishes}, ${backs}, ${passes})`);
+  // (measured: he lays every tile in 86% of games choosing tile and end well,
+  // 75% laying any tile that fits; out first 53% against 42%)
+  assert.ok(outSharp / N > 0.8 && outSharp / N - outPlain / N > 0.07, `choosing well lays every tile: ${(100 * outSharp / N).toFixed(0)}% against ${(100 * outPlain / N).toFixed(0)}%`);
+  assert.ok(firstSharp / N - firstPlain / N > 0.07, `and is out first more often: ${(100 * firstSharp / N).toFixed(0)}% against ${(100 * firstPlain / N).toFixed(0)}%`);
+  // states no game reaches
+  const st = L.create({ board: "dominoes", seats: SEATS, seed: 5, first: 0 });
+  const g = L.snapshot(st);
+  const bad = [
+    ["a tile twice", { ...g, pile: g.pile.concat([g.hands[0][0]]) }],
+    ["a tile missing", { ...g, pile: g.pile.slice(1) }],
+    ["a line that does not join", { ...g, line: [[1, 2], [3, 4]], ends: [1, 4] }],
+    ["ends that are not the line's", { ...g, ends: [g.ends[1], g.ends[0]].map((n) => n % 5 + 1) }],
+    ["tiles laid that are not in the line", { ...g, seats: [{ ...g.seats[0], pos: 2 }, g.seats[1]] }],
+    ["a held tile that fits one end only", { ...g, phase: "lay", held: g.hands[g.turn].find((x) => L.domSides(g, x).length === 1) || "9-9" }],
+    ["a die rolled", { ...g, die: 2 }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
+test("🏴‍☠️ TREASURE DIG: a dug square shows the arrow toward the treasure (one of eight), the finder gets the ⭐ and a new one is buried, four treasures and one party, reading the arrows is the skill, and broken saves are refused", () => {
+  const b = DATA.board("dig");
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  // the arrows on a three-by-three: from the middle, every way
+  const names = [0, 1, 2, 3, 5, 6, 7, 8].map((j) => L.digDir(b, 4, j));
+  assert.deepEqual(names, ["up-left", "up", "up-right", "left", "right", "down-left", "down", "down-right"], "from the middle, all eight arrows");
+  assert.equal(L.digDir(b, 0, 8), "down-right", "from a corner, across");
+  assert.equal(L.digDir(b, 2, 5), "down", "straight down a column");
+  // a dig: an arrow and the turn passes; the treasure: a ⭐, a new treasure
+  let st = L.create({ board: "dig", seats: SEATS, seed: 7, first: 0 });
+  const miss = st.dug.findIndex((d, j) => j !== st.spot);
+  let ev = L.digAt(st, miss);
+  assert.equal(ev[0].type, "hole");
+  assert.equal(ev[0].dir, L.digDir(b, miss, st.spot), "the arrow points at the treasure");
+  assert.equal(st.turn, 1, "the turn passes");
+  assert.deepEqual(L.digAt(st, miss), [], "a square already dug (the hammer's echo) does nothing");
+  assert.deepEqual(L.digAt(st, 9), [], "no such square");
+  ev = L.digAt(st, st.spot);
+  assert.deepEqual(ev.map((e) => e.type), ["treasure", "bury", "turn"], "found it: a new treasure is buried");
+  assert.equal(st.seats[1].stars, 1, "the finder gets the ⭐");
+  assert.ok(st.dug.every((d) => !d), "fresh sand");
+  // every game, and the skill: digging only where every arrow still points
+  // finds most of the treasures against a computer that reads them half the
+  // time; digging anywhere finds far fewer
+  let mine = 0, plain = 0, digsSharp = 0;
+  const N = 1500;
+  for (let seed = 1; seed <= N; seed++) {
+    for (const sharp of [true, false]) {
+      const g = L.create({ board: "dig", seats: SEATS, seed, first: seed % 2 });
+      let guard = 0;
+      while (g.phase !== "done" && guard++ < 200) {
+        if (g.turn === 0) {
+          const maybe = L.digMaybe(g), open = g.dug.map((d, j) => j).filter((j) => !g.dug[j]);
+          assert.ok(maybe.indexOf(g.spot) >= 0, "the arrows never rule out the treasure");
+          const from = sharp ? maybe : open;
+          L.digAt(g, from[(seed * 5 + guard) % from.length]);
+          if (sharp) digsSharp++;
+        } else L.autoTurn(g);
+      }
+      assert.equal(g.phase, "done", `seed ${seed} ends`);
+      assert.equal(g.found, b.treasures, "every treasure found");
+      if (sharp) mine += g.seats[0].pos; else plain += g.seats[0].pos;
+    }
+  }
+  // (measured: 66% of the treasures reading the arrows, 26% digging anywhere)
+  assert.ok(mine / (N * b.treasures) > 0.58, `reading the arrows finds ${(100 * mine / (N * b.treasures)).toFixed(0)}% of the treasures`);
+  assert.ok(mine / (N * b.treasures) - plain / (N * b.treasures) > 0.25, `the arrows are the edge: ${(100 * mine / (N * b.treasures)).toFixed(0)}% against ${(100 * plain / (N * b.treasures)).toFixed(0)}%`);
+  // states no game reaches
+  st = L.create({ board: "dig", seats: SEATS, seed: 5, first: 0 });
+  L.digAt(st, st.dug.findIndex((d, j) => j !== st.spot));
+  const g = L.snapshot(st);
+  const bad = [
+    ["the treasure's square already dug", { ...g, dug: g.dug.map((d, j) => d || j === g.spot) }],
+    ["no treasure square", { ...g, spot: 9 }],
+    ["a treasure found by nobody", { ...g, found: 1 }],
+    ["a ⭐ for nothing", { ...g, seats: [{ ...g.seats[0], stars: 1 }, g.seats[1]] }],
+    ["over with treasures left", { ...g, phase: "done", seats: g.seats.map((x) => ({ ...x, home: true })), order: [0, 1] }],
+    ["eight squares", { ...g, dug: g.dug.slice(1) }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
+test("an event NAME belongs to one game unless it is on the shared list (the shell dispatches every game's events through ONE switch, so a new game reusing a name steals another's moment)", () => {
+  // 🏴‍☠️ Treasure Dig first named its find "found" — Twin Spot's event — and
+  // its branch, placed earlier in the shell's switch, swallowed every Twin
+  // Spot find: the middle card never moved and the game stuck.
+  const SHARED = {
+    turn: "the turn routine", end: "the turn routine", home: "the race games' arrival", helper: "the race games' helper rule",
+    roll: "Shut the Doors rolls the dice's own die", hop: "the shell branches the hen's hop by game", spin: "the shell branches the farm's spinner by game",
+  };
+  const by = {};
+  for (const b of DATA.BOARDS) {
+    for (let seed = 1; seed <= 120; seed++) {
+      const st = L.create({ board: b.id, seats: SEATS, seed, first: seed % 2, birds: true, fox: true });
+      let g = 0;
+      while (st.phase !== "done" && g++ < 400) for (const e of L.autoTurn(st)) (by[e.type] = by[e.type] || new Set()).add(b.game);
+    }
+  }
+  const shared = Object.keys(by).filter((t) => by[t].size > 1);
+  assert.ok(shared.length >= 4, "fixture: the turn routine's events are shared");
+  for (const t of shared) assert.ok(SHARED[t], `"${t}" is emitted by ${[...by[t]].join(" and ")} — give one of them its own name, or put it on the shared list with the reason the shell can tell them apart`);
 });

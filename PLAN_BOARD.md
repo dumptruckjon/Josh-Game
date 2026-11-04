@@ -1,9 +1,10 @@
 # 🎲 Game Night — board games for Josh (and a friend)
 
-**Status: BATCHES 1, 2 AND 3 BUILT; BATCH 4 IN PROGRESS** (batches 1-2
+**Status: BATCHES 1, 2, 3 AND 4 BUILT** (batches 1-2
 audited twice; §11 is batch 3: 💯 Hundred Hop, 🐔 Hen House, 🧺 Picnic Lotto,
 and 👀 Twin Spot, the owner's Spot It ask; §12 is batch 4, games of SKILL:
-🧠 Peek-a-Pair and 🚪 Shut the Doors are built) — the door, the shelf, the shared turn
+🧠 Peek-a-Pair, 🚪 Shut the Doors, 🌰 Acorn Pots, 🁢 Dot Dominoes and
+🏴‍☠️ Treasure Dig, all built) — the door, the shelf, the shared turn
 routine, the engine, 🚀 Moon Race (with ☄️ Comet Moon), 🌈 Rainbow Trail, and
 🍎 Apple Spin (the owner's go, 2026-10-28, with "deeply audit the first 2
 games … to make them even more high quality and fun and exciting": §8).
@@ -303,7 +304,8 @@ The ask: "5 more board games. Try to vary the type. Many of the games now are
 too similar. At least some going forward need skill vs pure luck". Eight of
 the nine boxes were a roll (or a spin, or a draw) and then the luck carried
 the token, so batch 4 is five DIFFERENT shapes, each with a choice in it:
-🧠 Peek-a-Pair (memory), 🫘 Seed Pots (a tiny mancala: counting and planning),
+🧠 Peek-a-Pair (memory), 🌰 Acorn Pots (planned as "Seed Pots": a tiny
+mancala, counting and planning),
 🚪 Shut the Doors (number bonds: which doors make the roll), 🁢 Dot Dominoes
 (matching dots, choosing which tile) and 🏴‍☠️ Treasure Dig (co-op: arrows
 point toward the treasure, so each dig is reasoned, not guessed).
@@ -348,3 +350,68 @@ one picture on both cards, are searches, not luck.
    door shut and one party. The skill is measured: making two at once when
    he can wins the race to six 64% of the time against a computer that picks
    any way (51% at even play).
+
+3. **🌰 Acorn Pots (BUILT)** — mancala for a four-year-old. Planned as "Seed
+   Pots", renamed because the bean emoji is Emoji 14.0 and invisible on
+   Josh's iPad: the seeds are ACORNS and each store is a squirrel's NEST
+   (🐿️, with its owner's face). Each player has three pots of three acorns.
+   Tap one of yours: its acorns drop one by one into the next pots round the
+   ring — your own, your nest, your friend's pots, never your friend's nest —
+   each pot popping its count, 1, 2, 3, so he can count with the sound off.
+   The LAST acorn in your own nest is a ⭐ and you go again ("In your nest!
+   Go again!"); anywhere else, the turn passes. When a side runs out, the
+   acorns still in pots go home to their own nests, so every game ends with
+   all eighteen in a nest and one party. No captures: nothing is ever taken
+   from a friend. The skill is COUNTING how far each pot is from the nest
+   (pot 0 with three acorns is the opening ⭐), measured over 1500 games:
+   choosing the pot that reaches the nest takes 62% of the ⭐s against a
+   computer that sees one only half the time, against 36% without counting.
+   The board stands on its end between the two pads on a phone (his pots down
+   the left into his nest at the bottom, his friend's up the right into
+   theirs at the top: round the way the acorns go); a short phone puts the
+   nests in a middle column, and a phone on its side lays it out as the
+   classic board. Only his pots with acorns in them are buttons.
+
+4. **🁢 Dot Dominoes (BUILT)** — fifteen tiles, every pair of 1 to 5 dots
+   once (no blanks: he matches DOTS). One tile starts the line (never a
+   double); each player holds four, face up, and six wait in the pile. Tap a
+   tile whose dots match an open end: it goes on, turned to match. One that
+   fits BOTH ends (leaving different dots) waits with a gold ring while both
+   ends light up — "Which end?" — and he taps one: that choice is the skill.
+   A tile that matches nothing only wiggles (after two, the ones that match
+   glow). Nothing in his hand matches: his pad FISHES — the pile's top tile
+   turns over; one that matches joins his hand, one that does not goes back
+   under ("Not that one. Back it goes!"). He fishes only while a pile tile
+   will match, so fishing always ends, and **a hand never grows past four**
+   (the classic draw-until-it-fits measured hands of up to nine, which no
+   phone could show as 75px tiles). Nothing to lay or fish: the friend goes
+   on. A double is a ⭐ and so is laying your last tile; co-op, the line is
+   finished when every tile is laid or none can be, one party. Two designs
+   were MEASURED and rejected first: choosing the tile alone gave no edge at
+   all (48% of the tiles either way), and only choosing the END too did —
+   over 1500 games, keeping the tiles that match each other lays every tile
+   86% of the time against 75%, and is out first 53% against 42%. No domino
+   emoji is a picture on every phone, so the box, the pad and the tiles are
+   drawn (SVG, the die's own dot patterns).
+
+5. **🏴‍☠️ Treasure Dig (BUILT)** — co-op, a game of REASONING. A treasure is
+   buried under one of nine sand squares (three by three). Take turns digging
+   one; a square without it becomes a hole showing an ARROW toward the
+   treasure (one of eight: ⬆️ ↗️ ➡️ ↘️ ⬇️ ↙️ ⬅️ ↖️, said aloud too: "Not here!
+   The arrow points down and left!"), so the next dig is worked out, not
+   guessed — and his friend's arrows count too. Whoever finds it gets the ⭐
+   (a 💎, a cheer) and a new treasure is buried in fresh sand; four
+   treasures, one party. The computer reads the arrows only half the time.
+   Measured over 1500 games: digging only where every arrow still points
+   finds 66% of the treasures, digging anywhere 26% — the biggest skill edge
+   of the batch. Three by three (not four by four) because three 75px rows
+   are what a 320x568 phone's field holds; on a short phone on its side the
+   bar gives the sand 6px (the squares sit between its buttons, never under
+   one).
+
+**Batch 4 as a whole:** every game has a CHOICE in it and every choice is
+measured against a computer that makes it half-well (memory 73% against an
+even 50%; two doors at once 64% against 51%; counting acorns 62% of the ⭐s
+against 36%; choosing the domino's end 86% laid against 75%; reading the
+arrows 66% against 26%) — so a sharp four-year-old genuinely wins more, and
+nobody ever loses.
