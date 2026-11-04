@@ -362,6 +362,15 @@ one picture on both cards, are searches, not luck.
    friend's small strip is gone; their doors show on their own turn). The
    first game also teaches: a way to make the roll glows from the first roll,
    not only after two misses.
+   The audit of all thirteen that followed (2026-11-04) found the same gap in
+   the other two games with a RULE to learn, and gave them the same first
+   game (one `TEACH` list in board-main.js): in his first 🁢 Dot Dominoes the
+   tiles that match an open end glow on every turn of his, and in his first
+   🌰 Acorn Pots the pot whose last acorn lands in his own nest glows. After
+   that, dominoes glows only after two misses and acorns never (counting IS
+   the skill). Twin Spot and Picnic Lotto were left alone: a glow from the
+   start there would be the answer itself, and both already glow after two
+   misses. The other eight run, draw and play cleanly at 402x874.
 
 3. **🌰 Acorn Pots (BUILT)** — mancala for a four-year-old. Planned as "Seed
    Pots", renamed because the bean emoji is Emoji 14.0 and invisible on

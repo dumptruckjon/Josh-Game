@@ -16,6 +16,8 @@
   const DATA = global.BoardData, L = global.BoardLogic, R = global.BoardRender;
   if (!doc || !DATA || !L || !R) return;
   const SAY = DATA.SAY;
+  // the games whose FIRST game teaches its rule with a glow (see `teach`)
+  const TEACH = ["doors", "dominoes", "acorns"];
   const KEY = "josh-board-v1";
   // A double-tap is a PLACE and a TIME (the framework's echo guard): a screen
   // that has just appeared ignores a finger for this long.
@@ -443,7 +445,11 @@
     clearLater();
     hideParty();
     const board = DATA.board(st.board);
-    game = { box, st, board, friend: st.seats[1].who, cpu: st.seats[1].cpu, busy: false, hopUntil: 0, counted: st.phase === "done", doorsTeach: board.game === "doors" && !save.intro.doors };
+    game = { box, st, board, friend: st.seats[1].who, cpu: st.seats[1].cpu, busy: false, hopUntil: 0, counted: st.phase === "done", // the FIRST game of a game with a rule to learn TEACHES it: what fits glows
+      // from the start (🚪 a way to make the roll · 🁢 the tiles that match an end
+      // · 🌰 the pot whose last acorn lands in his own nest); after that it glows
+      // only after two misses (🚪 🁢) or not at all (🌰 — counting IS the skill)
+      teach: TEACH.indexOf(board.game) >= 0 && !save.intro[board.game] };
     play.querySelector(".bn-title").textContent = DATA.box(box).name;
     play.dataset.game = board.game;
     play.dataset.box = box;
@@ -569,7 +575,7 @@
     const shut = game.shownShut, live = st.phase === "shut" && st.mover === m;
     // the FIRST game teaches: a way to make the roll glows from the start;
     // after that it glows only after two misses
-    const ways = live && (st.misses >= 2 || game.doorsTeach) ? L.doorWays(st) : [];
+    const ways = live && (st.misses >= 2 || game.teach) ? L.doorWays(st) : [];
     const hint = ways.length ? (ways.find((x) => st.held == null || x.indexOf(st.held) >= 0) || ways[0]) : [];
     const cpu = st.phase !== "done" && st.seats[game.showTurn == null ? st.turn : game.showTurn].cpu;
     let html = "";
@@ -830,7 +836,7 @@
     if (e.type === "miss") {
       game.dv.held = null;
       // after two, the tiles that match glow
-      if (e.misses >= 2) game.dv.glow = st.hands[st.turn].filter((x) => L.domSides(st, x).length);
+      if (e.misses >= 2 || game.teach) game.dv.glow = domFits();
       paintDom();
       const again = domEl.querySelector('.bn-domt[data-id="' + id + '"]');
       if (again) wiggle(again);
@@ -897,6 +903,8 @@
   }
   // What the pots SHOW (`game.av`): the engine has sown the whole pot while
   // the acorns are still dropping in one by one
+  // 🁢 the tiles in the mover's hand that match an open end
+  function domFits() { const st = game.st; return st.hands[st.turn].filter((x) => L.domSides(st, x).length); }
   function acornsView() { return { pots: game.st.pots.slice(), drop: -1, c: 0, from: -1, glow: -1 }; }
   function acornPile(n) {
     if (!n) return "";
@@ -908,10 +916,12 @@
     const v = game.av, st = game.st;
     const turn = game.showTurn == null ? st.turn : game.showTurn;
     const mine = st.phase !== "done" && !game.busy && !st.seats[turn].cpu;
+    // 🌰 his first game: the pot whose last acorn lands in his nest glows
+    const yes = mine && game.teach && st.phase === "choose" && turn === st.turn ? L.acornAgains(st) : [];
     let html = "";
     v.pots.forEach((n, k) => {
       const seat = k < 4 ? 0 : 1, nest = k % 4 === 3, [col, row] = (ACORN_SHAPES[acornsEl.dataset.shape] || ACORN_SHAPES.tall).at[k];
-      const cls = (nest ? "bn-nest" : "bn-pot") + " bn-pot--" + seat + (k === v.drop ? " bn-pot--drop" : "") + (k === v.from ? " bn-pot--from" : "") + (k === v.glow ? " bn-pot--yes" : "");
+      const cls = (nest ? "bn-nest" : "bn-pot") + " bn-pot--" + seat + (k === v.drop ? " bn-pot--drop" : "") + (k === v.from ? " bn-pot--from" : "") + (k === v.glow || yes.indexOf(k) >= 0 ? " bn-pot--yes" : "");
       const style = ' style="grid-column:' + col + ";grid-row:" + row + ";border-color:" + seatPerson(seat).colour + '"';
       const pop = k === v.drop ? '<span class="bn-pot__pop">' + v.c + "</span>" : "";
       const label = nameOf(seat) + (nest ? "'s nest: " : "'s pot: ") + n + (n === 1 ? " acorn" : " acorns");
@@ -1370,7 +1380,8 @@
     paintPairs();
     paintDoors();
     paintAcorns();
-    if (game.dv) { game.dv.held = st.held; game.dv.glow = []; }
+    // 🁢 his first game: the tiles that match an end glow on every turn
+    if (game.dv) { game.dv.held = st.held; game.dv.glow = game.teach && !st.seats[st.turn].cpu && st.phase === "lay" ? domFits() : []; }
     paintDom();
     paintDig();
     persistGame();

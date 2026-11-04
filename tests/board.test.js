@@ -1635,6 +1635,40 @@ test("🚪 the FIRST Shut the Doors teaches: a way to make the roll glows from t
   assert.ok(hint.length && ways.some((w) => w.every((n) => hint.indexOf(n) >= 0)), `rolled ${s.die}: a way glows at once (${hint})`);
 });
 
+test("🁢 🌰 the FIRST Dot Dominoes and the FIRST Acorn Pots teach too: what fits glows on his turn before any miss — and in a later game it does not", async () => {
+  for (const seen of [false, true]) {
+    // 🁢 the tiles in his hand that match an open end
+    await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
+    await startGame("dominoes", "river", true, 11, 0);
+    await page.waitForFunction(() => window.__BOARD.state().phase === "lay" && window.__BOARD.state().turn === 0 && !window.__BOARD.busy(), null, { timeout: 5000 });
+    const d = await page.evaluate(() => {
+      const st = window.__BOARD.state();
+      return {
+        misses: st.misses || 0,
+        fits: st.hands[st.turn].filter((x) => window.BoardLogic.domSides(st, x).length).sort(),
+        glow: [...document.querySelectorAll("button.bn-domt.bn-domt--hint")].map((b) => b.dataset.id).sort(),
+        tiles: document.querySelectorAll("button.bn-domt").length,
+      };
+    });
+    assert.equal(d.misses, 0, "fixture: no miss yet");
+    assert.ok(d.fits.length && d.fits.length < d.tiles, `fixture: some of his tiles fit and some do not (${d.fits} of ${d.tiles})`);
+    if (!seen) assert.deepEqual(d.glow, d.fits, "his first Dot Dominoes: exactly the tiles that match an end glow");
+    else assert.deepEqual(d.glow, [], "a later Dot Dominoes: nothing glows before two misses");
+    // 🌰 the pot whose last acorn lands in his own nest (a ⭐ and a go-again)
+    await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
+    await startGame("acorns", "river", true, 11, 0);
+    await page.waitForFunction(() => window.__BOARD.state().phase === "choose" && window.__BOARD.state().turn === 0 && !window.__BOARD.busy(), null, { timeout: 5000 });
+    const a = await page.evaluate(() => ({
+      again: window.BoardLogic.acornAgains(window.__BOARD.state()).sort(),
+      yes: [...document.querySelectorAll("button.bn-pot.bn-pot--yes")].map((b) => Number(b.dataset.k)).sort(),
+      pots: document.querySelectorAll("button.bn-pot").length,
+    }));
+    assert.ok(a.again.length && a.again.length < a.pots, `fixture: a pot reaches his nest and another does not (${a.again} of ${a.pots})`);
+    if (!seen) assert.deepEqual(a.yes, a.again, "his first Acorn Pots: exactly the pots that reach his nest glow");
+    else assert.deepEqual(a.yes, [], "a later Acorn Pots: no pot glows — counting is the skill");
+  }
+});
+
 test("🌰 a whole Acorn Pots against the computer: his three pots are the buttons, the acorns drop in one by one counting (sound off), a last acorn in his nest glows and is a ⭐ (go again), an empty pot does nothing, every acorn ends in a nest, one party", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   try {
