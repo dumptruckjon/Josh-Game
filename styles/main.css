@@ -3476,6 +3476,7 @@ button.bn-domt { cursor: pointer; }
 .bn-door .bn-pips { width: 34%; height: 100%; }
 .bn-door__n { font-size: 0.85em; font-weight: 900; line-height: 1; align-self: end; }
 .bn-door--shut {
+  position: relative;   /* the knob below is positioned in it */
   background: linear-gradient(180deg, #b8520f 0%, #a3460a 100%);
   border-width: 4px;
   color: #ffffff;
