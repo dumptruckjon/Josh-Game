@@ -287,9 +287,24 @@ function decodePng(buf) {
   };
 }
 
+// 🎲 Game Night's MID-TURN states: the boards whose buttons and text appear only
+// once a turn is under way (the card he covers, the snowman he builds, the doors
+// he shuts, the hand he answers from, a held flower). Each drive takes the pure
+// engine from a fresh game to that state, so no die has to land; mobile.test.js
+// audits their layout and e2e.test.js their contrast — ONE list, so the two
+// cannot drift.
+const BOARD_MIDTURN = [
+  ["bingo", (L, st) => { for (let g = 0; g < 80 && !(st.phase === "cover" && st.turn === 0); g++) { if (st.turn !== 0) L.autoTurn(st); else L.roll(st); } return st.phase === "cover" && st.turn === 0; }],
+  ["snowman", (L, st) => { for (let g = 0; g < 80 && !(st.phase === "build" && st.turn === 0); g++) { if (st.turn !== 0) L.autoTurn(st); else L.roll(st); } return st.phase === "build" && st.turn === 0; }],
+  ["doors", (L, st) => { for (let g = 0; g < 40 && st.phase === "roll"; g++) L.roll(st); return st.phase === "shut"; }],
+  ["gofish", (L, st) => { L.askFish(st, 0); return st.phase === "answer" && st.seats[1 - st.turn].cpu !== true; }],
+  ["honeyten", (L, st) => { L.tenPick(st, st.flowers.findIndex((n) => n)); return st.held != null; }],
+];
+
 module.exports = {
   findChromium, webkitAvailable, startServer, launchBrowser, launchMobileBrowser, ROOT,
   missingScripts,
   withNavRetries, NAV_ATTEMPTS, TRANSIENT,
   decodePng,
+  BOARD_MIDTURN,
 };

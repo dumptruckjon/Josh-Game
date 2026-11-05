@@ -17,7 +17,9 @@
   if (!doc || !DATA || !L || !R) return;
   const SAY = DATA.SAY;
   // the games whose FIRST game teaches its rule with a glow (see `teach`)
-  const TEACH = ["bingo", "doors", "dominoes", "acorns", "nim", "lines", "top", "grab", "match3", "maze", "hide", "cmatch", "fish", "ten", "hilo", "train"];
+  // (keyed like `save.intro`: the game, except 🎲 Pick a Die, whose board is
+  // Moon Race's dice game with two dice, so it has a key of its own)
+  const TEACH = ["pickdie", "bingo", "doors", "dominoes", "acorns", "nim", "lines", "top", "grab", "match3", "maze", "hide", "cmatch", "fish", "ten", "hilo", "train"];
   // the games whose BOARD is the buttons, so a pad only says whose turn it is
   // (and the ⭐s): on a short phone those pads give way to the board
   // The games that draw their OWN board (no track picture, no tokens): ONE
@@ -25,6 +27,8 @@
   const OWN_BOARD = ["spot", "pairs", "doors", "bingo", "snow", "fish", "ten", "hilo", "train", "acorns", "dominoes", "dig", "nim", "lines", "top", "grab", "match3", "maze", "hide", "cmatch"];
   const PAD_TURN = ["bingo", "pairs", "acorns", "dominoes", "dig", "nim", "lines", "top", "grab", "match3", "maze", "hide", "cmatch", "fish", "ten", "hilo", "train"];
   const KEY = "josh-board-v1";
+  // the key a game's "has been shown how" lives under (`save.intro`)
+  const teachKey = (board) => (board.two ? "pickdie" : board.game);
   // A double-tap is a PLACE and a TIME (the framework's echo guard): a screen
   // that has just appeared ignores a finger for this long.
   const ECHO_MS = 350;
@@ -44,7 +48,7 @@
   // grown-up "hop by itself" switch · next: who starts the next two-person
   // game per box · last: the last box and its players.
   // "has been shown how", per kind of game (each kind's first-time hand)
-  const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors", "acorns", "dominoes", "dig", "nim", "lines", "top", "grab", "match3", "maze", "hide", "cmatch", "bingo", "snow", "fish", "ten", "hilo", "train"];
+  const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors", "acorns", "dominoes", "dig", "nim", "lines", "top", "grab", "match3", "maze", "hide", "cmatch", "bingo", "snow", "fish", "ten", "hilo", "train", "pickdie"];
   function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, next: {}, last: null }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
   function coerce(text) {
@@ -233,7 +237,7 @@
           '<div class="bn-top" hidden><div class="bn-top__table" aria-hidden="true"></div><div class="bn-top__hand" role="group" aria-label="Your cards"></div></div>' +
           // 🕵️ Who's Hiding: the nine friends (a picture) over the three
           // questions (the buttons)
-          // 🌈 Colour Match: the pile's top card and the deck (a button when
+          // 🎴 Colour Match: the pile's top card and the deck (a button when
           // nothing fits) over the hand (the cards are the buttons)
           '<div class="bn-cm" hidden><div class="bn-cm__table"><span class="bn-cm__top" role="img"></span><span class="bn-cm__deck"></span></div><div class="bn-cm__hand" role="group" aria-label="Your cards"></div></div>' +
           '<div class="bn-hide" hidden><div class="bn-hide__grid" role="img"></div><div class="bn-hide__ask" role="group" aria-label="Ask a question"></div></div>' +
@@ -581,7 +585,7 @@
       // from the start (🚪 a way to make the roll · 🁢 the tiles that match an end
       // · 🌰 the pot whose last acorn lands in his own nest); after that it glows
       // only after two misses (🚪 🁢) or not at all (🌰 — counting IS the skill)
-      teach: TEACH.indexOf(board.game) >= 0 && !save.intro[board.game] };
+      teach: TEACH.indexOf(teachKey(board)) >= 0 && !save.intro[teachKey(board)] };
     play.querySelector(".bn-title").textContent = DATA.box(box).name;
     play.dataset.game = board.game;
     play.dataset.pad = PAD_TURN.indexOf(board.game) >= 0 ? "turn" : "act";
@@ -914,11 +918,10 @@
   }
   // 🐟 the hands: as many across as fit (cards at least 75px), the big hand
   // in as few rows as it needs
-  // A short field (a small phone) has no row for the question: it shows in
-  // the other hand's strip instead, and "Go fish!" is always a cell of the
-  // hand, so the only buttons are one grid (two rows of 75px cards fit 251px)
+  // A short field (see paintFish) has no row for the question: it shows in
+  // the other hand's strip instead; "Go fish!" is always a cell of the hand,
+  // so the only buttons are one grid (two rows of 75px cards fit 251px)
   function layoutFish(w, h) {
-    fishEl.dataset.short = h < 56 + 12 + 56 + 12 + 166 + 6 ? "1" : "0";
     fishEl.style.setProperty("--fish-w", w + "px");
     fishEl.style.setProperty("--fish-h", h + "px");
     boardEl.style.width = w + "px";
@@ -947,7 +950,18 @@
     // the small hand: face up, each picture big enough to SEE a match
     const sm = v.hands[small].map((q) => '<span class="bn-fishc bn-fishc--small">' + DATA.FISH[q].pic + "</span>").join("");
     const other = fishEl.querySelector(".bn-fish__other");
-    const short = fishEl.dataset.short === "1";
+    // SHORT is decided from what is MEASURED, not from a fixed height: the
+    // other hand's strip wraps on a narrow phone (a 360px one put his cards
+    // 11px from the pads), so the question gives up its row whenever the
+    // strip, the question and his hand would not all fit the field
+    const fw = parseInt(fishEl.style.getPropertyValue("--fish-w"), 10) || 300, fh = (parseInt(fishEl.style.getPropertyValue("--fish-h"), 10) || 400) - 6;
+    const nCells = v.hands[big].length + (answering ? 1 : 0);
+    const nCols = Math.max(1, Math.min(Math.max(3, Math.min(5, nCells, Math.floor((fw + 16) / 91) || 3)), nCells || 1));
+    const rows = Math.max(1, Math.ceil(nCells / nCols)), handNeed = rows * 75 + (rows - 1) * 16 + 20;
+    fishEl.dataset.short = "0";
+    other.innerHTML = '<span class="bn-fish__face">' + R.faceHTML(seatPerson(small)) + "</span>" + sm;
+    const short = other.offsetHeight + 12 + 56 + 12 + handNeed > fh;
+    fishEl.dataset.short = short ? "1" : "0";
     const bubble = v.q >= 0 ? '<span class="bn-fish__bubble"><span class="bn-fish__face">' + R.faceHTML(seatPerson(v.asker)) + '</span><span class="bn-fish__q">' + DATA.FISH[v.q].pic + '</span><span class="bn-fish__qm">?</span></span>' : "";
     other.innerHTML = short && bubble ? bubble : '<span class="bn-fish__face">' + R.faceHTML(seatPerson(small)) + "</span>" + sm;
     other.setAttribute("aria-label", short && bubble ? nameOf(v.asker) + " asks: " + fishSay(v.q) + "?" : nameOf(small) + "'s cards: " + (v.hands[small].map(fishSay).join(", ") || "none"));
@@ -1056,7 +1070,7 @@
     let html = "";
     for (const i of [0, 1]) {
       const inner = '<span class="bn-snow__face">' + R.faceHTML(seatPerson(i)) + "</span>" + snowmanSVG(v.parts[i], v.who === i ? v.fresh : 0);
-      const cls = "bn-snowman" + (i === m && st.phase !== "done" ? " bn-snowman--go" : "") + (live && i === m && game.teach ? " bn-snowman--hint" : "");
+      const cls = "bn-snowman" + (i === m && st.phase !== "done" ? " bn-snowman--go" : "");
       if (live && i === m) html += '<button class="tap ' + cls + '" type="button" style="border-color:' + seatPerson(i).colour + '" aria-label="' + snowLabel(i, v.parts[i]) + ". Tap to put on the " + snowSay(L.snowWhich(st.parts[m], st.die)) + '">' + inner + "</button>";
       else html += '<span class="' + cls + '" role="img" style="border-color:' + seatPerson(i).colour + '" aria-label="' + snowLabel(i, v.parts[i]) + '">' + inner + "</span>";
     }

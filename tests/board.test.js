@@ -472,6 +472,58 @@ test("the voice: every line is words (never a picture, never a {placeholder}) an
   }
 });
 
+test("the voice on EVERY box: thirty games, each played a while by tapping whatever is live, and every line said is words — no picture, no {placeholder}, no missing name, never a race's word for the one behind", async () => {
+  // The voice test above plays Moon Race and Rainbow Trail; the shelf has
+  // since grown to thirty boxes, each with its own lines filled from its own
+  // names (a fish, a hider, a snowman's part, a carriage's colour). The
+  // population is DERIVED from the shelf, and each game is driven by tapping
+  // the first live button on the board or his pad — a wrong tap too, which
+  // is what speaks the "look again" lines.
+  await page.evaluate(() => {
+    window.__said = [];
+    window.__realAudio = { isMuted: window.JoshAudio.isMuted, say: window.JoshAudio.say, tone: window.JoshAudio.tone };
+    window.JoshAudio.isMuted = () => false;
+    window.JoshAudio.say = (t) => { window.__said.push([window.__BOARD.state() ? window.__BOARD.state().board : "?", String(t)]); };
+    window.JoshAudio.tone = () => {};
+  });
+  try {
+    await quick();
+    const boxes = await page.evaluate(() => window.BoardData.BOXES.map((b) => b.id));
+    assert.ok(boxes.length >= 28, `fixture: only ${boxes.length} boxes`);
+    for (const box of boxes) {
+      await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 2, apple: 2, hen: 2 } }));
+      await startGame(box, "viraj", true, 7, 0);
+      for (let k = 0; k < 24; k++) {
+        // a DIFFERENT live button each time (the same card twice is the echo,
+        // and says nothing): the board's own buttons, else his pad
+        const tapped = await page.evaluate((n) => {
+          const st = window.__BOARD.state();
+          if (!st || st.phase === "done" || window.__BOARD.busy()) return "wait";
+          const live = [...document.querySelectorAll("#screen-board-play .bn-field button:not([disabled]), #screen-board-play .bn-choose button")].filter((x) => x.offsetParent);
+          const b = live.length && st.phase !== "roll" ? live[(n * 7) % live.length] : document.querySelector("#screen-board-play .bn-pad--0");
+          if (!b) return "none";
+          b.click();
+          return "tap";
+        }, k);
+        await page.waitForTimeout(tapped === "tap" ? 120 : 200);
+        if ((await st()).phase === "done") break;
+      }
+    }
+    const said = await page.evaluate(() => window.__said);
+    // every game must have said more than its opening line, or it was not
+    // really played (measured 4 to 45 lines a game)
+    const count = {};
+    for (const [b] of said) count[b] = (count[b] || 0) + 1;
+    const quiet = boxes.map((b) => [b, require("../scripts/board-data.js").box(b).board]).filter(([, b]) => (count[b] || 0) < 4);
+    assert.deepEqual(quiet.map((q) => q[0]), [], "fixture: these games said too little to have been played: " + JSON.stringify(count));
+    const bad = said.filter(([, t]) => /\{\w+\}/.test(t) || /\p{Extended_Pictographic}/u.test(t) || /\b(undefined|null|NaN)\b/.test(t) || /\b(lose|lost|loser|losing|beat|beats|winner|second place|last place|1st|2nd)\b/i.test(t));
+    assert.deepEqual(bad, [], "a line carries a placeholder, a picture, a missing name or a race's word");
+  } finally {
+    await page.evaluate(() => Object.assign(window.JoshAudio, window.__realAudio));
+    await slow();
+  }
+});
+
 test("leaving mid-turn stops the computer: nothing plays on a hidden screen, and the game is kept", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await startGame("moon", "river", true, 3, 1);   // River starts (the hook allows it)
@@ -1666,6 +1718,34 @@ test("🚪 the FIRST Shut the Doors teaches: a way to make the roll glows from t
   assert.ok(hint.length && ways.some((w) => w.every((n) => hint.indexOf(n) >= 0)), `rolled ${s.die}: a way glows at once (${hint})`);
 });
 
+test("🎲 the FIRST Pick a Die teaches: the die that reaches a rocket glows — and in a later game it does not (its board is Moon Race's dice game, so its lesson has a key of its own)", async () => {
+  // Found by the audit: the shell drew this glow from `game.teach`, and TEACH
+  // is keyed by the board's game, which for Pick a Die is "dice" — Moon
+  // Race's — so the glow its own comment promises had never once been shown.
+  for (const seen of [false, true]) {
+    await page.evaluate((x) => window.__BOARD.reset(x ? { introSeen: true } : {}), seen);
+    const ok = await page.evaluate(() => {
+      const L = window.BoardLogic;
+      // a seed whose first roll gives two different dice and ONE best die
+      for (let seed = 1; seed < 400; seed++) {
+        const g = L.create({ board: "pickdie", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed, first: 0 });
+        L.roll(g);
+        if (g.phase === "choose" && g.dice[0] !== g.dice[1] && L.dieBest(g).length === 1) return window.__BOARD.load("pickdie", g);
+      }
+      return false;
+    });
+    assert.ok(ok, "fixture: a first roll with one best die loads");
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    await page.waitForFunction(() => document.querySelectorAll("button.bn-pickd").length === 2, null, { timeout: 5000 });
+    const d = await page.evaluate(() => ({
+      best: window.BoardLogic.dieBest(window.__BOARD.state()),
+      hint: [...document.querySelectorAll("button.bn-pickd.bn-pickd--hint")].map((b) => Number(b.dataset.k)),
+    }));
+    if (!seen) assert.deepEqual(d.hint, d.best, "his first Pick a Die: the die that lands on a rocket glows");
+    else assert.deepEqual(d.hint, [], "a later Pick a Die: nothing glows — picking is the skill");
+  }
+});
+
 test("🁢 🌰 🍪 🔴 🃏 🎨 the FIRST Dot Dominoes, Acorn Pots, Cookie Jar, Line Up, Top Card and Colour Grab teach too: what fits glows on his turn before any miss — and in a later game it does not", async () => {
   for (const seen of [false, true]) {
     // 🁢 the tiles in his hand that match an open end
@@ -2441,7 +2521,7 @@ test("🔢 a whole Number Bingo against the computer: the card shows the mover's
   } finally { await slow(); }
 });
 
-test("🌈 a whole Colour Match against the computer: the top card and his hand show the engine's cards (that many shapes in that colour); a card that matches neither colour nor number only wiggles (after two, the ones that fit glow); nothing fits: the deck is the button and turns one over; a doubled tap plays once; the computer's cards are not his; three rounds, one party", async () => {
+test("🎴 a whole Colour Match against the computer: the top card and his hand show the engine's cards (that many shapes in that colour); a card that matches neither colour nor number only wiggles (after two, the ones that fit glow); nothing fits: the deck is the button and turns one over; a doubled tap plays once; the computer's cards are not his; three rounds, one party", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await quick();
   try {

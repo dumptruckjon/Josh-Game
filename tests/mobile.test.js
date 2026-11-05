@@ -7,7 +7,7 @@
 
 const { test, before, after } = require("node:test");
 const assert = require("node:assert");
-const { startServer, launchMobileBrowser } = require("./helpers");
+const { startServer, launchMobileBrowser, BOARD_MIDTURN } = require("./helpers");
 const fs = require("node:fs");
 const path = require("node:path");
 const BOARD_DATA = require("../scripts/board-data.js");
@@ -230,7 +230,10 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
   // the pads, so the play screen must never scroll in portrait, and a phone on
   // its side must still fit (landscape is not a design target, but it must
   // keep working) — opened fresh at every size here, and TURNED mid-game below.
-  for (const [w, h] of [[390, 844], [320, 568], [375, 667], [834, 1112], [844, 390], [667, 375]]) {
+  // 1112x834 (an iPad on its side) and 360x640 each earned their place by
+  // CATCHING something: on the iPad 🧠 and 🏴‍☠️ filled the board's height and
+  // sat 12px from a pad; at 360 🐟's wrapped strip put his cards 11px from one
+  for (const [w, h] of [[390, 844], [320, 568], [375, 667], [834, 1112], [844, 390], [667, 375], [1112, 834], [360, 640]]) {
     await page.setViewportSize({ width: w, height: h });
     // the fullest shelf: four boxes (two by two), one with a game waiting on it
     await page.evaluate(() => {
@@ -2165,16 +2168,12 @@ test("🎲 Game Night MID-TURN: the boards whose buttons CHANGE inside a turn st
   // inherited the 75px card floor and wrapped a five-card hand into a 172px
   // strip. Each state is reached through the ENGINE and loaded, so the test
   // does not depend on a dice roll landing.
-  const STATES = [
-    ["bingo", (L, st) => { for (let g = 0; g < 80 && !(st.phase === "cover" && st.turn === 0); g++) { if (st.turn !== 0) L.autoTurn(st); else L.roll(st); } return st.phase === "cover" && st.turn === 0; }],
-    ["snowman", (L, st) => { for (let g = 0; g < 80 && !(st.phase === "build" && st.turn === 0); g++) { if (st.turn !== 0) L.autoTurn(st); else L.roll(st); } return st.phase === "build" && st.turn === 0; }],
-    ["doors", (L, st) => { for (let g = 0; g < 40 && st.phase === "roll"; g++) L.roll(st); return st.phase === "shut"; }],
-    ["gofish", (L, st) => { L.askFish(st, 0); return st.phase === "answer" && st.seats[1 - st.turn].cpu !== true; }],
-    ["honeyten", (L, st) => { L.tenPick(st, st.flowers.findIndex((n) => n)); return st.held != null; }],
-  ];
-  for (const [w, h] of [[390, 844], [320, 568], [375, 667], [834, 1112], [844, 390], [667, 375]]) {
+  // 1112x834 (an iPad on its side) and 360x640 each earned their place by
+  // CATCHING something: on the iPad 🧠 and 🏴‍☠️ filled the board's height and
+  // sat 12px from a pad; at 360 🐟's wrapped strip put his cards 11px from one
+  for (const [w, h] of [[390, 844], [320, 568], [375, 667], [834, 1112], [844, 390], [667, 375], [1112, 834], [360, 640]]) {
     await page.setViewportSize({ width: w, height: h });
-    for (const [box, drive] of STATES) {
+    for (const [box, drive] of BOARD_MIDTURN) {
       const ok = await page.evaluate((a) => {
         window.__BOARD.reset({ introSeen: true });
         const L = window.BoardLogic;

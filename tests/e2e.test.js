@@ -8,7 +8,7 @@
 
 const { test, before, after } = require("node:test");
 const assert = require("node:assert");
-const { startServer, launchBrowser } = require("./helpers");
+const { startServer, launchBrowser, BOARD_MIDTURN } = require("./helpers");
 
 let server, browser, context, page, baseURL;
 const pageErrors = [];
@@ -3477,6 +3477,29 @@ test("CONTRAST: every ACTIVE text run in Josh's and 华丽's worlds clears AA", 
     assert.ok(await pg.evaluate(() => /⭐ 1/.test(document.querySelector(".bn-pad--1 .bn-pad__stars").textContent)), "fixture: the waiting pad shows its ⭐ count");
     await pg.evaluate(() => window.__BOARD.start("rainbow", "mom", false, 3, 0));
     await look("#board-play", "#screen-board-play", "game night rainbow");
+    // EVERY box on the shelf, DERIVED from the data: this audit used to play
+    // Moon Race and Rainbow Trail only, while the shelf grew to thirty games,
+    // each drawing its own board (doors, pots, cards, hands, a bingo card…)
+    const boxes = await pg.evaluate(() => window.BoardData.BOXES.map((b) => b.id));
+    assert.ok(boxes.length >= 20, `fixture: only ${boxes.length} Game Night boxes`);
+    for (const box of boxes) {
+      await pg.evaluate((b) => { window.__BOARD.reset({ introSeen: true, done: { moon: 2, apple: 2 } }); window.__BOARD.start(b, "river", true, 3, 0); }, box);
+      await look("#board-play", "#screen-board-play", "game night " + box);
+    }
+    // …and the states whose text only appears MID-TURN (the card he covers,
+    // the hand he answers from, a held flower, the doors he shuts), reached
+    // through the engine so no die has to land
+    for (const [box, drive] of BOARD_MIDTURN) {
+      const ok = await pg.evaluate((a) => {
+        window.__BOARD.reset({ introSeen: true });
+        const L = window.BoardLogic;
+        const st = L.create({ board: a[0], seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 5, first: a[0] === "gofish" ? 1 : 0 });
+        if (!(0, eval)("(" + a[1] + ")")(L, st)) return false;
+        return window.__BOARD.load(a[0], st);
+      }, [box, drive.toString()]);
+      assert.ok(ok, `fixture: ${box} reached its mid-turn state`);
+      await look("#board-play", "#screen-board-play", "game night " + box + " mid-turn");
+    }
     // DERIVED from the live registry, so a 241st game is audited the day it lands
     const ids = await pg.evaluate(() => (window.JoshGames || []).map((g) => g.id));
     assert.ok(ids.length >= 200, `only ${ids.length} games registered — the walk would be near-vacuous`);

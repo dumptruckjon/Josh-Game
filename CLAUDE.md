@@ -10470,6 +10470,33 @@ is on the pad) rather than the squares shrinking. And one planned game was
 REPLACED, recorded so nobody rebuilds it: 🦉 Owl Flight (co-op colour cards) was
 Rainbow Trail's mechanic with no choice in it, so it became 🚂 Pattern Train.
 
+**THE DEEP AUDIT OF ALL THIRTY GAME NIGHT BOXES (the same ask, round 1): every
+guardrail written for two games had stayed a guardrail for two games.** The
+contrast audit opened 🚀 Moon Race and 🌈 Rainbow Trail and the voice test
+played the same pair, while the shelf grew to thirty boxes, each drawing its own
+board and filling its own lines. Both now DERIVE the boxes from the shelf (and
+the contrast audit adds the mid-turn states, from the one `BOARD_MIDTURN` list
+in helpers.js that the mobile audit also reads). Contrast came back clean;
+speech came back clean. **The voice test's first cut was vacuous for twenty of
+the thirty boxes**: it tapped the FIRST live button every time, which in a board
+game is the same card again (the echo, which says nothing), so a mutation that
+made Go Fish speak a picture stayed green. It taps a different live button each
+time (the pad in a roll), and asserts every game said at least four lines. What
+the audit FOUND: (1) **🎲 Pick a Die's first-game glow had never once shown** —
+TEACH was keyed by the board's game, and Pick a Die's is "dice", Moon Race's;
+the teach key is now `teachKey()` (the game, or "pickdie"). Its twin was ⛄
+Snowman's `--hint` class, which no rule painted at all: a site.test.js law now
+fails any hint the shell emits with no CSS. (2) **Pick a Die stood on the Lucky
+shelf** while picking well wins 70% against 29%; it is a thinking game now.
+(3) **🌈 Colour Match wore 🌈 Rainbow Trail's picture**, the tile-icon law on a
+shelf; it is 🎴, and the data test fails two boxes sharing a picture. (4) **An
+iPad on its side (1112x834) and a 360x640 phone were never measured**, and each
+caught one: the pads sat 12px under the board everywhere (`.bn-tray` margin),
+so 🧠 and 🏴‍☠️, whose buttons fill the board's height there, met a pad at 12px;
+and Go Fish's "short" was a fixed height while the other hand's strip WRAPS on a
+narrow phone, so it is decided from the measured strip and hand now. Both sizes
+joined the mobile lists, each proven by its mutation.
+
 ---
 
 ## Repository Structure

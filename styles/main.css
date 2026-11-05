@@ -3681,7 +3681,7 @@ button.bn-fishgo { cursor: pointer; }
 button.bn-fishc { cursor: pointer; }
 /* the other hand's cards are small pictures in the strip, never card-sized
    (a card's 75px floor wrapped a five-card hand into a 172px strip) */
-.bn-fishc.bn-fishc--small { min-height: 0; border-width: 2px; border-radius: 10px; padding: 1px 2px; box-shadow: none; font-size: 1.5rem; }
+.bn-fishc.bn-fishc--small { min-height: 0; border-width: 2px; border-radius: 10px; padding: 1px 2px; box-shadow: none; font-size: 1.4rem; }
 .bn-fishc--still { opacity: 0.75; }
 .bn-fishc--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
 /* ⛄ Snowman Build: two snowmen side by side, each under its builder's
@@ -3986,7 +3986,7 @@ button.bn-domt { cursor: pointer; }
 .bn-doors__grid--cpu .bn-door { cursor: default; }
 
 /* the pads: each player's own big button — the die, or the card pile */
-.bn-tray { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); margin-top: 12px; }
+.bn-tray { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); margin-top: 16px; }   /* 16, the spacing law: a board whose buttons fill its height (🧠 🏴‍☠️ on an iPad on its side) once sat 12px from a pad */
 /* 🎲 Pick a Die: the two dice to pick from cover the pads while he picks
    (one, when both dice are the same) */
 .bn-tray--choose .bn-pad { visibility: hidden; }

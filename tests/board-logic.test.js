@@ -29,6 +29,12 @@ test("data: every box opens a real board, every board is a real grid, every pers
     assert.ok(b.name && (b.pic || b.art === "domino") && b.colour, `${b.id} has a name, a picture and a colour`);
     if (b.unlockAfter) assert.ok(DATA.box(b.unlockAfter.box), `${b.id} unlocks after a real box`);
   }
+  // the PICTURE is how a non-reader picks a box, so no two on the shelf share
+  // one (🌈 Colour Match once stood beside 🌈 Rainbow Trail) — compared
+  // without the VS16 that only decides how an emoji is drawn
+  const pics = DATA.BOXES.filter((b) => b.pic).map((b) => b.pic.replace(/\uFE0F/g, ""));
+  const twice = pics.filter((p, k) => pics.indexOf(p) !== k);
+  assert.deepEqual(twice, [], "two boxes wear the same picture: " + twice.join(" "));
   for (const board of DATA.BOARDS) {
     // a track fills its grid exactly; Apple Spin's grid is only the shape of
     // its picture, and its size is the TEN-FRAME basket

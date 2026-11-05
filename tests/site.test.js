@@ -7105,3 +7105,15 @@ test("no test may measure page overflow against window.innerWidth", () => {
     "browser zooms out to fit, so innerWidth follows the overflow and the check reads 0:\n  " +
     bad.join("\n  "));
 });
+
+test("🎲 Game Night: every HINT the shell can light is styled — a glow with no CSS teaches nothing", () => {
+  // The deep audit of the suite found ⛄ Snowman's `bn-snowman--hint`: the shell
+  // added the class, no rule painted it, and (because Snowman was not on the
+  // TEACH list either) it was dead twice over. A cue is only a cue if it is
+  // drawn, so every `--hint` class the shell emits must have a rule.
+  const js = read("scripts/board-main.js"), css = read("styles/main.css");
+  const hints = [...new Set(js.match(/\bbn-[a-z0-9_]+--hint\b/g) || [])];
+  assert.ok(hints.length >= 15, `fixture: only ${hints.length} hint classes found — the scan went blind`);
+  const bare = hints.filter((c) => !new RegExp("\\." + c + "(?![a-z0-9_-])").test(css));
+  assert.deepEqual(bare, [], "a hint the shell lights that nothing paints: " + bare.join(", "));
+});

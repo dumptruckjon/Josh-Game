@@ -497,7 +497,6 @@
     { id: "moon", board: "moon", name: "Moon Race", pic: "🚀", colour: "#3b4cc0" },
     { id: "comet", board: "comet", name: "Comet Moon", pic: "☄️", colour: "#6a3fb8", unlockAfter: { box: "moon", games: 2 } },
     { id: "rainbow", board: "rainbow", name: "Rainbow Trail", pic: "🌈", colour: "#e0569b" },
-    { id: "pickdie", board: "pickdie", name: "Pick a Die", pic: "🎲", colour: "#2563eb" },
     { id: "bingo", board: "bingo", name: "Number Bingo", pic: "🔢", colour: "#0369a1" },
     { id: "snowman", board: "snowman", name: "Snowman Build", pic: "⛄", colour: "#0e7490" },
     // the 🐦 joins from his THIRD Apple game, exactly as the comets do
@@ -519,6 +518,9 @@
     { id: "lineup", board: "lineup", name: "Line Up", pic: "🔴", colour: "#be123c", kind: "think" },
     { id: "topcard", board: "topcard", name: "Top Card", pic: "🃏", colour: "#4338ca", kind: "think" },
     { id: "grab", board: "grab", name: "Colour Grab", pic: "🎨", colour: "#0e7490", kind: "think" },
+    // (choosing the die that lands on a rocket gets home first 70% of the time
+    // against 29%: a game of choosing, so it stands with the thinking games)
+    { id: "pickdie", board: "pickdie", name: "Pick a Die", pic: "🎲", colour: "#2563eb", kind: "think" },
     { id: "dicematch", board: "dicematch", name: "Dice Match", pic: "🎯", colour: "#b91c1c", kind: "think" },
     { id: "maze", board: "maze", name: "Mouse Maze", pic: "🐭", colour: "#a16207", kind: "think" },
     { id: "hide", board: "hide", name: "Who's Hiding", pic: "🕵️", colour: "#475569", kind: "think" },
@@ -526,7 +528,7 @@
     { id: "hilo", board: "hilo", name: "Higher or Lower", pic: "🔼", colour: "#be185d", kind: "think" },
     { id: "honeyten", board: "honeyten", name: "Honey Ten", pic: "🍯", colour: "#b45309", kind: "think" },
     { id: "gofish", board: "gofish", name: "Go Fish", pic: "🐟", colour: "#0369a1", kind: "think" },
-    { id: "colourmatch", board: "colourmatch", name: "Colour Match", pic: "🌈", colour: "#7e22ce", kind: "think" },
+    { id: "colourmatch", board: "colourmatch", name: "Colour Match", pic: "🎴", colour: "#7e22ce", kind: "think" },
   ];
 
   // ---- Every line the game says ------------------------------------------
