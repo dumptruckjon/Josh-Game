@@ -1,6 +1,6 @@
 # 🎲 Game Night — board games for Josh (and a friend)
 
-**Status: BATCHES 1-6 BUILT** (batches 1-2
+**Status: BATCHES 1-6 BUILT, audited three times (§15 is the third)** (batches 1-2
 audited twice; §11 is batch 3: 💯 Hundred Hop, 🐔 Hen House, 🧺 Picnic Lotto,
 and 👀 Twin Spot, the owner's Spot It ask; §12 is batch 4, games of SKILL:
 🧠 Peek-a-Pair, 🚪 Shut the Doors, 🌰 Acorn Pots, 🁢 Dot Dominoes and
@@ -579,3 +579,26 @@ held flower had never been measured; on a 320x568 phone the bingo squares were
 cards had inherited the 75px card floor). A MID-TURN audit now reaches each
 such state through the engine at every size.
 
+
+## 15. The third audit (the owner, 2026-11-05: "another deep audit. Different angles")
+
+New angles: a random-tapping monkey (real taps and doubles, a phone turned,
+🏠 and back, a reload) on every box; every computer turn reloaded between its
+steps; junk moves into the engine; pad contents against their cards; a read
+of every spoken line; real-pace waits; reduced motion; leaks.
+
+- **Fixed — a game that stopped for good:** 🧺 Picnic Lotto, 👀 Twin Spot and
+  🍯 Honey Ten froze if the computer's turn was interrupted between its steps
+  (after it took its food, flipped its card, or held its first flower) by the
+  iPad sleeping, 🏠 and back, or a reload. The computer now carries on the move
+  it was in; a test loads every half-done computer turn of every box.
+- **Fixed:** on a short phone, Colour Match's "🃏 3" ran out of its pad card
+  and Mouse Maze's 🐭 did not fit it (now a corner badge, and a mouse sized
+  from its card).
+- **Fixed:** Colour Grab's first line said "every square of it it touches".
+- **Measured, no change:** reduced motion hides every fade-out; no leaks (no
+  timer outlives the screen, heap 5-6.5MB, slowest task 150ms on a 4x slowed CPU); the computer's
+  turn takes 2.5-7s at real pace (Peek-a-Pair's 12-17s is it going again on its
+  pairs, which he watches to remember); Colour Match has no strategy edge (50.7%
+  careful against 49.9% random) and stays on the Thinking shelf, as Lotto and
+  Spot do, because you must recognise what fits.

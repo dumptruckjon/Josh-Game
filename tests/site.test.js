@@ -7117,3 +7117,30 @@ test("🎲 Game Night: every HINT the shell can light is styled — a glow with 
   const bare = hints.filter((c) => !new RegExp("\\." + c + "(?![a-z0-9_-])").test(css));
   assert.deepEqual(bare, [], "a hint the shell lights that nothing paints: " + bare.join(", "));
 });
+
+// A spoken line is read aloud by a voice that says exactly what it is given, so
+// a typo'd doubled word ("every square of it it touches", which shipped in Colour
+// Grab's first line) is heard as a stammer. The only doubles allowed are SOUND
+// words, and each must still be used, so the list cannot rot into a hole.
+test("no spoken line STAMMERS: a doubled word is a sound word or a typo", () => {
+  const SOUNDS = ["gobble", "zoom", "beep", "choo", "toot", "la", "scrub"];
+  const lines = [];
+  const walk = (o, p) => {
+    if (typeof o === "string") lines.push([p, o]);
+    else if (Array.isArray(o)) o.forEach((x, i) => walk(x, p + "[" + i + "]"));
+    else if (o && typeof o === "object") for (const k of Object.keys(o)) walk(o[k], p + "." + k);
+  };
+  walk(require("../scripts/board-data.js").SAY, "board-data SAY");
+  walk(require("../scripts/hole-data.js").SAY, "hole-data SAY");
+  walk(content, "content");
+  assert.ok(lines.length >= 2000, `fixture: only ${lines.length} lines walked — the scan went blind`);
+  const used = new Set(), stammers = [];
+  for (const [p, s] of lines) {
+    for (const m of s.matchAll(/\b([A-Za-z]+) \1\b/gi)) {
+      const w = m[1].toLowerCase();
+      if (SOUNDS.includes(w)) used.add(w); else stammers.push(p + ": " + JSON.stringify(s));
+    }
+  }
+  assert.deepEqual(stammers, [], "a doubled word in a spoken line:\n" + stammers.join("\n"));
+  assert.deepEqual(SOUNDS.filter((w) => !used.has(w)), [], "a sound word nothing says any more — drop it from the list");
+});

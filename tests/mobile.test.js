@@ -2194,3 +2194,48 @@ test("🎲 Game Night MID-TURN: the boards whose buttons CHANGE inside a turn st
     }
   }
 });
+
+test("🎲 Game Night: what a PAD shows stays inside its card, on every box (a short phone's pad card is 44px)", async () => {
+  // Measured on a 320px phone before this test: Colour Match's "🃏 3" ran 12px
+  // out of its pad card (side by side, it could never fit 44px) and Mouse
+  // Maze's 🐭 sat in a fixed 52px ring inside that 44px card. No overflow
+  // check could see either: the pad itself does not overflow, only its card's
+  // contents do. Every run of text in every pad card is measured against the
+  // card, on every box, at the sizes where the pad gives way (short phones and
+  // a phone on its side) and at a roomy one.
+  for (const [w, h] of [[320, 568], [844, 390], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: h });
+    let cards = 0;
+    for (const b of BOARD_DATA.BOXES) {
+      await page.evaluate((id) => {
+        window.__BOARD.reset({ introSeen: true });
+        const L = window.BoardLogic;
+        window.__BOARD.load(id, L.create({ board: window.BoardData.box(id).board, seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 5, first: 0 }));
+      }, b.id);
+      await page.locator("#screen-board-play").waitFor({ state: "visible" });
+      await page.waitForTimeout(250);
+      const r = await page.evaluate(() => {
+        const out = []; let n = 0;
+        for (const card of document.querySelectorAll("#screen-board-play .bn-pad .bn-card")) {
+          if (!card.getClientRects().length) continue;
+          n++;
+          const c = card.getBoundingClientRect();
+          const tw = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+          let t;
+          while ((t = tw.nextNode())) {
+            if (!t.textContent.trim()) continue;
+            const rg = document.createRange(); rg.selectNodeContents(t);
+            const e = rg.getBoundingClientRect();
+            const over = Math.max(c.left - e.left, e.right - c.right, c.top - e.top, e.bottom - c.bottom);
+            if (over > 1) out.push(JSON.stringify(t.textContent.trim()) + " " + over.toFixed(1) + "px out");
+          }
+        }
+        return { out, n };
+      });
+      cards += r.n;
+      assert.deepEqual(r.out, [], `[${b.id}@${w}x${h}] a pad card's contents spill out of it`);
+    }
+    assert.ok(cards >= BOARD_DATA.BOXES.length, `[${w}x${h}] fixture: only ${cards} pad cards measured`);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+});

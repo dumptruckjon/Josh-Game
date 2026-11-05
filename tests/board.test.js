@@ -2514,8 +2514,12 @@ test("🔢 a whole Number Bingo against the computer: the card shows the mover's
   assert.ok(end.covered.every((c) => c.every(Boolean)), "both cards full");
   assert.equal(end.seats[0].stars + end.seats[1].stars, 16, "every line of both cards is a ⭐");
   assert.ok(missed && lines >= 1 && cpuTried, `fixture: a miss, a line and the computer's turn all ran (${missed}, ${lines}, ${cpuTried})`);
-  // the covered squares wear a counter with the owner's face
-  assert.ok(await page.evaluate(() => document.querySelectorAll(".bn-bingo__grid .bn-bsq__chip").length === 9), "a counter on every square");
+  // the covered squares wear a counter with the owner's face. The card SHOWS
+  // the game a beat behind the engine (the last counter lands with its
+  // animation, just after the engine says done), so this waits for it to
+  // land; reading at once failed 4 runs in 5 on a correct game
+  const chips = await page.waitForFunction(() => document.querySelectorAll(".bn-bingo__grid .bn-bsq__chip").length === 9, null, { timeout: 3000 }).then(() => 9, async () => page.evaluate(() => document.querySelectorAll(".bn-bingo__grid .bn-bsq__chip").length));
+  assert.equal(chips, 9, "a counter on every square");
   await page.locator(".bn-party").waitFor({ state: "visible" });
   assert.equal((await page.evaluate(() => window.__BOARD.save())).done.bingo, 1, "a finished Number Bingo counts once");
   } finally { await slow(); }
@@ -3108,4 +3112,53 @@ test("🎲 EVERY board says what it shows: no button and no picture on any box's
     await scan(box + " mid-turn");
   }
   assert.deepEqual(bad, [], "a board that shows something it does not name");
+});
+
+// A computer turn can come back HALF DONE: the iPad slept, he went 🏠 and
+// back, or the page reloaded after the computer took its food (🧺), flipped
+// its card (👀) or held its first flower (🍯) but before it answered. Starting
+// the turn again did nothing in that phase, so the game waited for ever and
+// his taps only wiggled (found by a random-tapping monkey). The states come
+// from the ENGINE, every phase a computer turn passes through on every box,
+// so a new box (or a new phase) is covered the day it lands.
+test("a computer turn that comes back HALF DONE carries on, on EVERY box", async () => {
+  const D = require("../scripts/board-data.js");
+  // a computer's turn where the NEXT move is his (the friend asked; he answers)
+  const HIS = { gofish: ["answer"] };
+  const ACTS = ["roll", "hop", "drawCard", "spin", "pick", "spinHen", "henHop", "takeFood", "giveFood", "flipSpot", "findSpot", "peekPair", "shutDoor", "digAt", "takeCookies", "dropLine", "playCard", "grabColour", "chooseDie", "moveMouse", "askHide", "pickCar", "hiloGuess", "tenPick", "askFish", "answerFish", "buildSnow", "coverBingo", "playMatch", "flipMatch", "rollMatch", "holdDie", "layTile", "drawTile", "sowPot"];
+  let r = 99;
+  const rnd = () => { r = (r * 1103515245 + 12345) % 2147483648; return r / 2147483648; };
+  const states = [], usedHis = new Set();
+  for (const b of D.BOXES) {
+    const seen = {};
+    for (let g = 0; g < 6; g++) {
+      const st = L.create({ board: b.board, seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 40 + g, first: g % 2 });
+      for (let s = 0; s < 400 && st.phase !== "done"; s++) {
+        // single moves (any argument), so a turn is caught between its steps
+        L[ACTS[Math.floor(rnd() * ACTS.length)]](st, Math.floor(rnd() * 12), Math.floor(rnd() * 3));
+        if (st.phase === "done" || !st.seats[st.turn].cpu) continue;
+        const k = st.phase + (st.held != null && st.held !== -1 ? "/held" : "");
+        if ((HIS[b.id] || []).indexOf(st.phase) >= 0) { usedHis.add(b.id + ":" + st.phase); continue; }
+        if (!seen[k]) { seen[k] = true; states.push([b.id, k, L.snapshot(st)]); }
+      }
+    }
+  }
+  assert.ok(states.length >= 40, `fixture: only ${states.length} half-done computer turns found`);
+  const none = D.BOXES.map((b) => b.id).filter((id) => !states.some(([b]) => b === id));
+  assert.deepEqual(none, [], "fixture: boxes whose computer turn was never caught");
+  assert.deepEqual([...usedHis].sort(), Object.keys(HIS).flatMap((b) => HIS[b].map((p) => b + ":" + p)).sort(), "an exemption no state reaches — drop it");
+  for (const [p, k0] of [["lotto", "give"], ["spot", "find"], ["honeyten", "pick/held"]]) assert.ok(states.some(([b, k]) => b === p && k === k0), `fixture: no half-done ${p} turn (${k0}) was found`);
+  await quick();
+  const stuck = [];
+  for (const [box, k, snap] of states) {
+    await page.evaluate(() => { location.hash = "#__x"; });
+    const ok = await page.evaluate((a) => window.__BOARD.load(a[0], a[1]), [box, snap]);
+    assert.ok(ok, `${box} ${k}: a state the engine made must load`);
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    const j = JSON.stringify(snap);
+    const moved = await page.waitForFunction((j0) => { const s = window.__BOARD.state(); return s && JSON.stringify(s) !== j0; }, j, { timeout: 4000 }).then(() => true, () => false);
+    if (!moved) stuck.push(box + " " + k);
+  }
+  assert.deepEqual(stuck, [], "a computer turn that came back half done never moved on:\n" + stuck.join("\n"));
+  assert.deepEqual(pageErrors, [], "no page errors");
 });

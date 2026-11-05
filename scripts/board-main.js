@@ -914,7 +914,13 @@
     const st = game.st;
     if (game.busy || st.phase !== "pick" || !st.seats[st.turn].cpu) return;
     if (st.held == null) { game.tenPlan = L.tenChoice(st); return tapTen(game.tenPlan[0], null); }
-    tapTen(game.tenPlan && game.tenPlan[0] === st.held ? game.tenPlan[1] : L.tenPairs(st).map((p) => (p[0] === st.held ? p[1] : p[1] === st.held ? p[0] : -1)).find((x) => x >= 0), null);
+    // the second flower: the planned one, else one that makes ten with the
+    // held flower, else (a game come back half done, holding a flower that
+    // makes ten with nothing here) any other — a miss, never a stuck turn
+    const plan = game.tenPlan && game.tenPlan[0] === st.held ? game.tenPlan[1] : null;
+    const ten = L.tenPairs(st).map((p) => (p[0] === st.held ? p[1] : p[1] === st.held ? p[0] : -1)).find((x) => x >= 0);
+    const any = st.flowers.findIndex((n, k) => n > 0 && k !== st.held);
+    tapTen(plan != null && st.flowers[plan] > 0 ? plan : ten != null ? ten : any, null);
   }
   // 🐟 the hands: as many across as fit (cards at least 75px), the big hand
   // in as few rows as it needs
@@ -2684,7 +2690,7 @@
       } else if (game.board.game === "cmatch") {
         // 🌈 the cards are the buttons; the pad is the cards left and the ⭐s
         const n = st.phase === "done" ? 0 : (game.cmv ? game.cmv.hands[i] : st.hands[i]).length;
-        act.innerHTML = '<span class="bn-card bn-card--basket"><span class="bn-cmleft" aria-hidden="true">🃏 ' + n + "</span></span>";
+        act.innerHTML = '<span class="bn-card bn-card--basket bn-cmcount">🃏<span class="bn-cmleft" aria-hidden="true">' + n + "</span></span>";
         pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
         pad.setAttribute("aria-label", nameOf(i) + (active ? ": play a card with the same colour or the same number" : ": wait for your turn") + ". " + n + (n === 1 ? " card left" : " cards left"));
       } else if (game.board.game === "hide") {
@@ -3049,8 +3055,12 @@
     const st = game.st;
     if (st.phase === "done" || !st.seats[st.turn].cpu) return;
     if (game.board.game === "cards") return flipCard();
-    if (game.board.game === "lotto") return takeFood();
-    if (game.board.game === "spot") return flipSpot();
+    // A turn can come back HALF DONE: the iPad slept, he went 🏠 and back,
+    // or the page reloaded, after the computer took its food or flipped its
+    // card but before it answered. Starting the turn again does nothing in
+    // that phase, so it would wait for ever: carry on the move instead.
+    if (game.board.game === "lotto") return st.phase === "give" ? giveTo(L.ownerOf(st, st.food)) : takeFood();
+    if (game.board.game === "spot") return st.phase === "find" ? pickTwin(L.twinOf(DATA.board(st.board), st.centre, st.hand), null) : flipSpot();
     if (game.board.game === "pairs") return cpuPair();
     if (game.board.game === "acorns") return cpuAcorn();
     if (game.board.game === "dominoes") return cpuDom();

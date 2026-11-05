@@ -2430,3 +2430,41 @@ test("an event NAME belongs to one game unless it is on the shared list (the she
   assert.ok(shared.length >= 4, "fixture: the turn routine's events are shared");
   for (const t of shared) assert.ok(SHARED[t], `"${t}" is emitted by ${[...by[t]].join(" and ")} — give one of them its own name, or put it on the shared list with the reason the shell can tell them apart`);
 });
+
+// Every move with ANY argument, on every board: a tap the shell passes on can
+// carry anything (a stale index, a card already played, nothing), and the
+// engine is the one owner of the rules. A move it refuses must change NOTHING
+// (a refusal that half-happened would leave a game no snapshot can describe),
+// nothing may throw, every state must restore exactly, and every game ends.
+test("JUNK MOVES on every board: nothing throws, a refused move changes nothing, every state restores, every game ends", () => {
+  const ACTS = ["roll", "hop", "drawCard", "spin", "pick", "spinHen", "henHop", "takeFood", "giveFood", "flipSpot", "findSpot", "peekPair", "shutDoor", "digAt", "takeCookies", "dropLine", "playCard", "grabColour", "chooseDie", "moveMouse", "askHide", "pickCar", "hiloGuess", "tenPick", "askFish", "answerFish", "buildSnow", "coverBingo", "playMatch", "flipMatch", "rollMatch", "holdDie", "layTile", "drawTile", "sowPot"];
+  // (a move missing from this list still runs, with LEGAL arguments, inside
+  // autoTurn, which a third of the steps call)
+  assert.deepEqual(ACTS.filter((k) => typeof L[k] !== "function"), [], "a move in the list the engine no longer has");
+  const JUNK = [undefined, null, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 99, 1.5, NaN, "0", "a", true, [], {}];
+  let r = 7;
+  const rnd = () => { r = (r * 1103515245 + 12345) % 2147483648; return r / 2147483648; };
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
+  let refusals = 0;
+  for (const bd of DATA.BOARDS) {
+    for (let g = 0; g < 12; g++) {
+      const st = L.create({ board: bd.id, seats: [{ who: "josh" }, { who: "river", cpu: g % 2 === 0 }], seed: g + 1, first: g % 2, birds: true, fox: true });
+      let s = 0;
+      while (st.phase !== "done" && s++ < 4000) {
+        const before = JSON.stringify(L.snapshot(st));
+        const auto = rnd() < 0.35, name = auto ? "autoTurn" : pick(ACTS), args = [pick(JUNK), pick(JUNK)];
+        let ev;
+        try { ev = L[name](st, ...args); } catch (e) { assert.fail(`${bd.id}: ${name}(${JSON.stringify(args)}) threw in phase ${JSON.parse(before).phase}: ${e.message}`); }
+        assert.ok(Array.isArray(ev), `${bd.id}: ${name} returned ${typeof ev}`);
+        const after = JSON.stringify(L.snapshot(st));
+        if (!ev.length && !auto) { refusals++; assert.equal(after, before, `${bd.id}: ${name}(${JSON.stringify(args)}) was refused but changed the game (phase ${JSON.parse(before).phase})`); }
+        assert.ok(!/NaN/.test(after), `${bd.id}: NaN in the game after ${name}(${JSON.stringify(args)})`);
+        const back = L.restore(JSON.parse(after));
+        assert.ok(back, `${bd.id}: a state ${name} made does not restore (phase ${JSON.parse(after).phase})`);
+        assert.equal(JSON.stringify(L.snapshot(back)), after, `${bd.id}: a state does not come back exactly after ${name}`);
+      }
+      assert.equal(st.phase, "done", `${bd.id} seed ${g + 1}: a game of junk moves never ended`);
+    }
+  }
+  assert.ok(refusals > 5000, `fixture: only ${refusals} refusals were tested`);
+});

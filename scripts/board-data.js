@@ -616,7 +616,7 @@
     topFollow: "Bigger than {d}? Play a card!",
     topWin: "{d} is bigger than {e}! A star for {n}!",
     topSame: "{d} and {d}! The same!",
-    grabFirst: "Pick a colour! Your patch grabs every square of it it touches!",
+    grabFirst: "Pick a colour! Your patch grabs every square of that colour it touches!",
     grabGot: "{d} squares!",
     grabOne: "One square!",
     grabNone: "No squares this time!",
