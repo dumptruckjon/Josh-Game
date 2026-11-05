@@ -85,6 +85,33 @@ test("the front door's FIFTH door opens Game Night, and 🚪 comes back", async 
   assert.ok(!(await page.evaluate(() => document.body.classList.contains("board-mode"))), "leaving drops the theme");
 });
 
+test("EVERY game: the instant his move hands the turn over, nothing on the board is still his to tap (the first moment of an animation is on a timer — Line Up's columns stayed buttons into the computer's turn)", async () => {
+  const boxes = await page.evaluate(() => window.BoardData.BOXES.map((b) => b.id));
+  let passed = 0;
+  const bad = [];
+  for (const box of boxes) {
+    await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+    await startGame(box, "river", true, 3, 0);
+    await page.waitForFunction(() => { const st = window.__BOARD.state(); return st && st.turn === 0 && !window.__BOARD.busy(); }, null, { timeout: 8000 });
+    // his first tap on the board itself (never a pad or the bar), and the
+    // board read in the same moment
+    const r = await page.evaluate(() => {
+      const play = document.querySelector("#screen-board-play");
+      const boardButtons = () => [...play.querySelectorAll("button.tap")].filter((b) => !b.closest(".bn-pad") && !b.closest(".bn-bar") && !b.closest(".bn-party") && b.offsetParent && !b.disabled);
+      const first = boardButtons()[0];
+      if (!first) return { none: true };
+      first.click();
+      const st = window.__BOARD.state();
+      return { passed: st.phase === "done" || st.turn !== 0, left: boardButtons().map((b) => b.className) };
+    });
+    if (r.none || !r.passed) continue;
+    passed++;
+    if (r.left.length) bad.push(box + ": " + r.left.join(" | "));
+  }
+  assert.deepEqual(bad, [], "a board still his to tap after his move handed the turn over");
+  assert.ok(passed >= 8, `fixture: the first tap hands the turn over in many games (${passed})`);
+});
+
 test("the shelf: two shelves (🎲 lucky, 🧠 thinking); Moon Race and Rainbow Trail first; Comet Moon arrives after TWO finished Moon games, never as a padlock", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await go("#board-home", "#screen-board-home");
@@ -1744,6 +1771,93 @@ test("🁢 🌰 🍪 🔴 🃏 🎨 the FIRST Dot Dominoes, Acorn Pots, Cookie J
     assert.ok(dm.keep.some(Boolean) && !dm.keep.every(Boolean), `fixture: a pair to keep (${dm.keep})`);
     if (!seen) assert.deepEqual(dm.hint, dm.keep, "his first Dice Match: the dice that match glow");
     else assert.deepEqual(dm.hint, [false, false, false], "a later Dice Match: nothing glows — matching is the skill");
+    // 🕵️ the question that puts the most friends down
+    await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
+    let hs = 1;
+    for (; hs < 60; hs++) if (await page.evaluate((sd) => { const st = window.BoardLogic.create({ board: "hide", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: sd, first: 0 }); return window.BoardLogic.hideBest(st).length < 3; }, hs)) break;
+    await startGame("hide", "river", true, hs, 0);
+    await page.waitForFunction(() => window.__BOARD.state().phase === "ask" && window.__BOARD.state().turn === 0 && !window.__BOARD.busy(), null, { timeout: 5000 });
+    const hd = await page.evaluate(() => ({
+      best: window.BoardLogic.hideBest(window.__BOARD.state()).slice().sort(),
+      hint: [...document.querySelectorAll("button.bn-ask.bn-ask--hint")].map((b) => Number(b.dataset.k)).sort(),
+    }));
+    assert.ok(hd.best.length && hd.best.length < 3, `fixture: one question is better than another (${hd.best})`);
+    if (!seen) assert.deepEqual(hd.hint, hd.best, "his first Who's Hiding: the best question glows");
+    else assert.deepEqual(hd.hint, [], "a later Who's Hiding: nothing glows — asking well is the skill");
+    // 🌈 the cards that match the top card (find a seed where some do and some do not)
+    await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
+    let cmSeed = 1;
+    for (; cmSeed < 60; cmSeed++) {
+      const ok = await page.evaluate((sd) => { const st = window.BoardLogic.create({ board: "colourmatch", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: sd, first: 0 }); const n = window.BoardLogic.cmPlayable(st).length; return n > 0 && n < st.hands[0].length; }, cmSeed);
+      if (ok) break;
+    }
+    await startGame("colourmatch", "river", true, cmSeed, 0);
+    await page.waitForFunction(() => window.__BOARD.state().phase === "play" && window.__BOARD.state().turn === 0 && !window.__BOARD.busy(), null, { timeout: 5000 });
+    const cm = await page.evaluate(() => ({
+      fits: window.BoardLogic.cmPlayable(window.__BOARD.state()),
+      hint: [...document.querySelectorAll("button.bn-cmc.bn-cmc--hint")].map((b) => Number(b.dataset.k)).sort(),
+    }));
+    if (!seen) assert.deepEqual(cm.hint, cm.fits, "his first Colour Match: the cards that match glow");
+    else assert.deepEqual(cm.hint, [], "a later Colour Match: nothing glows — seeing the match is the skill");
+    // 🔢 the rolled number on his card (roll until it is on his card)
+    await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
+    await startGame("bingo", "river", true, 3, 0);
+    for (let g = 0; g < 12; g++) {
+      await page.waitForFunction(() => { const st = window.__BOARD.state(); return (st.phase === "roll" || st.phase === "cover") && st.turn === 0 && !window.__BOARD.busy(); }, null, { timeout: 8000 });
+      if ((await page.evaluate(() => window.__BOARD.state().phase)) === "cover") break;
+      await page.locator(".bn-pad--0").click();
+      await page.waitForFunction(() => !window.__BOARD.busy(), null, { timeout: 5000 });
+    }
+    const bg = await page.evaluate(() => ({
+      phase: window.__BOARD.state().phase,
+      spots: window.BoardLogic.bingoSpots(window.__BOARD.state()).slice().sort(),
+      hint: [...document.querySelectorAll("button.bn-bsq.bn-bsq--hint")].map((b) => Number(b.dataset.k)).sort(),
+    }));
+    assert.equal(bg.phase, "cover", "fixture: his number came up");
+    if (!seen) assert.deepEqual(bg.hint, bg.spots, "his first Number Bingo: the rolled number glows on his card");
+    else assert.deepEqual(bg.hint, [], "a later Number Bingo: nothing glows — knowing the number is the skill");
+    // 🍯 the tens in the meadow
+    await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
+    await startGame("honeyten", "river", true, 3, 0);
+    await page.waitForFunction(() => window.__BOARD.state().phase === "pick" && window.__BOARD.state().turn === 0 && !window.__BOARD.busy(), null, { timeout: 5000 });
+    const tn = await page.evaluate(() => ({
+      tens: [...new Set([].concat(...window.BoardLogic.tenPairs(window.__BOARD.state())))].sort(),
+      hint: [...document.querySelectorAll("button.bn-flower.bn-flower--hint")].map((b) => Number(b.dataset.k)).sort(),
+    }));
+    if (!seen) assert.deepEqual(tn.hint, tn.tens, "his first Honey Ten: the flowers that make a ten glow");
+    else assert.deepEqual(tn.hint, [], "a later Honey Ten: nothing glows — knowing ten is the skill");
+    // 🐟 the pictures both hands hold
+    await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
+    let fs = 1;
+    for (; fs < 60; fs++) if (await page.evaluate((sd) => window.BoardLogic.fishBest(window.BoardLogic.create({ board: "gofish", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: sd, first: 0 })).length, fs)) break;
+    await startGame("gofish", "river", true, fs, 0);
+    await page.waitForFunction(() => window.__BOARD.state().phase === "ask" && window.__BOARD.state().turn === 0 && !window.__BOARD.busy(), null, { timeout: 5000 });
+    const fb = await page.evaluate(() => ({
+      best: window.BoardLogic.fishBest(window.__BOARD.state()).slice().sort(),
+      hint: [...document.querySelectorAll(".bn-fish__hand button.bn-fishc.bn-fishc--hint")].map((b) => Number(b.dataset.k)).sort(),
+    }));
+    if (!seen) assert.deepEqual(fb.hint, fb.best, "his first Go Fish: the pictures you both hold glow");
+    else assert.deepEqual(fb.hint, [], "a later Go Fish: nothing glows — spotting the pair is the skill");
+    // 🔼 the better guess
+    await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
+    await startGame("hilo", "river", true, 3, 0);
+    await page.waitForFunction(() => window.__BOARD.state().phase === "guess" && window.__BOARD.state().turn === 0 && !window.__BOARD.busy(), null, { timeout: 5000 });
+    const hl = await page.evaluate(() => ({
+      best: window.BoardLogic.hiloBest(window.__BOARD.state()) ? "1" : "0",
+      hint: [...document.querySelectorAll("button.bn-hlg.bn-hlg--hint")].map((b) => b.dataset.up),
+    }));
+    if (!seen) assert.deepEqual(hl.hint, [hl.best], "his first Higher or Lower: the better guess glows");
+    else assert.deepEqual(hl.hint, [], "a later Higher or Lower: nothing glows — guessing well is the skill");
+    // 🚂 the car that keeps the pattern
+    await page.evaluate((s) => window.__BOARD.reset({ introSeen: s }), seen);
+    await startGame("train", "river", true, 3, 0);
+    await page.waitForFunction(() => window.__BOARD.state().phase === "pick" && window.__BOARD.state().turn === 0 && !window.__BOARD.busy(), null, { timeout: 5000 });
+    const tr = await page.evaluate(() => ({
+      best: [window.__BOARD.state().options.indexOf(window.__BOARD.state().answer)],
+      hint: [...document.querySelectorAll("button.bn-carb.bn-carb--hint")].map((b) => Number(b.dataset.k)),
+    }));
+    if (!seen) assert.deepEqual(tr.hint, tr.best, "his first Pattern Train: the car that comes next glows");
+    else assert.deepEqual(tr.hint, [], "a later Pattern Train: nothing glows — seeing the pattern is the skill");
   }
 });
 
@@ -1974,6 +2088,486 @@ test("🐭 a whole Mouse Maze against the computer: the garden shows the engine'
   assert.ok(cpuTried && cheese >= 1, `fixture: the computer's turn and his cheese both ran (${cheese})`);
   await page.locator(".bn-party").waitFor({ state: "visible" });
   assert.equal((await page.evaluate(() => window.__BOARD.save())).done.maze, 1, "a finished Mouse Maze counts once");
+  } finally { await slow(); }
+});
+
+test("🚂 a whole Pattern Train against the computer: the engine and five cars in the engine's pattern, then a ?; three big cars at the station; a car that breaks the pattern wiggles and the turn passes with the same train; the right car joins the train (a ⭐); a doubled tap picks once; the computer's cars are not his; eight trains and one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("train", "river", true, 3, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the train is the board");
+  const dom = () => page.evaluate(() => ({
+    cars: [...document.querySelectorAll(".bn-train__row .bn-car:not(.bn-car--engine):not(.bn-car--q)")].length,
+    q: !!document.querySelector(".bn-train__row .bn-car--q"),
+    pick: [...document.querySelectorAll(".bn-train__pick .bn-carb")].map((b) => { const r = b.getBoundingClientRect(); return { k: b.dataset.k == null ? null : Number(b.dataset.k), button: b.tagName === "BUTTON", w: r.width, h: r.height, l: r.left, r: r.right }; }),
+  }));
+  const s0 = await st(), d0 = await dom();
+  assert.equal(d0.cars, 5, "five cars");
+  assert.ok(d0.q, "…and the one missing");
+  assert.equal(d0.pick.length, 3, "three cars at the station");
+  assert.ok(d0.pick.every((b) => b.button && b.w >= 75 && b.h >= 75), `big cars (${d0.pick.map((b) => Math.round(b.w))})`);
+  assert.ok(d0.pick[1].l - d0.pick[0].r >= 16, "16px apart");
+  // a car that breaks the pattern: the turn passes, the train stays
+  const wrong = s0.options.findIndex((c) => c !== s0.answer);
+  await page.locator('.bn-train__pick button.bn-carb[data-k="' + wrong + '"]').click();
+  await page.waitForFunction(() => window.__BOARD.state().turn === 1, null, { timeout: 5000 });
+  assert.deepEqual((await st()).cars, s0.cars, "the same train waits");
+  assert.equal((await st()).round, 0, "no train finished");
+  let doubled = false, cpuTried = false;
+  for (let guard = 0; guard < 60; guard++) {
+    const x = await st();
+    if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      assert.equal(await page.locator(".bn-train__pick button.bn-carb").count(), 0, "on the computer's turn the cars are not his");
+    }
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    const k = s.options.indexOf(s.answer);
+    if (!doubled) { doubled = true; await page.locator('.bn-train__pick button.bn-carb[data-k="' + k + '"]').dblclick(); }
+    else await page.locator('.bn-train__pick button.bn-carb[data-k="' + k + '"]').click();
+    await page.waitForFunction((r) => window.__BOARD.state().round > r, s.round, { timeout: 5000 });
+    assert.equal((await st()).round, s.round + 1, "one train, even for a doubled tap");
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.equal(end.seats[0].stars + end.seats[1].stars, 8, "eight trains, eight stars");
+  assert.ok(cpuTried, "fixture: the computer's turn ran");
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.train, 1, "a finished Pattern Train counts once");
+  } finally { await slow(); }
+});
+
+test("🔼 a whole Higher or Lower against the computer: the card to beat shows its number and that many dots; two big guesses (⬆️ bigger, ⬇️ smaller); a guess turns the next card over and shows ✅ or ❌ (sound off); a doubled tap guesses once; the computer's guesses are not his; twelve cards and one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("hilo", "river", true, 3, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the cards are the pieces");
+  const dom = () => page.evaluate(() => ({
+    n: Number(document.querySelector(".bn-hilo__top .bn-hlc__n").textContent),
+    dots: document.querySelectorAll(".bn-hilo__top svg circle").length,
+    ans: (document.querySelector(".bn-hilo__ans") || {}).textContent || "",
+    g: [...document.querySelectorAll(".bn-hilo__guess .bn-hlg")].map((b) => { const r = b.getBoundingClientRect(); return { up: b.dataset.up, button: b.tagName === "BUTTON", w: r.width, h: r.height, l: r.left, r: r.right }; }),
+  }));
+  const s0 = await st(), d0 = await dom();
+  assert.equal(d0.n, s0.top, "the card to beat is the engine's");
+  assert.equal(d0.dots, s0.top, "…with that many dots");
+  assert.equal(d0.g.length, 2, "two guesses");
+  assert.ok(d0.g.every((b) => b.button && b.w >= 75 && b.h >= 75), `big guesses (${d0.g.map((b) => Math.round(b.w) + "x" + Math.round(b.h))})`);
+  assert.ok(d0.g[1].l - d0.g[0].r >= 16, "16px apart");
+  // a doubled tap is ONE guess, and its answer is SEEN
+  const up = await page.evaluate(() => window.BoardLogic.hiloBest(window.__BOARD.state()));
+  await page.locator('.bn-hilo__guess button.bn-hlg[data-up="' + (up ? 1 : 0) + '"]').dblclick();
+  await page.waitForFunction(() => { const a = document.querySelector(".bn-hilo__ans"); return a && a.textContent; }, null, { timeout: 5000 });
+  const s1 = await st(), d1 = await dom();
+  assert.equal(s1.flips, 1, "one guess, one card turned");
+  assert.equal(d1.n, s1.top, "the turned card is the next to beat");
+  const right = up ? s1.top > s0.top : s1.top < s0.top;
+  assert.equal(d1.ans, right ? "✅" : s1.top === s0.top ? "=" : "❌", "the answer shows");
+  let cpuTried = false;
+  for (let guard = 0; guard < 40; guard++) {
+    const x = await st();
+    if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      assert.equal(await page.locator(".bn-hilo__guess button.bn-hlg").count(), 0, "on the computer's turn the guesses are not his");
+    }
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    const u = await page.evaluate(() => window.BoardLogic.hiloBest(window.__BOARD.state()));
+    await page.locator('.bn-hilo__guess button.bn-hlg[data-up="' + (u ? 1 : 0) + '"]').click();
+    await page.waitForFunction((f) => window.__BOARD.state().flips > f, s.flips, { timeout: 5000 });
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.equal(end.flips, 12, "twelve cards");
+  assert.ok(cpuTried, "fixture: the computer's turn ran");
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.hilo, 1, "a finished Higher or Lower counts once");
+  } finally { await slow(); }
+});
+
+test("🍯 a whole Honey Ten against the computer: nine big flowers, each its number and a ten-frame of that many dots; tapping one holds it (a ring, its empty places lit, the goal says 7 + ? = 10); a doubled tap holds once; the one that makes ten is a ⭐; two that do not are said and the turn passes; the computer's flowers are not his; all nine tens and one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("honeyten", "river", true, 3, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the flowers are the board");
+  const dom = () => page.evaluate(() => ({
+    f: [...document.querySelectorAll(".bn-ten__grid > *")].map((b) => { const r = b.getBoundingClientRect(); return { button: b.tagName === "BUTTON", n: Number((b.querySelector(".bn-flower__n") || {}).textContent || 0), dots: b.querySelectorAll("svg circle").length, held: b.classList.contains("bn-flower--held"), lit: [...b.querySelectorAll("svg rect")].filter((x) => x.getAttribute("fill") === "#fff3b0").length, w: r.width, h: r.height, l: r.left, r: r.right, t: r.top }; }),
+    goal: document.querySelector(".bn-ten__goal").textContent,
+  }));
+  const s0 = await st(), d0 = await dom();
+  assert.equal(d0.f.length, 9, "nine flowers");
+  assert.deepEqual(d0.f.map((x) => x.n), s0.flowers, "the engine's flowers");
+  assert.ok(d0.f.every((x) => x.dots === x.n), "each a ten-frame of that many dots");
+  assert.ok(d0.f.every((x) => x.button && x.w >= 75 && x.h >= 75), `big flowers (${d0.f.map((x) => Math.round(x.w))})`);
+  assert.ok(d0.f[1].l - d0.f[0].r >= 16, "16px apart");
+  // hold one (a doubled tap holds once)
+  const pair = await page.evaluate(() => window.BoardLogic.tenPairs(window.__BOARD.state())[0]);
+  await page.locator('.bn-ten__grid button.bn-flower[data-k="' + pair[0] + '"]').dblclick();
+  await page.waitForFunction((k) => window.__BOARD.state().held === k, pair[0], { timeout: 4000 });
+  const d1 = await dom();
+  const hn = s0.flowers[pair[0]];
+  assert.ok(d1.f[pair[0]].held, "the held flower wears its ring");
+  assert.equal(d1.f[pair[0]].lit, 10 - hn, "its empty places light up: how many more make ten");
+  assert.equal(d1.goal.replace(/\s/g, ""), "🍯" + hn + "+?=10", "the goal says what is missing");
+  await page.locator('.bn-ten__grid button.bn-flower[data-k="' + pair[1] + '"]').click();
+  await page.waitForFunction(() => window.__BOARD.state().made.length === 1, null, { timeout: 5000 });
+  assert.equal((await st()).seats[0].stars, 1, "a ten is a ⭐");
+  let missed = false, cpuTried = false;
+  for (let guard = 0; guard < 120; guard++) {
+    const x = await st();
+    if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      assert.equal(await page.locator(".bn-ten__grid button.bn-flower").count(), 0, "on the computer's turn the flowers are not his");
+    }
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    const tens = await page.evaluate(() => window.BoardLogic.tenPairs(window.__BOARD.state()));
+    let a = tens[0][0], b = tens[0][1];
+    if (!missed) {
+      // two that do not make ten: said, and the turn passes
+      const live = s.flowers.map((n, k) => k).filter((k) => s.flowers[k]);
+      const w = live.flatMap((p) => live.filter((q) => q !== p && s.flowers[p] + s.flowers[q] !== 10).map((q) => [p, q]))[0];
+      if (w) { a = w[0]; b = w[1]; missed = true; }
+    }
+    const made = s.made.length;
+    await page.locator('.bn-ten__grid button.bn-flower[data-k="' + a + '"]').click();
+    await page.waitForFunction((k) => window.__BOARD.state().held === k, a, { timeout: 4000 });
+    await page.locator('.bn-ten__grid button.bn-flower[data-k="' + b + '"]').click();
+    await page.waitForFunction((r) => window.__BOARD.state().rolls > r, s.rolls, { timeout: 5000 });
+    const after = await st();
+    if (s.flowers[a] + s.flowers[b] !== 10) {
+      assert.equal(after.made.length, made, "not ten: no honey");
+      if (after.phase !== "done") assert.equal(after.turn, 1, "…and the turn passes");
+    }
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.equal(end.made.length, 9, "all nine tens");
+  assert.ok(missed && cpuTried, "fixture: a miss and the computer's turn both ran");
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.honeyten, 1, "a finished Honey Ten counts once");
+  } finally { await slow(); }
+});
+
+test("🐟 a whole Go Fish against the computer: both hands face up (his big, the computer's small); he taps a card to ask, the computer gives it (a pair, a ⭐, ask again) or says Go fish; when the computer asks HIM he finds the picture in his hand (or taps 🎣) — a fib only wiggles, after two the answer glows; a doubled tap asks once; every pair made and one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("gofish", "river", true, 3, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the cards are the pieces");
+  const dom = () => page.evaluate(() => ({
+    big: [...document.querySelectorAll(".bn-fish__hand .bn-fishc")].map((b) => { const r = b.getBoundingClientRect(); return { k: b.dataset.k == null ? null : Number(b.dataset.k), button: b.tagName === "BUTTON", pic: b.textContent, glow: b.classList.contains("bn-fishc--hint"), w: r.width, h: r.height, l: r.left, r: r.right, t: r.top }; }),
+    small: [...document.querySelectorAll(".bn-fish__other .bn-fishc--small")].map((b) => b.textContent),
+    go: !!document.querySelector(".bn-fish__hand button.bn-fishgo"),
+    q: (document.querySelector(".bn-fish__q") || {}).textContent || "",
+  }));
+  const pic = (q) => page.evaluate((x) => window.BoardData.FISH[x].pic, q);
+  const s0 = await st(), d0 = await dom();
+  assert.deepEqual(d0.big.map((c) => c.pic), await Promise.all(s0.hands[0].map(pic)), "his hand is the engine's");
+  assert.deepEqual(d0.small, await Promise.all(s0.hands[1].map(pic)), "the computer's hand, face up");
+  assert.ok(d0.big.every((c) => c.button && c.w >= 75 && c.h >= 75), `big cards (${d0.big.map((c) => Math.round(c.w) + "x" + Math.round(c.h))})`);
+  const row = d0.big.filter((c) => Math.abs(c.t - d0.big[0].t) < 2);
+  for (let k = 1; k < row.length; k++) assert.ok(row[k].l - row[k - 1].r >= 16, "16px apart");
+  assert.ok(!d0.go, "Go fish is not a button while he asks");
+  // a doubled tap asks ONE question
+  const best = await page.evaluate(() => window.BoardLogic.fishBest(window.__BOARD.state()));
+  const k0 = best.length ? best[0] : 0;
+  await page.locator('.bn-fish__hand button.bn-fishc[data-k="' + k0 + '"]').dblclick();
+  await page.waitForFunction((r) => window.__BOARD.state().rolls > r, s0.rolls, { timeout: 5000 });
+  assert.equal((await st()).rolls, s0.rolls + 1, "one question");
+  let answered = 0, fibbed = false, cpuAsked = false;
+  for (let guard = 0; guard < 160; guard++) {
+    await page.waitForFunction(() => { const st = window.__BOARD.state(); return st.phase === "done" || (!window.__BOARD.busy() && ((st.phase === "ask" && st.turn === 0) || (st.phase === "answer" && st.turn === 1))); }, null, { timeout: 15000 });
+    const s = await st();
+    if (s.phase === "done") break;
+    if (s.phase === "ask") {
+      const b = await page.evaluate(() => window.BoardLogic.fishBest(window.__BOARD.state()));
+      await page.locator('.bn-fish__hand button.bn-fishc[data-k="' + (b.length ? b[0] : 0) + '"]').click();
+      await page.waitForFunction((r) => window.__BOARD.state().rolls > r, s.rolls, { timeout: 5000 });
+      continue;
+    }
+    // the computer asked HIM: the question shows its picture, and he answers
+    cpuAsked = true;
+    const d = await dom();
+    assert.equal(d.q, await pic(s.want), "the question shows the picture asked for");
+    const ans = await page.evaluate(() => window.BoardLogic.fishAnswer(window.__BOARD.state()));
+    if (!fibbed) {
+      fibbed = true;
+      // a fib (Go fish while he has it, or the wrong card) only wiggles; after two the answer glows
+      for (let t = 0; t < 2; t++) {
+        if (ans >= 0) await page.locator(".bn-fish__hand button.bn-fishgo").click();
+        else await page.locator('.bn-fish__hand button.bn-fishc[data-k="0"]').click();
+        await page.waitForTimeout(350);
+      }
+      assert.equal((await st()).phase, "answer", "a fib changes nothing");
+      const d2 = await dom();
+      if (ans >= 0) assert.deepEqual(d2.big.map((c, k) => (c.glow ? k : -1)).filter((k) => k >= 0), [ans], "after two, the card to give glows");
+    }
+    if (ans >= 0) await page.locator('.bn-fish__hand button.bn-fishc[data-k="' + ans + '"]').click();
+    else await page.locator(".bn-fish__hand button.bn-fishgo").click();
+    await page.waitForFunction(() => window.__BOARD.state().phase !== "answer", null, { timeout: 5000 });
+    answered++;
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.equal(end.seats[0].stars + end.seats[1].stars, 10, "ten pairs, ten stars");
+  assert.ok(cpuAsked && answered >= 1, `fixture: the computer asked him and he answered (${answered})`);
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.gofish, 1, "a finished Go Fish counts once");
+  } finally { await slow(); }
+});
+
+test("⛄ a whole Snowman Build against the computer: two snowmen side by side, each its big ball to begin with; he rolls the picture die on his pad and taps HIS snowman to put the part on (a doubled tap builds once); a part that cannot go on yet is said and the turn passes; the computer's snowman is not his to tap; two whole snowmen and one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("snowman", "river", true, 4, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the snowmen are the board");
+  const dom = () => page.evaluate(() => [...document.querySelectorAll(".bn-snow .bn-snowman")].map((b) => { const r = b.getBoundingClientRect(); return { button: b.tagName === "BUTTON", balls: b.querySelectorAll("svg circle[r]").length, svgG: b.querySelectorAll("svg g").length, w: r.width, h: r.height, l: r.left, r: r.right }; }));
+  const d0 = await dom();
+  assert.equal(d0.length, 2, "two snowmen");
+  assert.ok(d0.every((c) => !c.button && c.svgG === 0), "each just a big ball, and nothing to tap before the roll");
+  assert.ok(d0.every((c) => c.w >= 90 && c.h >= 120), `big snowmen (${d0.map((c) => Math.round(c.w) + "x" + Math.round(c.h))})`);
+  assert.ok(d0[1].l - d0[0].r >= 16, "16px apart");
+  let built = 0, not = 0, doubled = false, cpuTried = false;
+  for (let guard = 0; guard < 120; guard++) {
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    if (s.phase === "roll") {
+      const r = s.rolls;
+      await page.locator(".bn-pad--0").click();
+      // the roll lands: a part to put on (his tap next), or not yet (the turn passes)
+      await page.waitForFunction((rr) => { const x = window.__BOARD.state(); return x.rolls > rr && (x.phase !== "build" || !window.__BOARD.busy()); }, r, { timeout: 6000 });
+      const a = await st();
+      if (a.phase !== "build") not++;
+      continue;
+    }
+    // building: his (or, once his is whole, his friend's) snowman is the one button
+    const d = await dom();
+    assert.deepEqual(d.map((c) => c.button), [s.mover === 0, s.mover === 1], "only the mover's snowman is a button");
+    const before = s.parts[s.mover].length;
+    if (!doubled) { doubled = true; await page.locator(".bn-snow button.bn-snowman").dblclick(); }
+    else await page.locator(".bn-snow button.bn-snowman").click();
+    await page.waitForFunction(([m, n]) => window.__BOARD.state().parts[m].length > n, [s.mover, before], { timeout: 5000 });
+    assert.equal((await st()).parts[s.mover].length, before + 1, "one part on, even for a doubled tap");
+    built++;
+    const x = await st();
+    if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      assert.equal(await page.locator(".bn-snow button.bn-snowman").count(), 0, "on the computer's turn no snowman is his to tap");
+    }
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.ok(end.parts.every((p) => p.length === 6), "two whole snowmen");
+  assert.ok(built >= 3 && not >= 1 && cpuTried, `fixture: builds, a part that could not go on, and the computer's turn all ran (${built}, ${not}, ${cpuTried})`);
+  // a whole snowman shows its hat, nose and scarf
+  const parts = await page.evaluate(() => [...document.querySelectorAll(".bn-snow .bn-snowman")].map((b) => b.querySelectorAll("svg g").length));
+  assert.deepEqual(parts, [5, 5], "five parts on each big ball");
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.snowman, 1, "a finished Snowman Build counts once");
+  } finally { await slow(); }
+});
+
+test("🔢 a whole Number Bingo against the computer: the card shows the mover's nine numbers with their dots; he rolls on his pad and taps that number on his card — a wrong square only wiggles (after two the right one glows); a counter with his face covers it; a line is a ⭐; a doubled tap covers once; the computer's card is not his to tap; a full card helps the friend; one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("bingo", "river", true, 5, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the card is the board");
+  const dom = () => page.evaluate(() => [...document.querySelectorAll(".bn-bingo__grid .bn-bsq")].map((b) => {
+    const r = b.getBoundingClientRect();
+    return { n: Number(b.querySelector(".bn-bsq__n").textContent), on: b.classList.contains("bn-bsq--on"), button: b.tagName === "BUTTON", glow: b.classList.contains("bn-bsq--hint"), pips: b.querySelectorAll(".bn-pip:not(.bn-pip--none)").length, w: r.width, h: r.height, l: r.left, r: r.right };
+  }));
+  const s0 = await st(), d0 = await dom();
+  assert.deepEqual(d0.map((c) => c.n), s0.cardsB[0], "his card's numbers are the engine's");
+  assert.ok(d0.every((c) => c.pips === c.n), "each number wears its die dots");
+  assert.ok(d0.every((c) => !c.button), "before the roll the squares are not buttons");
+  assert.ok(d0.every((c) => c.w >= 75 && c.h >= 75), `big squares (${d0.map((c) => Math.round(c.w))})`);
+  assert.ok(d0[1].l - d0[0].r >= 16, "16px apart");
+  let missed = false, doubled = false, lines = 0, cpuTried = false;
+  for (let guard = 0; guard < 120; guard++) {
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    if (s.phase === "roll") {
+      if (s.turn === 1) continue;
+      await page.locator(".bn-pad--0").click();
+      await page.waitForFunction((r) => { const x = window.__BOARD.state(); return x.rolls > r && (x.phase !== "cover" || !window.__BOARD.busy()); }, s.rolls, { timeout: 6000 });
+      continue;
+    }
+    // covering: the squares that are the number are buttons, the rest too (a wrong one wiggles)
+    const m = s.mover, spots = await page.evaluate(() => window.BoardLogic.bingoSpots(window.__BOARD.state()));
+    const d = await dom();
+    assert.deepEqual(d.map((c) => c.n), s.cardsB[m], "the card shown is the mover's");
+    if (!missed) {
+      const wrong = d.findIndex((c, k) => c.button && spots.indexOf(k) < 0);
+      if (wrong >= 0) {
+        for (let t = 0; t < 2; t++) { await page.locator('.bn-bingo__grid button.bn-bsq[data-k="' + wrong + '"]').click(); await page.waitForTimeout(350); }
+        const d2 = await dom();
+        assert.equal((await st()).phase, "cover", "a wrong square covers nothing");
+        assert.deepEqual(d2.map((c, k) => (c.glow ? k : -1)).filter((k) => k >= 0), spots, "after two misses the number glows");
+        missed = true;
+      }
+    }
+    const k = spots[0], before = (await st()).seats[m].stars;
+    if (!doubled) { doubled = true; await page.locator('.bn-bingo__grid button.bn-bsq[data-k="' + k + '"]').dblclick(); }
+    else await page.locator('.bn-bingo__grid button.bn-bsq[data-k="' + k + '"]').click();
+    await page.waitForFunction(([mm, kk]) => window.__BOARD.state().covered[mm][kk], [m, k], { timeout: 5000 });
+    const after = await st();
+    assert.equal(after.covered[m].filter(Boolean).length, s.covered[m].filter(Boolean).length + 1, "one square covered, even for a doubled tap");
+    if (after.seats[m].stars > before) lines++;
+    if (after.phase !== "done" && after.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      assert.equal(await page.locator(".bn-bingo__grid button.bn-bsq").count(), 0, "on the computer's turn its card is not his to tap");
+    }
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.ok(end.covered.every((c) => c.every(Boolean)), "both cards full");
+  assert.equal(end.seats[0].stars + end.seats[1].stars, 16, "every line of both cards is a ⭐");
+  assert.ok(missed && lines >= 1 && cpuTried, `fixture: a miss, a line and the computer's turn all ran (${missed}, ${lines}, ${cpuTried})`);
+  // the covered squares wear a counter with the owner's face
+  assert.ok(await page.evaluate(() => document.querySelectorAll(".bn-bingo__grid .bn-bsq__chip").length === 9), "a counter on every square");
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.bingo, 1, "a finished Number Bingo counts once");
+  } finally { await slow(); }
+});
+
+test("🌈 a whole Colour Match against the computer: the top card and his hand show the engine's cards (that many shapes in that colour); a card that matches neither colour nor number only wiggles (after two, the ones that fit glow); nothing fits: the deck is the button and turns one over; a doubled tap plays once; the computer's cards are not his; three rounds, one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  // a deal where he holds a card that fits and one that does not
+  let seed = 1;
+  for (; seed < 80; seed++) {
+    const ok = await page.evaluate((sd) => { const L = window.BoardLogic, st = L.create({ board: "colourmatch", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: sd, first: 0 }); const n = L.cmPlayable(st).length; return n > 0 && n < st.hands[0].length; }, seed);
+    if (ok) break;
+  }
+  await startGame("colourmatch", "river", true, seed, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the cards are the pieces");
+  const dom = () => page.evaluate(() => ({
+    top: document.querySelector(".bn-cm__top").getAttribute("aria-label"),
+    topShapes: document.querySelectorAll(".bn-cm__top svg g").length,
+    hand: [...document.querySelectorAll(".bn-cm__hand .bn-cmc")].map((c) => { const r = c.getBoundingClientRect(); return { k: c.dataset.k == null ? null : Number(c.dataset.k), button: c.tagName === "BUTTON", label: c.getAttribute("aria-label"), shapes: c.querySelectorAll("svg g").length, glow: c.classList.contains("bn-cmc--hint"), l: r.left, r: r.right, w: r.width, h: r.height }; }),
+    deckButton: !!document.querySelector(".bn-cm__deck button.bn-cmdeck"),
+  }));
+  const s0 = await st(), d0 = await dom();
+  const L_ = (id) => page.evaluate((x) => ({ n: window.BoardLogic.cmNumber(x) }), id);
+  assert.equal(d0.topShapes, (await L_(s0.top)).n, "the top card shows its number of shapes");
+  assert.equal(d0.hand.length, 3, "a hand of three");
+  for (let k = 0; k < 3; k++) assert.equal(d0.hand[k].shapes, (await L_(s0.hands[0][k])).n, "each card is that many shapes");
+  assert.ok(d0.hand.every((c) => c.button && c.w >= 75 && c.h >= 75), `big cards (${d0.hand.map((c) => Math.round(c.w) + "x" + Math.round(c.h))})`);
+  assert.ok(d0.hand[1].l - d0.hand[0].r >= 16 && d0.hand[2].l - d0.hand[1].r >= 16, "16px apart");
+  assert.ok(!d0.deckButton, "a card fits, so the deck is not a button");
+  // a card that does not match only wiggles; after two misses the fitting ones glow
+  const fits = await page.evaluate(() => window.BoardLogic.cmPlayable(window.__BOARD.state()));
+  const wrong = [0, 1, 2].find((k) => fits.indexOf(k) < 0);
+  for (let m = 0; m < 2; m++) {
+    await page.locator('.bn-cm__hand button.bn-cmc[data-k="' + wrong + '"]').click();
+    await page.waitForTimeout(400);
+  }
+  const s1 = await st(), d1 = await dom();
+  assert.equal(s1.top, s0.top, "a miss plays nothing");
+  assert.equal(s1.turn, 0, "…and keeps his turn");
+  assert.deepEqual(d1.hand.map((c, k) => (c.glow ? k : -1)).filter((k) => k >= 0), fits, "after two misses the cards that fit glow");
+  // a doubled tap plays ONE card
+  await page.locator('.bn-cm__hand button.bn-cmc[data-k="' + fits[0] + '"]').dblclick();
+  await page.waitForFunction(() => window.__BOARD.state().turn === 1 || window.__BOARD.state().phase === "done", null, { timeout: 5000 });
+  assert.equal((await st()).hands[0].length, 2, "one card played");
+  let cpuTried = false, flipped = false;
+  for (let guard = 0; guard < 120; guard++) {
+    const x = await st();
+    if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      assert.equal(await page.locator(".bn-cm__hand button.bn-cmc").count(), 0, "on the computer's turn the cards are not his");
+    }
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    const d = await dom();
+    const ok = await page.evaluate(() => window.BoardLogic.cmPlayable(window.__BOARD.state()));
+    assert.equal(d.deckButton, !ok.length, "the deck is a button exactly when nothing fits");
+    const r = s.rolls;
+    if (!ok.length) { flipped = true; await page.locator(".bn-cm__deck button.bn-cmdeck").click(); }
+    else await page.locator('.bn-cm__hand button.bn-cmc[data-k="' + ok[0] + '"]').click();
+    await page.waitForFunction((rr) => window.__BOARD.state().rolls > rr, r, { timeout: 5000 });
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.equal(end.seats[0].stars + end.seats[1].stars, 3, "three rounds, three stars");
+  assert.ok(cpuTried, "fixture: the computer's turn ran");
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.colourmatch, 1, "a finished Colour Match counts once");
+  if (!flipped) console.log("note: this seed never needed the deck");
+  } finally { await slow(); }
+});
+
+test("🕵️ a whole Who's Hiding against the computer: nine friends showing the engine's animals, shirts and hats; three big question buttons; a question is answered on screen (✅ or ❌, sound off) and everyone it rules out goes down; a doubled tap asks once; the computer's questions are not his; four friends found, one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  await startGame("hide", "river", true, 3, 0);
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bn-token")].filter((t) => !t.hidden).length), 0, "no tokens: the friends are the board");
+  const dom = () => page.evaluate(() => {
+    const L = window.BoardLogic, D = window.BoardData;
+    return {
+      cards: [...document.querySelectorAll(".bn-hide__grid .bn-hider")].map((c) => ({
+        pic: c.querySelector(".bn-hider__pic").textContent, hat: !!c.querySelector(".bn-hider__hat"),
+        shirt: getComputedStyle(c.querySelector(".bn-hider__shirt")).backgroundColor, down: c.classList.contains("bn-hider--down"),
+        w: c.offsetWidth, h: c.offsetHeight })),
+      asks: [...document.querySelectorAll(".bn-hide__ask .bn-ask")].map((b) => { const r = b.getBoundingClientRect(); return { k: b.dataset.k == null ? null : Number(b.dataset.k), button: b.tagName === "BUTTON", l: r.left, r: r.right, w: r.width, h: r.height, ans: (b.querySelector(".bn-ask__ans") || {}).textContent || "" }; }),
+      want: window.__BOARD.state().cards.map((id) => { const t = L.hideTraits(id); return { pic: D.HIDERS.animals[t.a].pic, hat: !!t.h }; }),
+    };
+  });
+  const d0 = await dom(), s0 = await st();
+  assert.equal(d0.cards.length, 9, "nine friends");
+  assert.deepEqual(d0.cards.map((c) => ({ pic: c.pic, hat: c.hat })), d0.want, "the engine's animals and hats");
+  assert.equal(new Set(d0.cards.map((c) => c.shirt)).size >= 2, true, "shirts in colours");
+  assert.ok(d0.cards.every((c) => !c.down), "everyone up to begin with");
+  assert.ok(d0.cards.every((c) => c.w >= 60), `friends big enough to see (${d0.cards.map((c) => c.w)})`);
+  assert.equal(d0.asks.length, 3, "three questions");
+  assert.ok(d0.asks.every((a) => a.button && a.w >= 75 && a.h >= 75), `big question buttons (${d0.asks.map((a) => Math.round(a.w) + "x" + Math.round(a.h))})`);
+  assert.ok(d0.asks[1].l - d0.asks[0].r >= 16 && d0.asks[2].l - d0.asks[1].r >= 16, "16px apart");
+  // a doubled tap asks ONE question (the hammer's echo), and its answer is SEEN
+  const k0 = await page.evaluate(() => window.BoardLogic.hideBest(window.__BOARD.state())[0]);
+  const exp = await page.evaluate((k) => { const st = window.__BOARD.state(), L = window.BoardLogic; const q = st.asks[k], yes = L.hideYes(q, st.cards[st.hidden]); return { yes, down: st.cards.map((id, j) => st.up[j] && L.hideYes(q, id) !== yes) }; }, k0);
+  await page.locator('.bn-hide__ask button.bn-ask[data-k="' + k0 + '"]').dblclick();
+  await page.waitForFunction((y) => { const a = document.querySelector(".bn-ask--said .bn-ask__ans"); return a && a.textContent === y; }, exp.yes ? "✅" : "❌", { timeout: 5000 });
+  const d1 = await dom();
+  assert.deepEqual(d1.cards.map((c) => c.down), exp.down, "exactly the ruled-out friends go down");
+  assert.equal((await st()).rolls, s0.rolls + 1, "one question asked");
+  let cpuTried = false, found = 0;
+  for (let guard = 0; guard < 80; guard++) {
+    const x = await st();
+    if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
+      cpuTried = true;
+      assert.equal(await page.locator(".bn-hide__ask button.bn-ask").count(), 0, "on the computer's turn the questions are not his");
+    }
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    const d = await dom();
+    assert.deepEqual(d.cards.map((c) => c.down), s.up.map((u) => !u), "the friends down are the engine's");
+    const k = await page.evaluate(() => window.BoardLogic.hideBest(window.__BOARD.state())[0]);
+    const before = s.found;
+    await page.locator('.bn-hide__ask button.bn-ask[data-k="' + k + '"]').click();
+    await page.waitForFunction((r) => window.__BOARD.state().rolls > r, s.rolls, { timeout: 5000 });
+    if ((await st()).found > before) found++;
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.equal(end.seats[0].stars + end.seats[1].stars, 4, "four friends, four stars");
+  assert.ok(cpuTried && found >= 1, `fixture: the computer's turn and his find both ran (${found})`);
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.hide, 1, "a finished Who's Hiding counts once");
   } finally { await slow(); }
 });
 

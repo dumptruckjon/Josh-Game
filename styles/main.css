@@ -3533,6 +3533,287 @@ button.bn-arrow { cursor: pointer; }
 .bn-arrow--still { opacity: 0.6; }
 .bn-arrow--used { opacity: 0.25; }
 .bn-arrow--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
+/* 🚂 Pattern Train: the engine and the cars (each white with its colour's
+   border and shape) and a dashed ? for the car missing, over the station's
+   three cars to pick */
+.bn-train {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 6px;
+  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: auto auto;
+  row-gap: 40px; align-content: center; justify-items: center;
+}
+.bn-train__row { display: grid; grid-auto-flow: column; grid-auto-columns: var(--car, 44px); column-gap: 6px; align-items: end; padding-bottom: 8px; border-bottom: 6px solid #57534e; }
+.bn-car {
+  width: var(--car, 44px); height: var(--car, 44px); border: 4px solid #1f2937; border-radius: 10px; background: #ffffff;
+  display: grid; place-items: center; box-sizing: border-box; padding: 6%;
+}
+.bn-car > svg { width: 100%; height: 100%; }
+.bn-car--engine { border: none; background: none; font-size: calc(var(--car, 44px) * 0.9); line-height: 1; padding: 0; }
+.bn-car--q { border-style: dashed; border-color: #57534e; font-size: calc(var(--car, 44px) * 0.6); font-weight: 900; color: #1f2937; }
+.bn-car--new { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24; animation: bnCarIn 0.4s ease-out; }
+@keyframes bnCarIn { from { transform: translateY(-24px); opacity: 0; } }
+.bn-train__pick { display: grid; grid-template-columns: repeat(3, var(--pick, 96px)); column-gap: 16px; min-height: var(--pick, 96px); }
+.bn-carb {
+  width: var(--pick, 96px); height: var(--pick, 96px); min-height: 75px; border: 6px solid #1f2937; border-radius: 18px;
+  background: #ffffff; box-shadow: var(--card-shadow); display: grid; place-items: center; padding: 12%; font: inherit; box-sizing: border-box;
+}
+button.bn-carb { cursor: pointer; }
+.bn-carb > svg { width: 100%; height: 100%; }
+.bn-carb--still { opacity: 0.6; }
+.bn-carb--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
+/* 🔼 Higher or Lower: the card to beat (its number and a ten-frame) beside
+   the deck, over two big guesses (⬆️ bigger, ⬇️ smaller) */
+.bn-hilo {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 6px;
+  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: minmax(0, 1fr) var(--hilo-row, 96px);
+  row-gap: 16px; justify-items: center; align-items: center;
+}
+.bn-hilo__table { display: grid; grid-template-columns: auto auto; column-gap: 24px; align-items: center; }
+.bn-hilo__top { position: relative; display: grid; }
+.bn-hlc {
+  width: var(--hilo-card, 120px); height: calc(var(--hilo-card, 120px) * 1.4); border: 5px solid #831843; border-radius: 16px;
+  background: #ffffff; box-shadow: var(--card-shadow); display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: 58% 30%;
+  align-content: center; justify-items: center; row-gap: 4%; padding: 0 8%; box-sizing: border-box; color: #3b0a1e;
+}
+.bn-hlc__n { font-size: calc(var(--hilo-card, 120px) * 0.6); font-weight: 900; line-height: 1; align-self: end; }
+.bn-hlc > svg { width: 100%; height: 100%; }
+.bn-hlc--new { animation: bnHiloFlip 0.4s ease-out; }
+@keyframes bnHiloFlip { from { transform: rotateY(80deg); } }
+.bn-hlc--back { background: #be185d; border-color: #ffffff; grid-template-rows: minmax(0, 1fr) auto; }
+.bn-hlc__back { font-size: calc(var(--hilo-card, 120px) * 0.5); line-height: 1; align-self: center; }
+.bn-hlc__left { font-size: 1.3rem; font-weight: 900; color: #ffffff; padding-bottom: 6px; }
+.bn-hilo__ans { position: absolute; right: -14px; top: -14px; font-size: 2.4rem; line-height: 1; }
+.bn-hilo__ans--same { width: 48px; height: 48px; border-radius: 50%; background: #ffffff; border: 4px solid #831843; display: grid; place-items: center; font-weight: 900; color: #3b0a1e; font-size: 2rem; }
+.bn-hilo__guess { width: 100%; height: var(--hilo-row, 96px); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
+.bn-hlg {
+  min-height: 75px; height: 100%; border: 4px solid #831843; border-radius: 20px; background: #fdf2f8; color: #3b0a1e; box-shadow: var(--card-shadow);
+  display: grid; grid-template-columns: auto auto; column-gap: 10px; justify-content: center; align-items: center; padding: 4px; font: inherit; line-height: 1;
+}
+button.bn-hlg { cursor: pointer; }
+.bn-hlg__pic { font-size: clamp(1.8rem, 9vw, 2.8rem); }
+.bn-hlg__w { font-size: clamp(1rem, 4.6vw, 1.4rem); font-weight: 900; }
+.bn-hlg--still { opacity: 0.6; }
+.bn-hlg--said { opacity: 1; box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200, var(--card-shadow); }
+.bn-hlg--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
+/* 🍯 Honey Ten: the goal over the meadow of nine flowers, each a ten-frame
+   with its number. A held flower wears a gold ring (its empty places lit);
+   a ten glows green; two that are not ten fade a moment. */
+.bn-ten {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: 40px auto;
+  row-gap: 16px; align-content: center; justify-items: center;
+}
+.bn-ten[data-short="1"] { grid-template-rows: auto; }
+.bn-ten[data-short="1"] .bn-ten__goal { display: none; }
+.bn-ten[data-tight="1"] .bn-ten__grid { padding: 0; box-shadow: 0 0 0 6px #bbf7d0; }
+.bn-ten__goal { display: grid; grid-auto-flow: column; grid-auto-columns: auto; column-gap: 8px; align-items: center; height: 40px; }
+.bn-ten__grid {
+  display: grid; grid-template-columns: repeat(3, var(--ten, 90px)); grid-auto-rows: var(--ten, 90px);
+  gap: 16px; padding: 8px; border-radius: 22px; background: #bbf7d0;
+}
+.bn-flower {
+  width: var(--ten, 90px); height: var(--ten, 90px); min-height: 75px;
+  border: 4px solid #a16207; border-radius: 18px; background: #fffbeb; box-shadow: var(--card-shadow);
+  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: 46% 44%; align-content: center; justify-items: center; row-gap: 4%;
+  padding: 0 6%; font: inherit; color: #3b1d02; box-sizing: border-box;
+}
+button.bn-flower { cursor: pointer; }
+.bn-flower__n { font-size: calc(var(--ten, 90px) * 0.34); font-weight: 900; line-height: 1; align-self: end; }
+.bn-flower > svg { width: 100%; height: 100%; }
+.bn-flower--still { opacity: 0.8; }
+.bn-flower--gone { border: 4px dashed #86c56a; background: transparent; box-shadow: none; }
+.bn-flower--held { box-shadow: 0 0 0 6px #ffd24d, 0 0 0 10px #7a5200, var(--card-shadow); }   /* a ring, never a lift: a lifted flower crowded the bar (12px on a 320x568) */
+.bn-flower--ten { background: #dcfce7; box-shadow: 0 0 0 6px #16a34a, 0 0 0 10px #0b4f24, var(--card-shadow); }
+.bn-flower--miss { opacity: 0.45; }
+.bn-flower--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
+/* 🐟 Go Fish: the other hand along the top (small, face up) beside the pond,
+   the question in a bubble, and the big hand at the bottom (the buttons). */
+.bn-fish {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 6px;
+  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: auto 56px minmax(0, 1fr);
+  row-gap: 12px; align-content: center; justify-items: center;
+}
+.bn-fish__top { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 64px; column-gap: 12px; align-items: center; }
+/* a short field: the question shows in the strip above (no row of its own) */
+.bn-fish[data-short="1"] { grid-template-rows: auto minmax(0, 1fr); row-gap: 8px; }
+.bn-fish[data-short="1"] .bn-fish__hand { padding: 0; overflow-y: auto; overscroll-behavior: contain; }   /* a rare 7-card hand */
+.bn-fish[data-short="1"] .bn-fish__ask { display: none; }
+.bn-fish[data-short="1"] .bn-fish__top { grid-template-columns: minmax(0, 1fr) 48px; column-gap: 8px; }
+.bn-fish[data-short="1"] .bn-fishgo--still { width: 48px; height: 48px; font-size: 1.5rem; }
+.bn-fish[data-short="1"] .bn-fish__other { padding: 2px 4px; min-height: 44px; }
+.bn-fish[data-short="1"] .bn-fish__face { width: 30px; height: 30px; }
+.bn-fish[data-short="1"] .bn-fishc.bn-fishc--small { font-size: 1.3rem; }
+.bn-fish__other {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; min-height: 52px;
+  padding: 4px 6px; border-radius: 16px; background: #e0f2fe; border: 3px solid #0369a1;
+}
+.bn-fish__other > * { margin: 2px; }
+.bn-fish__face { display: inline-block; width: 36px; height: 36px; vertical-align: middle; }
+.bn-fishc--small { font-size: 1.75rem; line-height: 1; }
+.bn-fishgo {
+  position: relative; width: 84px; height: 84px; min-height: 75px; border: 4px solid #0c4a6e; border-radius: 20px;
+  background: #38bdf8; box-shadow: var(--card-shadow); display: grid; place-items: center; padding: 0;
+  font: inherit; font-size: 2.6rem; line-height: 1; color: #0c1f33;
+}
+button.bn-fishgo { cursor: pointer; }
+/* the pond in the corner only SHOWS how many fish are left; while he answers,
+   "Go fish!" is the last cell of his hand, a card-sized button like the rest */
+.bn-fishgo--still { width: 64px; height: 64px; min-height: 0; font-size: 2rem; opacity: 0.55; }
+.bn-fish__hand .bn-fishgo { width: auto; height: auto; font-size: 2.6rem; }
+.bn-fishgo--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
+.bn-fishgo__n { position: absolute; right: 6px; bottom: 4px; font-size: 1rem; font-weight: 900; color: #0c1f33; }
+.bn-fish__ask { display: grid; place-items: center; height: 56px; }
+.bn-fish__bubble {
+  display: grid; grid-auto-flow: column; column-gap: 6px; align-items: center; padding: 4px 14px; border-radius: 28px;
+  background: #ffffff; border: 3px solid #0c4a6e; box-shadow: var(--card-shadow); animation: bnFishAsk 0.3s ease-out;
+}
+@keyframes bnFishAsk { from { transform: scale(0.6); opacity: 0; } }
+.bn-fish__q { font-size: 2rem; line-height: 1; }
+.bn-fish__qm { font-size: 1.8rem; font-weight: 900; color: #0c1f33; }
+.bn-fish__hand {
+  display: grid; grid-template-columns: repeat(var(--fish-cols, 3), minmax(75px, 104px)); grid-auto-rows: minmax(75px, 104px);
+  column-gap: 16px; row-gap: 16px; justify-content: center; align-content: safe center; width: 100%;
+  max-height: 100%;
+}
+.bn-fishc {
+  border: 4px solid #0c4a6e; border-radius: 16px; background: #ffffff; box-shadow: var(--card-shadow);
+  display: grid; place-items: center; padding: 0; font: inherit; font-size: 2.8rem; line-height: 1; min-height: 75px; color: #0c1f33;
+}
+button.bn-fishc { cursor: pointer; }
+/* the other hand's cards are small pictures in the strip, never card-sized
+   (a card's 75px floor wrapped a five-card hand into a 172px strip) */
+.bn-fishc.bn-fishc--small { min-height: 0; border-width: 2px; border-radius: 10px; padding: 1px 2px; box-shadow: none; font-size: 1.5rem; }
+.bn-fishc--still { opacity: 0.75; }
+.bn-fishc--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
+/* ⛄ Snowman Build: two snowmen side by side, each under its builder's
+   face; the mover's wears a gold ring, and is the button while a part waits */
+.bn-snow {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  display: grid; grid-template-columns: repeat(2, var(--snow, 140px)); column-gap: 16px;
+  justify-content: center; align-content: center;
+}
+.bn-snowman {
+  width: var(--snow, 140px); height: calc(var(--snow, 140px) * 1.5); min-height: 75px;
+  border: 4px solid #0e7490; border-radius: 22px; background: #e0f2fe; box-shadow: var(--card-shadow);
+  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: 44px minmax(0, 1fr); justify-items: center;
+  padding: 6px; font: inherit; color: inherit; box-sizing: border-box;
+}
+button.bn-snowman { cursor: pointer; }
+.bn-snow__face { display: block; width: 40px; height: 40px; }
+.bn-snowman > svg { width: 92%; height: 100%; }
+.bn-snowman--go { box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200, var(--card-shadow); }
+.bn-snow__new { animation: bnSnowNew 0.45s ease-out; transform-box: fill-box; transform-origin: center; }
+@keyframes bnSnowNew { from { transform: translateY(-18px) scale(0.6); opacity: 0; } }
+.bn-die--snow .bn-die__cue > svg { width: 1em; height: 1em; }
+/* 🔢 Number Bingo: whose card it is (their face) and the number to find,
+   over the card's nine squares. A square shows its number and its die dots;
+   a covered one wears a counter with its owner's face; a line covered glows. */
+.bn-bingo {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: 40px auto;
+  row-gap: 16px; align-content: center; justify-items: center;
+}
+.bn-bingo[data-short="1"] { grid-template-rows: auto; }
+.bn-bingo[data-short="1"] .bn-bingo__top { display: none; }
+.bn-bingo[data-tight="1"] .bn-bingo__grid { padding: 0; border-width: 0; box-shadow: 0 0 0 5px var(--owner, #0369a1); }
+.bn-bingo__top { display: grid; grid-auto-flow: column; grid-auto-columns: auto; column-gap: 8px; align-items: center; height: 40px; }
+.bn-bingo__face { display: block; width: 40px; height: 40px; }
+.bn-bingo__grid {
+  display: grid; grid-template-columns: repeat(3, var(--bingo, 80px)); grid-auto-rows: var(--bingo, 80px);
+  gap: 16px; padding: 8px; border: 6px solid #0369a1; border-radius: 22px; background: #e0f2fe;   /* the owner's colour, set inline */
+}
+.bn-bsq {
+  position: relative; width: var(--bingo, 80px); height: var(--bingo, 80px); min-height: 75px;
+  border: 4px solid #0c4a6e; border-radius: 16px; background: #ffffff; box-shadow: var(--card-shadow);
+  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: 55% 34%;
+  align-content: center; justify-items: center; row-gap: 2%; padding: 0; font: inherit; color: #0c1f33; box-sizing: border-box;
+}
+button.bn-bsq { cursor: pointer; }
+.bn-bsq .bn-pips { width: 34%; height: 100%; }
+.bn-bsq__n { font-size: 1em; font-weight: 900; line-height: 1; align-self: end; }
+.bn-bsq--still { opacity: 0.75; }
+.bn-bsq--on { grid-template-rows: minmax(0, 100%); }
+.bn-bsq--on .bn-bsq__n { align-self: center; opacity: 0.35; }
+.bn-bsq__chip {
+  position: absolute; left: 50%; top: 50%; width: 72%; height: 72%; transform: translate(-50%, -50%);
+  border-radius: 50%; border: 4px solid #0c1f33; display: grid; place-items: center; overflow: hidden; animation: bnBingoChip 0.3s ease-out;
+}
+.bn-bsq__chip > * { width: 86%; height: 86%; }
+@keyframes bnBingoChip { from { transform: translate(-50%, -50%) scale(1.5); opacity: 0; } }
+.bn-bsq--line { box-shadow: 0 0 0 6px #ffd24d, 0 0 0 10px #7a5200, var(--card-shadow); }
+.bn-bsq--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
+/* 🌈 Colour Match: the pile's top card beside the deck, over the hand. A
+   card is white with a border in its colour and that many of its colour's
+   shape (three red hearts), its number in the corner. */
+.bn-cm {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 6px;
+  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: minmax(0, 1fr) auto;
+  row-gap: 16px; justify-items: center; align-items: center;
+}
+.bn-cm__table { display: grid; grid-template-columns: auto auto; column-gap: 24px; align-items: center; }
+.bn-cm__top, .bn-cm__deck { display: grid; }
+.bn-cm__hand { display: grid; grid-template-columns: repeat(3, var(--cm-card, 90px)); column-gap: 16px; min-height: calc(var(--cm-card, 90px) * 1.4); justify-content: center; }
+.bn-cmc {
+  width: var(--cm-card, 90px); height: calc(var(--cm-card, 90px) * 1.4); min-height: 75px;
+  border: 5px solid #1f2937; border-radius: 14px; background: #ffffff; box-shadow: var(--card-shadow);
+  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: minmax(0, 100%); place-items: stretch;
+  padding: 0; font: inherit; color: inherit; box-sizing: border-box;
+}
+button.bn-cmc { cursor: pointer; }
+.bn-cmc > svg { width: 100%; height: 100%; }
+.bn-cmc--top { width: calc(var(--cm-card, 90px) * 1.15); height: calc(var(--cm-card, 90px) * 1.61); animation: bnCmLand 0.35s ease-out; }
+@keyframes bnCmLand { from { transform: translateY(-14px) scale(0.92); } }
+.bn-cmc--still { opacity: 0.7; }
+.bn-cmc--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
+.bn-cmdeck {
+  width: calc(var(--cm-card, 90px) * 1.15); height: calc(var(--cm-card, 90px) * 1.61); min-height: 75px;
+  border: 5px solid #ffffff; border-radius: 14px; background: #7e22ce; box-shadow: var(--card-shadow);
+  display: grid; place-items: center; padding: 0; font: inherit; box-sizing: border-box;
+}
+button.bn-cmdeck { cursor: pointer; }
+.bn-cmdeck__back { font-size: calc(var(--cm-card, 90px) * 0.5); line-height: 1; }
+.bn-cmdeck--go { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
+.bn-cmdeck--still { opacity: 0.55; }
+.bn-cmleft { font-size: 1.6rem; font-weight: 900; color: #1e293b; white-space: nowrap; }
+/* 🕵️ Who's Hiding: nine friends (each an animal, a shirt in its colour and
+   shape, maybe a hat) over the three questions. A friend ruled out goes DOWN
+   (faint and small: it reads in any colour vision); the one found glows. */
+.bn-hide {
+  position: absolute; left: 0; top: 0; right: 0; bottom: 6px;
+  display: grid; grid-template-columns: minmax(0, 100%);
+  grid-template-rows: minmax(0, 1fr) var(--hide-row, 96px);
+  row-gap: 16px; justify-items: center; align-items: center;
+}
+.bn-hide__grid {
+  display: grid; grid-template-columns: repeat(3, var(--hide-cell, 90px)); grid-template-rows: repeat(3, var(--hide-cell, 90px));
+  column-gap: 8px; row-gap: 8px; padding: 8px; border-radius: 18px; background: #cbd5e1; box-shadow: var(--card-shadow);
+}
+.bn-hider {
+  position: relative; border-radius: 16px; background: #ffffff; border: 3px solid #334155; overflow: hidden;
+  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: minmax(0, 1fr) 30%; place-items: center;
+  transition: opacity 0.4s ease, transform 0.4s ease; box-sizing: border-box;
+}
+.bn-hider__pic { font-size: calc(var(--hide-cell, 90px) * 0.42); line-height: 1; margin-top: 8%; }
+.bn-hider__hat { position: absolute; left: 50%; top: 1%; transform: translateX(-50%); font-size: calc(var(--hide-cell, 90px) * 0.26); line-height: 1; }
+.bn-hider__shirt { width: 100%; height: 100%; display: grid; place-items: center; border-top: 3px solid #334155; }
+.bn-hider__shirt > svg { height: 80%; width: auto; }
+.bn-hider--down { opacity: 0.18; transform: scale(0.84); }
+.bn-hider--found { box-shadow: 0 0 0 6px #ffd24d, 0 0 0 10px #7a5200; animation: bnHideFound 0.6s ease-out; }
+@keyframes bnHideFound { 40% { transform: scale(1.12); } }
+.bn-hide__ask { width: 100%; height: var(--hide-row, 96px); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 16px; }
+.bn-ask {
+  position: relative; min-height: 75px; height: 100%; border: 4px solid #475569; border-radius: 18px;
+  background: #f8fafc; color: #1e293b; box-shadow: var(--card-shadow);
+  display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; padding: 4px; font: inherit; line-height: 1;
+}
+button.bn-ask { cursor: pointer; }
+.bn-ask__pic { font-size: clamp(1.6rem, 9vw, 2.6rem); }
+.bn-ask__sw { display: grid; width: clamp(34px, 11vw, 56px); height: clamp(34px, 11vw, 56px); }
+.bn-ask__sw > svg { width: 100%; height: 100%; }
+.bn-ask__q { font-size: clamp(1.4rem, 7vw, 2.2rem); font-weight: 900; margin-left: 2px; }
+.bn-ask--still { opacity: 0.6; }
+.bn-ask--said { grid-column: 1 / span 3; justify-self: center; width: min(100%, 220px); }
+.bn-ask__ans { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: clamp(1.4rem, 7vw, 2.2rem); }
+.bn-ask--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
 /* 🎯 Dice Match: three big dice (tap to keep: a gold ring and a ✋) over the
    roll button */
 .bn-m3 {
@@ -3549,7 +3830,7 @@ button.bn-arrow { cursor: pointer; }
   padding: 0; font: inherit; color: inherit;
 }
 button.bn-m3d { cursor: pointer; }
-.bn-m3d .bn-die { width: 82%; height: 82%; padding: 9%; gap: 6%; border: none; box-shadow: none; background: none; }
+.bn-m3d .bn-die { display: grid; width: 82%; height: 82%; padding: 9%; gap: 6%; border: none; box-shadow: none; background: none; }
 .bn-m3d .bn-die__cue { font-size: calc(var(--m3-die, 100px) * 0.48); }
 .bn-m3d--held { box-shadow: 0 0 0 6px #ffd24d, 0 0 0 10px #7a5200, var(--card-shadow); transform: translateY(-6px); }
 .bn-m3d--win { background: #fff3b0; border-color: #a16207; box-shadow: 0 0 0 6px #16a34a, 0 0 0 10px #0b4f24, var(--card-shadow); }
@@ -4043,7 +4324,9 @@ button.bn-pickd { cursor: pointer; }
   body.in-game .screen.bn-play[data-game="pairs"] { grid-template-columns: minmax(0, 1fr) 150px; }
   /* 🏴‍☠️ three rows of 75px sand and two 16px gaps is 257px: the bar gives
      6px (the sand sits between the bar's buttons, never under one) */
-  .bn-play[data-game="dig"] .bn-bar { margin-bottom: 10px; }
+  .bn-play[data-game="dig"] .bn-bar, .bn-play[data-game="bingo"] .bn-bar, .bn-play[data-game="ten"] .bn-bar { margin-bottom: 10px; }
+  /* …and a grid with no room to spare stands to the right, clear of 🏠 */
+  .bn-bingo[data-tight="1"], .bn-ten[data-tight="1"] { justify-items: end; }
 }
 @media (prefers-reduced-motion: reduce) {
   .bn-token { transition: none; }
@@ -4055,6 +4338,14 @@ button.bn-pickd { cursor: pointer; }
   .bn-cookie--go { animation: none; opacity: 0; }
   .bn-m3d--go .bn-die { animation: none; }
   .bn-maze__cheese--eaten { animation: none; opacity: 0; }
+  .bn-hider--found { animation: none; }
+  .bn-cmc--top { animation: none; }
+  .bn-bsq__chip { animation: none; }
+  .bn-snow__new { animation: none; }
+  .bn-fish__bubble { animation: none; }
+  .bn-hlc--new { animation: none; }
+  .bn-car--new { animation: none; }
+  .bn-hider { transition: none; }
   .bn-m3d--held { transform: none; }
   .bn-slot--fresh { animation: none; }
   .bn-tc--fresh { animation: none; }

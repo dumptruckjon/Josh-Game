@@ -2154,3 +2154,44 @@ test("Word Cards' LESSONS on the real engine: nothing small, nothing cut off, a 
     }
   }
 });
+
+test("🎲 Game Night MID-TURN: the boards whose buttons CHANGE inside a turn stay big, apart and on one screen in that state too", async () => {
+  // Every size above opened a board FRESH, and a fresh board is only the roll
+  // (or the first ask): the card he covers (🔢), the hand he answers from with
+  // its 🎣 (🐟), a held flower (🍯), the snowman he builds (⛄) and the doors
+  // he shuts (🚪) appear only once a turn is under way. Measured before this
+  // test: on a 320x568 phone the bingo card's squares were 41px and touching,
+  // and Go Fish overlapped and scrolled — the other hand's small cards had
+  // inherited the 75px card floor and wrapped a five-card hand into a 172px
+  // strip. Each state is reached through the ENGINE and loaded, so the test
+  // does not depend on a dice roll landing.
+  const STATES = [
+    ["bingo", (L, st) => { for (let g = 0; g < 80 && !(st.phase === "cover" && st.turn === 0); g++) { if (st.turn !== 0) L.autoTurn(st); else L.roll(st); } return st.phase === "cover" && st.turn === 0; }],
+    ["snowman", (L, st) => { for (let g = 0; g < 80 && !(st.phase === "build" && st.turn === 0); g++) { if (st.turn !== 0) L.autoTurn(st); else L.roll(st); } return st.phase === "build" && st.turn === 0; }],
+    ["doors", (L, st) => { for (let g = 0; g < 40 && st.phase === "roll"; g++) L.roll(st); return st.phase === "shut"; }],
+    ["gofish", (L, st) => { L.askFish(st, 0); return st.phase === "answer" && st.seats[1 - st.turn].cpu !== true; }],
+    ["honeyten", (L, st) => { L.tenPick(st, st.flowers.findIndex((n) => n)); return st.held != null; }],
+  ];
+  for (const [w, h] of [[390, 844], [320, 568], [375, 667], [834, 1112], [844, 390], [667, 375]]) {
+    await page.setViewportSize({ width: w, height: h });
+    for (const [box, drive] of STATES) {
+      const ok = await page.evaluate((a) => {
+        window.__BOARD.reset({ introSeen: true });
+        const L = window.BoardLogic;
+        // 🐟 the computer asks first, so the person here is the one answering
+        const st = L.create({ board: a[0], seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 5, first: a[0] === "gofish" ? 1 : 0 });
+        if (!(0, eval)("(" + a[1] + ")")(L, st)) return false;
+        return window.__BOARD.load(a[0], st);
+      }, [box, drive.toString()]);
+      assert.ok(ok, `[${box}@${w}x${h}] fixture: the engine reached the mid-turn state and it loads`);
+      await page.locator("#screen-board-play").waitFor({ state: "visible" });
+      await page.waitForTimeout(300);
+      const btns = await page.evaluate(() => [...document.querySelectorAll("#screen-board-play .bn-field button")].filter((b) => b.offsetParent).length);
+      assert.ok(btns >= (box === "snowman" ? 1 : 2), `[${box}@${w}x${h}] fixture: the board's own buttons are up (${btns})`);   // ⛄ his snowman is the one button
+      await noOverflow(page, `board-${box}-midturn@${w}x${h}`);
+      await auditActiveScreen(page, `board-${box}-midturn@${w}x${h}`);
+      const sh = await page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
+      assert.ok(sh <= 1, `[${box}-midturn@${w}x${h}] the play screen scrolls ${sh}px`);
+    }
+  }
+});

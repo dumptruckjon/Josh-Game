@@ -1,13 +1,14 @@
 # 🎲 Game Night — board games for Josh (and a friend)
 
-**Status: BATCHES 1-5 BUILT, BATCH 6 IN PROGRESS** (batches 1-2
+**Status: BATCHES 1-6 BUILT** (batches 1-2
 audited twice; §11 is batch 3: 💯 Hundred Hop, 🐔 Hen House, 🧺 Picnic Lotto,
 and 👀 Twin Spot, the owner's Spot It ask; §12 is batch 4, games of SKILL:
 🧠 Peek-a-Pair, 🚪 Shut the Doors, 🌰 Acorn Pots, 🁢 Dot Dominoes and
 🏴‍☠️ Treasure Dig, all built; §13 is batch 5, games of STRATEGY: 🍪 Cookie
 Jar, 🔴 Line Up, 🃏 Top Card, 🎨 Colour Grab and 🎲 Pick a Die, all built;
-§14 is batch 6, ten more of varied types: 🎯 Dice Match and 🐭 Mouse Maze
-built so far) — the door, the shelf, the shared turn
+§14 is batch 6, ten more of varied types, all built: 🎯 Dice Match,
+🐭 Mouse Maze, 🕵️ Who's Hiding, 🌈 Colour Match, 🔢 Number Bingo, ⛄ Snowman
+Build, 🐟 Go Fish, 🍯 Honey Ten, 🔼 Higher or Lower and 🚂 Pattern Train) — the door, the shelf, the shared turn
 routine, the engine, 🚀 Moon Race (with ☄️ Comet Moon), 🌈 Rainbow Trail, and
 🍎 Apple Spin (the owner's go, 2026-10-28, with "deeply audit the first 2
 games … to make them even more high quality and fun and exciting": §8).
@@ -531,8 +532,50 @@ deep audit". Ten shapes the shelf does not have yet, each with a choice:
    Now: picking the nearest arrow wins 65% of the cheese against 30%, in a
    median 19 turns.
 
-3. 🕵️ Who's Hiding (co-op: ask about a trait), 4. 🌈 Colour Match (an
-   UNO-lite: colour OR number), 5. 🔢 Number Bingo, 6. ⛄ Snowman Build,
-   7. 🐟 Go Fish, 8. 🍯 Honey Ten (make exactly ten), 9. 🔼 Higher or Lower,
-   10. 🦉 Owl Flight (co-op colour cards) — next.
+3. **🕵️ Who's Hiding (BUILT)** — Guess Who at four. Eighteen hiders (dog,
+   cat or bunny; red, blue or yellow; a 🎩 or not) and nine of them on the
+   board; one is hiding. Each turn deals three question cards (an animal, a
+   colour, the hat) and one asked turns down everyone it rules out. The BEST
+   question is always among the three, so choosing well is the skill: it
+   finds 61% of the hiders against 43% asking anything. Four rounds.
+4. **🌈 Colour Match (BUILT)** — an UNO-lite. Forty cards of four colours and
+   1-5; a hand of three, play one that matches the pile's colour OR number.
+   Nothing fits: flip the deck's top card onto the pile and the turn passes
+   (a hand never grows). Three rounds. It is RECOGNITION, not a choice of
+   strategy, and is recorded as such.
+5. **🔢 Number Bingo (BUILT)** — a 3 x 3 card each, roll the die and cover
+   that number (its dots on the square); eight lines, a full card. Luck.
+6. **⛄ Snowman Build (BUILT)** — roll the picture die and put that part on
+   (a part needs the one below it first; ❄️ puts on the next part). Luck.
+7. **🐟 Go Fish (BUILT)** — ten pictures, a hand of five face up. Ask for a
+   picture you hold; a match is a pair, a ⭐ and another go, else Go fish from
+   the pond. When the friend asks HIM he finds it in his hand, or taps 🎣
+   (which joins his hand as one more card while he answers); a fib only
+   wiggles. Asking for what the friend holds wins 61% of the pairs against 44%.
+8. **🍯 Honey Ten (BUILT)** — nine flowers (1-9, each with its ten-frame); tap
+   two that make exactly ten. A held flower lights the empty places of its
+   ten-frame (how many more), and a ten is always on the meadow. Seeing the
+   bond wins 61% of the tens against 27%.
+9. **🔼 Higher or Lower (BUILT)** — a card face up: is the next one bigger or
+   smaller? Twelve flips. Knowing the middle (guess "bigger" under 6) wins 54%
+   against 43%.
+10. **🚂 Pattern Train (BUILT)** — five carriages of a pattern (AB, AAB, ABB,
+   ABC, AABB) and three carriages to choose the next from. Eight trains.
+   **It REPLACED 🦉 Owl Flight**, planned as co-op colour cards: that is Rainbow
+   Trail's mechanic again with no choice in it, while the shelf had no
+   pattern game at all, and patterns are on his profile.
+
+Measured lengths (median, at the shell's pace): Colour Match 61s, Bingo 87s,
+Snowman 60s, Go Fish 44s, Honey Ten 52s, Higher or Lower 38s, Pattern Train
+39s. Two shell lessons came with the batch. **A board drawn by its own game
+must be repainted the moment a move hands the turn over** (`paintOwnBoard()`
+in `playEvents`): Line Up kept his columns as buttons for a beat after his
+drop, so a quick second tap played the FRIEND's counter — a generic browser
+test now taps again in that instant in every such game. And **a fresh board is
+not the whole layout**: the mobile audit opened every game fresh, which is the
+roll or the first ask, so the card he covers, the hand he answers from and a
+held flower had never been measured; on a 320x568 phone the bingo squares were
+41px and touching and Go Fish overlapped and scrolled (the other hand's small
+cards had inherited the 75px card floor). A MID-TURN audit now reaches each
+such state through the engine at every size.
 

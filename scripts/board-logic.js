@@ -107,7 +107,7 @@
   // every slide kept (0.72 a game against 0.76).
   const BACK_CAP = 24;
   // Where a token STARTS: square 1 of a track, or an EMPTY basket
-  const startOf = (board) => (board.game === "spin" || board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "doors" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" || board.game === "nim" || board.game === "lines" || board.game === "top" || board.game === "grab" || board.game === "match3" || board.game === "maze" ? 0 : 1);
+  const startOf = (board) => (board.game === "spin" || board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "doors" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" || board.game === "nim" || board.game === "lines" || board.game === "top" || board.game === "grab" || board.game === "match3" || board.game === "maze" || board.game === "hide" || board.game === "cmatch" || board.game === "bingo" || board.game === "fish" || board.game === "ten" || board.game === "hilo" || board.game === "train" ? 0 : 1);
 
   // ---- A new game -----------------------------------------------------------
   // opts: { board, seats: [{ who, cpu }], seed, first }
@@ -204,6 +204,22 @@
     // 🎯 three dice, which are kept, the re-rolls left this turn, and the
     // turns each player has played (`pos`)
     if (board.game === "maze") mazeSetup(st, board);
+    if (board.game === "cmatch") { cmDeal(st, seats[0]); st.round = 0; }
+    if (board.game === "snow") st.parts = [[1], [1]];
+    if (board.game === "fish") fishDeal(st, seats[0], board);
+    if (board.game === "train") { st.round = 0; trainDeal(st, seats[0]); }
+    if (board.game === "hilo") {
+      st.deck = shuffle(seats[0], Array.from({ length: 20 }, (x, k) => (k % 10) + 1));
+      st.top = st.deck.pop(); st.flips = 0;
+    }
+    if (board.game === "ten") {
+      st.deck = shuffle(seats[0], Array.from({ length: 18 }, (x, k) => (k % 9) + 1));
+      st.flowers = st.deck.splice(0, board.cols * board.rows);
+      st.held = null; st.made = [];
+      tenFill(st, seats[0]);
+    }
+    if (board.game === "bingo") { st.cardsB = seats.map((s) => bingoCard(s)); st.covered = [0, 1].map(() => new Array(9).fill(false)); st.misses = 0; }
+    if (board.game === "hide") { hideRound(st, seats[0]); st.found = 0; st.asks = []; hideDeal(st); }
     if (board.game === "match3") { st.dice = [0, 0, 0]; st.held = [false, false, false]; st.left = 0; }
     if (board.game === "lines") { st.grid = new Array(board.cols * board.rows).fill(-1); st.boardNo = 0; st.first = first; }
     if (board.game === "acorns") {
@@ -240,7 +256,7 @@
     }
     return st;
   }
-  function firstPhase(game) { return game === "spot" || game === "pairs" ? "flip" : game === "cards" || game === "lotto" ? "draw" : game === "spin" || game === "hen" ? "spin" : game === "acorns" ? "choose" : game === "dig" ? "dig" : game === "nim" ? "take" : game === "lines" ? "drop" : game === "top" ? "lead" : game === "grab" ? "pick" : game === "maze" ? "move" : "roll"; }
+  function firstPhase(game) { return game === "spot" || game === "pairs" ? "flip" : game === "cards" || game === "lotto" ? "draw" : game === "spin" || game === "hen" ? "spin" : game === "acorns" ? "choose" : game === "dig" ? "dig" : game === "nim" ? "take" : game === "lines" ? "drop" : game === "top" ? "lead" : game === "grab" ? "pick" : game === "maze" ? "move" : game === "hide" ? "ask" : game === "cmatch" ? "play" : game === "fish" ? "ask" : game === "ten" ? "pick" : game === "hilo" ? "guess" : game === "train" ? "pick" : "roll"; }
 
   const anyHome = (st) => st.seats.some((s) => s.home);
   const other = (i) => (i === 0 ? 1 : 0);
@@ -580,6 +596,544 @@
     return next(s) < MAZE_SHARP ? best[0] : moves[Math.floor(next(s) * moves.length)];
   }
 
+  // ---- 🕵️ Who's Hiding ---------------------------------------------------------------
+  // Eighteen hiders: three animals × three shirt colours × a hat or none. A
+  // hider's id is animal*6 + colour*2 + hat. Nine are on the board each round
+  // and one of them is hiding. A QUESTION is 0-2 (that animal), 3-5 (that
+  // colour) or 6 (a hat). Asked, it is answered for the hider, and everyone
+  // the answer rules out goes down. Whoever leaves just one standing found
+  // them: a ⭐, and somebody new hides.
+  const hideTraits = (id) => ({ a: Math.floor(id / 6), c: Math.floor(id / 2) % 3, h: id % 2 });
+  function hideYes(q, id) {
+    const t = hideTraits(id);
+    return q < 3 ? t.a === q : q < 6 ? t.c === q - 3 : t.h === 1;
+  }
+  const hideUp = (st) => st.cards.filter((id, k) => st.up[k]);
+  // How many a question would put down at worst (0: it rules nobody out)
+  function hideSplit(st, q) {
+    const up = hideUp(st), y = up.filter((id) => hideYes(q, id)).length;
+    return Math.min(y, up.length - y);
+  }
+  // The questions the mover may ask: the one that splits the board most
+  // evenly, and two others — and an other may rule nobody out (no cats are
+  // left, so "is it a cat?" puts nobody down: noticing that is the game)
+  function hideDeal(st) {
+    const s = st.seats[st.turn], board = DATA.board(st.board);
+    const qs = [0, 1, 2, 3, 4, 5, 6];
+    const best = Math.max(...qs.map((q) => hideSplit(st, q)));
+    const tops = qs.filter((q) => hideSplit(st, q) === best);
+    const top = tops[Math.floor(next(s) * tops.length)];
+    const rest = shuffle(s, qs.filter((q) => q !== top)).slice(0, board.ask - 1);
+    st.asks = shuffle(s, [top].concat(rest));
+  }
+  function hideRound(st, s) {
+    const board = DATA.board(st.board);
+    st.cards = shuffle(s, Array.from({ length: 18 }, (x, k) => k)).slice(0, board.cols * board.rows).sort((a, b) => a - b);
+    st.up = st.cards.map(() => true);
+    st.hidden = Math.floor(next(s) * st.cards.length);
+  }
+  // Ask question k of the mover's three
+  function askHide(st, k) {
+    if (st.game !== "hide" || st.phase !== "ask") return [];
+    const q = st.asks[k];
+    if (q == null) return [];
+    const board = DATA.board(st.board), i = st.turn, s = st.seats[i];
+    const yes = hideYes(q, st.cards[st.hidden]);
+    const down = [];
+    st.cards.forEach((id, j) => { if (st.up[j] && hideYes(q, id) !== yes) { st.up[j] = false; down.push(j); } });
+    st.rolls += 1;
+    const ev = [{ type: "ask", seat: i, q, yes, down }];
+    if (st.up.filter(Boolean).length === 1) {
+      s.stars += 1; s.pos += 1; st.found += 1;
+      ev.push({ type: "hideFound", seat: i, card: st.cards[st.hidden], found: st.found });
+      if (st.found >= board.rounds) {
+        for (const x of st.seats) x.home = true;
+        st.order = [0, 1];
+        st.phase = "done";
+        st.asks = [];
+        ev.push({ type: "end" });
+        return ev;
+      }
+      hideRound(st, s);
+      ev.push({ type: "hideNew" });
+    }
+    endTurn(st, ev);
+    hideDeal(st);
+    return ev;
+  }
+  // The questions that put down the most at worst
+  function hideBest(st) {
+    const sp = st.asks.map((q) => hideSplit(st, q)), best = Math.max(...sp);
+    return st.asks.map((q, k) => k).filter((k) => sp[k] === best);
+  }
+  // The computer picks the best question only `HIDE_SHARP` of the time
+  const HIDE_SHARP = 0.5;
+  function hideChoice(st) {
+    const s = st.seats[st.turn];
+    return next(s) < HIDE_SHARP ? hideBest(st)[0] : Math.floor(next(s) * st.asks.length);
+  }
+
+  // ---- 🚂 Pattern Train ---------------------------------------------------------------
+  // A train of five cars in a colour PATTERN (each colour with its shape, so it
+  // reads in any colour vision), and a sixth car missing. Three cars wait: tap
+  // the one that carries the pattern on — a ⭐, it joins the train, and a new
+  // train pulls in. Another car: "that one breaks the pattern", and the turn
+  // passes with the same train (so a friend can find it). Eight trains, the
+  // patterns growing (AB, then AAB and ABB, then ABC and AABB): one party.
+  const TRAIN_PATTERNS = ["AB", "AB", "AAB", "ABB", "ABC", "AABB", "ABC", "AAB"];
+  const TRAIN_SHOWN = 5;
+  function trainDeal(st, s) {
+    const ids = shuffle(s, DATA.COLOURS.map((c) => c.id));
+    const pat = TRAIN_PATTERNS[st.round % TRAIN_PATTERNS.length];
+    const col = (ch) => ids["ABC".indexOf(ch)];
+    st.cars = Array.from({ length: TRAIN_SHOWN }, (x, k) => col(pat[k % pat.length]));
+    st.answer = col(pat[TRAIN_SHOWN % pat.length]);
+    // the answer and two others: a colour of the pattern that is not next
+    // (when there is one), and one the pattern never uses
+    const inPat = [...new Set(pat.split("").map(col))].filter((c) => c !== st.answer);
+    const outPat = ids.filter((c) => pat.split("").map(col).indexOf(c) < 0);
+    const others = inPat.slice(0, 1).concat(outPat).slice(0, 2);
+    st.options = shuffle(s, [st.answer].concat(others));
+    st.misses = 0;
+  }
+  function pickCar(st, k) {
+    if (st.game !== "train" || st.phase !== "pick") return [];
+    const c = st.options[k];
+    if (c == null) return [];
+    const board = DATA.board(st.board), i = st.turn, s = st.seats[i];
+    st.rolls += 1;
+    if (c !== st.answer) {
+      st.misses += 1;
+      const ev = [{ type: "carMiss", seat: i, k, c }];
+      endTurn(st, ev);
+      return ev;
+    }
+    s.stars += 1; s.pos += 1; st.round += 1;
+    const ev = [{ type: "carRight", seat: i, k, c, cars: st.cars.concat([c]) }];
+    if (st.round >= board.trains) {
+      for (const x of st.seats) x.home = true;
+      st.order = [0, 1];
+      st.phase = "done";
+      ev.push({ type: "end" });
+      return ev;
+    }
+    trainDeal(st, s);
+    ev.push({ type: "carNew", cars: st.cars.slice() });
+    endTurn(st, ev);
+    return ev;
+  }
+  // the computer sees the pattern only `TRAIN_SHARP` of the time
+  const TRAIN_SHARP = 0.5;
+  function trainChoice(st) {
+    const s = st.seats[st.turn];
+    return next(s) < TRAIN_SHARP ? st.options.indexOf(st.answer) : Math.floor(next(s) * st.options.length);
+  }
+
+  // ---- 🔼 Higher or Lower --------------------------------------------------------------
+  // Twenty cards, 1 to 10 twice. One is turned up. On your turn guess: will
+  // the next card be BIGGER or SMALLER? Turn it over — right is a ⭐ (the same
+  // number: "the same!", no ⭐ and no loss). Then it is the card to beat for
+  // your friend. Twelve cards turned, one party. The skill: a small card
+  // means guess bigger, a big card guess smaller. (Measured: 54% of the ⭐s
+  // guessing that way against 43% guessing anyhow.)
+  function hiloGuess(st, up) {
+    if (st.game !== "hilo" || st.phase !== "guess" || typeof up !== "boolean") return [];
+    const board = DATA.board(st.board), i = st.turn, s = st.seats[i];
+    const was = st.top, c = st.deck.pop();
+    st.top = c; st.flips += 1; st.rolls += 1;
+    const right = up ? c > was : c < was;
+    if (right) { s.stars += 1; s.pos += 1; }
+    const ev = [{ type: "hilo", seat: i, up, was, card: c, right, same: c === was }];
+    if (st.flips >= board.flips) {
+      for (const x of st.seats) x.home = true;
+      st.order = [0, 1];
+      st.phase = "done";
+      ev.push({ type: "end" });
+      return ev;
+    }
+    endTurn(st, ev);
+    return ev;
+  }
+  // the better guess: more cards left bigger than the top one, or smaller
+  function hiloBest(st) {
+    const hi = st.deck.filter((x) => x > st.top).length, lo = st.deck.filter((x) => x < st.top).length;
+    return hi >= lo;
+  }
+  const HILO_SHARP = 0.5;
+  function hiloChoice(st) {
+    const s = st.seats[st.turn];
+    return next(s) < HILO_SHARP ? hiloBest(st) : next(s) < 0.5;
+  }
+
+  // ---- 🍯 Honey Ten ----------------------------------------------------------------
+  // Eighteen flower cards: 1 to 9, twice (so they make exactly nine tens: 1+9,
+  // 2+8, 3+7, 4+6 twice each and 5+5 once). Nine are in the meadow, drawn as
+  // ten-frames. Tap one, then one that makes TEN with it: a jar of honey, a
+  // ⭐, and two new flowers. Not ten: "7 and 2 make 9", and the turn passes.
+  // The meadow always holds a ten to find. Every ten made, one party. The
+  // skill: knowing what makes ten (a held card's ten-frame shows how many
+  // more it needs).
+  function tenHasPair(v) {
+    const live = v.filter((x) => x > 0);
+    return live.some((x, k) => live.some((y, j) => j !== k && x + y === 10));
+  }
+  // fill the empty places from the deck, then make sure there is a ten to find
+  function tenFill(st, s) {
+    for (let k = 0; k < st.flowers.length; k++) if (!st.flowers[k] && st.deck.length) st.flowers[k] = st.deck.pop();
+    let g = 0;
+    while (!tenHasPair(st.flowers) && st.deck.length && g++ < 40) {
+      // swap a flower for a deck card that makes ten with another flower
+      const live = st.flowers.map((x, k) => k).filter((k) => st.flowers[k] > 0);
+      const want = st.deck.map((x, j) => j).filter((j) => live.some((k) => st.flowers[k] + st.deck[j] === 10));
+      if (!want.length) break;
+      const j = want[Math.floor(next(s) * want.length)];
+      const partner = live.filter((k) => st.flowers[k] + st.deck[j] === 10);
+      const out = live.filter((k) => partner.indexOf(k) < 0 || partner.length > 1);
+      const k = out[Math.floor(next(s) * out.length)];
+      const was = st.flowers[k];
+      st.flowers[k] = st.deck[j];
+      st.deck[j] = was;
+    }
+  }
+  function tenPick(st, k) {
+    if (st.game !== "ten" || st.phase !== "pick") return [];
+    const i = st.turn, s = st.seats[i], v = st.flowers;
+    if (!int(k) || k < 0 || k >= v.length || !v[k] || k === st.held) return [];
+    if (st.held == null) { st.held = k; return [{ type: "tenHold", seat: i, k, n: v[k] }]; }
+    const a = st.held, ev = [];
+    st.held = null; st.rolls += 1;
+    if (v[a] + v[k] !== 10) {
+      ev.push({ type: "tenMiss", seat: i, a, b: k, sum: v[a] + v[k], na: v[a], nb: v[k] });
+      endTurn(st, ev);
+      return ev;
+    }
+    st.made.push([v[a], v[k]]);
+    s.stars += 1; s.pos += 1;
+    ev.push({ type: "tenPair", seat: i, a, b: k, na: v[a], nb: v[k] });
+    v[a] = 0; v[k] = 0;
+    tenFill(st, s);
+    if (!tenHasPair(v)) {
+      for (const x of st.seats) x.home = true;
+      st.order = [0, 1];
+      st.phase = "done";
+      ev.push({ type: "end" });
+      return ev;
+    }
+    ev.push({ type: "tenFresh", flowers: v.slice() });
+    endTurn(st, ev);
+    return ev;
+  }
+  // the tens in the meadow, as pairs of places
+  function tenPairs(st) {
+    const v = st.flowers, out = [];
+    for (let a = 0; a < v.length; a++) for (let b = a + 1; b < v.length; b++) if (v[a] && v[b] && v[a] + v[b] === 10) out.push([a, b]);
+    return out;
+  }
+  // the computer finds a ten only `TEN_SHARP` of the time (else it tries two
+  // flowers that are not)
+  const TEN_SHARP = 0.5;
+  function tenChoice(st) {
+    const s = st.seats[st.turn], tens = tenPairs(st);
+    if (next(s) < TEN_SHARP) return tens[Math.floor(next(s) * tens.length)];
+    const live = st.flowers.map((x, k) => k).filter((k) => st.flowers[k] > 0);
+    const a = live[Math.floor(next(s) * live.length)], rest = live.filter((k) => k !== a);
+    return [a, rest[Math.floor(next(s) * rest.length)]];
+  }
+
+  // ---- 🐟 Go Fish -------------------------------------------------------------------
+  // Ten pictures, two of each. Both hands are face UP (a four-year-old's Go
+  // Fish: no secrets). Ask for a picture in your hand: if your friend has it
+  // they give it, it makes a pair (a ⭐) and you go again; if not, "Go fish!" —
+  // take one from the pond (a pair if it matches one you hold) and the turn
+  // passes. The skill: SEE a picture you both have, and ask for that one.
+  // (Measured: asking for a picture you both hold makes 61% of the pairs,
+  // asking for any 44%.) Every pair made: one party.
+  const FISH_N = 10;
+  // a hand with no pair in it (the deal is redone until neither has one)
+  const fishHasPair = (h) => new Set(h).size !== h.length;
+  function fishDeal(st, s, board) {
+    let deck;
+    for (let g = 0; g < 50; g++) {
+      deck = shuffle(s, Array.from({ length: FISH_N * 2 }, (x, k) => k % FISH_N));
+      if (!fishHasPair(deck.slice(0, board.hand)) && !fishHasPair(deck.slice(board.hand, 2 * board.hand))) break;
+    }
+    st.hands = [deck.splice(0, board.hand), deck.splice(0, board.hand)];
+    st.pond = deck;
+    st.pairs = [[], []];
+    st.want = -1;
+    st.misses = 0;
+  }
+  const fishPairs = (st) => st.pairs[0].length + st.pairs[1].length;
+  // a pair made: both cards off the hand onto the pile, a ⭐
+  function fishPair(st, i, q) {
+    st.hands[i] = st.hands[i].filter((x) => x !== q);
+    st.pairs[i].push(q);
+    st.seats[i].stars += 1; st.seats[i].pos += 1;
+  }
+  function fishOver(st, ev) {
+    if (fishPairs(st) < FISH_N) return false;
+    for (const x of st.seats) x.home = true;
+    st.order = [0, 1];
+    st.phase = "done";
+    ev.push({ type: "end" });
+    return true;
+  }
+  // an empty hand takes a card from the pond (if there is one)
+  function fishRefill(st, i, ev) {
+    if (st.hands[i].length || !st.pond.length) return;
+    st.hands[i].push(st.pond.pop());
+    ev.push({ type: "fishRefill", seat: i, card: st.hands[i][0] });
+  }
+  function fishNext(st, ev) {
+    endTurn(st, ev);
+    if (st.phase !== "done") fishRefill(st, st.turn, ev);
+  }
+  // Ask for the picture on card k of the mover's hand
+  function askFish(st, k) {
+    if (st.game !== "fish" || st.phase !== "ask") return [];
+    const q = st.hands[st.turn][k];
+    if (q == null) return [];
+    st.want = q; st.misses = 0; st.rolls += 1;
+    st.phase = "answer";
+    return [{ type: "fishAsk", seat: st.turn, q }];
+  }
+  // The friend answers: card k of THEIR hand if they have the picture, or -1
+  // for "Go fish!" when they do not. Anything else is a kind miss (no fibs:
+  // a friend who has it gives it).
+  function answerFish(st, k) {
+    if (st.game !== "fish" || st.phase !== "answer") return [];
+    const i = st.turn, o = other(i), q = st.want, has = st.hands[o].indexOf(q) >= 0;
+    if (has ? st.hands[o][k] !== q : k !== -1) { st.misses += 1; return [{ type: "fishMiss", seat: o, k, misses: st.misses }]; }
+    const ev = [];
+    st.want = -1; st.misses = 0;
+    if (has) {
+      st.hands[o].splice(st.hands[o].indexOf(q), 1);
+      fishPair(st, i, q);
+      ev.push({ type: "fishGive", seat: i, from: o, q });
+      if (fishOver(st, ev)) return ev;
+      fishRefill(st, o, ev);
+      fishRefill(st, i, ev);
+      if (st.hands[i].length) { st.phase = "ask"; return ev; }
+      fishNext(st, ev);
+      return ev;
+    }
+    // go fish
+    if (st.pond.length) {
+      const c = st.pond.pop();
+      const pair = st.hands[i].indexOf(c) >= 0;
+      st.hands[i].push(c);
+      ev.push({ type: "fishGo", seat: i, card: c, pair });
+      if (pair) {
+        fishPair(st, i, c);
+        if (fishOver(st, ev)) return ev;
+      }
+    } else ev.push({ type: "fishGo", seat: i, card: -1, pair: false });
+    fishNext(st, ev);
+    return ev;
+  }
+  // the cards the mover could ask for that the friend has
+  function fishBest(st) { const o = other(st.turn); return st.hands[st.turn].map((x, k) => k).filter((k) => st.hands[o].indexOf(st.hands[st.turn][k]) >= 0); }
+  // the computer sees a picture they both have only `FISH_SHARP` of the time
+  const FISH_SHARP = 0.5;
+  function fishChoice(st) {
+    const s = st.seats[st.turn], best = fishBest(st);
+    return best.length && next(s) < FISH_SHARP ? best[0] : Math.floor(next(s) * st.hands[st.turn].length);
+  }
+  // the right answer to the question asked
+  const fishAnswer = (st) => st.hands[other(st.turn)].indexOf(st.want);
+
+  // ---- ⛄ Snowman Build --------------------------------------------------------------
+  // Each snowman starts as its big ball (part 1) in the snow. A picture die:
+  // ❄️ magic snow (any part: the next one that can go on), 2 the tummy, 3
+  // the head, 4 the hat, 5 the carrot nose, 6 the scarf. A part goes on only
+  // in order: the head needs the tummy, and the hat, nose and scarf the head.
+  // Roll it: a part that can go on now is built with a tap on the snowman;
+  // one it has, or not yet ("first the tummy!"), and the turn passes. Six
+  // parts is a whole snowman: a ⭐, home, and its builder's rolls then help
+  // build the friend's (the helper rule), so the game ends with two snowmen
+  // and one party. (Building the big ball too was measured: a median game of
+  // 100s and the longest 140; starting with it, 77 and 105.)
+  const SNOW_MAGIC = 1;
+  const SNOW_NEEDS = [0, 0, 1, 2, 3, 3, 3];   // part p needs part SNOW_NEEDS[p]
+  const snowPart = (have, p) => have.indexOf(p) < 0 && have.indexOf(SNOW_NEEDS[p]) >= 0;
+  // the part a roll puts on: the part itself, or for ❄️ the next that can go on
+  const snowWhich = (have, die) => (die === SNOW_MAGIC ? [2, 3, 4, 5, 6].find((p) => snowPart(have, p)) || 0 : snowPart(have, die) ? die : 0);
+  const snowCan = (have, die) => snowWhich(have, die) > 0;
+  function rollSnow(st) {
+    const i = st.turn, seat = st.seats[i];
+    st.mover = moverFor(st, i);
+    st.die = draw(seat, () => dieBag(seat, DATA.board(st.board)));
+    st.rolls += 1;
+    const have = st.parts[st.mover];
+    const ev = [{ type: "roll", seat: i, die: st.die, mover: st.mover }];
+    if (!snowCan(have, st.die)) {
+      ev.push({ type: "snowNot", seat: i, mover: st.mover, part: st.die, need: have.indexOf(st.die) >= 0 ? 0 : SNOW_NEEDS[st.die] });
+      st.die = 0;
+      endTurn(st, ev);
+      return ev;
+    }
+    st.phase = "build";
+    return ev;
+  }
+  // The tap on the snowman: the part rolled goes on
+  function buildSnow(st) {
+    if (st.game !== "snow" || st.phase !== "build") return [];
+    const m = st.mover, i = st.turn, p = snowWhich(st.parts[m], st.die), owner = st.seats[m];
+    st.parts[m].push(p);
+    owner.pos += 1;
+    const ev = [{ type: "build", seat: i, mover: m, part: p, magic: st.die === SNOW_MAGIC }];
+    st.die = 0;
+    if (owner.pos === 6 && !owner.home) {
+      owner.home = true; owner.stars += 1;
+      st.order.push(m);
+      ev.push({ type: "snowDone", seat: m });
+    }
+    endTurn(st, ev);
+    return ev;
+  }
+
+  // ---- 🔢 Number Bingo --------------------------------------------------------------
+  // Each player's own card: nine squares, three by three, holding the numbers
+  // 1 to 6 (every number at least once, three of them twice). Roll the die:
+  // the number on your card — tap it to cover it (twice on the card: either).
+  // Not on your card: "not this time", and the turn passes. A row, a column
+  // or a corner-to-corner line covered is a ⭐ for the card's owner. A full
+  // card is home, and its owner's rolls then help cover the friend's card (the
+  // helper rule), so the game ends when both cards are full, with one party.
+  const BINGO_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+  function bingoCard(s) {
+    const extra = shuffle(s, [1, 2, 3, 4, 5, 6]).slice(0, 3);
+    return shuffle(s, [1, 2, 3, 4, 5, 6].concat(extra));
+  }
+  const bingoLinesOf = (cov) => BINGO_LINES.filter((l) => l.every((k) => cov[k])).length;
+  // the squares the mover may cover with the die
+  function bingoSpots(st) { const m = st.mover; return st.cardsB[m].map((n, k) => k).filter((k) => st.cardsB[m][k] === st.die && !st.covered[m][k]); }
+  function rollBingo(st) {
+    const i = st.turn, seat = st.seats[i];
+    st.mover = moverFor(st, i);
+    st.die = draw(seat, () => dieBag(seat, DATA.board(st.board)));
+    st.rolls += 1;
+    st.misses = 0;
+    const ev = [{ type: "roll", seat: i, die: st.die, mover: st.mover }];
+    if (!bingoSpots(st).length) {
+      ev.push({ type: "bingoNone", seat: i, mover: st.mover, die: st.die });
+      st.die = 0;
+      endTurn(st, ev);
+      return ev;
+    }
+    st.phase = "cover";
+    return ev;
+  }
+  // Tap square k of the mover's card: the die's number covers it; any other
+  // square is a kind miss
+  function coverBingo(st, k) {
+    if (st.game !== "bingo" || st.phase !== "cover") return [];
+    const m = st.mover, i = st.turn;
+    if (bingoSpots(st).indexOf(k) < 0) {
+      if (!int(k) || k < 0 || k > 8 || st.covered[m][k]) return [];
+      st.misses += 1;
+      return [{ type: "bingoMiss", seat: i, mover: m, k, misses: st.misses }];
+    }
+    const before = bingoLinesOf(st.covered[m]);
+    st.covered[m][k] = true;
+    const owner = st.seats[m];
+    owner.pos += 1;
+    const lines = BINGO_LINES.filter((l) => l.indexOf(k) >= 0 && l.every((j) => st.covered[m][j]));
+    owner.stars += bingoLinesOf(st.covered[m]) - before;
+    const ev = [{ type: "cover", seat: i, mover: m, k, n: st.die, lines }];
+    st.die = 0; st.misses = 0;
+    if (owner.pos === 9 && !owner.home) {
+      owner.home = true;
+      st.order.push(m);
+      ev.push({ type: "bingoFull", seat: m });
+    }
+    endTurn(st, ev);
+    return ev;
+  }
+  // The squares worth covering most: the ones that make (or come nearest to
+  // making) a line
+  function bingoBest(st) {
+    const m = st.mover, cov = st.covered[m], spots = bingoSpots(st);
+    const score = (k) => Math.max(...BINGO_LINES.filter((l) => l.indexOf(k) >= 0).map((l) => l.filter((j) => cov[j]).length));
+    const best = Math.max(...spots.map(score));
+    return spots.filter((k) => score(k) === best);
+  }
+
+  // ---- 🌈 Colour Match -------------------------------------------------------------
+  // Forty cards: four colours (each with its shape) × the numbers 1 to 5,
+  // twice. A card id k is the face k % 20: colour floor(face / 5), number
+  // face % 5 + 1. A card is drawn as that many of its colour's shape.
+  const cmFace = (id) => id % 20;
+  const cmColour = (id) => Math.floor(cmFace(id) / 5);
+  const cmNumber = (id) => (cmFace(id) % 5) + 1;
+  const cmFits = (id, top) => cmColour(id) === cmColour(top) || cmNumber(id) === cmNumber(top);
+  // a new round: the deck shuffled from the round-starter's luck, a hand of
+  // `hand` each, one card turned up
+  function cmDeal(st, s) {
+    const board = DATA.board(st.board);
+    const deck = shuffle(s, Array.from({ length: 40 }, (x, k) => k));
+    st.hands = [deck.splice(0, board.hand), deck.splice(0, board.hand)];
+    st.top = deck.pop();
+    st.deck = deck;
+    st.pile = [];
+    st.misses = 0;
+  }
+  // the cards in the mover's hand that fit the card on top
+  function cmPlayable(st) { return st.hands[st.turn].map((id, k) => k).filter((k) => cmFits(st.hands[st.turn][k], st.top)); }
+  // Play card k of the mover's hand: it must match the colour OR the number.
+  // A card that does not only wiggles (and after two, the ones that fit glow).
+  function playMatch(st, k) {
+    if (st.game !== "cmatch" || st.phase !== "play") return [];
+    const board = DATA.board(st.board), i = st.turn, s = st.seats[i];
+    const id = st.hands[i][k];
+    if (id == null) return [];
+    if (!cmFits(id, st.top)) { st.misses += 1; return [{ type: "cmMiss", seat: i, k, misses: st.misses }]; }
+    st.hands[i].splice(k, 1);
+    st.pile.push(st.top);
+    st.top = id;
+    st.misses = 0;
+    st.rolls += 1;
+    const ev = [{ type: "cmPlay", seat: i, card: id, left: st.hands[i].length }];
+    if (!st.hands[i].length) {
+      s.stars += 1; s.pos += 1; st.round += 1;
+      ev.push({ type: "cmOut", seat: i, round: st.round });
+      if (st.round >= board.rounds) {
+        for (const x of st.seats) x.home = true;
+        st.order = [0, 1];
+        st.phase = "done";
+        ev.push({ type: "end" });
+        return ev;
+      }
+      cmDeal(st, s);
+      ev.push({ type: "cmDeal", top: st.top });
+    }
+    endTurn(st, ev);
+    return ev;
+  }
+  // Nothing fits: turn a new card over from the deck onto the pile, and the
+  // turn passes. A hand never GROWS: drawing into the hand was built first and
+  // measured — a drought could run a game to five minutes (the longest of
+  // 3000 ran 302s); turning one over keeps every game under two (101s), and
+  // who plays first still empties first only 53% of the time. (An empty
+  // deck takes the pile back, shuffled.)
+  function flipMatch(st) {
+    if (st.game !== "cmatch" || st.phase !== "play" || cmPlayable(st).length) return [];
+    const i = st.turn, s = st.seats[i];
+    if (!st.deck.length) { st.deck = shuffle(s, st.pile); st.pile = []; }
+    st.misses = 0;
+    st.pile.push(st.top);
+    st.top = st.deck.pop();
+    st.rolls += 1;
+    const ev = [{ type: "cmFlip", seat: i, card: st.top }];
+    endTurn(st, ev);
+    return ev;
+  }
+  // The computer plays a card that fits (any), else turns one over
+  function cmChoice(st) {
+    const ok = cmPlayable(st);
+    return ok.length ? ok[Math.floor(next(st.seats[st.turn]) * ok.length)] : -1;
+  }
+
   // ---- 🎯 Dice Match -----------------------------------------------------------------
   // A die's face, from the mover's own seeded luck. NOT a fair bag: a bag of
   // 1-6 deals three DIFFERENT faces every time, so three dice could never
@@ -634,7 +1188,7 @@
   function holdDie(st, k) {
     if (st.game !== "match3" || st.phase !== "keep" || (k !== 0 && k !== 1 && k !== 2)) return [];
     st.held[k] = !st.held[k];
-    return [{ type: "hold", seat: st.turn, k, held: st.held[k] }];
+    return [{ type: "keepDie", seat: st.turn, k, held: st.held[k] }];
   }
   // The dice worth keeping: the ones that match another (or, with no match,
   // none — roll all three again)
@@ -1024,6 +1578,8 @@
   // ---- 🚀 Moon Race: roll, then one hop per tap ----------------------------
   function roll(st) {
     if (st.game === "doors" && st.phase === "roll") return rollDoors(st);
+    if (st.game === "bingo" && st.phase === "roll") return rollBingo(st);
+    if (st.game === "snow" && st.phase === "roll") return rollSnow(st);
     if (st.game !== "dice" || st.phase !== "roll") return [];
     const seat = st.seats[st.turn];
     const board = DATA.board(st.board);
@@ -1442,6 +1998,18 @@
     if (st.game === "top") return playCard(st, topChoice(st));
     if (st.game === "grab") return grabColour(st, grabChoice(st));
     if (st.game === "maze") return moveMouse(st, mazeChoice(st));
+    if (st.game === "hide") return askHide(st, hideChoice(st));
+    if (st.game === "cmatch") { const k = cmChoice(st); return k < 0 ? flipMatch(st) : playMatch(st, k); }
+    if (st.game === "hilo") return hiloGuess(st, hiloChoice(st));
+    if (st.game === "train") return pickCar(st, trainChoice(st));
+    if (st.game === "ten") { const c = tenChoice(st); const ev = tenPick(st, c[0]); ev.push(...tenPick(st, c[1])); return ev; }
+    if (st.game === "fish") { const ev = st.phase === "ask" ? askFish(st, fishChoice(st)) : []; if (st.phase === "answer") ev.push(...answerFish(st, fishAnswer(st))); return ev; }
+    if (st.game === "snow") { const ev = roll(st); if (st.phase === "build") ev.push(...buildSnow(st)); return ev; }
+    if (st.game === "bingo") {
+      const ev = roll(st);
+      if (st.phase === "cover") { const b = bingoBest(st); ev.push(...coverBingo(st, b[Math.floor(next(st.seats[st.turn]) * b.length)])); }
+      return ev;
+    }
     if (st.game === "match3") {
       const ev = rollMatch(st), who = st.turn;
       let guard = 0;
@@ -1520,7 +2088,9 @@
   // most one full deal of cards this board can deal
   function okBag(board, bag, birds) {
     if (board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" || board.game === "nim" || board.game === "lines" || board.game === "top" || board.game === "grab") return bag.length === 0;
-    if (board.game === "match3") return bag.length === 0;
+    if (board.game === "match3" || board.game === "hide" || board.game === "cmatch" || board.game === "fish" || board.game === "ten" || board.game === "hilo" || board.game === "train") return bag.length === 0;
+    if (board.game === "snow") { const left = [1, 2, 3, 4, 5, 6]; for (const n of bag) { const k = left.indexOf(n); if (!int(n) || k < 0) return false; left.splice(k, 1); } return true; }
+    if (board.game === "bingo") { const left = [1, 2, 3, 4, 5, 6]; for (const n of bag) { const k = left.indexOf(n); if (!int(n) || k < 0) return false; left.splice(k, 1); } return true; }
     if (board.game === "maze") return bag.length <= 8 && new Set(bag).size === bag.length && bag.every((n) => int(n) && n >= 0 && n <= 7);
     if (board.game === "doors") {
       const left = [1, 2, 3, 4, 5, 6];
@@ -1560,8 +2130,8 @@
       if (!Array.isArray(snap.seats) || snap.seats.length !== 2) return null;
       const spinning = board.game === "spin";
       const hen = board.game === "hen";
-      const lotto = board.game === "lotto", spotting = board.game === "spot", pairing = board.game === "pairs", acorning = board.game === "acorns", domino = board.game === "dominoes", digging = board.game === "dig", nimming = board.game === "nim", lining = board.game === "lines", topping = board.game === "top", grabbing = board.game === "grab", matching3 = board.game === "match3", mazing = board.game === "maze";
-      const okPhase = board.game === "cards" ? ["draw", "done"] : matching3 ? ["roll", "keep", "done"] : mazing ? ["move", "done"] : grabbing ? ["pick", "done"] : nimming ? ["take", "done"] : lining ? ["drop", "done"] : topping ? ["lead", "follow", "done"] : pairing ? ["flip", "second", "done"] : acorning ? ["choose", "done"] : domino ? ["lay", "draw", "done"] : digging ? ["dig", "done"] : lotto ? ["draw", "give", "done"] : board.game === "doors" ? ["roll", "shut", "done"] : spotting ? ["flip", "find", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : board.two ? ["roll", "choose", "hop", "done"] : ["roll", "hop", "done"];
+      const lotto = board.game === "lotto", spotting = board.game === "spot", pairing = board.game === "pairs", acorning = board.game === "acorns", domino = board.game === "dominoes", digging = board.game === "dig", nimming = board.game === "nim", lining = board.game === "lines", topping = board.game === "top", grabbing = board.game === "grab", matching3 = board.game === "match3", mazing = board.game === "maze", hiding = board.game === "hide", cmatching = board.game === "cmatch", bingoing = board.game === "bingo", snowing = board.game === "snow", fishing = board.game === "fish", tenning = board.game === "ten", hiloing = board.game === "hilo", training = board.game === "train";
+      const okPhase = board.game === "cards" ? ["draw", "done"] : matching3 ? ["roll", "keep", "done"] : mazing ? ["move", "done"] : hiding ? ["ask", "done"] : cmatching ? ["play", "done"] : bingoing ? ["roll", "cover", "done"] : snowing ? ["roll", "build", "done"] : fishing ? ["ask", "answer", "done"] : tenning ? ["pick", "done"] : hiloing ? ["guess", "done"] : training ? ["pick", "done"] : grabbing ? ["pick", "done"] : nimming ? ["take", "done"] : lining ? ["drop", "done"] : topping ? ["lead", "follow", "done"] : pairing ? ["flip", "second", "done"] : acorning ? ["choose", "done"] : domino ? ["lay", "draw", "done"] : digging ? ["dig", "done"] : lotto ? ["draw", "give", "done"] : board.game === "doors" ? ["roll", "shut", "done"] : spotting ? ["flip", "find", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : board.two ? ["roll", "choose", "hop", "done"] : ["roll", "hop", "done"];
       if (okPhase.indexOf(snap.phase) < 0) return null;
       const moving = spinning ? "pick" : "hop";
       if (spinning) {
@@ -1572,7 +2142,7 @@
       if (!int(snap.mover) || snap.mover < 0 || snap.mover > 1) return null;
       if (!int(snap.left) || snap.left < 0 || snap.left > 6) return null;
       if (!int(snap.die) || snap.die < 0) return null;
-      if (board.game === "dice" || board.game === "doors" ? snap.die !== 0 && facesOf(board).indexOf(snap.die) < 0 : snap.die > 6) return null;
+      if (board.game === "dice" || board.game === "doors" || bingoing || snowing ? snap.die !== 0 && facesOf(board).indexOf(snap.die) < 0 : snap.die > 6) return null;
       // hops (or apples) are left exactly while hopping (picking): a "hop"
       // turn with none left would be stuck for good (hop() refuses, nothing
       // ends the turn)
@@ -1636,6 +2206,147 @@
         const t = { board: board.id, pots: snap.pots, cheese: snap.cheese };
         for (let k = 0; k < n; k++) if (snap.pots.indexOf(k) < 0 && mazeDist(t, snap.mice[0], k) === Infinity) return null;
         if (snap.phase === "move" && !snap.hands[snap.turn].some((id) => mazePath(t, id, snap.mice[snap.turn]).length)) return null;
+      } else if (training) {
+        // the train is its round's pattern in real colours (each letter its
+        // own colour), the answer is the car that comes next, and the three
+        // cars offered are different, the answer among them; the trains done
+        // are the ⭐s; over exactly after the last train
+        const ids = DATA.COLOURS.map((c) => c.id);
+        if (!int(snap.round) || snap.round < 0 || snap.round > board.trains) return null;
+        if (snap.round !== snap.seats[0].stars + snap.seats[1].stars || snap.seats.some((x) => x.pos !== x.stars)) return null;
+        if ((snap.phase === "done") !== (snap.round === board.trains)) return null;
+        if (snap.phase === "pick") {
+          const pat = TRAIN_PATTERNS[snap.round % TRAIN_PATTERNS.length], Cr = snap.cars, Op = snap.options;
+          if (!Array.isArray(Cr) || Cr.length !== TRAIN_SHOWN || Cr.some((c) => ids.indexOf(c) < 0)) return null;
+          const map = {};
+          for (let k = 0; k < TRAIN_SHOWN; k++) { const ch = pat[k % pat.length]; if (map[ch] == null) map[ch] = Cr[k]; else if (map[ch] !== Cr[k]) return null; }
+          if (new Set(Object.values(map)).size !== Object.keys(map).length) return null;
+          if (snap.answer !== map[pat[TRAIN_SHOWN % pat.length]]) return null;
+          if (!Array.isArray(Op) || Op.length !== 3 || new Set(Op).size !== 3 || Op.some((c) => ids.indexOf(c) < 0) || Op.indexOf(snap.answer) < 0) return null;
+        }
+        if (!int(snap.misses) || snap.misses < 0) return null;
+        if (snap.die !== 0 || snap.card !== null || snap.left !== 0) return null;
+      } else if (hiloing) {
+        // twenty cards, 1 to 10 twice: the deck, the top card and the cards
+        // turned before it (not kept, so only the counts can be checked); the
+        // cards turned are flips; the ⭐s are no more than the guesses each
+        // player made; over exactly at the last flip
+        const Dk = snap.deck;
+        if (!Array.isArray(Dk) || Dk.some((x) => !int(x) || x < 1 || x > 10) || !int(snap.top) || snap.top < 1 || snap.top > 10) return null;
+        const count = new Array(11).fill(0);
+        for (const x of Dk.concat([snap.top])) count[x] += 1;
+        if (count.some((c) => c > 2)) return null;
+        if (!int(snap.flips) || snap.flips < 0 || snap.flips > board.flips || Dk.length !== 19 - snap.flips) return null;
+        if (snap.seats.some((x) => x.pos !== x.stars || x.stars > Math.ceil(snap.flips / 2))) return null;
+        if ((snap.phase === "done") !== (snap.flips === board.flips)) return null;
+        if (snap.die !== 0 || snap.card !== null || snap.left !== 0) return null;
+      } else if (tenning) {
+        // every flower 1-9 exactly twice in all: in the meadow, the deck, or a
+        // ten made (each ten adds to 10); the tens made are the ⭐s; the meadow
+        // always holds a ten until the game is over; a held flower is a real one
+        const F = snap.flowers, Dk = snap.deck, Md = snap.made, n = board.cols * board.rows;
+        if (!Array.isArray(F) || F.length !== n || !Array.isArray(Dk) || !Array.isArray(Md)) return null;
+        const count = new Array(10).fill(0);
+        for (const x of F) { if (!int(x) || x < 0 || x > 9) return null; if (x) count[x] += 1; }
+        for (const x of Dk) { if (!int(x) || x < 1 || x > 9) return null; count[x] += 1; }
+        for (const p of Md) { if (!Array.isArray(p) || p.length !== 2 || p.some((x) => !int(x) || x < 1 || x > 9) || p[0] + p[1] !== 10) return null; count[p[0]] += 1; count[p[1]] += 1; }
+        if (count.slice(1).some((c) => c !== 2)) return null;
+        if (Md.length !== snap.seats[0].stars + snap.seats[1].stars || snap.seats.some((x) => x.pos !== x.stars)) return null;
+        if (F.some((x) => !x) && Dk.length) return null;
+        if ((snap.phase === "done") !== !tenHasPair(F)) return null;
+        if (snap.held !== null && (!int(snap.held) || snap.held < 0 || snap.held >= n || !F[snap.held] || snap.phase !== "pick")) return null;
+        if (snap.die !== 0 || snap.card !== null || snap.left !== 0) return null;
+      } else if (fishing) {
+        // every picture twice in all: in the pond, a hand, or a pair made
+        // (a pair counts both); no hand holds a pair; the pairs made are the
+        // ⭐s; a hand is empty mid-game only with the pond empty too; while
+        // answering, the picture asked for is in the asker's hand
+        const Hd = snap.hands, Pr = snap.pairs, Pd = snap.pond;
+        if (!Array.isArray(Hd) || Hd.length !== 2 || !Hd.every(Array.isArray) || !Array.isArray(Pr) || Pr.length !== 2 || !Pr.every(Array.isArray) || !Array.isArray(Pd)) return null;
+        const count = new Array(FISH_N).fill(0), pic = (x) => int(x) && x >= 0 && x < FISH_N;
+        for (const x of Pd.concat(Hd[0], Hd[1])) { if (!pic(x)) return null; count[x] += 1; }
+        for (const x of Pr[0].concat(Pr[1])) { if (!pic(x)) return null; count[x] += 2; }
+        if (count.some((c) => c !== 2)) return null;
+        for (const j of [0, 1]) {
+          if (fishHasPair(Hd[j])) return null;
+          if (snap.seats[j].stars !== Pr[j].length || snap.seats[j].pos !== Pr[j].length) return null;
+        }
+        if ((snap.phase === "done") !== (Pr[0].length + Pr[1].length === FISH_N)) return null;
+        if (snap.phase === "ask" && (!Hd[snap.turn].length || snap.want !== -1)) return null;
+        if (snap.phase === "answer" && Hd[snap.turn].indexOf(snap.want) < 0) return null;
+        if (!int(snap.misses) || snap.misses < 0) return null;
+        if (snap.die !== 0 || snap.card !== null || snap.left !== 0) return null;
+      } else if (snowing) {
+        // each snowman starts with its big ball, then real parts, once each,
+        // every one built after the part it needs; a seat's count is its
+        // parts and a whole snowman (six) is home and a ⭐; while building,
+        // the roll can go on the mover's snowman now
+        const Pt = snap.parts;
+        if (!Array.isArray(Pt) || Pt.length !== 2 || !Pt.every(Array.isArray)) return null;
+        for (const j of [0, 1]) {
+          const h = Pt[j], x = snap.seats[j];
+          if (h[0] !== 1 || h.some((p) => !int(p) || p < 1 || p > 6) || new Set(h).size !== h.length) return null;
+          if (h.some((p, k) => k > 0 && h.slice(0, k).indexOf(SNOW_NEEDS[p]) < 0)) return null;
+          if (x.pos !== h.length || x.home !== (h.length === 6) || x.stars !== (h.length === 6 ? 1 : 0)) return null;
+        }
+        if (snap.phase !== "done" && snap.mover !== moverFor(snap, snap.turn)) return null;
+        if (snap.phase === "build") { if (!snowCan(Pt[snap.mover], snap.die)) return null; }
+        else if (snap.die !== 0) return null;
+        if (snap.card !== null || snap.left !== 0) return null;
+      } else if (bingoing) {
+        // each card holds 1 to 6 (each at least once) in nine squares; a
+        // seat's count is its squares covered and its ⭐s its lines; a full
+        // card is home (the order who filled first); while covering, the die is
+        // on the mover's card and not yet covered, and the mover is the one
+        // the helper rule says; between turns no die is showing
+        const Cd = snap.cardsB, Cv = snap.covered;
+        if (!Array.isArray(Cd) || Cd.length !== 2 || !Array.isArray(Cv) || Cv.length !== 2) return null;
+        for (const j of [0, 1]) {
+          if (!Array.isArray(Cd[j]) || Cd[j].length !== 9 || Cd[j].some((n) => !int(n) || n < 1 || n > 6)) return null;
+          if ([1, 2, 3, 4, 5, 6].some((n) => Cd[j].indexOf(n) < 0)) return null;
+          if (!Array.isArray(Cv[j]) || Cv[j].length !== 9 || Cv[j].some((c) => typeof c !== "boolean")) return null;
+          const x = snap.seats[j], n = Cv[j].filter(Boolean).length;
+          if (x.pos !== n || x.stars !== bingoLinesOf(Cv[j]) || x.home !== (n === 9)) return null;
+        }
+        if (snap.phase !== "done" && snap.mover !== moverFor(snap, snap.turn)) return null;
+        if (!int(snap.misses) || snap.misses < 0 || (snap.phase !== "cover" && snap.misses !== 0)) return null;
+        if (snap.phase === "cover") {
+          if (!int(snap.die) || snap.die < 1) return null;
+          if (!bingoSpots(snap).length) return null;
+        } else if (snap.die !== 0) return null;
+        if (snap.card !== null || snap.left !== 0) return null;
+      } else if (cmatching) {
+        // all forty cards, each in exactly one place (the deck, the pile, the
+        // top, a hand); a hand is never empty mid-game (an empty hand ends the
+        // round); the rounds won are the ⭐s
+        const Hn = snap.hands;
+        if (!Array.isArray(snap.deck) || !Array.isArray(snap.pile) || !Array.isArray(Hn) || Hn.length !== 2 || !Hn.every(Array.isArray)) return null;
+        const all = snap.deck.concat(snap.pile, Hn[0], Hn[1], [snap.top]);
+        if (all.length !== 40 || new Set(all).size !== 40 || all.some((id) => !int(id) || id < 0 || id > 39)) return null;
+        if (!int(snap.round) || snap.round !== snap.seats[0].stars + snap.seats[1].stars || snap.round > board.rounds) return null;
+        if (snap.seats.some((x) => x.pos !== x.stars)) return null;
+        if ((snap.phase === "done") !== (snap.round === board.rounds)) return null;
+        if (snap.phase === "play" && Hn.some((h) => !h.length)) return null;
+        if (!int(snap.misses) || snap.misses < 0) return null;
+        if (snap.die !== 0 || snap.card !== null || snap.left !== 0) return null;
+      } else if (hiding) {
+        // nine different hiders a round (ids 0-17), the one hiding among them
+        // and still standing, and at least two standing mid-game (one left
+        // would already have been found). (Nobody down can match the hider
+        // every way: different ids always differ in a trait.) Three
+        // different questions, 0-6, while asking. The hiders found are the ⭐s.
+        const C = snap.cards, U = snap.up, n = board.cols * board.rows;
+        if (!Array.isArray(C) || C.length !== n || C.some((id) => !int(id) || id < 0 || id > 17) || new Set(C).size !== n) return null;
+        if (!Array.isArray(U) || U.length !== n || U.some((u) => typeof u !== "boolean")) return null;
+        if (!int(snap.hidden) || snap.hidden < 0 || snap.hidden >= n) return null;
+        if (!int(snap.found) || snap.found !== snap.seats[0].stars + snap.seats[1].stars || snap.found > board.rounds) return null;
+        if (snap.seats.some((x) => x.pos !== x.stars)) return null;
+        if ((snap.phase === "done") !== (snap.found === board.rounds)) return null;
+        if (!Array.isArray(snap.asks) || snap.asks.some((q) => !int(q) || q < 0 || q > 6) || new Set(snap.asks).size !== snap.asks.length) return null;
+        if (snap.phase === "ask") {
+          if (!U[snap.hidden] || U.filter(Boolean).length < 2 || snap.asks.length !== board.ask) return null;
+        } else if (snap.asks.length) return null;
+        if (snap.die !== 0 || snap.card !== null || snap.left !== 0) return null;
       } else if (matching3) {
         // three dice of 1-6 while keeping (and nothing kept or left between
         // turns); the re-rolls left while keeping are 1 or 2; turns played
@@ -1845,7 +2556,7 @@
         // home is exactly standing on the last square
         // home is exactly standing on the last square (👀 everyone is home
         // together, once the deck is used up)
-        if (spotting || pairing || acorning || domino || digging || nimming || lining || topping || grabbing || matching3 || mazing ? s.home !== (snap.phase === "done") : s.home !== (s.pos === board.size)) return null;
+        if (spotting || pairing || acorning || domino || digging || nimming || lining || topping || grabbing || matching3 || mazing || hiding || cmatching || fishing || tenning || hiloing || training ? s.home !== (snap.phase === "done") : s.home !== (s.pos === board.size)) return null;
         if (!Array.isArray(s.bag) || !okBag(board, s.bag, hen ? snap.fox : snap.birds)) return null;
       }
       // the order they got home in names exactly the seats that are home
@@ -1861,7 +2572,7 @@
   }
 
   const BoardLogic = {
-    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, takeCookies, nimTakes, nimBest, nimChoice, NIM_SHARP, dropLine, dropRow, linesOf, linesOpen, linesMade, linesBest, linesChoice, LINES_SHARP, playCard, topBest, topChoice, TOP_SHARP, grabColour, grabCells, grabOptions, grabGain, grabBest, grabChoice, GRAB_SHARP, chooseDie, dieTarget, dieBest, dieChoice, DIE_SHARP, moveMouse, mazePath, mazeDist, mazeBest, mazeChoice, MAZE_SHARP, MAZE_WORDS, rollMatch, holdDie, m3Score, m3Keep, m3Choice, M3_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
+    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, takeCookies, nimTakes, nimBest, nimChoice, NIM_SHARP, dropLine, dropRow, linesOf, linesOpen, linesMade, linesBest, linesChoice, LINES_SHARP, playCard, topBest, topChoice, TOP_SHARP, grabColour, grabCells, grabOptions, grabGain, grabBest, grabChoice, GRAB_SHARP, chooseDie, dieTarget, dieBest, dieChoice, DIE_SHARP, moveMouse, mazePath, mazeDist, mazeBest, mazeChoice, MAZE_SHARP, MAZE_WORDS, askHide, hideYes, hideSplit, hideBest, hideChoice, hideTraits, HIDE_SHARP, pickCar, trainChoice, TRAIN_SHARP, TRAIN_PATTERNS, hiloGuess, hiloBest, hiloChoice, HILO_SHARP, tenPick, tenPairs, tenChoice, TEN_SHARP, askFish, answerFish, fishBest, fishChoice, fishAnswer, FISH_SHARP, FISH_N, buildSnow, SNOW_NEEDS, SNOW_MAGIC, snowWhich, coverBingo, bingoSpots, bingoBest, BINGO_LINES, playMatch, flipMatch, cmFits, cmColour, cmNumber, cmPlayable, cmChoice, rollMatch, holdDie, m3Score, m3Keep, m3Choice, M3_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
     cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN,
   };
   global.BoardLogic = BoardLogic;

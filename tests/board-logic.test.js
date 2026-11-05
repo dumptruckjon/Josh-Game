@@ -43,8 +43,13 @@ test("data: every box opens a real board, every board is a real grid, every pers
     else if (board.game === "nim") assert.equal(board.size, board.jars.reduce((t, n) => t + n, 0), `${board.id}: every cookie of every jar`);
     else if (board.game === "top") assert.equal(board.size, board.deck, `${board.id}: at most every trick`);
     else if (board.game === "lines") assert.equal(board.size, board.boards * board.cols * board.rows / 2, `${board.id}: each player drops half of every board`);
+    else if (board.game === "cmatch") assert.equal(board.size, board.rounds, `${board.id}: a ⭐ a round at most`);
+    else if (board.game === "snow") assert.equal(board.size, L.SNOW_NEEDS.length - 1, `${board.id}: a snowman is its six parts`);
+    else if (board.game === "fish") assert.equal(board.size, L.FISH_N, `${board.id}: every pair of pictures`);
+    else if (board.game === "hilo") assert.equal(board.size, board.flips, `${board.id}: a ⭐ a card at most`);
+    else if (board.game === "train") assert.equal(board.size, board.trains, `${board.id}: a ⭐ a train`);
     else assert.equal(board.size, board.cols * board.rows, `${board.id} fills its grid exactly`);
-    assert.ok(["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors", "acorns", "dominoes", "dig", "nim", "lines", "top", "grab", "match3", "maze"].indexOf(board.game) >= 0, `${board.id} is a dice, card, spinner, farm, lotto, spot, pairs, doors, acorns, dominoes, dig, nim, lines, top, grab, match3 or maze game`);
+    assert.ok(["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors", "acorns", "dominoes", "dig", "nim", "lines", "top", "grab", "match3", "maze", "hide", "cmatch", "bingo", "snow", "fish", "ten", "hilo", "train"].indexOf(board.game) >= 0, `${board.id} is a dice, card, spinner, farm, lotto, spot, pairs, doors, acorns, dominoes, dig, nim, lines, top, grab, match3, maze, hide, cmatch, bingo, snow, fish, ten, hilo or train game`);
     assert.ok(DATA.BOXES.some((b) => b.board === board.id), `${board.id} is on the shelf (no dead board)`);
   }
   for (const p of [DATA.JOSH, ...DATA.PEOPLE]) {
@@ -137,6 +142,14 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
       else if (board.game === "dig") assert.ok(g.st.seats.every((s) => s.home) && g.st.found === board.treasures && g.st.seats[0].pos + g.st.seats[1].pos === board.treasures, `${board.id} seed ${seed}: every treasure found`);
       else if (board.game === "acorns") assert.ok(g.st.seats.every((s) => s.home) && g.st.seats[0].pos + g.st.seats[1].pos === board.size && g.st.pots.every((n, k) => k % 4 === 3 || n === 0), `${board.id} seed ${seed}: every acorn in a nest`);
       else if (board.game === "maze") assert.ok(g.st.seats.every((s) => s.home) && g.st.found === board.cheese && g.st.seats[0].stars + g.st.seats[1].stars === board.cheese, `${board.id} seed ${seed}: every cheese found`);
+      else if (board.game === "train") assert.ok(g.st.seats.every((s) => s.home) && g.st.round === board.trains && g.st.seats[0].stars + g.st.seats[1].stars === board.trains, `${board.id} seed ${seed}: every train finished`);
+      else if (board.game === "hilo") assert.ok(g.st.seats.every((s) => s.home) && g.st.flips === board.flips, `${board.id} seed ${seed}: every card turned`);
+      else if (board.game === "ten") assert.ok(g.st.seats.every((s) => s.home) && g.st.made.length === 9 && g.st.flowers.every((x) => !x) && !g.st.deck.length, `${board.id} seed ${seed}: all nine tens made`);
+      else if (board.game === "fish") assert.ok(g.st.seats.every((s) => s.home) && g.st.pairs[0].length + g.st.pairs[1].length === L.FISH_N && g.st.hands.every((h) => !h.length), `${board.id} seed ${seed}: every pair made`);
+      else if (board.game === "snow") assert.ok(g.st.seats.every((s) => s.home && s.pos === board.size && s.stars === 1) && g.st.parts.every((p) => p.length === 6), `${board.id} seed ${seed}: two whole snowmen`);
+      else if (board.game === "bingo") assert.ok(g.st.seats.every((s) => s.home && s.pos === board.size && s.stars === 8) && g.st.covered.every((c) => c.every(Boolean)), `${board.id} seed ${seed}: both cards full`);
+      else if (board.game === "cmatch") assert.ok(g.st.seats.every((s) => s.home) && g.st.round === board.rounds && g.st.seats[0].stars + g.st.seats[1].stars === board.rounds, `${board.id} seed ${seed}: every round played out`);
+      else if (board.game === "hide") assert.ok(g.st.seats.every((s) => s.home) && g.st.found === board.rounds && g.st.seats[0].stars + g.st.seats[1].stars === board.rounds, `${board.id} seed ${seed}: everybody found`);
       else if (board.game === "match3") assert.ok(g.st.seats.every((s) => s.home && s.pos === board.rounds && s.stars <= board.rounds * 3), `${board.id} seed ${seed}: every turn rolled`);
       else if (board.game === "grab") assert.ok(g.st.seats.every((s) => s.home) && g.st.owner.every((o) => o >= 0) && g.st.seats[0].pos + g.st.seats[1].pos === board.size, `${board.id} seed ${seed}: every square grabbed`);
       else if (board.game === "top") assert.ok(g.st.seats.every((s) => s.home) && g.st.gone.every((x) => x.length === board.deck) && g.st.seats[0].stars + g.st.seats[1].stars <= board.deck, `${board.id} seed ${seed}: every card played`);
@@ -153,9 +166,9 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
       // board's turns got short: 💯 Hundred Hop takes twice Moon Race's turns
       // and has FEWER taps, because a ten is one tap.
       // (a lotto turn is two taps: the basket, then whose it is)
-      const taps = g.ev.filter((e) => e.type === "hop" || e.type === "pick" || e.type === "card" || e.type === "draw" || e.type === "give" || e.type === "flip" || e.type === "found" || e.type === "peek" || (e.type === "roll" && board.game === "doors") || e.type === "shut" || e.type === "scoop" || e.type === "lay" || e.type === "take" || e.type === "hole" || e.type === "treasure" || e.type === "nibble" || e.type === "drop" || e.type === "lead" || e.type === "answer" || e.type === "grab" || e.type === "choose" || e.type === "roll3" || e.type === "hold" || e.type === "scurry").length;
+      const taps = g.ev.filter((e) => e.type === "hop" || e.type === "pick" || e.type === "card" || e.type === "draw" || e.type === "give" || e.type === "flip" || e.type === "found" || e.type === "peek" || (e.type === "roll" && board.game === "doors") || e.type === "shut" || e.type === "scoop" || e.type === "lay" || e.type === "take" || e.type === "hole" || e.type === "treasure" || e.type === "nibble" || e.type === "drop" || e.type === "lead" || e.type === "answer" || e.type === "grab" || e.type === "choose" || e.type === "roll3" || e.type === "keepDie" || e.type === "scurry" || e.type === "ask" || e.type === "cmPlay" || e.type === "cmFlip" || (e.type === "roll" && (board.game === "bingo" || board.game === "snow")) || e.type === "cover" || e.type === "build" || e.type === "fishAsk" || e.type === "fishGive" || e.type === "fishGo" || e.type === "tenHold" || e.type === "tenPair" || e.type === "tenMiss" || e.type === "hilo" || e.type === "carRight" || e.type === "carMiss").length;
       // (🧠 a pair or a star glows a moment; a miss stays up to be LOOKED at)
-      const extras = g.ev.filter((e) => e.type === "ride" || e.type === "tens" || e.type === "pair" || e.type === "star" || e.type === "golden" || e.type === "line" || e.type === "trick" || e.type === "bigGrab" || e.type === "cheese").length + g.ev.filter((e) => e.type === "match").reduce((n, e) => n + e.stars, 0) +
+      const extras = g.ev.filter((e) => e.type === "ride" || e.type === "tens" || e.type === "pair" || e.type === "star" || e.type === "golden" || e.type === "line" || e.type === "trick" || e.type === "bigGrab" || e.type === "cheese" || e.type === "hideFound" || e.type === "cmOut" || e.type === "snowDone" || e.type === "fishGive" || (e.type === "fishGo" && e.pair) || e.type === "tenPair" || (e.type === "hilo" && e.right) || e.type === "carRight").length + g.ev.filter((e) => e.type === "cover").reduce((n, e) => n + e.lines.length, 0) + g.ev.filter((e) => e.type === "match").reduce((n, e) => n + e.stars, 0) +
         1.5 * g.ev.filter((e) => e.type === "nopair" || e.type === "stuck").length +
         0.4 * g.ev.filter((e) => e.type === "sow").length + g.ev.filter((e) => e.type === "again" || e.type === "sweep").length;
       secs.push(g.turns * 2.3 + taps * 0.5 + extras);
@@ -396,6 +409,14 @@ test("RESTORE takes back EVERY state a real game passes through, and refuses eac
         else if (st.game === "top") L.playCard(st, L.topChoice(st));
         else if (st.game === "grab") L.grabColour(st, L.grabChoice(st));
         else if (st.game === "maze") L.moveMouse(st, L.mazeChoice(st));
+        else if (st.game === "hide") L.askHide(st, L.hideChoice(st));
+        else if (st.game === "snow" && st.phase === "build") L.buildSnow(st);
+        else if (st.game === "hilo") L.hiloGuess(st, L.hiloChoice(st));
+        else if (st.game === "train") L.pickCar(st, L.trainChoice(st));
+        else if (st.game === "ten") { const c = L.tenChoice(st); L.tenPick(st, c[0]); check(); L.tenPick(st, c[1]); }
+        else if (st.game === "fish") { if (st.phase === "ask") L.askFish(st, L.fishChoice(st)); else { if ((seed + guard) % 3 === 0) { L.answerFish(st, L.fishAnswer(st) < 0 ? 0 : -1); check(); } L.answerFish(st, L.fishAnswer(st)); } }
+        else if (st.game === "bingo" && st.phase === "cover") { const sp = L.bingoSpots(st); const wrong = [0, 1, 2, 3, 4, 5, 6, 7, 8].find((k) => sp.indexOf(k) < 0 && !st.covered[st.mover][k]); if (wrong != null && (seed + guard) % 3 === 0) { L.coverBingo(st, wrong); check(); } L.coverBingo(st, sp[0]); }
+        else if (st.game === "cmatch") { const k = L.cmChoice(st); if (k < 0) L.flipMatch(st); else { const wrong = st.hands[st.turn].findIndex((id) => !L.cmFits(id, st.top)); if (wrong >= 0 && (seed + guard) % 4 === 0) { L.playMatch(st, wrong); check(); } L.playMatch(st, k); } }
         else if (st.game === "match3") {
           if (st.phase === "keep") { const w = L.m3Choice(st); for (let k = 0; k < 3; k++) if (st.held[k] !== w[k]) { L.holdDie(st, k); check(); } }
           L.rollMatch(st);
@@ -491,6 +512,24 @@ test("the WORDS: every line has a speaker's words (no picture), and none of them
   }
   for (const p of [DATA.JOSH, ...DATA.PEOPLE]) assert.ok(!/\p{Extended_Pictographic}/u.test(p.say), `${p.id}'s spoken name is words`);
   for (const c of DATA.COLOURS) assert.ok(/^[a-z]+$/.test(c.name) && /^[a-z]+$/.test(c.shape), `${c.id} is said as words`);
+});
+
+test("the WORDS have one owner each: no line in the table is written twice (a later key silently REPLACES an earlier one), and every line the shell says exists", () => {
+  // 🍯 Honey Ten first named its opening line "tenFirst" — 💯 Hundred Hop's
+  // line for a ten-bar — and the second key quietly took over the first:
+  // Hundred Hop would have told him to "tap two flowers that make ten".
+  const src = fs.readFileSync(path.join(__dirname, "../scripts/board-data.js"), "utf8");
+  const body = src.slice(src.indexOf("const SAY = {"), src.indexOf("\n  };", src.indexOf("const SAY = {")));
+  const keys = [...body.matchAll(/^ {4}(\w+):/gm)].map((m) => m[1]);
+  assert.ok(keys.length >= 50, `fixture: the table's keys are read (${keys.length})`);
+  const twice = keys.filter((k, i) => keys.indexOf(k) !== i);
+  assert.deepEqual(twice, [], `a line written twice: ${twice.join(", ")}`);
+  assert.equal(keys.length, Object.keys(DATA.SAY).length, "every key in the source is one line in the table");
+  const main = fs.readFileSync(path.join(__dirname, "../scripts/board-main.js"), "utf8");
+  const used = [...new Set([...main.matchAll(/\bSAY\.(\w+)/g)].map((m) => m[1]))];
+  assert.ok(used.length >= 50, `fixture: the shell's lines are read (${used.length})`);
+  const missing = used.filter((k) => !(k in DATA.SAY));
+  assert.deepEqual(missing, [], `the shell says a line that does not exist (it would say "undefined"): ${missing.join(", ")}`);
 });
 
 // ---- 🍎 Apple Spin -----------------------------------------------------------
@@ -1652,6 +1691,499 @@ test("🐭 MOUSE MAZE: a mouse each and one cheese in a garden of pots; an arrow
   assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
 });
 
+test("🚂 PATTERN TRAIN: five cars in a colour pattern and the next one missing; three different cars offered, the right one among them; the right car is a ⭐ and a new train, another passes the turn with the same train; eight trains, the patterns growing; seeing the pattern is the skill; broken saves are refused", () => {
+  const b = DATA.board("train");
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  assert.equal(L.TRAIN_PATTERNS.length, b.trains, "a pattern for every train");
+  assert.ok(L.TRAIN_PATTERNS[0].length <= L.TRAIN_PATTERNS[L.TRAIN_PATTERNS.length - 2].length, "the patterns grow");
+  for (let seed = 1; seed <= 300; seed++) {
+    const st = L.create({ board: "train", seats: SEATS, seed, first: seed % 2 });
+    let guard = 0;
+    while (st.phase !== "done" && guard++ < 80) {
+      const pat = L.TRAIN_PATTERNS[st.round], map = {};
+      st.cars.forEach((c, k) => { const ch = pat[k % pat.length]; if (map[ch] != null) assert.equal(map[ch], c, `seed ${seed}: the train repeats its pattern`); map[ch] = c; });
+      assert.equal(new Set(Object.values(map)).size, Object.keys(map).length, "each letter its own colour");
+      assert.equal(st.answer, map[pat[5 % pat.length]], "the answer is the car that comes next");
+      assert.equal(new Set(st.options).size, 3, "three different cars");
+      assert.ok(st.options.indexOf(st.answer) >= 0, "the right car is offered");
+      const i = st.turn, round = st.round, cars = st.cars.slice();
+      const wrong = st.options.findIndex((c) => c !== st.answer);
+      if (guard % 3 === 0) {
+        const ev = L.pickCar(st, wrong);
+        assert.equal(ev[0].type, "carMiss");
+        assert.equal(st.round, round, "a wrong car makes no train");
+        assert.deepEqual(st.cars, cars, "the same train waits");
+        assert.equal(st.turn, 1 - i, "the turn passes");
+      } else {
+        const before = st.seats[i].stars;
+        const ev = L.pickCar(st, st.options.indexOf(st.answer));
+        assert.equal(ev[0].type, "carRight");
+        assert.equal(st.seats[i].stars, before + 1, "a ⭐");
+      }
+    }
+    assert.equal(st.phase, "done");
+  }
+  // the skill
+  const share = (sharp) => {
+    let me = 0, them = 0;
+    for (let seed = 1; seed <= 2000; seed++) {
+      const g = L.create({ board: "train", seats: SEATS, seed, first: seed % 2 });
+      let guard = 0;
+      while (g.phase !== "done" && guard++ < 200) {
+        if (g.turn !== 0) { L.autoTurn(g); continue; }
+        L.pickCar(g, sharp ? g.options.indexOf(g.answer) : (seed + guard) % 3);
+      }
+      me += g.seats[0].stars; them += g.seats[1].stars;
+    }
+    return me / (me + them);
+  };
+  const sharp = share(true), plain = share(false);
+  assert.ok(sharp >= 0.6, `seeing the pattern finishes ${(sharp * 100).toFixed(0)}% of the trains`);
+  assert.ok(plain <= 0.45, `any car finishes ${(plain * 100).toFixed(0)}%`);
+  // broken saves
+  const g = L.snapshot(L.create({ board: "train", seats: SEATS, seed: 9, first: 0 }));
+  const bad = [
+    ["a train that breaks its pattern", { ...g, cars: g.cars.map((c, k) => (k === 2 ? g.cars[1] : c)) }],
+    ["the wrong answer", { ...g, answer: g.cars[4] }],
+    ["the answer not offered", { ...g, options: DATA.COLOURS.map((c) => c.id).filter((c) => c !== g.answer).slice(0, 3) }],
+    ["the same car twice", { ...g, options: [g.answer, g.answer, g.options.find((c) => c !== g.answer)] }],
+    ["a train with no ⭐", { ...g, round: 1 }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
+test("🔼 HIGHER OR LOWER: twenty cards, 1 to 10 twice, one turned up; guess bigger or smaller and the next is turned (right a ⭐, the same no ⭐ and no loss), then it is the friend's card to beat; twelve cards, one party; guessing toward the far side is the skill; broken saves are refused", () => {
+  const b = DATA.board("hilo");
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  for (let seed = 1; seed <= 300; seed++) {
+    const st = L.create({ board: "hilo", seats: SEATS, seed, first: seed % 2 });
+    let guard = 0;
+    while (st.phase !== "done" && guard++ < 40) {
+      const i = st.turn, was = st.top, before = st.seats[i].stars, up = (seed + guard) % 2 === 0;
+      assert.deepEqual(L.hiloGuess(st, "up"), [], "a guess is bigger or smaller, nothing else");
+      const ev = L.hiloGuess(st, up);
+      const e = ev[0];
+      assert.equal(e.was, was);
+      assert.equal(st.top, e.card, "the card turned is the next to beat");
+      assert.equal(e.right, up ? e.card > was : e.card < was);
+      assert.equal(st.seats[i].stars, before + (e.right ? 1 : 0), "a ⭐ for a right guess, and nothing taken for a wrong one");
+      if (st.phase !== "done") assert.equal(st.turn, 1 - i, "the turn passes");
+    }
+    assert.equal(st.phase, "done");
+    assert.equal(st.flips, b.flips, "twelve cards");
+  }
+  assert.equal(L.hiloBest({ top: 2, deck: [1, 3, 4, 9] }), true, "a small card: bigger");
+  assert.equal(L.hiloBest({ top: 9, deck: [1, 3, 4, 10] }), false, "a big card: smaller");
+  // the skill
+  const share = (sharp) => {
+    let me = 0, them = 0;
+    for (let seed = 1; seed <= 3000; seed++) {
+      const g = L.create({ board: "hilo", seats: SEATS, seed, first: seed % 2 });
+      let guard = 0;
+      while (g.phase !== "done" && guard++ < 40) {
+        if (g.turn !== 0) { L.autoTurn(g); continue; }
+        L.hiloGuess(g, sharp ? L.hiloBest(g) : (seed + guard) % 2 === 0);
+      }
+      me += g.seats[0].stars; them += g.seats[1].stars;
+    }
+    return me / (me + them);
+  };
+  const sharp = share(true), plain = share(false);
+  assert.ok(sharp >= 0.53, `guessing toward the far side gets ${(sharp * 100).toFixed(0)}% of the ⭐s`);
+  assert.ok(plain <= 0.46, `guessing anyhow gets ${(plain * 100).toFixed(0)}%`);
+  // broken saves
+  const g = L.snapshot(L.create({ board: "hilo", seats: SEATS, seed: 9, first: 0 }));
+  const bad = [
+    ["an eleven", { ...g, top: 11 }],
+    ["a card three times", { ...g, deck: g.deck.slice(1).concat([g.top, g.top]).slice(0, g.deck.length) }],
+    ["flips that do not match the deck", { ...g, flips: 3 }],
+    ["more ⭐s than guesses", { ...g, seats: [{ ...g.seats[0], stars: 2, pos: 2 }, g.seats[1]] }],
+    ["over too soon", { ...g, phase: "done", seats: g.seats.map((x) => ({ ...x, home: true })), order: [0, 1] }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
+test("🍯 HONEY TEN: eighteen flowers, 1 to 9 twice (nine tens in all); nine in the meadow, always with a ten to find; tap one then one that makes ten (a ⭐ and new flowers), else the two are said and the turn passes; all nine tens made, one party; knowing tens is the skill; broken saves are refused", () => {
+  const b = DATA.board("honeyten");
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  for (let seed = 1; seed <= 300; seed++) {
+    const st = L.create({ board: "honeyten", seats: SEATS, seed, first: seed % 2 });
+    assert.equal(st.flowers.length, b.cols * b.rows, "nine flowers");
+    let guard = 0;
+    while (st.phase !== "done" && guard++ < 200) {
+      assert.ok(L.tenPairs(st).length >= 1, `seed ${seed}: always a ten to find`);
+      const i = st.turn, live = st.flowers.map((x, k) => k).filter((k) => st.flowers[k] > 0);
+      const a = live[(seed + guard) % live.length];
+      assert.equal(L.tenPick(st, a)[0].type, "tenHold");
+      assert.deepEqual(L.tenPick(st, a), [], "the same flower again is the echo");
+      const partner = live.find((k) => k !== a && st.flowers[k] + st.flowers[a] === 10);
+      const wrong = live.find((k) => k !== a && st.flowers[k] + st.flowers[a] !== 10);
+      const tryRight = partner != null && (guard % 3 !== 0 || wrong == null);
+      const before = st.seats[i].stars, va = st.flowers[a];
+      const ev = L.tenPick(st, tryRight ? partner : wrong);
+      if (tryRight) {
+        assert.equal(ev[0].type, "tenPair");
+        assert.equal(ev[0].na + ev[0].nb, 10, "a ten");
+        assert.equal(st.seats[i].stars, before + 1, "a ⭐ for a ten");
+      } else {
+        assert.equal(ev[0].type, "tenMiss");
+        assert.equal(ev[0].sum, va + ev[0].nb, "the sum is said");
+        assert.equal(st.seats[i].stars, before, "no ⭐, no loss");
+        assert.equal(st.turn, 1 - i, "the turn passes");
+      }
+      assert.equal(st.held, null, "nothing held after the second flower");
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ends`);
+    assert.equal(st.made.length, 9, "all nine tens");
+  }
+  // the skill
+  const share = (sharp) => {
+    let me = 0, them = 0;
+    for (let seed = 1; seed <= 2000; seed++) {
+      const g = L.create({ board: "honeyten", seats: SEATS, seed, first: seed % 2 });
+      let guard = 0;
+      while (g.phase !== "done" && guard++ < 300) {
+        if (g.turn !== 0) { L.autoTurn(g); continue; }
+        let c;
+        if (sharp) c = L.tenPairs(g)[0];
+        else { const live = g.flowers.map((x, k) => k).filter((k) => g.flowers[k]); const a = live[(seed + guard) % live.length], r = live.filter((k) => k !== a); c = [a, r[(seed * 3 + guard) % r.length]]; }
+        L.tenPick(g, c[0]); L.tenPick(g, c[1]);
+      }
+      me += g.seats[0].stars; them += g.seats[1].stars;
+    }
+    return me / (me + them);
+  };
+  const sharp = share(true), plain = share(false);
+  assert.ok(sharp >= 0.58, `knowing tens makes ${(sharp * 100).toFixed(0)}% of them`);
+  assert.ok(plain <= 0.35, `any two make ${(plain * 100).toFixed(0)}%`);
+  // broken saves
+  const g = L.snapshot(L.create({ board: "honeyten", seats: SEATS, seed: 9, first: 0 }));
+  const bad = [
+    ["a flower three times", { ...g, deck: g.deck.slice(1).concat([g.flowers[0]]) }],
+    ["a flower missing", { ...g, deck: g.deck.slice(1) }],
+    ["a ten with no ⭐", { ...g, made: [[g.deck[0], 10 - g.deck[0]]], deck: g.deck.slice(1) }],
+    ["a ten that is not ten", { ...g, made: [[3, 3]] }],
+    ["an empty place with flowers to come", { ...g, flowers: g.flowers.map((x, k) => (k === 0 ? 0 : x)), deck: g.deck.concat([g.flowers[0]]) }],
+    ["holding nothing real", { ...g, held: 12 }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
+test("🐟 GO FISH: ten pictures twice; five cards each, never a pair in a hand; ask for a picture in your hand: the friend who has it must give it (a pair, a ⭐, ask again), else Go fish (the pond's top card; a pair if it matches); no fibs — a wrong answer only counts a miss; every pair made, one party; asking for one you both have is the skill; broken saves are refused", () => {
+  const b = DATA.board("gofish");
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  assert.equal(DATA.FISH.length, L.FISH_N);
+  assert.equal(new Set(DATA.FISH.map((f) => f.pic)).size, L.FISH_N, "ten different pictures");
+  for (let seed = 1; seed <= 300; seed++) {
+    const st = L.create({ board: "gofish", seats: SEATS, seed, first: seed % 2 });
+    assert.ok(st.hands.every((h) => h.length === b.hand && new Set(h).size === h.length), `seed ${seed}: five cards each, no pair`);
+    let guard = 0;
+    while (st.phase !== "done" && guard++ < 200) {
+      const i = st.turn, o = 1 - i;
+      const k = (seed + guard) % st.hands[i].length, q = st.hands[i][k];
+      assert.equal(L.askFish(st, k)[0].type, "fishAsk");
+      assert.deepEqual(L.askFish(st, 0), [], "one question at a time");
+      const has = st.hands[o].indexOf(q) >= 0, before = st.seats[i].stars, pond = st.pond.length;
+      // no fibs: "go fish" while holding it, or the wrong card, is a miss
+      const wrong = has ? -1 : 0;
+      if (has || st.hands[o].length) assert.equal(L.answerFish(st, wrong)[0].type, "fishMiss");
+      const ev = L.answerFish(st, L.fishAnswer(st));
+      if (has) {
+        assert.equal(ev[0].type, "fishGive");
+        assert.equal(st.seats[i].stars, before + 1, "a pair is a ⭐");
+        if (st.phase === "ask") assert.equal(st.turn, i, "a pair asks again");
+      } else {
+        assert.equal(ev[0].type, "fishGo");
+        if (pond) assert.equal(st.pond.length, pond - 1 - ev.filter((e) => e.type === "fishRefill").length, "one from the pond (and one more for an empty hand)");
+        if (ev[0].pair) assert.equal(st.seats[i].stars, before + 1, "a catch that matches is a pair");
+        if (st.phase !== "done") assert.equal(st.turn, o, "the turn passes");
+      }
+      for (const h of st.hands) assert.equal(new Set(h).size, h.length, "never a pair left in a hand");
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ends`);
+  }
+  // the skill
+  const share = (sharp) => {
+    let me = 0, them = 0;
+    for (let seed = 1; seed <= 2000; seed++) {
+      const g = L.create({ board: "gofish", seats: SEATS, seed, first: seed % 2 });
+      let guard = 0;
+      while (g.phase !== "done" && guard++ < 300) {
+        if (g.turn !== 0) { L.autoTurn(g); continue; }
+        if (g.phase === "ask") { const best = L.fishBest(g); L.askFish(g, sharp && best.length ? best[0] : (seed * 7 + guard) % g.hands[0].length); }
+        if (g.phase === "answer") L.answerFish(g, L.fishAnswer(g));
+      }
+      me += g.seats[0].stars; them += g.seats[1].stars;
+    }
+    return me / (me + them);
+  };
+  const sharp = share(true), plain = share(false);
+  assert.ok(sharp >= 0.58, `asking for one you both have makes ${(sharp * 100).toFixed(0)}% of the pairs`);
+  assert.ok(plain <= 0.47, `asking for any makes ${(plain * 100).toFixed(0)}%`);
+  // broken saves
+  const g = L.snapshot(L.create({ board: "gofish", seats: SEATS, seed: 9, first: 0 }));
+  const bad = [
+    ["a picture three times", { ...g, pond: g.pond.slice(1).concat([g.hands[0][0]]) }],
+    ["a card missing", { ...g, pond: g.pond.slice(1) }],
+    ["a pair left in a hand", { ...g, hands: [g.hands[0].concat([g.hands[0][0]]), g.hands[1]], pond: g.pond.filter((x, k) => k !== g.pond.indexOf(g.hands[0][0])) }],
+    ["a pair with no ⭐", { ...g, pairs: [[g.pond[0]], []], pond: g.pond.filter((x) => x !== g.pond[0]) }],
+    ["asking for a picture he does not hold", { ...g, phase: "answer", want: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].find((x) => g.hands[0].indexOf(x) < 0) }],
+    ["over too soon", { ...g, phase: "done", seats: g.seats.map((x) => ({ ...x, home: true })), order: [0, 1] }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
+test("⛄ SNOWMAN BUILD: each snowman starts as its big ball; a picture die of five parts and ❄️ magic snow (the next part that can go on); a part goes on only after the part it needs (the head after the tummy; the hat, nose and scarf after the head); a part it has, or not yet, and the turn passes; a whole snowman is a ⭐ and its builder then helps; broken saves are refused", () => {
+  const b = DATA.board("snowman");
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  assert.equal(DATA.SNOW_PARTS.length, 7, "six parts (index 0 unused)");
+  assert.equal(L.snowWhich([1], 2), 2, "the tummy goes on the big ball");
+  assert.equal(L.snowWhich([1], 3), 0, "no head before the tummy");
+  assert.equal(L.snowWhich([1, 2], 4), 0, "no hat before the head");
+  assert.equal(L.snowWhich([1, 2, 3], 4), 4, "a hat on the head");
+  assert.equal(L.snowWhich([1, 2], 2), 0, "not a second tummy");
+  assert.equal(L.snowWhich([1], L.SNOW_MAGIC), 2, "magic snow puts on the next part");
+  assert.equal(L.snowWhich([1, 2, 3, 5], L.SNOW_MAGIC), 4, "…the first that can go on");
+  assert.equal(L.snowWhich([1, 2, 3, 4, 5, 6], L.SNOW_MAGIC), 0, "nothing on a whole snowman");
+  for (let seed = 1; seed <= 300; seed++) {
+    const st = L.create({ board: "snowman", seats: SEATS, seed, first: seed % 2 });
+    assert.deepEqual(st.parts, [[1], [1]], "two big snowballs to begin with");
+    let guard = 0;
+    while (st.phase !== "done" && guard++ < 200) {
+      const i = st.turn, m = L.moverFor(st, i), have = st.parts[m].slice();
+      const ev = L.roll(st);
+      if (ev.some((e) => e.type === "snowNot")) {
+        assert.equal(L.snowWhich(have, ev[0].die), 0, "a part that cannot go on");
+        assert.deepEqual(st.parts[m], have, "nothing built");
+        continue;
+      }
+      assert.equal(st.phase, "build");
+      const out = L.buildSnow(st);
+      const p = out[0].part;
+      assert.ok(have.indexOf(p) < 0 && have.indexOf(L.SNOW_NEEDS[p]) >= 0, "a new part, on the part it needs");
+      assert.equal(out[0].mover, m, "on the mover's snowman (a whole one's builder helps the friend)");
+      assert.deepEqual(L.buildSnow(st), [], "one tap, one part");
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ends`);
+  }
+  // broken saves
+  const g = L.snapshot(L.create({ board: "snowman", seats: SEATS, seed: 9, first: 0 }));
+  const bad = [
+    ["no big ball", { ...g, parts: [[], [1]], seats: [{ ...g.seats[0], pos: 0 }, g.seats[1]] }],
+    ["a head with no tummy", { ...g, parts: [[1, 3], [1]], seats: [{ ...g.seats[0], pos: 2 }, g.seats[1]] }],
+    ["two tummies", { ...g, parts: [[1, 2, 2], [1]], seats: [{ ...g.seats[0], pos: 3 }, g.seats[1]] }],
+    ["a part with no count", { ...g, parts: [[1, 2], [1]] }],
+    ["building a hat on a bare ball", { ...g, phase: "build", die: 4 }],
+    ["a die showing between turns", { ...g, die: 2 }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
+test("🔢 NUMBER BINGO: each player's own card of nine squares holding 1 to 6 (every number at least once); roll, and the die's number on the mover's card is covered (any other square only counts a miss; not on the card, the turn passes); a line covered is a ⭐ for the card's owner; a full card is home and its owner's rolls help fill the friend's; broken saves are refused", () => {
+  const b = DATA.board("bingo");
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  assert.equal(L.BINGO_LINES.length, 8, "three rows, three columns, two corner lines");
+  for (let seed = 1; seed <= 300; seed++) {
+    const st = L.create({ board: "bingo", seats: SEATS, seed, first: seed % 2 });
+    for (const c of st.cardsB) {
+      assert.equal(c.length, 9);
+      assert.ok([1, 2, 3, 4, 5, 6].every((n) => c.indexOf(n) >= 0), `seed ${seed}: every number on the card`);
+      assert.ok([1, 2, 3, 4, 5, 6].every((n) => c.filter((x) => x === n).length <= 2), "no number three times");
+    }
+    let guard = 0;
+    while (st.phase !== "done" && guard++ < 200) {
+      const i = st.turn, m = L.moverFor(st, i), cov = st.covered[m].slice(), stars = st.seats.map((x) => x.stars);
+      const ev = L.roll(st);
+      assert.equal(ev[0].type, "roll");
+      if (ev.some((e) => e.type === "bingoNone")) {
+        assert.ok(!st.cardsB[m].some((n, k) => n === ev[0].die && !cov[k]), "not on the card means not on the card");
+        assert.deepEqual(st.covered[m], cov, "nothing covered");
+        if (st.phase !== "done") assert.equal(st.turn, 1 - i, "the turn passes");
+        continue;
+      }
+      assert.equal(st.phase, "cover");
+      assert.equal(st.mover, m, "a full card's owner covers the friend's card");
+      const spots = L.bingoSpots(st);
+      const wrong = [0, 1, 2, 3, 4, 5, 6, 7, 8].find((k) => spots.indexOf(k) < 0 && !cov[k]);
+      if (wrong != null) {
+        assert.deepEqual(L.coverBingo(st, wrong).map((e) => e.type), ["bingoMiss"], "a wrong square only counts a miss");
+        assert.deepEqual(st.covered[m], cov);
+      }
+      const k = spots[(seed + guard) % spots.length];
+      const out = L.coverBingo(st, k);
+      assert.equal(out[0].type, "cover");
+      assert.ok(st.covered[m][k], "the square is covered");
+      const made = L.BINGO_LINES.filter((l) => l.indexOf(k) >= 0 && l.every((j) => st.covered[m][j])).length;
+      assert.equal(st.seats[m].stars - stars[m], made, "a ⭐ for each line it makes, to the card's owner");
+      assert.equal(out[0].lines.length, made);
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ends`);
+  }
+  // broken saves
+  const g = L.snapshot(L.create({ board: "bingo", seats: SEATS, seed: 9, first: 0 }));
+  const bad = [
+    ["a seven on the card", { ...g, cardsB: [g.cardsB[0].map((n, k) => (k === 0 ? 7 : n)), g.cardsB[1]] }],
+    ["a number missing from a card", { ...g, cardsB: [[1, 1, 2, 2, 3, 3, 4, 4, 5], g.cardsB[1]] }],
+    ["a square covered with no count", { ...g, covered: [g.covered[0].map((c, k) => k === 0), g.covered[1]] }],
+    ["a line with no ⭐", { ...g, covered: [[true, true, true, false, false, false, false, false, false], g.covered[1]], seats: [{ ...g.seats[0], pos: 3 }, g.seats[1]] }],
+    ["covering with no die", { ...g, phase: "cover", die: 0 }],
+    ["a die showing between turns", { ...g, die: 3 }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
+test("🌈 COLOUR MATCH: forty cards (four colours with their shapes × 1 to 5, twice); play a card with the top card's colour OR number — any other only counts a miss; nothing fits: turn a new card over and the turn passes (a hand never grows); the one who empties their hand gets the ⭐ and new cards are dealt; three rounds; it is fair; broken saves are refused", () => {
+  const b = DATA.board("colourmatch");
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  // the faces
+  const faces = new Set();
+  for (let id = 0; id < 40; id++) faces.add(L.cmColour(id) + ":" + L.cmNumber(id));
+  assert.equal(faces.size, 20, "twenty faces, each twice");
+  assert.ok([...Array(40).keys()].every((id) => L.cmNumber(id) >= 1 && L.cmNumber(id) <= 5 && L.cmColour(id) >= 0 && L.cmColour(id) < 4));
+  assert.ok(L.cmFits(0, 20) && L.cmFits(0, 5) && L.cmFits(0, 1) && !L.cmFits(0, 6), "same colour or same number, never neither");
+  for (let seed = 1; seed <= 300; seed++) {
+    const st = L.create({ board: "colourmatch", seats: SEATS, seed, first: seed % 2 });
+    assert.ok(st.hands.every((h) => h.length === b.hand), "a hand each");
+    let guard = 0;
+    while (st.phase !== "done" && guard++ < 400) {
+      const i = st.turn, top = st.top, hand = st.hands[i].slice(), n = hand.length;
+      // a card that does not fit changes nothing but the misses
+      const wrong = hand.findIndex((id) => !L.cmFits(id, top));
+      if (wrong >= 0) {
+        const ev = L.playMatch(st, wrong);
+        assert.deepEqual(ev.map((e) => e.type), ["cmMiss"]);
+        assert.equal(st.top, top); assert.equal(st.turn, i); assert.deepEqual(st.hands[i], hand);
+      }
+      const ok = L.cmPlayable(st);
+      if (!ok.length) {
+        const ev = L.flipMatch(st);
+        assert.equal(ev[0].type, "cmFlip");
+        assert.equal(st.hands[i].length, n, "turning one over never grows the hand");
+        if (st.phase !== "done") assert.equal(st.turn, 1 - i, "the turn passes");
+      } else {
+        assert.deepEqual(L.flipMatch(st), [], "no turning over while a card fits");
+        const ev = L.playMatch(st, ok[0]);
+        assert.equal(ev[0].type, "cmPlay");
+        if (ev.some((e) => e.type === "cmOut")) assert.equal(n, 1, "the ⭐ is for the last card");
+        else assert.equal(st.hands[i].length, n - 1);
+      }
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ends`);
+  }
+  // fair: who empties first is not who starts
+  let starts = 0, rounds = 0;
+  for (let seed = 1; seed <= 2000; seed++) {
+    const g = L.create({ board: "colourmatch", seats: SEATS, seed, first: seed % 2 });
+    let lead = g.turn, r0 = 0, guard = 0;
+    while (g.phase !== "done" && guard++ < 500) {
+      for (const e of L.autoTurn(g)) if (e.type === "cmOut") { rounds++; if (e.seat === lead) starts++; }
+      // a new round is started by whoever's turn it is after the deal
+      if (g.round !== r0) { r0 = g.round; lead = g.turn; }
+    }
+  }
+  const share = starts / rounds;
+  assert.ok(share > 0.4 && share < 0.66, `the round's starter empties first ${(share * 100).toFixed(0)}% of the time`);
+  // broken saves
+  const g = L.snapshot(L.create({ board: "colourmatch", seats: SEATS, seed: 9, first: 0 }));
+  const bad = [
+    ["a card twice", { ...g, deck: g.deck.slice(1).concat([g.hands[0][0]]) }],
+    ["a card missing", { ...g, deck: g.deck.slice(1) }],
+    ["a forty-first card", { ...g, deck: g.deck.slice(1).concat([40]) }],
+    ["an empty hand mid-game", { ...g, hands: [[], g.hands[1]], deck: g.deck.concat(g.hands[0]) }],
+    ["a round won with no ⭐", { ...g, round: 1 }],
+    ["over too soon", { ...g, phase: "done", seats: g.seats.map((x) => ({ ...x, home: true })), order: [0, 1] }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
+test("🕵️ WHO'S HIDING: nine different friends (a dog, cat or bunny; a red, blue or yellow shirt; a hat or none), one hiding; each turn three questions, one of them the best split; the answer puts down everyone it rules out, and the one who leaves a single friend standing found them (a ⭐); four friends, one party; asking the best question is the skill; broken saves are refused", () => {
+  const b = DATA.board("hide");
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  assert.equal(DATA.HIDERS.animals.length * DATA.HIDERS.colours.length * 2, 18, "eighteen hiders in all");
+  for (const c of DATA.HIDERS.colours) assert.ok(DATA.COLOURS.some((x) => x.id === c), `${c} is a real colour (with its shape)`);
+  // the traits read straight off an id
+  assert.deepEqual(L.hideTraits(0), { a: 0, c: 0, h: 0 });
+  assert.deepEqual(L.hideTraits(17), { a: 2, c: 2, h: 1 });
+  assert.ok(L.hideYes(1, 7) && !L.hideYes(0, 7), "id 7 is a cat");
+  assert.ok(L.hideYes(3, 6) && L.hideYes(6, 7) && !L.hideYes(6, 6), "id 6 is a red cat without a hat, 7 in one");
+  for (let seed = 1; seed <= 400; seed++) {
+    const st = L.create({ board: "hide", seats: SEATS, seed, first: seed % 2 });
+    assert.equal(st.cards.length, b.cols * b.rows);
+    assert.equal(new Set(st.cards).size, st.cards.length, `seed ${seed}: nine different friends`);
+    assert.ok(st.hidden >= 0 && st.hidden < st.cards.length);
+    // three different questions, one of them the best split there is
+    assert.equal(st.asks.length, b.ask);
+    assert.equal(new Set(st.asks).size, b.ask);
+    const best = Math.max(...[0, 1, 2, 3, 4, 5, 6].map((q) => L.hideSplit(st, q)));
+    assert.ok(best > 0 && st.asks.some((q) => L.hideSplit(st, q) === best), `seed ${seed}: the best question is offered`);
+  }
+  // an answer never puts the hider down, and puts down exactly who it rules out
+  for (let seed = 1; seed <= 300; seed++) {
+    const st = L.create({ board: "hide", seats: SEATS, seed, first: 0 });
+    let guard = 0;
+    while (st.phase !== "done" && guard++ < 80) {
+      const k = (seed + guard) % st.asks.length, q = st.asks[k];
+      const h = st.cards[st.hidden], before = st.cards.slice(), upBefore = st.up.slice();
+      const ev = L.askHide(st, k);
+      const a = ev[0];
+      assert.equal(a.type, "ask");
+      assert.equal(a.yes, L.hideYes(q, h), "the answer is the hider's");
+      for (const j of a.down) assert.ok(upBefore[j] && L.hideYes(q, before[j]) !== a.yes, "only the ruled-out go down");
+      assert.equal(a.down.length, upBefore.filter((u, j) => u && L.hideYes(q, before[j]) !== a.yes).length, "everyone ruled out goes down");
+      const f = ev.find((e) => e.type === "hideFound");
+      if (f) assert.equal(f.card, h, "the one found is the hider");
+      else if (st.phase !== "done") assert.ok(st.up[st.hidden], "the hider stays up");
+    }
+    assert.equal(st.phase, "done");
+  }
+  // a question that rules nobody out puts nobody down (and the turn passes)
+  const st = L.create({ board: "hide", seats: SEATS, seed: 3, first: 0 });
+  const useless = [0, 1, 2, 3, 4, 5, 6].find((q) => L.hideSplit(st, q) === 0 && st.asks.indexOf(q) >= 0);
+  if (useless != null) {
+    const ev = L.askHide(st, st.asks.indexOf(useless));
+    assert.equal(ev[0].down.length, 0);
+    assert.equal(st.turn, 1, "the turn passes");
+  }
+  // the skill: asking the best question finds more of the friends
+  const share = (sharp) => {
+    let me = 0, them = 0;
+    for (let seed = 1; seed <= 2000; seed++) {
+      const g = L.create({ board: "hide", seats: SEATS, seed, first: seed % 2 });
+      let guard = 0;
+      while (g.phase !== "done" && guard++ < 200) {
+        if (g.turn !== 0) { L.autoTurn(g); continue; }
+        L.askHide(g, sharp ? L.hideBest(g)[0] : (seed * 7 + guard) % g.asks.length);
+      }
+      me += g.seats[0].stars; them += g.seats[1].stars;
+    }
+    return me / (me + them);
+  };
+  const sharp = share(true), plain = share(false);
+  assert.ok(sharp >= 0.56, `the best question finds ${(sharp * 100).toFixed(0)}% of the friends`);
+  assert.ok(plain <= 0.47, `any question finds ${(plain * 100).toFixed(0)}%`);
+  assert.ok(sharp - plain >= 0.1, `asking well is worth ${((sharp - plain) * 100).toFixed(0)} points`);
+  // broken saves
+  const g = L.snapshot(L.create({ board: "hide", seats: SEATS, seed: 9, first: 0 }));
+  const bad = [
+    ["the hider down", { ...g, up: g.up.map((u, k) => k !== g.hidden) }],
+    ["only one standing mid-game", { ...g, up: g.up.map((u, k) => k === g.hidden) }],
+    ["two of the same friend", { ...g, cards: [g.cards[0]].concat(g.cards.slice(0, -1)) }],
+    ["a nineteenth friend", { ...g, cards: g.cards.slice(0, -1).concat([18]) }],
+    ["a question that does not exist", { ...g, asks: [7, 0, 1] }],
+    ["the same question twice", { ...g, asks: [0, 0, 1] }],
+    ["a friend found with no ⭐", { ...g, found: 1 }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
 test("🎯 DICE MATCH: roll three dice, keep some (twice), two the same a ⭐ and three the same three; each die is its own luck (a fair bag of 1-6 could never deal a match); five turns each, one party; keeping the matching dice is the skill; broken saves are refused", () => {
   const b = DATA.board("dicematch");
   const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
@@ -1878,7 +2410,7 @@ test("an event NAME belongs to one game unless it is on the shared list (the she
   // Spot find: the middle card never moved and the game stuck.
   const SHARED = {
     turn: "the turn routine", end: "the turn routine", home: "the race games' arrival", helper: "the race games' helper rule",
-    roll: "Shut the Doors rolls the dice's own die", hop: "the shell branches the hen's hop by game", spin: "the shell branches the farm's spinner by game",
+    roll: "Shut the Doors, Number Bingo and Snowman Build roll the dice's own die (the shell's rollDice branches by game)", hop: "the shell branches the hen's hop by game", spin: "the shell branches the farm's spinner by game",
   };
   const by = {};
   for (const b of DATA.BOARDS) {
