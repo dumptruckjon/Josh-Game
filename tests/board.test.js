@@ -11,7 +11,7 @@
 
 const { test, before, after } = require("node:test");
 const assert = require("node:assert");
-const { startServer, launchBrowser } = require("./helpers");
+const { startServer, launchBrowser, BOARD_MIDTURN } = require("./helpers");
 const L = require("../scripts/board-logic.js");
 
 let server, browser, context, page, baseURL;
@@ -3007,4 +3007,105 @@ test("🎲 a whole Pick a Die against the computer: his roll is two dice, two bi
 
 test("no uncaught page errors in Game Night", () => {
   assert.deepEqual(pageErrors, []);
+});
+
+test("🎲 EVERY box's first game shows the ghost hand, and its fingertip rests on a button he can tap (derived from the shelf)", async () => {
+  // The hand is how a non-reader learns where to start, and each game points
+  // it somewhere of its own (the pad, a card, a pot, a column, a flower…). A
+  // new game that forgot its branch would point at nothing, or at the wrong
+  // thing, and every whole-game test would still pass.
+  const boxes = await page.evaluate(() => window.BoardData.BOXES.map((b) => b.id));
+  const off = [];
+  for (const box of boxes) {
+    await page.evaluate((x) => { window.__BOARD.reset({ done: { moon: 2 } }); window.__BOARD.start(x, "river", true, 3, 0); }, box);
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    await page.waitForFunction(() => { const h = document.querySelector("#screen-board-play .bn-hand"); return h && !h.hidden && h.offsetParent; }, null, { timeout: 5000 }).catch(() => {});
+    const under = await page.evaluate(() => {
+      const h = document.querySelector("#screen-board-play .bn-hand");
+      if (!h || h.hidden || !h.offsetParent) return "no hand";
+      const b = h.getBoundingClientRect();
+      h.style.visibility = "hidden";
+      const e = document.elementFromPoint(b.left + b.width * 0.3, b.top + b.height * 0.2);
+      h.style.visibility = "";
+      const t = e && e.closest("button");
+      return t && !t.disabled && t.offsetParent ? "ok" : "under it: " + (e ? e.className : "nothing");
+    });
+    if (under !== "ok") off.push(box + " (" + under + ")");
+  }
+  assert.deepEqual(off, [], "a first-time hand that does not rest on a button");
+});
+
+test("🎲 EVERY box carries on: played a while, the page RELOADED, and ▶ carry on brings back the very same game, still playable (derived from the shelf)", async () => {
+  // Moon Race's carry-on is tested above; each newer game keeps its own
+  // fields (a hand, a pond, a held flower, covered squares, a train) and the
+  // engine's restore refuses any it could not have written — so a field the
+  // save forgot would drop his game silently, which only a reload can show.
+  await quick();
+  const errors = [];
+  const onErr = (e) => errors.push(String(e));
+  page.on("pageerror", onErr);
+  try {
+    const boxes = await page.evaluate(() => window.BoardData.BOXES.map((b) => b.id));
+    const lost = [];
+    for (const box of boxes) {
+      await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }));
+      await startGame(box, "raegar", true, 11, 0);
+      for (let k = 0; k < 8; k++) {
+        await page.evaluate((n) => {
+          const st = window.__BOARD.state();
+          if (!st || st.phase === "done" || window.__BOARD.busy()) return;
+          const live = [...document.querySelectorAll("#screen-board-play .bn-field button:not([disabled]), #screen-board-play .bn-choose button")].filter((x) => x.offsetParent);
+          const b = live.length && st.phase !== "roll" ? live[(n * 5) % live.length] : document.querySelector("#screen-board-play .bn-pad--0");
+          if (b) b.click();
+        }, k);
+        await page.waitForTimeout(150);
+      }
+      await page.waitForFunction(() => !window.__BOARD.busy(), null, { timeout: 10000 });
+      if ((await st()).phase === "done") continue;
+      const kept = await page.evaluate(() => JSON.stringify(window.BoardLogic.snapshot(window.__BOARD.state())));
+      await page.reload({ waitUntil: "load" });
+      await go("#board-who-" + box, "#screen-board-who");
+      if (!(await page.locator("#screen-board-who .bn-keep").isVisible())) { lost.push(box + " (no carry-on card)"); continue; }
+      await page.locator("#screen-board-who .bn-keep").click();
+      await page.locator("#screen-board-play").waitFor({ state: "visible" });
+      const back = await page.evaluate(() => JSON.stringify(window.BoardLogic.snapshot(window.__BOARD.state())));
+      if (back !== kept) lost.push(box + " (a different game came back)");
+      const live = await page.evaluate(() => [...document.querySelectorAll("#screen-board-play .bn-field button, #screen-board-play .bn-pad")].filter((x) => x.offsetParent).length);
+      if (!live) lost.push(box + " (nothing to tap)");
+    }
+    assert.deepEqual(lost, [], "a game that does not carry on");
+    assert.deepEqual(errors, [], "no page errors");
+  } finally { page.off("pageerror", onErr); await slow(); }
+});
+
+test("🎲 EVERY board says what it shows: no button and no picture on any box's play screen is nameless, fresh or mid-turn (derived from the shelf)", async () => {
+  // The audit found a face inside four boards' strips (🔢 ⛄ 🚪 🐟) read out
+  // as a nameless picture beside the name its container already gave, and Go
+  // Fish's question bubble read as an emoji and a "?". A picture that repeats
+  // a name is hidden; one that carries meaning is named.
+  const bad = [];
+  const scan = async (label) => {
+    await page.waitForTimeout(250);
+    const lines = (await page.locator("#screen-board-play").ariaSnapshot()).split("\n").map((l) => l.trim());
+    const nameless = lines.filter((l) => /^- (button|img)(:)?$/.test(l) || /^- (button|img) ""/.test(l));
+    if (nameless.length) bad.push(label + ": " + nameless.length + " nameless");
+  };
+  const boxes = await page.evaluate(() => window.BoardData.BOXES.map((b) => b.id));
+  for (const box of boxes) {
+    await page.evaluate((x) => { window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }); window.__BOARD.start(x, "river", true, 3, 0); }, box);
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    await scan(box);
+  }
+  for (const [box, drive] of BOARD_MIDTURN) {
+    const ok = await page.evaluate((a) => {
+      window.__BOARD.reset({ introSeen: true });
+      const L = window.BoardLogic;
+      const st = L.create({ board: a[0], seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 5, first: a[0] === "gofish" ? 1 : 0 });
+      if (!(0, eval)("(" + a[1] + ")")(L, st)) return false;
+      return window.__BOARD.load(a[0], st);
+    }, [box, drive.toString()]);
+    assert.ok(ok, `fixture: ${box} reached its mid-turn state`);
+    await scan(box + " mid-turn");
+  }
+  assert.deepEqual(bad, [], "a board that shows something it does not name");
 });

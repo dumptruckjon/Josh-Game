@@ -10496,6 +10496,26 @@ so 🧠 and 🏴‍☠️, whose buttons fill the board's height there, met a pa
 and Go Fish's "short" was a fixed height while the other hand's strip WRAPS on a
 narrow phone, so it is decided from the measured strip and hand now. Both sizes
 joined the mobile lists, each proven by its mutation.
+**And CI then showed the live site had been stale since batch 5.** Runs #538
+and #539 both failed on real WebKit — Line Up's columns sat 13.99px from his
+pad at 390x844 (the same 12px tray gap; Chromium measured 14.0 and passed), and
+#538 also had the Line Up turn-over race — so neither batch 5 nor batch 6 had
+deployed, and nothing said so but the red runs. Read the run's conclusion after
+every push, not only the next push's; and a layout that sits EXACTLY on the
+audit's floor in Chromium is a coin flip on WebKit. (`gh api` can read job logs
+through the proxy where curl on the blob URL is refused.)
+
+**Round 2 added three derived checks over every box, each clean and each proven
+by a planted bug**: the first-time hand rests on a button he can tap (a game
+whose hand pointed at nothing would pass every whole-game test); every box
+CARRIES ON after a reload as the very same game (the engine's restore refuses a
+field it could not have written, so a forgotten field drops his game silently);
+and every board NAMES what it shows. That last one found the only defect of the
+round: four boards' strips (🔢 ⛄ 🚪 🐟) held a player's face as a nameless
+picture beside the name its container already gave, and Go Fish's question
+bubble read as an emoji and a "?" — the faces are aria-hidden now and the bubble
+says "River asks: the crab?". Two people playing all thirty, with no computer,
+passed turns both ways with no page error.
 
 ---
 

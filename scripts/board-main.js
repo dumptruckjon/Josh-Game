@@ -959,11 +959,11 @@
     const nCols = Math.max(1, Math.min(Math.max(3, Math.min(5, nCells, Math.floor((fw + 16) / 91) || 3)), nCells || 1));
     const rows = Math.max(1, Math.ceil(nCells / nCols)), handNeed = rows * 75 + (rows - 1) * 16 + 20;
     fishEl.dataset.short = "0";
-    other.innerHTML = '<span class="bn-fish__face">' + R.faceHTML(seatPerson(small)) + "</span>" + sm;
+    other.innerHTML = '<span class="bn-fish__face" aria-hidden="true">' + R.faceHTML(seatPerson(small)) + "</span>" + sm;
     const short = other.offsetHeight + 12 + 56 + 12 + handNeed > fh;
     fishEl.dataset.short = short ? "1" : "0";
-    const bubble = v.q >= 0 ? '<span class="bn-fish__bubble"><span class="bn-fish__face">' + R.faceHTML(seatPerson(v.asker)) + '</span><span class="bn-fish__q">' + DATA.FISH[v.q].pic + '</span><span class="bn-fish__qm">?</span></span>' : "";
-    other.innerHTML = short && bubble ? bubble : '<span class="bn-fish__face">' + R.faceHTML(seatPerson(small)) + "</span>" + sm;
+    const bubble = v.q >= 0 ? '<span class="bn-fish__bubble" role="img" aria-label="' + nameOf(v.asker) + " asks: the " + fishSay(v.q) + '?"><span class="bn-fish__face" aria-hidden="true">' + R.faceHTML(seatPerson(v.asker)) + '</span><span class="bn-fish__q">' + DATA.FISH[v.q].pic + '</span><span class="bn-fish__qm">?</span></span>' : "";
+    other.innerHTML = short && bubble ? bubble : '<span class="bn-fish__face" aria-hidden="true">' + R.faceHTML(seatPerson(small)) + "</span>" + sm;
     other.setAttribute("aria-label", short && bubble ? nameOf(v.asker) + " asks: " + fishSay(v.q) + "?" : nameOf(small) + "'s cards: " + (v.hands[small].map(fishSay).join(", ") || "none"));
     // the pond: "Go fish!" is a button only while he answers a question he
     // cannot (and the pond has fish in it)
@@ -1069,7 +1069,7 @@
     const live = st.phase === "build" && st.mover === m && !game.busy && !st.seats[st.turn].cpu;
     let html = "";
     for (const i of [0, 1]) {
-      const inner = '<span class="bn-snow__face">' + R.faceHTML(seatPerson(i)) + "</span>" + snowmanSVG(v.parts[i], v.who === i ? v.fresh : 0);
+      const inner = '<span class="bn-snow__face" aria-hidden="true">' + R.faceHTML(seatPerson(i)) + "</span>" + snowmanSVG(v.parts[i], v.who === i ? v.fresh : 0);
       const cls = "bn-snowman" + (i === m && st.phase !== "done" ? " bn-snowman--go" : "");
       if (live && i === m) html += '<button class="tap ' + cls + '" type="button" style="border-color:' + seatPerson(i).colour + '" aria-label="' + snowLabel(i, v.parts[i]) + ". Tap to put on the " + snowSay(L.snowWhich(st.parts[m], st.die)) + '">' + inner + "</button>";
       else html += '<span class="' + cls + '" role="img" style="border-color:' + seatPerson(i).colour + '" aria-label="' + snowLabel(i, v.parts[i]) + '">' + inner + "</span>";
@@ -1156,7 +1156,7 @@
     grid.setAttribute("aria-label", nameOf(m) + "'s bingo card");
     grid.style.borderColor = owner.colour;
     grid.style.setProperty("--owner", owner.colour);
-    let top = '<span class="bn-bingo__face">' + R.faceHTML(owner) + "</span>";
+    let top = '<span class="bn-bingo__face" aria-hidden="true">' + R.faceHTML(owner) + "</span>";
     if (live) top += '<span class="bn-goal__op">🎯</span><span class="bn-goal__die">' + pipsHTML(st.die) + '</span><span class="bn-goal__n">' + st.die + "</span>";
     const row = bingoEl.querySelector(".bn-bingo__top");
     row.innerHTML = top;
@@ -1238,7 +1238,7 @@
     // the row above the doors: WHOSE doors these are (their face), then what
     // to make — the roll's dots and its number, or, with a door held,
     // "held + ? = roll" — so the goal sits beside the doors, not down on the pad
-    let goal = '<span class="bn-doors__face">' + R.faceHTML(seatPerson(m)) + "</span>";
+    let goal = '<span class="bn-doors__face" aria-hidden="true">' + R.faceHTML(seatPerson(m)) + "</span>";
     if (live) {
       const want = '<span class="bn-goal__die">' + pipsHTML(st.die) + '</span><span class="bn-goal__n">' + st.die + "</span>";
       goal += st.held != null

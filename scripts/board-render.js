@@ -123,7 +123,12 @@
       const tens = n % 10 === 0;
       const fill = n === 1 ? "#bfe8ff" : n === board.size ? "#ffd84d" : tens ? "#ffe39a" : (board.rows - 1 - c.row) % 2 ? "#fff8ea" : "#ffffff";
       s += '<rect class="bn-cell" data-n="' + n + '" x="' + (x + 4) + '" y="' + (y + 4) + '" width="92" height="92" rx="14" fill="' + fill + '" stroke="' + (tens ? "#c98a00" : "rgba(0,0,0,0.16)") + '" stroke-width="' + (tens ? 3 : 2) + '"/>';
-      s += '<text class="bn-num" data-n="' + n + '" x="' + (x + 27) + '" y="' + (y + 37) + '" text-anchor="middle" font-size="' + (n > 99 ? 26 : 34) + '" font-weight="900" fill="' + (tens ? "#6b4700" : "#1d1d3b") + '">' + n + "</text>";
+      // (the one three-digit number, 100, is set TIGHTER rather than smaller:
+      // at 26 real WebKit drew it 9px tall on a 360x640 phone, under the
+      // readable floor; at the others' 34 with -4 tracking it is their height
+      // and still fits its square)
+      const big = n > 99;
+      s += '<text class="bn-num" data-n="' + n + '" x="' + (x + (big ? 34 : 27)) + '" y="' + (y + 37) + '" text-anchor="middle" font-size="34"' + (big ? ' letter-spacing="-4"' : "") + ' font-weight="900" fill="' + (tens ? "#6b4700" : "#1d1d3b") + '">' + n + "</text>";
     }
     const z = centre(board, board.size);
     s += emojiAt("🎉", z.x + 16, z.y + 38, 40);
