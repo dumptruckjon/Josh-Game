@@ -97,6 +97,45 @@ test("THE JUMP LAWS: boosters go up, a comet drops at most one row and never fro
   assert.deepEqual(DATA.box("comet").unlockAfter, { box: "moon", games: 2 }, "comets arrive from his THIRD Moon game");
 });
 
+// Read off the DRAWN board, not the data: the picture is what he follows.
+// Every booster is a straight <line>, every comet a quadratic <path>; no two
+// of a board's jump lines may cross. Comet Moon once shipped with all seven
+// tangled together (its comets swept the whole width of a row), and Moon Race
+// with two rockets crossing — a board he cannot follow is a board he cannot
+// plan on, and the landing pad at each line's end means nothing if the lines
+// cross on the way.
+test("NO TANGLE: on every dice board, no two jump lines CROSS (read off the drawn SVG), and each line ends on a landing pad", () => {
+  global.BoardData = DATA; global.BoardLogic = L;
+  delete require.cache[require.resolve("../scripts/board-render.js")];
+  require("../scripts/board-render.js");
+  const R = global.BoardRender;
+  const X = (a, b, c, d) => {
+    const o = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+    return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0;
+  };
+  let lines = 0;
+  for (const board of DATA.BOARDS.filter((b) => b.game === "dice" && b.jumps.length)) {
+    const svg = R.boardSVG(board);
+    const curves = [];
+    // the first <line> of each booster is its thick body (the dashed one lies on it)
+    for (const m of svg.matchAll(/<line x1="([\d.-]+)" y1="([\d.-]+)" x2="([\d.-]+)" y2="([\d.-]+)" stroke="#ff9f43"/g)) curves.push([[+m[1], +m[2]], [+m[3], +m[4]]]);
+    for (const m of svg.matchAll(/<path d="M([\d.-]+) ([\d.-]+) Q([\d.-]+) ([\d.-]+) ([\d.-]+) ([\d.-]+)" fill="none" stroke="#6fe0ff"/g)) {
+      const [px, py, cx, cy, qx, qy] = m.slice(1, 7).map(Number), pts = [];
+      for (let k = 0; k <= 20; k++) { const t = k / 20; pts.push([(1 - t) * (1 - t) * px + 2 * (1 - t) * t * cx + t * t * qx, (1 - t) * (1 - t) * py + 2 * (1 - t) * t * cy + t * t * qy]); }
+      curves.push(pts);
+    }
+    assert.equal(curves.length, board.jumps.length, `fixture: ${board.id} draws one line per jump`);
+    lines += curves.length;
+    const segs = (pts) => pts.slice(1).map((p, i) => [pts[i], p]);
+    for (let i = 0; i < curves.length; i++) for (let j = i + 1; j < curves.length; j++) {
+      const hit = segs(curves[i]).some((s) => segs(curves[j]).some((t) => X(s[0], s[1], t[0], t[1])));
+      assert.ok(!hit, `${board.id}: ${JSON.stringify(board.jumps[i])} and another jump's line cross`);
+    }
+    assert.equal((svg.match(/class="bn-land"/g) || []).length, board.jumps.length, `${board.id}: every jump line ends on a landing pad`);
+  }
+  assert.ok(lines >= 12, "fixture: the dice boards carry real jump lines");
+});
+
 test("RAINBOW LAWS: a colour and a shape on every square, no two neighbours alike, every colour never more than 7 ahead", () => {
   const b = DATA.board("rainbow");
   assert.equal(b.colours.length, b.size - 2, "one colour per square between the start and the cake");

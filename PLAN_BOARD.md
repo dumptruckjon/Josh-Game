@@ -1,6 +1,6 @@
 # 🎲 Game Night — board games for Josh (and a friend)
 
-**Status: BATCHES 1-6 BUILT, audited three times (§15 is the third)** (batches 1-2
+**Status: BATCHES 1-6 BUILT, audited four times (§16 is the fourth)** (batches 1-2
 audited twice; §11 is batch 3: 💯 Hundred Hop, 🐔 Hen House, 🧺 Picnic Lotto,
 and 👀 Twin Spot, the owner's Spot It ask; §12 is batch 4, games of SKILL:
 🧠 Peek-a-Pair, 🚪 Shut the Doors, 🌰 Acorn Pots, 🁢 Dot Dominoes and
@@ -602,3 +602,43 @@ of every spoken line; real-pace waits; reduced motion; leaks.
   pairs, which he watches to remember); Colour Match has no strategy edge (50.7%
   careful against 49.9% random) and stays on the Thinking shelf, as Lotto and
   Spot do, because you must recognise what fits.
+
+## 16. The fourth audit (the owner, 2026-11-05: "deep and broad … confusing for new players … quality, fun, playability")
+
+Played as a new player: every box opened fresh (first-time hand and all) at
+390x844 with the sound on and every spoken line captured, screenshots after
+1, 3 and 6 of his taps, then each box's first tap, a help tap on his own pad,
+and every row of cards checked for being centred.
+
+- **Fixed — another game's words:** the line for a move under way was chosen
+  by the PHASE alone, and phase names are shared. Rainbow Trail and Picnic
+  Lotto opened every turn with Dominoes' "Nothing matches. Take one from the
+  pile!", Colour Grab, Pattern Train and Honey Ten said Apple Spin's "Tap to
+  pick! One tap, one apple.", and Acorn Pots said "Pick a die!". One
+  `phaseLine()`, keyed by the game too, now owns the turn's line and 👂's. The
+  same shared phase also ran Apple Spin's grown-up auto-pick (an endless timer)
+  in those three games. The voice test now fails a line said in a game it does
+  not belong to.
+- **Fixed — tangled boards:** Comet Moon's comets swept across whole rows and
+  crossed most of its rockets, and two of Moon Race's rockets crossed. Comets
+  now drop straight down one row and the rockets climb the sides; no line
+  crosses another (a test reads the drawn board), and every line ends on a
+  landing pad so its two ends never look alike.
+- **Fixed — a dead first tap:** Shut the Doors' doors are buttons from the
+  start, and one tapped before rolling did nothing at all. Now the dice pad
+  wiggles, the hand points at it, and it says "Roll the dice!". A test taps the
+  first board button of every box and requires a response.
+- **Fixed — a hand on a wrong answer:** with no glow earned, the help hand
+  pointed at the FIRST choice, which can be wrong (Colour Match pointed at a
+  card that did not match while the deck glowed). In the answer games it now
+  points at the question (the train's "?", the number to find, "4 + ? = 10",
+  the card to match, the fish asked for), or at 🎣 when he has none to give.
+- **Fixed:** in Go Fish, a tap on his own pad while River asked HIM said "It's
+  River's turn. You're next!"; it now says what to do and points.
+- **Fixed:** a fished domino was cut in half (it sat in the line's tiny row).
+- **Fixed:** Higher or Lower's deck wore 🔼, the "bigger" arrow; it is ❔ now.
+- **Fixed:** a 5-card Go Fish hand was 4 cards and then 1 alone at the left,
+  and a Colour Match hand of two sat at the left of three columns; both centre.
+- **Measured, no change:** Snowman Build wastes about half its rolls (a part
+  already on, or not yet), which is the Cootie shape; Apple Spin's trees never
+  go bare (on purpose); every other box's first tap does something.

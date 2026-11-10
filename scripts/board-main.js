@@ -596,6 +596,7 @@
     hidePop();
     hideMark();
     endRides();
+    endWiggles();
     endCheer();
     const farm = board.game === "hen";
     for (let i = 0; i < 2; i++) {
@@ -803,7 +804,7 @@
     const top = hiloEl.querySelector(".bn-hilo__top");
     top.innerHTML = hiloCardHTML(v.top, v.said ? "bn-hlc--new" : "") + (v.said && !v.said.wait ? '<span class="bn-hilo__ans' + (v.said.same ? " bn-hilo__ans--same" : "") + '" aria-hidden="true">' + (v.said.right ? "✅" : v.said.same ? "=" : "❌") + "</span>" : "");
     top.setAttribute("aria-label", "The card to beat: " + v.top);
-    hiloEl.querySelector(".bn-hilo__deck").innerHTML = '<span class="bn-hlc bn-hlc--back"><span class="bn-hlc__back">🔼</span><span class="bn-hlc__left">' + (game.board.flips - st.flips) + "</span></span>";
+    hiloEl.querySelector(".bn-hilo__deck").innerHTML = '<span class="bn-hlc bn-hlc--back"><span class="bn-hlc__back">❔</span><span class="bn-hlc__left">' + (game.board.flips - st.flips) + "</span></span>";
     const best = mine && game.teach ? L.hiloBest(st) : null;
     let row = "";
     for (const up of [true, false]) {
@@ -989,6 +990,8 @@
     const cells = hand.length + (answering ? 1 : 0);
     const cols = Math.max(3, Math.min(5, cells, Math.floor((parseInt(fishEl.style.getPropertyValue("--fish-w"), 10) + 16) / (75 + 16)) || 3));
     fishEl.style.setProperty("--fish-cols", String(Math.max(1, Math.min(cols, cells || 1))));
+    // (a plain number: calc() inside repeat() is not safe on Safari 14)
+    fishEl.style.setProperty("--fish-half", String(2 * Math.max(1, Math.min(cols, cells || 1))));
     let cards = "";
     hand.forEach((q, k) => {
       const label = (asking ? "Ask for the " : answering ? "Give the " : "") + fishSay(q);
@@ -998,6 +1001,10 @@
     if (answering) cards += '<button class="tap bn-fishc bn-fishgo' + ((st.misses >= 2 || game.teach) && L.fishAnswer(st) < 0 ? " bn-fishgo--hint" : "") + '" type="button" aria-label="Go fish!">🎣<span class="bn-fishgo__n">' + fishLeft + "</span></button>";
     const handEl = fishEl.querySelector(".bn-fish__hand");
     handEl.innerHTML = cards;
+    // a last row that is not full starts half a card in per missing card, so
+    // it sits centred under the row above (the grid is in half-columns)
+    const kids = handEl.children, fc = Math.max(1, Math.min(cols, cells || 1)), rem = kids.length % fc;
+    if (rem && kids.length > fc) kids[kids.length - rem].style.gridColumnStart = String(fc - rem + 1);
     handEl.setAttribute("aria-label", nameOf(big) + "'s cards");
   }
   function tapFish(k, btn) {
@@ -1265,6 +1272,17 @@
   function tapDoor(n, btn) {
     if (!game || game.board.game !== "doors" || game.busy || !playVisible()) return;
     const st = game.st;
+    // a door tapped BEFORE the roll: the doors look like buttons the whole
+    // game, so a new player taps one first — never a silent dead tap: the
+    // dice pad wiggles, the hand points at it, and it says to roll
+    if (st.phase === "roll" && btn && !st.seats[st.turn].cpu) {
+      const shown = game.showTurn == null ? st.turn : game.showTurn;
+      if (shown !== st.turn) return;
+      wiggle(pads[st.turn]);
+      sayPlay(SAY.doorsFirst);
+      showHand(st.turn); later(hideHand, 2600);
+      return;
+    }
     if (st.phase !== "shut") return;
     if (btn && st.seats[st.turn].cpu) return;   // the computer's turn
     const ev = L.shutDoor(st, n);
@@ -1764,7 +1782,11 @@
       if (mine) cards += '<button class="tap bn-cmc' + (glow.indexOf(k) >= 0 ? " bn-cmc--hint" : "") + '" type="button"' + style + ' data-k="' + k + '" aria-label="' + cmName(id) + '">' + cmCardSVG(id) + "</button>";
       else cards += '<span class="bn-cmc bn-cmc--still"' + style + ' role="img" aria-label="' + cmName(id) + '">' + cmCardSVG(id) + "</span>";
     });
-    cmEl.querySelector(".bn-cm__hand").innerHTML = cards;
+    const cmHand = cmEl.querySelector(".bn-cm__hand");
+    cmHand.innerHTML = cards;
+    // as many columns as cards (up to three), so two cards sit centred, not
+    // at the left of a three-card row
+    cmHand.style.setProperty("--cm-n", String(Math.max(1, Math.min(3, hand.length))));
   }
   function tapCm(k, btn) {
     if (!game || game.board.game !== "cmatch" || game.busy || !playVisible()) return;
@@ -2103,6 +2125,9 @@
     if (v.fish) line = '<span class="bn-dom__fish' + (v.fishOk ? " bn-dom__fish--ok" : "") + '">' + domSVG(...v.fish.split("-").map(Number), false) + "</span>";
     const lineEl = domEl.querySelector(".bn-dom__line");
     lineEl.innerHTML = line;
+    // a fished tile is shown BIG, alone: its row must not be the line's tiny
+    // row height, or the tile is cut in half (it was, from the third tile on)
+    lineEl.classList.toggle("bn-dom__line--fish", !!v.fish);
     // the line's tiles as big as lets all of them fit between the ends
     const room = game.domLine || { w: 120, h: 90 }, n = v.line.length;
     let bw = 48;
@@ -2901,19 +2926,36 @@
     }
     // his turn: the line, and — the first time ever — the hand that shows how
     const first = !save.intro[game.board.game];
-    if (st.phase === "hop") sayPlay(hopLine());
-    else if (st.phase === "pick") sayPlay(SAY.pickFirst);
-    else if (st.phase === "second") sayPlay(SAY.pairsFirst);
-    else if (st.phase === "shut") sayPlay(fill(SAY.doorsPick, { d: st.die }));
-    else if (st.phase === "draw") sayPlay(fill(SAY.turn, { n: nameOf(i) }) + " " + SAY.domDraw);
-    else if (st.phase === "choose") sayPlay(SAY.pickDieAgain);
-    else if (st.phase === "follow") sayPlay(fill(SAY.turn, { n: nameOf(i) }) + " " + fill(SAY.topFollow, { d: st.table[st.lead] }));
+    const mid = phaseLine();
+    if (mid) sayPlay((mid.named ? fill(SAY.turn, { n: nameOf(i) }) + " " : "") + mid.line);
     else sayPlay(fill(SAY.turn, { n: nameOf(i) }) + (first ? " " + firstLine() : ""));
     if (st.phase === "choose") showChoice();
     else hideChoice();
     if (first) showHand(i);
     if (st.phase === "hop" && save.auto) autoHops();
-    if (st.phase === "pick" && save.auto) autoPicks();
+    if (game.board.game === "spin" && st.phase === "pick" && save.auto) autoPicks();
+  }
+  // The line for a move already UNDER WAY (a die rolled, a card held, a pile
+  // to fish from…), or null at the start of a turn. Keyed by the GAME as well
+  // as the phase: phase names are shared — "pick" is Apple Spin's apples AND
+  // Colour Grab's colour, Pattern Train's car and Honey Ten's flower; "draw"
+  // is Dominoes' pile AND the start of Rainbow Trail and Picnic Lotto;
+  // "choose" is Pick a Die AND Acorn Pots — and a line keyed by the phase
+  // alone told a Rainbow Trail player "Nothing matches. Take one from the
+  // pile!", a Colour Grab player "One tap, one apple", and an Acorn Pots
+  // player "Pick a die!". `named`: say whose turn it is first.
+  function phaseLine() {
+    const st = game.st, g = game.board.game;
+    if (st.phase === "hop") return { line: hopLine() };
+    if (g === "spin" && st.phase === "pick") return { line: SAY.pickFirst };
+    if (g === "lotto" && st.phase === "give") return { line: whoseLine() + " " + SAY.whoseFirst };
+    if (g === "spot" && st.phase === "find") return { line: SAY.findTwin };
+    if (g === "pairs" && st.phase === "second") return { line: SAY.pairsFirst };
+    if (g === "doors" && st.phase === "shut") return { line: fill(SAY.doorsPick, { d: st.die }) };
+    if (g === "dominoes" && st.phase === "draw") return { line: SAY.domDraw, named: true };
+    if (g === "dice" && st.phase === "choose") return { line: SAY.pickDieAgain };
+    if (g === "top" && st.phase === "follow") return { line: fill(SAY.topFollow, { d: st.table[st.lead] }), named: true };
+    return null;
   }
   // what to do with a die just rolled: hop once a tap — or, for a 💯 ten-bar,
   // one tap for ten more
@@ -2933,6 +2975,17 @@
     // (his own, or his friend's — the computer's too)
     if (game.board.game === "lotto" && st.phase === "give" && !st.seats[st.turn].cpu && shown === st.turn) {
       if (!game.busy) giveTo(i);
+      return;
+    }
+    // 🐟 the friend asked HIM: it is the friend's turn, but the move is his
+    // (give the card, or go fish) — his pad says so and points, never
+    // "it's River's turn" while River waits for his answer
+    if (game.board.game === "fish" && st.phase === "answer" && i === 1 - st.turn && !st.seats[i].cpu) {
+      // (mid-animation, or before the ask is on screen: a quiet nothing —
+      // never the wiggle, because the move IS his)
+      if (game.busy || shown !== st.turn) return;
+      sayPlay(L.fishAnswer(st) >= 0 ? fill(SAY.fishGive, { w: fishSay(st.want) }) : fill(SAY.fishNone, { w: fishSay(st.want) }));
+      showHand(i); later(hideHand, 2600);
       return;
     }
     if (i !== shown || st.seats[i].cpu) {
@@ -2973,7 +3026,7 @@
     if (st.phase === "roll") return rollDice();
     if (st.phase === "hop" && !save.auto) return hopOnce();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
-    if (st.phase === "pick" && !save.auto) return pickOnce();
+    if (game.board.game === "spin" && st.phase === "pick" && !save.auto) return pickOnce();
   }
   function wiggle(el) {
     SFX.wiggle();
@@ -3083,7 +3136,7 @@
     if (st.phase === "choose") return cpuChoose();
     if (st.phase === "roll") return rollDice();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
-    if (st.phase === "pick") return cpuPick();
+    if (game.board.game === "spin" && st.phase === "pick") return cpuPick();
     cpuHop();
   }
 
@@ -3208,7 +3261,7 @@
     }, T.tumble);
   }
   function autoPicks() {
-    if (!game || game.st.phase !== "pick") return;
+    if (!game || game.board.game !== "spin" || game.st.phase !== "pick") return;
     later(() => { if (game && game.st.phase === "pick" && !game.busy) { pickOnce(); autoPicks(); } }, T.autoHop);
   }
   function pickOnce() {
@@ -3224,7 +3277,7 @@
     playEvents(ev);
   }
   function cpuPick() {
-    if (!game || game.st.phase !== "pick") return;
+    if (!game || game.board.game !== "spin" || game.st.phase !== "pick") return;
     const ev = L.pick(game.st);
     if (!ev.length) return;
     playEvents(ev, () => { if (game && game.st.phase === "pick") later(cpuPick, T.cpuHop); });
@@ -4180,6 +4233,10 @@
   // whatever cancels them (a new game, leaving) takes the glow off itself, or
   // the next game opens with a token grown over the numbers.
   function endRides() { for (const t of tokens) if (t) t.classList.remove("bn-token--ride"); }
+  // a pad's wiggle is taken off by a timer, and a new game or leaving cancels
+  // the timers — so whatever cancels them takes the wiggle off too, or the
+  // next game opens with a pad still saying "not yet"
+  function endWiggles() { for (const p of pads) if (p) p.classList.remove("bn-wiggle"); }
   function landStar(i) {
     if (!game || !game.shownStars) return;
     game.shownStars[i] = Math.min(game.st.seats[i].stars, game.shownStars[i] + 1);
@@ -4227,18 +4284,27 @@
       : game && game.board.game === "lines" ? linesEl.querySelector("button.bn-col--hint") || linesEl.querySelector("button.bn-col")
       : game && game.board.game === "maze" ? mazeEl.querySelector("button.bn-arrow--hint") || mazeEl.querySelector("button.bn-arrow")
       : game && game.board.game === "hide" ? hideEl.querySelector("button.bn-ask--hint") || hideEl.querySelector("button.bn-ask")
-      : game && game.board.game === "train" ? trainEl.querySelector("button.bn-carb--hint") || trainEl.querySelector("button.bn-carb")
+      : game && game.board.game === "train" ? trainEl.querySelector("button.bn-carb--hint") || trainEl.querySelector(".bn-car--q")
       : game && game.board.game === "hilo" ? hiloEl.querySelector("button.bn-hlg--hint") || hiloEl.querySelector("button.bn-hlg")
-      : game && game.board.game === "ten" ? tenEl.querySelector("button.bn-flower--hint") || tenEl.querySelector("button.bn-flower")
-      : game && game.board.game === "fish" ? fishEl.querySelector("button.bn-fishc--hint") || fishEl.querySelector("button.bn-fishc") || fishEl.querySelector("button.bn-fishgo")
+      : game && game.board.game === "ten" ? tenEl.querySelector("button.bn-flower--hint") || (game.st.held == null ? tenEl.querySelector("button.bn-flower") : tenEl.querySelector(".bn-goal__q"))
+      : game && game.board.game === "fish" ? fishEl.querySelector("button.bn-fishc--hint") || (game.st.phase === "answer" ? (L.fishAnswer(game.st) < 0 ? fishEl.querySelector("button.bn-fishgo") : fishEl.querySelector(".bn-fish__q")) : fishEl.querySelector("button.bn-fishc") || fishEl.querySelector("button.bn-fishgo"))
       : game && game.board.game === "snow" && game.st.phase === "build" ? snowEl.querySelector("button.bn-snowman")
-      : game && game.board.game === "bingo" && game.st.phase === "cover" ? bingoEl.querySelector("button.bn-bsq--hint") || bingoEl.querySelector("button.bn-bsq")
-      : game && game.board.game === "cmatch" ? cmEl.querySelector("button.bn-cmc--hint") || cmEl.querySelector("button.bn-cmc") || cmEl.querySelector("button.bn-cmdeck")
+      : game && game.board.game === "bingo" && game.st.phase === "cover" ? bingoEl.querySelector("button.bn-bsq--hint") || bingoEl.querySelector(".bn-bingo__top")
+      : game && game.board.game === "cmatch" ? cmEl.querySelector("button.bn-cmc--hint") || cmEl.querySelector("button.bn-cmdeck") || cmEl.querySelector(".bn-cm__top")
       : game && game.board.game === "match3" ? m3El.querySelector("button.bn-m3d--hint") || m3El.querySelector("button.bn-m3roll")
       : game && game.board.game === "nim" ? nimEl.querySelector("button.bn-takeb--hint") || nimEl.querySelector("button.bn-takeb")
       : game && game.board.game === "dominoes" ? (game.st.phase === "lay" && (domEl.querySelector("button.bn-domt") && [...domEl.querySelectorAll("button.bn-domt")].find((b) => L.domSides(game.st, b.dataset.id).length))) || null
       : game && game.board.game === "acorns" ? (again.length && acornsEl.querySelector('button.bn-pot[data-k="' + again[again.length - 1] + '"]')) || acornsEl.querySelector("button.bn-pot") : null;
-    const pad = card || pads[i];
+    // (where the move is an ANSWER — a car, a square, a second flower, a card
+    // to play or to give — and no glow has been earned, the hand points at the
+    // QUESTION — the train's "?", the number to find, "4 + ? = 10", the card
+    // to match, the fish asked for — never at one of the choices: a first
+    // button can be a wrong answer, and a hand on a wrong answer teaches it.
+    // Colour Match's once pointed at a card that did not match while the deck
+    // glowed.)
+    // (a target hidden on this screen — Go Fish's question on a short phone —
+    // has no box: the pad, never the screen's corner)
+    const pad = card && card.getBoundingClientRect().width ? card : pads[i];
     if (!pad) return;
     const r = pad.getBoundingClientRect(), pr = play.getBoundingClientRect();
     hand.style.left = (r.left - pr.left + r.width * 0.5) + "px";
@@ -4252,15 +4318,8 @@
     if (st.phase === "done") { say(endLine("end")); return; }
     const i = st.turn;
     if (st.seats[i].cpu) { say(fill(SAY.turn, { n: nameOf(i) })); return; }
-    if (st.phase === "hop") say(hopLine());
-    else if (st.phase === "pick") say(SAY.pickFirst);
-    else if (st.phase === "give") say(whoseLine() + " " + SAY.whoseFirst);
-    else if (st.phase === "find") say(SAY.findTwin);
-    else if (st.phase === "second") say(SAY.pairsFirst);
-    else if (st.phase === "shut") say(fill(SAY.doorsPick, { d: st.die }));
-    else if (st.phase === "draw") say(SAY.domDraw);
-    else if (st.phase === "choose") say(SAY.pickDieAgain);
-    else if (st.phase === "follow") say(fill(SAY.topFollow, { d: st.table[st.lead] }));
+    const mid = phaseLine();
+    if (mid) say(mid.line);
     else say(fill(SAY.turn, { n: nameOf(i) }) + " " + firstLine());
     showHand(i);
     later(hideHand, 2600);
@@ -4276,6 +4335,7 @@
     hideMark();
     hideChoice();
     endRides();
+    endWiggles();
     endCheer();
     if (game) {
       game.busy = false;

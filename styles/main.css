@@ -3661,6 +3661,7 @@ button.bn-fishgo { cursor: pointer; }
    "Go fish!" is the last cell of his hand, a card-sized button like the rest */
 .bn-fishgo--still { width: 64px; height: 64px; min-height: 0; font-size: 2rem; opacity: 0.55; }
 .bn-fish__hand .bn-fishgo { width: auto; height: auto; font-size: 2.6rem; }
+.bn-fish__hand > * { grid-column-end: span 2; }
 .bn-fishgo--hint { box-shadow: 0 0 0 5px #16a34a, 0 0 0 9px #0b4f24, var(--card-shadow); }
 .bn-fishgo__n { position: absolute; right: 6px; bottom: 4px; font-size: 1rem; font-weight: 900; color: #0c1f33; }
 .bn-fish__ask { display: grid; place-items: center; height: 56px; }
@@ -3672,7 +3673,11 @@ button.bn-fishgo { cursor: pointer; }
 .bn-fish__q { font-size: 2rem; line-height: 1; }
 .bn-fish__qm { font-size: 1.8rem; font-weight: 900; color: #0c1f33; }
 .bn-fish__hand {
-  display: grid; grid-template-columns: repeat(var(--fish-cols, 3), minmax(75px, 104px)); grid-auto-rows: minmax(75px, 104px);
+  /* HALF-columns, each card spanning two: so a last row that is not full is
+     CENTRED under the one above (a 5-card hand was 4 and then 1 card alone
+     at the left). Two halves and the 16px gap between them make a 75-104px
+     card, exactly the old track. */
+  display: grid; grid-template-columns: repeat(var(--fish-half, 6), minmax(29.5px, 44px)); grid-auto-rows: minmax(75px, 104px);
   column-gap: 16px; row-gap: 16px; justify-content: center; align-content: safe center; width: 100%;
   max-height: 100%;
 }
@@ -3753,7 +3758,7 @@ button.bn-bsq { cursor: pointer; }
 }
 .bn-cm__table { display: grid; grid-template-columns: auto auto; column-gap: 24px; align-items: center; }
 .bn-cm__top, .bn-cm__deck { display: grid; }
-.bn-cm__hand { display: grid; grid-template-columns: repeat(3, var(--cm-card, 90px)); column-gap: 16px; min-height: calc(var(--cm-card, 90px) * 1.4); justify-content: center; }
+.bn-cm__hand { display: grid; grid-template-columns: repeat(var(--cm-n, 3), var(--cm-card, 90px)); column-gap: 16px; min-height: calc(var(--cm-card, 90px) * 1.4); justify-content: center; }
 .bn-cmc {
   width: var(--cm-card, 90px); height: calc(var(--cm-card, 90px) * 1.4); min-height: 75px;
   border: 5px solid #1f2937; border-radius: 14px; background: #ffffff; box-shadow: var(--card-shadow);
@@ -3894,6 +3899,7 @@ button.bn-m3roll { cursor: pointer; }
 .bn-dom__bit .bn-domsvg { width: var(--bitw, 36px); height: calc(var(--bitw, 36px) / 2); display: block; }
 .bn-dom__bit--new .bn-domsvg { box-shadow: 0 0 0 3px #ffd24d; border-radius: 4px; }
 .bn-dom__fish { grid-column: 1 / -1; justify-self: center; }
+.bn-dom__line--fish { grid-auto-rows: auto; }
 .bn-dom__fish .bn-domsvg { width: 96px; height: 48px; display: block; }
 .bn-dom__fish--ok .bn-domsvg { box-shadow: 0 0 0 4px #22c55e; border-radius: 10px; }
 .bn-dom__hand {

@@ -472,9 +472,9 @@ test("the voice: every line is words (never a picture, never a {placeholder}) an
   }
 });
 
-test("the voice on EVERY box: thirty games, each played a while by tapping whatever is live, and every line said is words — no picture, no {placeholder}, no missing name, never a race's word for the one behind", async () => {
+test("the voice on EVERY box: every game, each played a while by tapping whatever is live, and every line said is words — no picture, no {placeholder}, no missing name, never a race's word for the one behind", async () => {
   // The voice test above plays Moon Race and Rainbow Trail; the shelf has
-  // since grown to thirty boxes, each with its own lines filled from its own
+  // since grown to twenty-eight boxes, each with its own lines filled from its own
   // names (a fish, a hider, a snowman's part, a carriage's colour). The
   // population is DERIVED from the shelf, and each game is driven by tapping
   // the first live button on the board or his pad — a wrong tap too, which
@@ -518,6 +518,22 @@ test("the voice on EVERY box: thirty games, each played a while by tapping whate
     assert.deepEqual(quiet.map((q) => q[0]), [], "fixture: these games said too little to have been played: " + JSON.stringify(count));
     const bad = said.filter(([, t]) => /\{\w+\}/.test(t) || /\p{Extended_Pictographic}/u.test(t) || /\b(undefined|null|NaN)\b/.test(t) || /\b(lose|lost|loser|losing|beat|beats|winner|second place|last place|1st|2nd)\b/i.test(t));
     assert.deepEqual(bad, [], "a line carries a placeholder, a picture, a missing name or a race's word");
+    // …and never ANOTHER game's line. Phase names are shared between games
+    // ("pick", "draw", "choose"), and a line chosen by the phase alone told a
+    // Rainbow Trail player "Nothing matches. Take one from the pile!" (a
+    // domino's), a Colour Grab, Pattern Train or Honey Ten player "One tap,
+    // one apple", and an Acorn Pots player "Pick a die!". Each line below
+    // belongs to its game(s) only (board ids).
+    const D = require("../scripts/board-data.js"), S = D.SAY;
+    const OWN = [
+      [S.pickFirst, ["apple"]], [S.domDraw, ["dominoes"]], [S.domFirst, ["dominoes"]],
+      [S.pickDieAgain, ["pickdie"]], [S.pickFirstDie, ["pickdie"]], [S.pairsFirst, ["pairs"]],
+      [S.findTwin, ["spot"]], [S.whoseFirst, ["lotto"]], [S.basketFirst, ["lotto"]], [S.acornsFirst, ["acorns"]],
+    ];
+    const stray = said.filter(([b, t]) => OWN.some(([line, owners]) => t.indexOf(line) >= 0 && owners.indexOf(b) < 0));
+    assert.deepEqual(stray, [], "a game said ANOTHER game's line");
+    // (the owners must still say them, or the table guards nothing)
+    for (const [line, owners] of OWN) assert.ok(D.BOARDS.some((b) => owners.indexOf(b.id) >= 0), "fixture: " + owners + " is a board");
   } finally {
     await page.evaluate(() => Object.assign(window.JoshAudio, window.__realAudio));
     await slow();
@@ -1152,10 +1168,10 @@ test("🌈 a whole Rainbow Trail against the computer: one tap, one card, every 
 
 test("☄️ a comet on Comet Moon: he slides DOWN one row, glowing, lands with a ⭐, and the friend cheers", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }));
-  // Josh on 15, a 2 to roll: he lands on 17, a comet's head (17 → 12)
+  // Josh on 19, a 2 to roll: he lands on 21, a comet's head (21 → 16)
   const s = L.create({ board: "comet", seats: [{ who: "josh" }, { who: "viraj", cpu: true }], seed: 3, first: 0 });
-  s.seats[0].pos = 15; s.seats[0].bag = [2];
-  assert.equal(L.jumpAt(require("../scripts/board-data.js").board("comet"), 17).kind, "comet", "fixture: 17 is a comet's head");
+  s.seats[0].pos = 19; s.seats[0].bag = [2];
+  assert.equal(L.jumpAt(require("../scripts/board-data.js").board("comet"), 21).kind, "comet", "fixture: 21 is a comet's head");
   assert.ok(await page.evaluate((x) => window.__BOARD.load("comet", x), s), "fixture: loads");
   await page.locator("#screen-board-play").waitFor({ state: "visible" });
   await page.waitForTimeout(400);
@@ -1164,10 +1180,10 @@ test("☄️ a comet on Comet Moon: he slides DOWN one row, glowing, lands with 
   for (let k = 0; k < 2; k++) { await page.locator(".bn-pad--0").click(); await page.waitForTimeout(320); }
   await page.waitForFunction(() => document.querySelector(".bn-token--0").classList.contains("bn-token--ride"), null, { timeout: 4000 });
   assert.equal(await page.evaluate(() => document.querySelector(".bn-pad--1").classList.contains("bn-pad--cheer")), true, "Viraj cheers him on");
-  await page.waitForFunction(() => document.querySelector(".bn-token--0").dataset.pos === "12", null, { timeout: 4000 });
+  await page.waitForFunction(() => document.querySelector(".bn-token--0").dataset.pos === "16", null, { timeout: 4000 });
   await page.waitForFunction(() => { const p = document.querySelector(".bn-pop"); return !p.hidden && p.textContent === "⭐"; }, null, { timeout: 4000 });
   const x = await st();
-  assert.equal(x.seats[0].pos, 12, "the comet slid him down to 12 — one row, no further");
+  assert.equal(x.seats[0].pos, 16, "the comet slid him down to 16 — one row, no further");
   assert.equal(x.seats[0].stars, 1, "and gave him a star for the ride");
   await page.waitForFunction(() => document.querySelector(".bn-pad--0 .bn-pad__stars").textContent === "⭐ 1", null, { timeout: 4000 });
 });
@@ -3037,6 +3053,146 @@ test("🎲 EVERY box's first game shows the ghost hand, and its fingertip rests 
     if (under !== "ok") off.push(box + " (" + under + ")");
   }
   assert.deepEqual(off, [], "a first-time hand that does not rest on a button");
+});
+
+test("🎲 NO DEAD TAP: on EVERY box, the first board button a new player taps at the start DOES something (a move, a wiggle, or the hand pointing at the real move) (derived from the shelf)", async () => {
+  // 🚪 Shut the Doors drew its six doors as live buttons from the first
+  // frame, and a door tapped BEFORE rolling did nothing at all — no wiggle,
+  // no word: a new player's first tap was silence. A tap that does nothing is
+  // indistinguishable from a broken game to a four-year-old.
+  const boxes = await page.evaluate(() => window.BoardData.BOXES.map((b) => b.id));
+  const dead = [];
+  let tried = 0;
+  for (const box of boxes) {
+    await page.evaluate((x) => { window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }); window.__BOARD.start(x, "river", true, 7, 0); }, box);
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    await page.waitForFunction(() => { const x = window.__BOARD.state(); return x && x.turn === 0 && !window.__BOARD.busy(); }, null, { timeout: 8000 });
+    const r = await page.evaluate(() => {
+      const b = [...document.querySelectorAll("#screen-board-play .bn-board button")].find((e) => e.offsetParent && !e.disabled && !e.closest(".bn-party"));
+      if (!b) return null;
+      const before = JSON.stringify(window.__BOARD.state());
+      b.click();
+      const moved = JSON.stringify(window.__BOARD.state()) !== before;
+      const h = document.querySelector("#screen-board-play .bn-hand");
+      return { what: b.getAttribute("aria-label"), did: moved || !!document.querySelector("#screen-board-play .bn-wiggle") || !!(h && !h.hidden) };
+    });
+    if (!r) continue;
+    tried++;
+    if (!r.did) dead.push(box + " (" + r.what + ")");
+  }
+  assert.ok(tried >= 15, "fixture: most boxes have board buttons at the start (" + tried + ")");
+  assert.deepEqual(dead, [], "a board button that does NOTHING when a new player taps it first");
+});
+
+test("🎲 the HELP hand never rests on a wrong answer: tapping his own pad in an answer game points at the QUESTION (or an earned glow), never at an un-glowed choice", async () => {
+  // A pad tap is a four-year-old asking "what do I do?". In the games whose
+  // move is an ANSWER, the hand used to fall back to the FIRST choice, which
+  // can be wrong: 🎴 Colour Match pointed at a card that did not match while
+  // the deck glowed. A hand on a wrong answer teaches it.
+  await quick();
+  const bad = [];
+  const under = () => page.evaluate(() => {
+    const h = document.querySelector("#screen-board-play .bn-hand");
+    if (!h || h.hidden) return { none: true };
+    const b = h.getBoundingClientRect();
+    h.style.visibility = "hidden";
+    const e = document.elementFromPoint(b.left + b.width * 0.3, b.top + b.height * 0.2);
+    h.style.visibility = "";
+    const t = e && e.closest("button");
+    return { on: t ? t.className : null };
+  });
+  const pad = () => page.evaluate(() => document.querySelector("#screen-board-play .bn-pad--0").click());
+  const check = async (what) => {
+    await pad();
+    const u = await under();
+    if (u.none) bad.push(what + ": no hand");
+    // (the deck to turn when nothing fits, or 🎣 when he has none to give,
+    // IS the right move; any other un-glowed choice may be wrong)
+    else if (u.on && !/--hint|bn-pad|bn-cmdeck--go|bn-fishgo/.test(u.on)) bad.push(what + ": on " + u.on);
+  };
+  const begin = async (box, first) => {
+    await page.evaluate((a) => { window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }); window.__BOARD.start(a[0], "river", true, 5, a[1]); }, [box, first || 0]);
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  };
+  // 🚂 a train: the cars are the answers
+  await begin("train"); await untilTap(0); await check("train");
+  // 🎴 every Colour Match opening on a few seeds: a fit or none
+  let none = 0;
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    await page.evaluate((x) => { window.__BOARD.reset({ introSeen: true }); window.__BOARD.start("colourmatch", "river", true, x, 0); }, seed);
+    await untilTap(0);
+    if (await page.locator("#screen-board-play button.bn-cmdeck--go").count()) none++;
+    await check("colourmatch seed " + seed);
+  }
+  assert.ok(none >= 1, "fixture: some opening has nothing that fits (the deck is the move)");
+  // 🔢 a rolled number to find on the card
+  await begin("bingo"); await untilTap(0);
+  await pad(); await page.waitForFunction(() => (window.__BOARD.state().phase === "cover" && !window.__BOARD.busy()) || window.__BOARD.state().turn !== 0, null, { timeout: 5000 });
+  if ((await st()).phase === "cover") await check("bingo cover");
+  // 🍯 a flower held: the second flower is the answer
+  await begin("honeyten"); await untilTap(0);
+  await page.evaluate(() => document.querySelector("#screen-board-play button.bn-flower").click());
+  if ((await st()).held != null) await check("honeyten held");
+  // 🐟 the friend asks HIM: the card to give is the answer
+  await begin("gofish", 1);
+  await page.waitForFunction(() => { const x = window.__BOARD.state(); return x.phase === "answer" && x.turn === 1 && !window.__BOARD.busy(); }, null, { timeout: 15000 });
+  await check("gofish answer");
+  // …and his pad never says it is the friend's turn while the friend waits
+  // for HIS answer
+  assert.equal(await page.locator("#screen-board-play .bn-pad--0.bn-wiggle").count(), 0, "a pad tap while he must answer is help, not a 'wait your turn' wiggle");
+  await slow();
+  assert.deepEqual(bad, [], "the help hand rests on an un-glowed choice (it can be a wrong answer)");
+});
+
+test("🎲 a new game never opens with a pad still WIGGLING from the last one (the timer that takes it off is cancelled with the game)", async () => {
+  // A wiggle is "not yet" — taken off by a 420ms timer. Starting a new game
+  // cancels every timer, so a wiggle caught in that window stayed on the pad
+  // for good: the next game opened with his pad saying "not yet".
+  await page.evaluate(() => { window.__BOARD.reset({ introSeen: true }); window.__BOARD.start("moon", "river", true, 5, 0); });
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await untilTap(0);
+  const stuck = await page.evaluate(() => {
+    document.querySelector("#screen-board-play .bn-pad--1").click(); // the friend's pad: a kind wiggle
+    const was = document.querySelector("#screen-board-play .bn-pad--1").classList.contains("bn-wiggle");
+    window.__BOARD.start("rainbow", "river", true, 6, 0); // a new game inside the wiggle
+    return { was, now: document.querySelectorAll("#screen-board-play .bn-pad.bn-wiggle").length };
+  });
+  assert.equal(stuck.was, true, "fixture: tapping the friend's pad on his turn wiggles it");
+  await page.waitForTimeout(700);
+  assert.equal(await page.locator("#screen-board-play .bn-pad.bn-wiggle").count(), 0, "no pad is left wiggling into the next game");
+});
+
+test("🁢 a tile FISHED from the pile is shown WHOLE, not cut in half by the line's small rows", async () => {
+  // The fished tile shows in the line a moment, at 96x48 — but the line's
+  // rows are sized for its small tiles, so from the third tile on the fished
+  // one was cut to a sliver: he could not see what he had caught.
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  const ok = await page.evaluate(() => {
+    const L = window.BoardLogic;
+    for (let seed = 1; seed < 400; seed++) {
+      const st = L.create({ board: "dominoes", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed, first: 0 });
+      let n = 0;
+      while (st.phase !== "done" && n++ < 200) {
+        if (st.turn === 0 && st.phase === "draw" && st.line.length >= 4) return window.__BOARD.load("dominoes", L.snapshot(st));
+        L.autoTurn(st);
+      }
+    }
+    return false;
+  });
+  assert.ok(ok, "fixture: a game where he must fish with a long line");
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForFunction(() => !window.__BOARD.busy(), null, { timeout: 5000 });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => document.querySelector("#screen-board-play .bn-pad--0").click());
+  await page.waitForFunction(() => document.querySelector("#screen-board-play .bn-dom__fish"), null, { timeout: 4000 });
+  const r = await page.evaluate(() => {
+    const svg = document.querySelector("#screen-board-play .bn-dom__fish .bn-domsvg"), line = document.querySelector("#screen-board-play .bn-dom__line");
+    const a = svg.getBoundingClientRect(), b = line.getBoundingClientRect(), c = svg.parentElement.getBoundingClientRect();
+    return { h: a.height, cellH: c.height, inside: a.top >= b.top - 1 && a.bottom <= b.bottom + 1 };
+  });
+  assert.ok(r.h >= 40, "the fished tile is big (" + r.h + ")");
+  assert.ok(r.cellH >= r.h - 1, "its row is as tall as the tile (" + r.cellH + " for a " + r.h + "px tile)");
+  assert.ok(r.inside, "the fished tile lies inside the line, not cut off");
 });
 
 test("🎲 EVERY box carries on: played a while, the page RELOADED, and ▶ carry on brings back the very same game, still playable (derived from the shelf)", async () => {

@@ -84,10 +84,14 @@
         if (j.kind === "boost") {
           s += '<line x1="' + p.x + '" y1="' + p.y + '" x2="' + q.x + '" y2="' + q.y + '" stroke="#ff9f43" stroke-opacity="0.75" stroke-width="22" stroke-linecap="round"/>';
           s += '<line x1="' + p.x + '" y1="' + p.y + '" x2="' + q.x + '" y2="' + q.y + '" stroke="#fff1c4" stroke-width="5" stroke-linecap="round" stroke-dasharray="10 14"/>';
+          // where it LANDS: the top end is a landing pad, so the two ends of a
+          // line never look alike (the rocket sits on its foot)
+          s += '<circle class="bn-land" cx="' + q.x + '" cy="' + q.y + '" r="17" fill="#ff9f43" stroke="#fff1c4" stroke-width="5"/>';
         } else {
           const mx = (p.x + q.x) / 2 + 55, my = (p.y + q.y) / 2;
           s += '<path d="M' + p.x + " " + p.y + " Q" + mx + " " + my + " " + q.x + " " + q.y + '" fill="none" stroke="#6fe0ff" stroke-opacity="0.8" stroke-width="18" stroke-linecap="round"/>';
           s += '<path d="M' + p.x + " " + p.y + " Q" + mx + " " + my + " " + q.x + " " + q.y + '" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-dasharray="6 12"/>';
+          s += '<circle class="bn-land" cx="' + q.x + '" cy="' + q.y + '" r="15" fill="#6fe0ff" stroke="#ffffff" stroke-width="5"/>';
         }
       }
     }

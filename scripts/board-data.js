@@ -122,15 +122,16 @@
   // Moon Race jumps: a 🚀 booster carries you UP from its foot to its top; a
   // ☄️ comet slides you DOWN from its head to its tail and gives you a ⭐. The
   // no-lose laws (board-logic.test.js): a comet drops at most one row (never
-  // more than `cols` squares), never starts in the first or top row, and no
-  // jump ever lands on another jump's start.
+  // more than `cols` squares), never starts in the first or top row, no jump
+  // ever lands on another jump's start, and no two jumps' lines CROSS (a board
+  // of crossing lines is a tangle a four-year-old cannot follow).
   const BOARDS = [
     {
       id: "moon", box: "moon", game: "dice", name: "Moon Race",
       cols: 6, rows: 6, size: 36,
       jumps: [
         { from: 4, to: 15, kind: "boost" },
-        { from: 11, to: 20, kind: "boost" },
+        { from: 12, to: 23, kind: "boost" },
         { from: 22, to: 29, kind: "boost" },
       ],
     },
@@ -153,13 +154,15 @@
       id: "comet", box: "comet", game: "dice", name: "Comet Moon",
       cols: 6, rows: 6, size: 36,
       jumps: [
-        { from: 3, to: 14, kind: "boost" },
-        { from: 10, to: 21, kind: "boost" },
-        { from: 19, to: 28, kind: "boost" },
-        { from: 26, to: 33, kind: "boost" },
-        { from: 17, to: 12, kind: "comet" },
-        { from: 24, to: 18, kind: "comet" },
-        { from: 30, to: 25, kind: "comet" },
+        // (each comet drops straight DOWN one row, so it never sweeps across
+        // the board; the boosters climb the two sides: no line crosses another)
+        { from: 2, to: 13, kind: "boost" },
+        { from: 6, to: 18, kind: "boost" },
+        { from: 19, to: 30, kind: "boost" },
+        { from: 23, to: 34, kind: "boost" },
+        { from: 15, to: 10, kind: "comet" },
+        { from: 21, to: 16, kind: "comet" },
+        { from: 27, to: 22, kind: "comet" },
       ],
     },
     {
