@@ -26,7 +26,7 @@ test("data: every box opens a real board, every board is a real grid, every pers
     assert.ok(board, `${b.id} opens a real board`);
     assert.equal(board.box, b.id, `${board.id} names the box that opens it`);
     // (a picture, or drawn art: no domino emoji is a picture on every phone)
-    assert.ok(b.name && (b.pic || b.art === "domino") && b.colour, `${b.id} has a name, a picture and a colour`);
+    assert.ok(b.name && (b.pic || ["domino", "doors"].indexOf(b.art) >= 0) && b.colour, `${b.id} has a name, a picture and a colour`);
     if (b.unlockAfter) assert.ok(DATA.box(b.unlockAfter.box), `${b.id} unlocks after a real box`);
   }
   // the PICTURE is how a non-reader picks a box, so no two on the shelf share
@@ -35,6 +35,15 @@ test("data: every box opens a real board, every board is a real grid, every pers
   const pics = DATA.BOXES.filter((b) => b.pic).map((b) => b.pic.replace(/\uFE0F/g, ""));
   const twice = pics.filter((p, k) => pics.indexOf(p) !== k);
   assert.deepEqual(twice, [], "two boxes wear the same picture: " + twice.join(" "));
+  // …nor may a box wear the picture of a CONTROL on the screens it stands on:
+  // 🚪 Shut the Doors once stood under the bar's 🚪, which on that very shelf
+  // means "go back to the front door". The bar glyphs are read off the shell's
+  // own bar() calls (plus 👂 and the sound toggle), so a new control is covered.
+  const shell = require("node:fs").readFileSync(require("node:path").join(__dirname, "../scripts/board-main.js"), "utf8");
+  const controls = [...shell.matchAll(/bar\("[^"]*", "[^"]*", "([^"]+)"/g)].map((m) => m[1]).concat(["👂", "🔇", "🔊"]).map((g) => g.replace(/\uFE0F/g, ""));
+  assert.ok(controls.indexOf("🚪") >= 0 && controls.indexOf("🏠") >= 0, "the bar glyphs were read from the shell (" + controls.join(" ") + ")");
+  const clash = pics.filter((p) => controls.indexOf(p) >= 0);
+  assert.deepEqual(clash, [], "a box wears a bar control's picture: " + clash.join(" "));
   for (const board of DATA.BOARDS) {
     // a track fills its grid exactly; Apple Spin's grid is only the shape of
     // its picture, and its size is the TEN-FRAME basket

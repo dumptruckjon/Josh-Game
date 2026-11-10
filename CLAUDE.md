@@ -63,8 +63,8 @@ Until the owner says otherwise:
   best question), 🌈 Colour Match (colour or number), 🔢 Number Bingo, ⛄
   Snowman Build, 🐟 Go Fish, 🍯 Honey Ten (make ten), 🔼 Higher or Lower and
   🚂 Pattern Train (it replaced the planned 🦉 Owl Flight, which was Rainbow
-  Trail again with no choice in it). The suite has since been audited four
-  times (PLAN_BOARD §8, §9, §15, §16).
+  Trail again with no choice in it). The suite has since been audited five
+  times (PLAN_BOARD §8, §9, §15, §16, §17).
 - **Word Cards** (`wordcards.html`: the English deck, 中文, 写字, 配对,
   👂 Hear it, find it and 新字) **and 🕳️ Gobble Hole** (the owner's pick of
   2026-09-30: "a hole eating game like hole.io, Donut County or Hole em All",
@@ -10595,6 +10595,28 @@ taken off by a 420ms timer, starting a game cancels every timer, so a wiggle
 caught in that window stayed on the pad into the next game (it read as a
 "not yet" on his own pad). Whatever cancels timers now clears it too
 (`endWiggles`), with a test that fails without it.
+
+**ROUND 5 (the owner, 2026-11-10: the same ask again) PLAYED every box in a
+browser from a fresh save and LOOKED at contact sheets of five moments each,
+and the finds were all states a test asserting behaviour cannot see.** (1)
+**A move that is his on the other player's turn must look like his turn:** in
+Go Fish River's question left River's pad lit and his dimmed as "wait" — the
+pad follows `showTurn`, and the one asked is not the one whose turn it is.
+`paintPads` now lights the ACTING seat. When a game gains a move made out of
+turn, grep everything keyed on the turn. (2) **A picture keeps its meaning on
+a button that changes meaning:** Picnic Lotto's other pad kept its 🧺 while it
+meant "River's blanket"; it shows the blanket now. (3) **A row of face-up
+cards needs an owner:** Colour Match showed River's hand on River's turn with
+nothing saying whose (the badge went top RIGHT, because the first cut covered
+each card's number — look at the picture after placing anything on a card).
+(4) **A box may not wear a control's picture on the screen it stands on**
+(🚪 Shut the Doors under the bar's 🚪), now a test reading the bar's glyphs off
+the shell. (5) A red ❌ on a missed GUESS is a scold; 😮 now. Method notes: a
+tapper that skips buttons whose label says "home" skips the helper's pad
+("…is home, help River"), which made two boxes look stuck when they were not
+— read a probe's "no target" notes before calling a game stuck; and a contact
+sheet built with `setContent` cannot load `file://` images (it renders empty
+frames), so embed them as data URIs.
 
 ---
 

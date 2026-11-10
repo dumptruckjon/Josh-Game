@@ -1391,6 +1391,10 @@ test("🧺 a whole Picnic Lotto against the computer: tap the basket, find WHOSE
     const food = s.food, owner = s.blankets[0].indexOf(food) >= 0 ? 0 : 1;
     const pad = await page.evaluate(() => document.querySelector(".bn-pad--0 .bn-card--food").textContent);
     assert.ok(pad.length > 0, "the food in hand is on his pad");
+    // …and the friend's pad is the friend's BLANKET, never the basket (a
+    // basket there read as "tap the basket again", round 5)
+    const other = await page.evaluate(() => { const p = document.querySelector(".bn-pad--1"); return { blanket: !!p.querySelector(".bn-card--blanket"), basket: p.textContent.indexOf("🧺") >= 0 }; });
+    assert.deepEqual(other, { blanket: true, basket: false }, "while he asks whose it is, River's pad shows River's blanket");
     assert.ok(await page.evaluate(() => [...document.querySelectorAll(".bn-pad")].every((p) => p.classList.contains("bn-pad--ask"))), "both pads stand ready: whose is it?");
     if (missed < 2) {
       // the wrong friend first: a wiggle, nothing moves, still his food
@@ -2235,7 +2239,7 @@ test("🚂 a whole Pattern Train against the computer: the engine and five cars 
   } finally { await slow(); }
 });
 
-test("🔼 a whole Higher or Lower against the computer: the card to beat shows its number and that many dots; two big guesses (⬆️ bigger, ⬇️ smaller); a guess turns the next card over and shows ✅ or ❌ (sound off); a doubled tap guesses once; the computer's guesses are not his; twelve cards and one party", async () => {
+test("🔼 a whole Higher or Lower against the computer: the card to beat shows its number and that many dots; two big guesses (⬆️ bigger, ⬇️ smaller); a guess turns the next card over and shows ✅ or 😮 (sound off; never a red ❌); a doubled tap guesses once; the computer's guesses are not his; twelve cards and one party", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await quick();
   try {
@@ -2261,7 +2265,7 @@ test("🔼 a whole Higher or Lower against the computer: the card to beat shows 
   assert.equal(s1.flips, 1, "one guess, one card turned");
   assert.equal(d1.n, s1.top, "the turned card is the next to beat");
   const right = up ? s1.top > s0.top : s1.top < s0.top;
-  assert.equal(d1.ans, right ? "✅" : s1.top === s0.top ? "=" : "❌", "the answer shows");
+  assert.equal(d1.ans, right ? "✅" : s1.top === s0.top ? "=" : "😮", "the answer shows (a miss is 😮 oh!, never a scolding red ❌)");
   let cpuTried = false;
   for (let guard = 0; guard < 40; guard++) {
     const x = await st();
@@ -2567,6 +2571,7 @@ test("🎴 a whole Colour Match against the computer: the top card and his hand 
   assert.ok(d0.hand.every((c) => c.button && c.w >= 75 && c.h >= 75), `big cards (${d0.hand.map((c) => Math.round(c.w) + "x" + Math.round(c.h))})`);
   assert.ok(d0.hand[1].l - d0.hand[0].r >= 16 && d0.hand[2].l - d0.hand[1].r >= 16, "16px apart");
   assert.ok(!d0.deckButton, "a card fits, so the deck is not a button");
+  assert.equal(await page.evaluate(() => { const w = document.querySelector(".bn-cm__hand .bn-handwho"); return w ? w.innerHTML : ""; }), await page.evaluate(() => { const d = document.createElement("span"); d.innerHTML = window.BoardRender.faceHTML(window.BoardData.person("josh")); return d.innerHTML; }), "his hand wears HIS face");
   // a card that does not match only wiggles; after two misses the fitting ones glow
   const fits = await page.evaluate(() => window.BoardLogic.cmPlayable(window.__BOARD.state()));
   const wrong = [0, 1, 2].find((k) => fits.indexOf(k) < 0);
@@ -2578,6 +2583,9 @@ test("🎴 a whole Colour Match against the computer: the top card and his hand 
   assert.equal(s1.top, s0.top, "a miss plays nothing");
   assert.equal(s1.turn, 0, "…and keeps his turn");
   assert.deepEqual(d1.hand.map((c, k) => (c.glow ? k : -1)).filter((k) => k >= 0), fits, "after two misses the cards that fit glow");
+  // (the computer thinks a little longer here, so its turn is on screen
+  // long enough for the check below to see whose hand is showing)
+  await page.evaluate(() => { window.__BOARD.T.cpuThink = 600; });
   // a doubled tap plays ONE card
   await page.locator('.bn-cm__hand button.bn-cmc[data-k="' + fits[0] + '"]').dblclick();
   await page.waitForFunction(() => window.__BOARD.state().turn === 1 || window.__BOARD.state().phase === "done", null, { timeout: 5000 });
@@ -2588,6 +2596,16 @@ test("🎴 a whole Colour Match against the computer: the top card and his hand 
     if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
       cpuTried = true;
       assert.equal(await page.locator(".bn-cm__hand button.bn-cmc").count(), 0, "on the computer's turn the cards are not his");
+      // …and the row SAYS whose cards they are: River's face on its corner
+      // (with none they read as his own, round 5)
+      // (the engine hands the turn over before the screen does, so wait for
+      // the screen; the hand row stays River's until his turn shows)
+      const riverShown = await page.waitForFunction(() => {
+        const w = document.querySelector(".bn-cm__hand .bn-handwho"), d = document.createElement("span");
+        d.innerHTML = window.BoardRender.faceHTML(window.BoardData.person("river"));
+        return !!w && w.innerHTML === d.innerHTML;
+      }, null, { timeout: 4000 }).then(() => true, () => false);
+      assert.ok(riverShown, "on the computer's turn the hand wears River's face");
     }
     await untilTap(0);
     const s = await st();
@@ -2875,6 +2893,9 @@ test("🃏 a whole Top Card against the computer: his three cards are big button
     if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
       cpuTried = true;
       assert.equal(await page.locator(".bn-top__hand button.bn-tc").count(), 0, "on the computer's turn his cards are not to play");
+      // …and the row wears HIS face: against the computer it is always his
+      // own hand, kept on show so he can plan (round 5's owner badge)
+      assert.equal(await page.evaluate(() => { const w = document.querySelector(".bn-top__hand .bn-handwho"), d = document.createElement("span"); d.innerHTML = window.BoardRender.faceHTML(window.BoardData.person("josh")); return !!w && w.innerHTML === d.innerHTML; }), true, "the hand row wears its owner's face");
     }
     await untilTap(0);
     const s = await st();
@@ -3140,6 +3161,11 @@ test("🎲 the HELP hand never rests on a wrong answer: tapping his own pad in a
   // …and his pad never says it is the friend's turn while the friend waits
   // for HIS answer
   assert.equal(await page.locator("#screen-board-play .bn-pad--0.bn-wiggle").count(), 0, "a pad tap while he must answer is help, not a 'wait your turn' wiggle");
+  // …and it is HIS pad that is lit while he answers, the asker's that waits:
+  // River's question once left River's pad lit and his dimmed as "wait",
+  // on the one move he makes during her turn (round 5, found by playing)
+  const lit = await page.evaluate(() => [...document.querySelectorAll("#screen-board-play .bn-pad")].map((p) => p.classList.contains("bn-pad--on")));
+  assert.deepEqual(lit, [true, false], "while the friend waits for his answer, his pad is the lit one");
   await slow();
   assert.deepEqual(bad, [], "the help hand rests on an un-glowed choice (it can be a wrong answer)");
 });

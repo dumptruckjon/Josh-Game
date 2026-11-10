@@ -642,3 +642,45 @@ and every row of cards checked for being centred.
 - **Measured, no change:** Snowman Build wastes about half its rolls (a part
   already on, or not yet), which is the Cootie shape; Apple Spin's trees never
   go bare (on purpose); every other box's first tap does something.
+
+## 17. The fifth audit (the owner, 2026-11-10: "another deep and broad audit … confusing for new players … quality, fun, playability")
+
+Method: every box PLAYED in a real browser by a tapper that taps like a new
+player (the glow if there is one, else any live button), from a fresh save
+(no "shown how" yet), sound on with every line captured; each box
+screenshotted at its opening, after his first tap, on the computer's turn,
+mid-game and at the party, laid out as contact sheets and looked at. Plus the
+shelf and the who's-playing screens at 390 and 320, and six boxes in
+two-person mode. No page error and no stuck game in any of the 28.
+
+- **Fixed — the one move that is his on the other player's turn looked like
+  waiting:** in Go Fish, when River asks HIM ("Do you have the turtle?"),
+  River's pad was the lit one and his was dimmed and dashed — the picture of
+  "wait your turn" — on the only move in any box he makes during the other
+  player's turn. The one asked is now the one lit (also in two-person mode).
+- **Fixed — "whose is it?" showed a basket:** in Picnic Lotto, while he holds
+  a food, the other pad still showed 🧺 — read as "tap the basket again" on
+  the very tap that means "it goes on River's blanket". That pad is the
+  friend's blanket now (its gingham, in their colour).
+- **Fixed — a hand of cards with no owner:** in Colour Match the hand row
+  shows River's cards face up during River's turn, and with nothing on it they
+  read as his own. The row wears its owner's face (top right: the top left is
+  each card's number). Top Card's hand wears it too, for two people at one
+  iPad.
+- **Fixed — one picture, two meanings on the shelf:** 🚪 Shut the Doors stood
+  under the bar's 🚪, which on that very shelf means "back to the front door".
+  Its box is drawn now (three of its own doors), and a test fails any box that
+  wears a bar control's picture.
+- **Improved — the game he picked, as a picture:** the who's-playing and
+  pick-a-friend screens named the game only in the bar's TEXT, which he cannot
+  read. The box's picture now stands big over the choices.
+- **Fixed — a red ❌ for a guess:** Higher or Lower stamped ❌ on a missed
+  guess. A guess is luck and an estimate, not a wrong move, and a red cross is
+  a scold (RULE 5); it is 😮 now, matching "Oh, not this time!". ❌ stays where
+  it is an ANSWER (🕵️ "Is it red?" "No!").
+- **Fixed — two lines:** a comet said "A star for you!" on River's ride too
+  (it names the player now), and Twin Spot said "Yes! the lion!" (capital now).
+- **Measured, no change:** every box's opening shows the first-time hand; the
+  hundred chart's squares are small on a phone but the chart is width-limited
+  and must stay ten across; a hop that lands on a tens square says its number
+  and then "40! A star!", which counts rather than repeats.

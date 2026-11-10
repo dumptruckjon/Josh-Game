@@ -176,6 +176,7 @@
 
     who = section("screen-board-who", "bn-who",
       bar("bn-whoback", "Back to the games", "🏠", "") +
+      '<div class="bn-gamepic" aria-hidden="true"></div>' +
       '<button class="bn-keep tap" type="button" hidden></button>' +
       '<div class="bn-modes" role="list">' +
         '<button class="bn-mode bn-mode--cpu tap" type="button" role="listitem" data-mode="cpu" aria-label="' + SAY.cpu + '">' +
@@ -196,6 +197,7 @@
 
     pick = section("screen-board-pick", "bn-pick",
       bar("bn-pickback", "Back", "🏠", "") +
+      '<div class="bn-gamepic" aria-hidden="true"></div>' +
       '<div class="bn-people" role="list" aria-label="Who is playing with you?"></div>');
     pick.querySelector(".bn-pickback").addEventListener("click", () => { location.hash = "#board-who-" + whoBox; });
     pick.querySelector(".bn-hear").addEventListener("click", () => say(SAY.who));
@@ -493,7 +495,7 @@
       btn.style.borderBottomColor = b.colour;
       const g = save.games[b.id], played = save.done[b.id] || 0;
       btn.setAttribute("aria-label", b.name + (played ? ", played " + played + (played === 1 ? " time" : " times") : "") + (g ? ", a game is waiting" : ""));
-      btn.innerHTML = '<span class="bn-box__pic" aria-hidden="true">' + (b.art === "domino" ? domSVG(5, 2, false) : b.pic) + "</span>" +
+      btn.innerHTML = '<span class="bn-box__pic" aria-hidden="true">' + boxPic(b) + "</span>" +
         // every game finished here earns the box a 🏆 — he sees the pile grow
         (played ? '<span class="bn-box__won" aria-hidden="true">🏆 ' + played + "</span>" : "") +
         '<span class="bn-box__label">' + b.name + "</span>" +
@@ -504,10 +506,16 @@
     }
   }
 
+  // A box's picture: its emoji, or its drawn art (the shelf, and the box's
+  // own picture over who's playing — a non-reader cannot read the title, so
+  // the picture he just tapped is what says "yes, this game")
+  function boxPic(b) { return b.art === "domino" ? domSVG(5, 2, false) : b.art === "doors" ? doorsBoxSVG() : b.pic; }
+
   // ---- Who's playing -------------------------------------------------------------
   function paintWho() {
     const b = DATA.box(whoBox);
     who.querySelector(".bn-title").textContent = b.name;
+    who.querySelector(".bn-gamepic").innerHTML = boxPic(b);
     const keep = who.querySelector(".bn-keep");
     const g = save.games[whoBox];
     keep.hidden = !g;
@@ -520,6 +528,7 @@
   function paintPick() {
     const b = DATA.box(whoBox);
     pick.querySelector(".bn-title").textContent = b.name;
+    pick.querySelector(".bn-gamepic").innerHTML = boxPic(b);
     const list = pick.querySelector(".bn-people");
     list.innerHTML = "";
     const cpu = pickMode === "cpu";
@@ -802,7 +811,10 @@
     const turn = game.showTurn == null ? st.turn : game.showTurn;
     const mine = st.phase === "guess" && !game.busy && !st.seats[turn].cpu && st.turn === turn;
     const top = hiloEl.querySelector(".bn-hilo__top");
-    top.innerHTML = hiloCardHTML(v.top, v.said ? "bn-hlc--new" : "") + (v.said && !v.said.wait ? '<span class="bn-hilo__ans' + (v.said.same ? " bn-hilo__ans--same" : "") + '" aria-hidden="true">' + (v.said.right ? "✅" : v.said.same ? "=" : "❌") + "</span>" : "");
+    // a missed guess is "😮 oh!", never a red ❌: a guess is luck and an
+    // estimate, not a wrong move, and a red cross is a scold (RULE 5; ❌ stays
+    // where it is an ANSWER — 🕵️ "Is it red?" "No!")
+    top.innerHTML = hiloCardHTML(v.top, v.said ? "bn-hlc--new" : "") + (v.said && !v.said.wait ? '<span class="bn-hilo__ans' + (v.said.same ? " bn-hilo__ans--same" : "") + '" aria-hidden="true">' + (v.said.right ? "✅" : v.said.same ? "=" : "😮") + "</span>" : "");
     top.setAttribute("aria-label", "The card to beat: " + v.top);
     hiloEl.querySelector(".bn-hilo__deck").innerHTML = '<span class="bn-hlc bn-hlc--back"><span class="bn-hlc__back">❔</span><span class="bn-hlc__left">' + (game.board.flips - st.flips) + "</span></span>";
     const best = mine && game.teach ? L.hiloBest(st) : null;
@@ -1585,6 +1597,9 @@
       else hand += '<span class="bn-tc bn-tc--still" role="img" aria-label="' + c + '">' + numCardHTML(c) + "</span>";
     }
     const handEl = topEl.querySelector(".bn-top__hand");
+    // whose cards: the owner's face on the row's corner (two people take
+    // turns at one hand-sized row; the 🎴 Colour Match badge)
+    if (v.hands[hs].length) hand += '<span class="bn-handwho" aria-hidden="true" style="border-color:' + seatPerson(hs).colour + '">' + R.faceHTML(seatPerson(hs)) + "</span>";
     handEl.innerHTML = hand;
     handEl.setAttribute("aria-label", nameOf(hs) + "'s cards");
     topEl.querySelector(".bn-top__table").setAttribute("aria-label", [0, 1].map((j) => nameOf(j) + (v.table[j] != null ? " played " + v.table[j] : " has not played")).join(". "));
@@ -1783,7 +1798,12 @@
       else cards += '<span class="bn-cmc bn-cmc--still"' + style + ' role="img" aria-label="' + cmName(id) + '">' + cmCardSVG(id) + "</span>";
     });
     const cmHand = cmEl.querySelector(".bn-cm__hand");
+    // WHOSE hand it is: its owner's face on its top-right corner. During River's turn
+    // the row is River's cards, face up, and with no face on it they read as
+    // his own (round 5, found by playing; 🚪 and 🐟 already wear one)
+    if (hand.length) cards += '<span class="bn-handwho" aria-hidden="true" style="border-color:' + seatPerson(turn).colour + '">' + R.faceHTML(seatPerson(turn)) + "</span>";
     cmHand.innerHTML = cards;
+    cmHand.setAttribute("aria-label", nameOf(turn) + "'s cards");
     // as many columns as cards (up to three), so two cards sit centred, not
     // at the left of a three-card row
     cmHand.style.setProperty("--cm-n", String(Math.max(1, Math.min(3, hand.length))));
@@ -2068,6 +2088,14 @@
     return '<svg class="bn-domsvg" viewBox="0 0 ' + w + " " + h + '" aria-hidden="true"><rect x="3" y="3" width="' + (w - 6) + '" height="' + (h - 6) + '" rx="16" fill="#fffdf6" stroke="#1f2937" stroke-width="5"/>' +
       (upright ? '<line x1="14" y1="100" x2="86" y2="100" stroke="#1f2937" stroke-width="4"/>' + half(a, 0, 0) + half(b, 0, 100)
         : '<line x1="100" y1="14" x2="100" y2="86" stroke="#1f2937" stroke-width="4"/>' + half(a, 0, 0) + half(b, 100, 0)) + "</svg>";
+  }
+  // 🚪 Shut the Doors' box: three of its own doors, one SHUT and two lit with
+  // their numbers. It is drawn because 🚪 is the bar's way OUT on the very
+  // shelf the box stands on, and one picture must not mean two things there.
+  function doorsBoxSVG() {
+    const door = (x, n, shut) => '<path d="M' + x + ' 92 V30 a24 24 0 0 1 48 0 V92 Z" fill="' + (shut ? "#b8520f" : "#ffe48a") + '" stroke="#6b2d06" stroke-width="6"/>' +
+      (shut ? '<circle cx="' + (x + 36) + '" cy="62" r="5" fill="#ffd24d"/>' : '<text x="' + (x + 24) + '" y="72" text-anchor="middle" font-size="34" font-weight="900" fill="#3b1a03" font-family="system-ui, sans-serif">' + n + "</text>");
+    return '<svg class="bn-doorsvg" viewBox="0 0 176 100" aria-hidden="true">' + door(6, 1, true) + door(64, 2, false) + door(122, 3, false) + "</svg>";
   }
   function dotFace(n) {
     return '<svg class="bn-domsvg" viewBox="0 0 100 100" aria-hidden="true"><rect x="3" y="3" width="94" height="94" rx="16" fill="#fffdf6" stroke="#1f2937" stroke-width="5"/>' +
@@ -2644,9 +2672,15 @@
   // st.turn lit the next pad early and put a drawn card on the wrong pad.
   function paintPads() {
     const st = game.st;
+    // 🐟 while a question is being ANSWERED, the one who must act is the one
+    // asked, not the asker: River's question left River's pad lit and his own
+    // dimmed as "wait", on the one move in any game that is his to make during
+    // the other player's turn (found by playing it, round 5)
+    const answering = game.board.game === "fish" && st.phase === "answer" && game.showTurn === st.turn;
+    const acting = answering ? 1 - st.turn : game.showTurn;
     for (let i = 0; i < 2; i++) {
       const pad = pads[i], s = st.seats[i];
-      const active = st.phase !== "done" && game.showTurn === i;
+      const active = st.phase !== "done" && acting === i;
       pad.classList.toggle("bn-pad--on", active);
       pad.classList.toggle("bn-pad--wait", !active);
       tokens[i].classList.toggle("bn-token--on", st.phase !== "done" && game.showMover === i);
@@ -2711,7 +2745,7 @@
         // 🐟 the cards are the buttons; the pad is the pairs made (⭐s)
         act.innerHTML = '<span class="bn-card bn-card--basket">🐟</span>';
         pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
-        pad.setAttribute("aria-label", nameOf(i) + (active ? (st.phase === "answer" ? ": wait for the answer" : ": tap a card to ask for it") : st.phase === "answer" && i === 1 - st.turn && !st.seats[i].cpu ? ": find the " + fishSay(st.want) + " or go fish" : ": wait for your turn") + ". " + st.pairs[i].length + (st.pairs[i].length === 1 ? " pair" : " pairs"));
+        pad.setAttribute("aria-label", nameOf(i) + (answering ? (i === st.turn ? ": wait for the answer" : st.seats[i].cpu ? ": answering" : ": find the " + fishSay(st.want) + " or go fish") : active ? ": tap a card to ask for it" : ": wait for your turn") + ". " + st.pairs[i].length + (st.pairs[i].length === 1 ? " pair" : " pairs"));
       } else if (game.board.game === "cmatch") {
         // 🌈 the cards are the buttons; the pad is the cards left and the ⭐s
         const n = st.phase === "done" ? 0 : (game.cmv ? game.cmv.hands[i] : st.hands[i]).length;
@@ -2777,6 +2811,11 @@
         // human's hand BOTH pads are answers ("whose is it?"), so both light.
         const giving = st.phase === "give" && game.showTurn === st.turn && !st.seats[st.turn].cpu;
         if (active && game.foodShown) act.innerHTML = '<span class="bn-card bn-card--food">' + (DATA.food(game.foodShown) || {}).pic + "</span>";
+        // …and while he asks "whose is it?", the OTHER pad is that friend's
+        // BLANKET (its gingham, in their colour), never the basket: a basket
+        // there read as "tap the basket again" on the very tap that means
+        // "it goes on River's blanket" (round 5, found by playing)
+        else if (giving) act.innerHTML = '<span class="bn-card bn-card--blanket" style="border-color:' + seatPerson(i).colour + ";--gh:" + (i ? "#d8ecff" : "#ffd9dc") + '"></span>';
         else act.innerHTML = '<span class="bn-card bn-card--basket">🧺</span>';
         if (giving) { pad.classList.add("bn-pad--on", "bn-pad--ask"); pad.classList.remove("bn-pad--wait"); }
         else pad.classList.remove("bn-pad--ask");
@@ -3854,7 +3893,7 @@
         // 👀 the twin! it glows on both cards, then the found card slides to
         // the middle and onto the finder's pile
         SFX.home();
-        sayPlay(cap(fill(SAY.foundTwin, { s: (DATA.spot(e.twin) || {}).say || "" })));
+        sayPlay(fill(SAY.foundTwin, { s: cap((DATA.spot(e.twin) || {}).say || "") }));
         cheer(e.seat, true);
         at(T.ride, () => {
           game.spotYes = null; game.spotHand = null; game.spotMid = null;
@@ -4016,7 +4055,7 @@
           later(() => { tokens[e.seat].classList.remove("bn-token--ride"); popOnSquare(e.to, "⭐"); landStar(e.seat); }, T.ride);
           moveToken(e.seat, e.to, T.ride);
           if (e.kind === "boost") { SFX.boost(); sayPlay(fill(SAY.boost, { to: e.to })); }
-          else { SFX.comet(); sayPlay(fill(SAY.comet, { to: e.to })); }
+          else { SFX.comet(); sayPlay(fill(SAY.comet, { to: e.to, n: nameOf(e.seat) })); }
           cheer(e.seat);
           paintPads();
           paintBoardLabel();

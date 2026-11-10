@@ -3174,6 +3174,10 @@ body.board-mode { background: linear-gradient(165deg, #fff3e2 0%, #ffeef6 55%, #
 }
 .bn-keep__go { font-size: 2.6rem; color: #1d6b35; }
 .bn-keep__face { display: block; width: 64px; height: 64px; }
+/* who's playing / who's the friend: the PICTURE of the game he just tapped,
+   big, over the choices (he cannot read the title in the bar) — not a button */
+.bn-gamepic { display: grid; place-items: center; font-size: 4.6rem; line-height: 1; margin: 4px 0 18px; pointer-events: none; }
+.bn-gamepic .bn-domsvg, .bn-gamepic .bn-doorsvg { width: 1.6em; height: 0.9em; display: block; }
 .bn-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); }
 .bn-mode {
   min-height: 160px;
@@ -3403,7 +3407,7 @@ button.bn-swatch { cursor: pointer; }
   display: block; width: 38px; height: 38px; border: 3px solid #2b2b3a; border-radius: 50%; overflow: hidden; background: #ffffff;
 }
 .bn-top__who > svg, .bn-top__who > .bn-emoji { display: block; width: 100%; height: 100%; }
-.bn-top__hand { display: grid; grid-template-columns: repeat(3, var(--tc-w, 96px)); column-gap: 16px; }
+.bn-top__hand { display: grid; grid-template-columns: repeat(3, var(--tc-w, 96px)); column-gap: 16px; position: relative; }
 .bn-tc {
   width: var(--tc-w, 96px); height: var(--tc-h, 110px); min-height: 75px;
   display: grid; grid-template-rows: 1fr auto; justify-items: center; align-items: center;
@@ -3758,7 +3762,15 @@ button.bn-bsq { cursor: pointer; }
 }
 .bn-cm__table { display: grid; grid-template-columns: auto auto; column-gap: 24px; align-items: center; }
 .bn-cm__top, .bn-cm__deck { display: grid; }
-.bn-cm__hand { display: grid; grid-template-columns: repeat(var(--cm-n, 3), var(--cm-card, 90px)); column-gap: 16px; min-height: calc(var(--cm-card, 90px) * 1.4); justify-content: center; }
+.bn-cm__hand { display: grid; grid-template-columns: repeat(var(--cm-n, 3), var(--cm-card, 90px)); column-gap: 16px; min-height: calc(var(--cm-card, 90px) * 1.4); justify-content: center; position: relative; }
+/* whose hand (🎴 Colour Match, 🃏 Top Card): the owner's face on the row's
+   top-RIGHT corner (the top left is
+   each card's number, which the badge covered) — not a tap target */
+.bn-handwho {
+  position: absolute; right: -14px; top: -14px; z-index: 1; width: 38px; height: 38px;
+  border: 3px solid #1f2937; border-radius: 50%; background: #ffffff; overflow: hidden; pointer-events: none;
+  display: grid; place-items: center; box-shadow: var(--card-shadow);
+}
 .bn-cmc {
   width: var(--cm-card, 90px); height: calc(var(--cm-card, 90px) * 1.4); min-height: 75px;
   border: 5px solid #1f2937; border-radius: 14px; background: #ffffff; box-shadow: var(--card-shadow);
@@ -3925,6 +3937,7 @@ button.bn-domt { cursor: pointer; }
 .bn-dom__count .bn-domsvg { width: 60%; height: 80%; }
 .bn-dom__n { position: absolute; right: 4px; bottom: 2px; font-size: 1.1rem; font-weight: 900; color: #1f2937; }
 .bn-box__pic .bn-domsvg { width: 1.6em; height: 0.8em; display: block; }
+.bn-box__pic .bn-doorsvg { width: 1.6em; height: 0.9em; display: block; }
 
 /* 🚪 Shut the Doors: above the doors, WHOSE doors they are (a face) and what
    to make (the roll's dots and number, or "held + ? = roll"); then the six
@@ -4209,6 +4222,15 @@ button.bn-pickd { cursor: pointer; }
 @keyframes bnLand { 0% { transform: translate(-50%, -50%) scale(0.4); } 70% { transform: translate(-50%, -50%) scale(1.2); } 100% { transform: translate(-50%, -50%) scale(1); } }
 @keyframes bnGlow { from { box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200; } to { box-shadow: 0 0 0 8px #ffd24d, 0 0 0 12px #7a5200; } }
 .bn-card--basket { border-style: dashed; font-size: 2.6rem; }
+/* 🧺 "whose is it?": the friend's pad shows their blanket, the picnic's own
+   gingham (the tint and border of their blanket on the board) */
+.bn-card--blanket {
+  border-width: 5px;
+  background-color: #ffffff;
+  background-image: linear-gradient(45deg, var(--gh, #d8ecff) 25%, transparent 25%, transparent 75%, var(--gh, #d8ecff) 75%), linear-gradient(45deg, var(--gh, #d8ecff) 25%, transparent 25%, transparent 75%, var(--gh, #d8ecff) 75%);
+  background-size: 22px 22px;
+  background-position: 0 0, 11px 11px;
+}
 /* "whose is it?": both pads are answers, so both stand ready */
 .bn-pad--ask .bn-pad__face, .bn-pad--ask .bn-pad__act { opacity: 1; }
 /* 👀 Twin Spot: the flipped card (four big buttons) beside — or under — the

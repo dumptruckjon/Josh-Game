@@ -512,7 +512,8 @@
     { id: "lotto", board: "lotto", name: "Picnic Lotto", pic: "🧺", colour: "#2f9e6e", kind: "think" },
     { id: "spot", board: "spot", name: "Twin Spot", pic: "👀", colour: "#7c3aed", kind: "think" },
     { id: "pairs", board: "pairs", name: "Peek-a-Pair", pic: "🧠", colour: "#db2777", kind: "think" },
-    { id: "doors", board: "doors", name: "Shut the Doors", pic: "🚪", colour: "#b45309", kind: "think" },
+    // (drawn: 🚪 is the shelf bar's way OUT, so it cannot also be a box)
+    { id: "doors", board: "doors", name: "Shut the Doors", pic: "", art: "doors", colour: "#b45309", kind: "think" },
     { id: "acorns", board: "acorns", name: "Acorn Pots", pic: "🌰", colour: "#92400e", kind: "think" },
     // (no domino emoji is a picture on every phone, so its box is drawn)
     { id: "dig", board: "dig", name: "Treasure Dig", pic: "🏴‍☠️", colour: "#a16207", kind: "think" },
@@ -548,7 +549,9 @@
     hopFirst: "Tap to hop! One tap, one hop.",
     flipFirst: "Tap to flip a card!",
     boost: "Blast off! Up to {to}!",
-    comet: "Wheee! Down to {to}. A star for you!",
+    // (a star for the token's player, by name: "you" in a two-player game
+    // was nobody in particular, and on River's comet it was not him)
+    comet: "Wheee! Down to {to}. A star for {n}!",
     homeMoon: "{n} made it to the Moon!",
     homeTrail: "{n} made it to the party!",
     helper: "Now {n} helps {m}!",
