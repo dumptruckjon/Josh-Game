@@ -49,8 +49,27 @@
   // game per box · last: the last box and its players.
   // "has been shown how", per kind of game (each kind's first-time hand)
   const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors", "acorns", "dominoes", "dig", "nim", "lines", "top", "grab", "match3", "maze", "hide", "cmatch", "bingo", "snow", "fish", "ten", "hilo", "train", "pickdie"];
-  function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, next: {}, last: null }; }
+  function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, next: {}, last: null, skill: {} }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+  // ---- A friend's LEVEL (PLAN_BOARD.md §18) -----------------------------------
+  // How sharply the friend in the iPad plays a thinking game: their own way
+  // (DATA `sharp`), moved one `step` for every game on that box that went
+  // mostly one way (`save.skill[box]`, a whole number of steps). He takes most
+  // of the ⭐s: that box's friend gets a little sharper; the friend takes most:
+  // a little duller. So each box settles where he takes a bit more than half
+  // — and the friends still differ, because the steps move all three. Only
+  // SKILL moves: every die, card and bag stays the same fair luck.
+  const SKILL = { step: 0.05, min: -4, max: 4, up: 0.6, down: 0.45, lo: 0.15, hi: 0.85 };
+  function friendSharp(box, who) {
+    const p = DATA.person(who), b = DATA.box(box);
+    if (!p || typeof p.sharp !== "number" || !b || !L.levelled(b.board)) return undefined;
+    return Math.min(SKILL.hi, Math.max(SKILL.lo, p.sharp + (save.skill[box] || 0) * SKILL.step));
+  }
+  // his share of a finished game: the ⭐s, or in a race who was home first
+  function shareOf(st, board) {
+    const a = st.seats[0].stars, c = st.seats[1].stars;
+    return board.two ? (st.order[0] === 0 ? 1 : 0) : a + c ? a / (a + c) : 0.5;
+  }
   function coerce(text) {
     const s = freshSave();
     let raw = null;
@@ -68,6 +87,7 @@
     if (isObj(raw.intro)) for (const k of INTRO) s.intro[k] = raw.intro[k] === true;
     s.auto = raw.auto === true;
     if (isObj(raw.next)) for (const [box, n] of Object.entries(raw.next)) if (DATA.box(box) && (n === 0 || n === 1)) s.next[box] = n;
+    if (isObj(raw.skill)) for (const [box, n] of Object.entries(raw.skill)) if (DATA.box(box) && Number.isInteger(n) && n >= SKILL.min && n <= SKILL.max && n !== 0) s.skill[box] = n;
     if (isObj(raw.last) && DATA.box(raw.last.box) && DATA.person(raw.last.who) && typeof raw.last.cpu === "boolean") {
       s.last = { box: raw.last.box, who: raw.last.who, cpu: raw.last.cpu };
     }
@@ -91,6 +111,9 @@
     for (const [box, g] of Object.entries(disk.games)) if (!own.has(box)) save.games[box] = g;
     for (const [box, n] of Object.entries(disk.done)) save.done[box] = Math.max(save.done[box] || 0, n + (added[box] || 0));
     for (const k of INTRO) save.intro[k] = save.intro[k] || disk.intro[k];
+    // a box's level belongs to the tab that last finished a game on it
+    for (const box of Object.keys(save.skill)) if (!own.has(box) && !(box in disk.skill)) delete save.skill[box];
+    for (const [box, n] of Object.entries(disk.skill)) if (!own.has(box)) save.skill[box] = n;
   }
   function persist() {
     syncSave();
@@ -129,6 +152,7 @@
     tweet: () => notes([[1568, 0, { type: "sine", duration: 0.08 }], [1976, 90, { type: "sine", duration: 0.08 }], [1568, 180, { type: "sine", duration: 0.1 }]]),
     pie: () => notes([[659.25, 0], [880, 100, { duration: 0.25 }]]),
     ten: () => notes([[392, 0, { type: "triangle" }], [523.25, 120, { type: "triangle", duration: 0.25 }]]),
+    idea: () => notes([[1318.5, 0, { type: "sine", duration: 0.08, gain: 0.1 }], [1760, 90, { type: "sine", duration: 0.16, gain: 0.1 }]]),
   };
 
   // ---- The screens -----------------------------------------------------------
@@ -295,8 +319,8 @@
       '<div class="bn-tray">' +
         // 🎲 Pick a Die: the two dice to pick from, over the pads while he picks
         '<div class="bn-choose" role="group" aria-label="Pick a die" hidden></div>' +
-        '<button class="bn-pad bn-pad--0" type="button" data-seat="0"><span class="bn-pad__face" aria-hidden="true"></span><span class="bn-pad__act" aria-hidden="true"></span><span class="bn-pad__stars" aria-hidden="true"></span><span class="bn-pad__help" aria-hidden="true" hidden></span><span class="bn-pad__cheer" aria-hidden="true" hidden>🎉</span></button>' +
-        '<button class="bn-pad bn-pad--1" type="button" data-seat="1"><span class="bn-pad__face" aria-hidden="true"></span><span class="bn-pad__act" aria-hidden="true"></span><span class="bn-pad__stars" aria-hidden="true"></span><span class="bn-pad__help" aria-hidden="true" hidden></span><span class="bn-pad__cheer" aria-hidden="true" hidden>🎉</span></button>' +
+        '<button class="bn-pad bn-pad--0" type="button" data-seat="0"><span class="bn-pad__face" aria-hidden="true"></span><span class="bn-pad__act" aria-hidden="true"></span><span class="bn-pad__stars" aria-hidden="true"></span><span class="bn-pad__help" aria-hidden="true" hidden></span><span class="bn-pad__cheer" aria-hidden="true" hidden>🎉</span><span class="bn-pad__idea" aria-hidden="true" hidden>💡</span></button>' +
+        '<button class="bn-pad bn-pad--1" type="button" data-seat="1"><span class="bn-pad__face" aria-hidden="true"></span><span class="bn-pad__act" aria-hidden="true"></span><span class="bn-pad__stars" aria-hidden="true"></span><span class="bn-pad__help" aria-hidden="true" hidden></span><span class="bn-pad__cheer" aria-hidden="true" hidden>🎉</span><span class="bn-pad__idea" aria-hidden="true" hidden>💡</span></button>' +
       "</div>" +
       '<div class="bn-hand" aria-hidden="true" hidden>👆</div>');
     boardEl = play.querySelector(".bn-board");
@@ -540,9 +564,11 @@
       btn.type = "button";
       btn.setAttribute("role", "listitem");
       btn.dataset.who = p.id;
-      btn.setAttribute("aria-label", p.say + (cpu ? " in the iPad" : ""));
+      // (a friend in the iPad plays their own way: a word for the grown-up)
+      btn.setAttribute("aria-label", p.say + (cpu ? " in the iPad" + (p.tag ? ", " + p.tag : "") : ""));
       btn.innerHTML = '<span class="bn-person__face' + (cpu ? " bn-tablet" : "") + '" aria-hidden="true">' + R.faceHTML(p) + "</span>" +
-        '<span class="bn-person__label">' + p.say + "</span>";
+        '<span class="bn-person__label">' + p.say + "</span>" +
+        (cpu && p.tag ? '<span class="bn-person__tag" aria-hidden="true">' + p.tag + "</span>" : "");
       btn.addEventListener("click", () => {
         newGame(whoBox, p.id, cpu);
       });
@@ -567,7 +593,8 @@
     const birds = b.birdsAfter != null && (save.done[box] || 0) >= b.birdsAfter;
     // the 🦊 joins Hen House from his third game there (the same rule)
     const fox = b.foxAfter != null && (save.done[box] || 0) >= b.foxAfter;
-    const st = L.create({ board: b.board, seats: [{ who: "josh" }, { who: friend, cpu }], seed, first, birds, fox });
+    // a friend in the iPad plays a thinking game at their own level
+    const st = L.create({ board: b.board, seats: [{ who: "josh" }, { who: friend, cpu, sharp: cpu ? friendSharp(box, friend) : undefined }], seed, first, birds, fox });
     save.last = { box, who: friend, cpu };
     save.games[box] = { st: L.snapshot(st), at: Date.now() };
     own.add(box);
@@ -607,6 +634,7 @@
     endRides();
     endWiggles();
     endCheer();
+    endIdea();
     const farm = board.game === "hen";
     for (let i = 0; i < 2; i++) {
       const p = seatPerson(i);
@@ -3408,7 +3436,8 @@
     // Anything more than a plain hop (or one picked apple) holds the board
     // until the next turn starts: no pad may act while a ride, a card, the
     // pie or the hand-over plays.
-    if (ev.some((e) => e.type !== "hop" && e.type !== "pick")) game.busy = true;
+    // (a clever move's word is not a move: it never holds the board by itself)
+    if (ev.some((e) => e.type !== "hop" && e.type !== "pick" && e.type !== "smart" && e.type !== "oops")) game.busy = true;
     // …and the board shows it AT ONCE: a game that draws its own board
     // repaints now, with nothing on it a button (every repaint asks
     // game.busy). The first moment of the animation is on a timer, so
@@ -3419,6 +3448,8 @@
     const at = (ms, fn) => { t += ms; later(fn, t); };
     let turnEnded = false;
     for (const e of ev) {
+      // 💡 a clever move is named after the move it belongs to has played
+      if (e.type === "smart" || e.type === "oops") { at(0, () => think(e)); continue; }
       if (e.type === "hop" && game.board.game === "hen") {
         // 🐔 the hen walks one square and one chick runs into the hen house:
         // the COUNT is the chicks home, popped and said
@@ -4195,6 +4226,12 @@
     own.add(game.box);
     save.done[game.box] = (save.done[game.box] || 0) + 1;
     added[game.box] = (added[game.box] || 0) + 1;
+    // the friend in the iPad learns from how it went (see SKILL)
+    if (game.cpu && L.levelled(game.st.board)) {
+      const share = shareOf(game.st, game.board), step = share > SKILL.up ? 1 : share < SKILL.down ? -1 : 0;
+      const lvl = Math.min(SKILL.max, Math.max(SKILL.min, (save.skill[game.box] || 0) + step));
+      if (lvl) save.skill[game.box] = lvl; else delete save.skill[game.box];
+    }
     delete save.games[game.box];
     persist();
   }
@@ -4310,6 +4347,48 @@
     }
   }
 
+  // ---- A clever move, NAMED (PLAN_BOARD.md §18) ---------------------------------
+  // The engine says when a move was the clever one (`smart`) or missed it
+  // (`oops`). A 💡 lights over the mover's own face every time — seen with the
+  // sound off — and WHY is said the first time each player does it in a game
+  // (after that the bulb and its two notes alone, or the game would talk over
+  // itself). It names the THINKING, never the luck: a good guess is clever
+  // whether or not the card then obliges. A miss is never pointed out to a
+  // person; only a friend in the iPad says "Oops!" of its OWN move, once a
+  // game — how to take a slip lightly, shown rather than told.
+  function think(e) {
+    if (!game || !playVisible()) return;
+    const told = game.told || (game.told = {});
+    if (e.type === "oops") {
+      if (!game.st.seats[e.seat].cpu || told.oops) return;
+      told.oops = true;
+      sayPlay(seatPerson(e.seat).oops || "");
+      return;
+    }
+    idea(e.seat);
+    SFX.idea();
+    if (told[e.seat + e.why]) return;
+    told[e.seat + e.why] = true;
+    const line = SAY["smart" + cap(e.why) + (e.why === "odds" ? (e.up ? "Up" : "Down") : "")];
+    if (line) sayPlay(fill(line, { n: nameOf(e.seat), m: nameOf(1 - e.seat), left: e.left, d: e.was }));
+  }
+  function idea(i) {
+    const pad = pads[i], b = pad && pad.querySelector(".bn-pad__idea");
+    if (!b) return;
+    b.hidden = false;
+    b.classList.remove("bn-idea--go");
+    void b.offsetWidth;
+    b.classList.add("bn-idea--go");
+    cancelLater(b.__t);
+    b.__t = later(endIdea, T.cheer);
+  }
+  function endIdea() {
+    for (const p of pads) {
+      const b = p && p.querySelector(".bn-pad__idea");
+      if (b) { b.hidden = true; b.classList.remove("bn-idea--go"); }
+    }
+  }
+
   // ---- The hand that shows how (first time, and on 👂) ---------------------------
   function showHand(i) {
     // 🧠 the cards are the buttons, so the hand points at one face down
@@ -4376,6 +4455,7 @@
     endRides();
     endWiggles();
     endCheer();
+    endIdea();
     if (game) {
       game.busy = false;
       persistGame();
@@ -4464,9 +4544,10 @@
     },
     // Start a game with a chosen seed (so a test knows the dice), as the who
     // screen would.
-    start(box, friend, cpu, seed, first, birds) {
+    // (`sharp`: the friend's level — a test's games have none unless it asks)
+    start(box, friend, cpu, seed, first, birds, sharp) {
       const b = DATA.box(box);
-      const st = L.create({ board: b.board, seats: [{ who: "josh" }, { who: friend, cpu: !!cpu }], seed: seed || 1, first: first || 0, birds: !!birds, fox: !!birds });
+      const st = L.create({ board: b.board, seats: [{ who: "josh" }, { who: friend, cpu: !!cpu, sharp }], seed: seed || 1, first: first || 0, birds: !!birds, fox: !!birds });
       save.games[box] = { st: L.snapshot(st), at: Date.now() };
       save.last = { box, who: friend, cpu: !!cpu };
       own.add(box);
@@ -4483,6 +4564,9 @@
       if (location.hash === "#board-play" && play && !play.hidden) startPending(); else location.hash = "#board-play";
       return true;
     },
+    // a box's level: the steps learned, and how sharply each friend plays it
+    level: (box) => ({ steps: save.skill[box] || 0, sharp: DATA.FRIENDS.map((f) => friendSharp(box, f.id)) }),
+    SKILL,
     busy: () => !!(game && (game.busy || timers.size)),
     timers: () => timers.size,
     shown: () => (game ? game.shown.slice() : null),

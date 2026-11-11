@@ -3216,6 +3216,8 @@ body.board-mode { background: linear-gradient(165deg, #fff3e2 0%, #ffeef6 55%, #
 .bn-person__face { display: block; width: 64px; height: 64px; }
 .bn-person__face.bn-tablet { width: 72px; height: 64px; }
 .bn-person__label { font-size: 1rem; font-weight: 800; color: #2e2a55; }
+/* how a friend in the iPad plays (for the grown-up): full-strength ink, small */
+.bn-person__tag { font-size: 0.8rem; font-weight: 700; color: #2e2a55; line-height: 1.1; }
 
 /* the board and its two tokens */
 body.in-game .screen.bn-play { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; position: relative; }
@@ -4190,6 +4192,19 @@ button.bn-pickd { cursor: pointer; }
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 .bn-cheer--go { animation: bnCheer 1.4s ease-out; }
+/* 💡 a clever move: the bulb lights over the MOVER's own face (the cheer is
+   the other player's), top right so the two never share a corner */
+.bn-pad__idea {
+  position: absolute;
+  top: -22px;
+  right: 6px;
+  z-index: 2;
+  font-size: 2.2rem;
+  line-height: 1;
+  pointer-events: none;
+  text-shadow: 0 0 10px rgba(255, 221, 87, 0.95), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.bn-idea--go { animation: bnCheer 1.4s ease-out; }
 @keyframes bnCheer { 0% { transform: translateY(14px) scale(0.4); opacity: 0; } 18% { transform: translateY(-6px) scale(1.2); opacity: 1; } 35% { transform: translateY(0) scale(1); } 80% { opacity: 1; } 100% { transform: translateY(-10px); opacity: 0; } }
 .bn-pad--cheer .bn-pad__face { opacity: 1; animation: bnHop 0.36s ease-out 3; }
 /* 🍎 Apple Spin: the spinner on the pad, its result, and the moving apples */
@@ -4389,6 +4404,7 @@ button.bn-pickd { cursor: pointer; }
   .bn-pop--go { animation: none; }
   .bn-pop--below.bn-pop--go { animation: none; }
   .bn-cheer--go { animation: none; }
+  .bn-idea--go { animation: none; }
   .bn-spinner--go svg { animation: none; }
   .bn-card--flip { animation: none; }
   .bn-pad--cheer .bn-pad__face { animation: none; }

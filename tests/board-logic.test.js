@@ -1443,7 +1443,8 @@ test("🍪 COOKIE JAR: take one, two or three, the LAST cookie is the golden ⭐
   // leaving four: whatever the friend takes, the golden one is his
   assert.equal(L.nimBest(st), b.jars[0] % 4, "the take that leaves a multiple of four");
   let ev = L.takeCookies(st, L.nimBest(st));
-  assert.deepEqual(ev.map((e) => e.type), ["nibble", "turn"], "a take, and the turn passes");
+  assert.deepEqual(ev.map((e) => e.type), ["nibble", "smart", "turn"], "a take (the clever one, so it is named), and the turn passes");
+  assert.deepEqual([ev[1].why, ev[1].seat, ev[1].left], ["four", 0, st.cookies], "named for what it leaves");
   assert.equal(st.cookies % 4, 0, "four (or eight) left for the friend");
   assert.equal(L.nimBest(st), 0, "the friend has no take that leaves four");
   L.takeCookies(st, 1);
@@ -1623,7 +1624,8 @@ test("🃏 TOP CARD: each player's own ten cards, three in hand; the leader play
   assert.equal(L.topBest(st), beat.length ? beat[0] : hand[0], "the saving card");
   const ans = L.topBest(st);
   ev = L.playCard(st, ans);
-  assert.deepEqual(ev.map((e) => e.type), ["answer", "trick", "turn"], "the answer, the trick, and the next lead");
+  assert.deepEqual(ev.map((e) => e.type), ["answer", "trick", "smart", "turn"], "the answer, the trick (the saving card is named), and the next lead");
+  assert.equal(ev[2].why, beat.length ? "enough" : "save", "named for WHY it was the saving card");
   const win = ans === lead ? -1 : ans > lead ? 1 : 0;
   assert.equal(ev[1].win, win, "the bigger card wins");
   if (win >= 0) assert.equal(st.seats[win].stars, 1, "a ⭐ for the trick");
@@ -2458,6 +2460,149 @@ test("🎲 PICK A DIE: a roll is TWO dice from his own fair bag, he picks one (t
   assert.equal(L.restore({ ...moon, dice: [1, 2] }), null, "a one-die board never carries two dice");
 });
 
+// ---- A friend's LEVEL, and clever moves named (PLAN_BOARD.md §18) -------------
+// The boards whose computer makes a CHOICE that a level can sharpen. Every
+// other board must play EXACTLY the same at any level (its luck is fair, and
+// nothing reads the level), so a new thinking game has to join this list —
+// or its friend never gets better.
+const LEVELLED = DATA.BOARDS.filter((b) => L.levelled(b.id)).map((b) => b.id);
+const levelRun = (board, a, b, n) => {
+  let sa = 0, sb = 0, first = 0;
+  const ends = [];
+  for (let seed = 1; seed <= n; seed++) {
+    const seats = [{ who: "josh" }, { who: "river", cpu: true }];
+    if (a != null) seats[0].sharp = a;
+    if (b != null) seats[1].sharp = b;
+    const st = L.create({ board, seats, seed, first: seed % 2, birds: true, fox: true });
+    let g = 0;
+    while (st.phase !== "done" && g++ < 600) L.autoTurn(st);
+    assert.equal(st.phase, "done", `${board} ends at any level (seed ${seed})`);
+    sa += st.seats[0].stars; sb += st.seats[1].stars;
+    if (st.order[0] === 0) first++;
+    const snap = L.snapshot(st);
+    for (const x of snap.seats) delete x.sharp;
+    ends.push(JSON.stringify(snap));
+  }
+  // a race game is scored by who is home first; every other by its ⭐s
+  return { score: DATA.board(board).two ? first / n : sa / Math.max(1, sa + sb), ends };
+};
+
+test("🧠 A FRIEND'S LEVEL: a seat with no level plays the game's own; 0.5 is that same level; a sharper friend takes more and a duller one less, in every game with a choice; no other game reads it; the level is clamped; junk is refused", () => {
+  assert.ok(LEVELLED.length >= 16, `fixture: the engine names its levelled boards (${LEVELLED.length})`);
+  assert.equal(L.levelled("no-such-board"), false);
+  let flat = 0;
+  for (const b of DATA.BOARDS) {
+    const levelled = LEVELLED.indexOf(b.id) >= 0;
+    const n = levelled ? 160 : 12;
+    const none = levelRun(b.id, null, null, n), mid = levelRun(b.id, 0.5, 0.5, n);
+    // (Shut the Doors is the one game whose levelled friend rolls its own
+    // luck once more, to look for two doors: 0.5 there is "half the time")
+    if (b.id !== "doors") assert.deepEqual(mid.ends, none.ends, `${b.id}: a level of 0.5 is the game's own level, move for move`);
+    const hi = levelRun(b.id, 0.9, 0.1, n), lo = levelRun(b.id, 0.1, 0.9, n);
+    if (!levelled) {
+      assert.deepEqual(hi.ends, none.ends, `${b.id} reads no level — if its computer now makes a choice, add its game to the engine's LEVEL_GAMES`);
+      assert.deepEqual(lo.ends, none.ends, `${b.id} reads no level`);
+      flat++;
+      continue;
+    }
+    // measured (300 games): the sharp seat's share is 56-82% against 18-45%
+    // the other way round, about 50% level; the bars sit between
+    assert.ok(hi.score > mid.score + 0.03, `${b.id}: the sharper seat takes more (${hi.score.toFixed(2)} against ${mid.score.toFixed(2)} level)`);
+    assert.ok(lo.score < mid.score - 0.03, `${b.id}: the duller seat takes less (${lo.score.toFixed(2)} against ${mid.score.toFixed(2)} level)`);
+    assert.ok(hi.score > lo.score + 0.1, `${b.id}: the level is a real slope (${hi.score.toFixed(2)} / ${lo.score.toFixed(2)})`);
+  }
+  assert.ok(flat >= 8, "fixture: the luck games were checked for reading no level");
+  // clamped: nobody is ever perfect, and nobody never sees the move
+  const st = L.create({ board: "cookies", seats: [{ who: "josh", sharp: 1 }, { who: "river", cpu: true, sharp: 0 }], seed: 5, first: 0 });
+  assert.equal(L.sharpOf(st, 0.5), L.SHARP_MAX, "the sharpest friend still misses now and then");
+  st.turn = 1;
+  assert.equal(L.sharpOf(st, 0.5), L.SHARP_MIN, "the dullest friend still sees it now and then");
+  assert.ok(L.SHARP_MAX < 1 && L.SHARP_MIN > 0);
+  delete st.seats[1].sharp;
+  assert.equal(L.sharpOf(st, 0.6), 0.6, "no level: the game's own");
+  // (a fresh game for the saves: the one above had its turn moved by hand)
+  const fresh = () => L.snapshot(L.create({ board: "cookies", seats: [{ who: "josh", sharp: 1 }, { who: "river", cpu: true }], seed: 5, first: 0 }));
+  assert.equal(L.restore(fresh()).seats[0].sharp, 1, "a real level comes back with its game");
+  // junk levels never get in
+  for (const junk of ["0.7", 2, -0.1, NaN, null, {}]) {
+    const j = L.create({ board: "cookies", seats: [{ who: "josh" }, { who: "river", cpu: true, sharp: junk }], seed: 5, first: 0 });
+    assert.equal(j.seats[1].sharp, undefined, `a level of ${String(junk)} is not taken`);
+    const snap = fresh();
+    snap.seats[0].sharp = junk;
+    assert.equal(L.restore(snap), null, `a save with a level of ${String(junk)} is refused`);
+  }
+});
+
+// What each game's clever move is called. A game not here names none.
+const SMART_WHY = { dice: ["rocket"], pairs: ["recall"], dig: ["arrows"], nim: ["four"], lines: ["block"], top: ["enough", "save"], grab: ["most"], match3: ["keep"], maze: ["near"], hide: ["ask"], fish: ["see"], hilo: ["odds"] };
+
+test("💡 A CLEVER MOVE IS NAMED (smart) and a missed one too (oops): only by the mover, only with a `why` of its own game, never both at once, never when there was nothing to choose — and Cookie Jar, Higher or Lower and Peek-a-Pair agree with the rule restated here", () => {
+  const seen = {};
+  for (const b of DATA.BOARDS) {
+    for (let seed = 1; seed <= 60; seed++) {
+      const st = L.create({ board: b.id, seats: SEATS, seed, first: seed % 2, birds: true, fox: true });
+      let g = 0, r = seed * 2654435761 >>> 0;
+      const rnd = (n) => { r = (Math.imul(r, 1664525) + 1013904223) >>> 0; return Math.floor((r / 4294967296) * n); };
+      const pairsSeen = new Set();   // 🧠 the cards turned so far this board (restated)
+      while (st.phase !== "done" && g++ < 600) {
+        const before = L.snapshot(st);
+        // one MOVE at a time where the game has single moves to give
+        let ev;
+        if (b.game === "nim") { const t = L.nimTakes(st); ev = L.takeCookies(st, t[rnd(t.length)]); }
+        else if (b.game === "hilo") ev = L.hiloGuess(st, rnd(2) === 0);
+        else if (b.game === "pairs") {
+          const down = st.cards.map((c, k) => k).filter((k) => !st.gone[k] && st.open.indexOf(k) < 0);
+          // (go to a seen partner half the time, so both words are said)
+          let k = down[rnd(down.length)];
+          if (st.phase === "second" && rnd(2)) { const m = down.find((j) => st.cards[j] === st.cards[st.open[0]] && pairsSeen.has(j)); if (m != null) k = m; }
+          ev = L.peekPair(st, k);
+        } else ev = L.autoTurn(st);
+        const words = ev.filter((e) => e.type === "smart" || e.type === "oops");
+        for (const e of words) {
+          assert.ok((SMART_WHY[b.game] || []).indexOf(e.why) >= 0, `${b.id}: "${e.why}" is not one of its clever moves`);
+          assert.ok(e.seat === 0 || e.seat === 1);
+          (seen[b.game] = seen[b.game] || { smart: 0, oops: 0 })[e.type]++;
+        }
+        if (b.game === "nim") {
+          // restated: clever is leaving a multiple of four; there is a choice
+          // exactly when the jar is not one already and more than four are in
+          const took = before.cookies - (ev.some((e) => e.type === "golden") ? 0 : st.cookies);
+          const could = before.cookies % 4 !== 0 && before.cookies > 4;
+          assert.equal(words.length, could ? 1 : 0, `cookies: ${before.cookies} in the jar ${could ? "has" : "has no"} clever take`);
+          if (could) {
+            assert.equal(words[0].type, (before.cookies - took) % 4 === 0 ? "smart" : "oops", `cookies: taking ${took} of ${before.cookies}`);
+            assert.equal(words[0].seat, before.turn, "the one who took them");
+            assert.equal(words[0].left, before.cookies - took, "it says what is left");
+          }
+        } else if (b.game === "hilo") {
+          const hi = before.deck.filter((x) => x > before.top).length, lo = before.deck.filter((x) => x < before.top).length;
+          const up = ev[0].up;
+          assert.equal(words.length, hi !== lo ? 1 : 0, "hilo: a guess is clever only when more cards lie one way");
+          if (hi !== lo) {
+            assert.equal(words[0].type, up === hi > lo ? "smart" : "oops", "hilo: the guess more of the deck agrees with — whatever the card then does");
+            assert.deepEqual([words[0].was, words[0].up, words[0].seat], [before.top, up, before.turn]);
+          }
+        } else if (b.game === "pairs") {
+          const k = ev[0].k;
+          if (before.phase === "second" && before.cards[k] !== "star") {
+            const a = before.open[0];
+            const mate = before.cards.findIndex((c, j) => j !== a && !before.gone[j] && c === before.cards[a]);
+            const known = pairsSeen.has(mate);
+            assert.equal(words.length, known ? 1 : 0, "pairs: remembering is named only when the partner had been turned before");
+            if (known) assert.equal(words[0].type, k === mate ? "smart" : "oops");
+          } else if (before.phase !== "second") assert.equal(words.length, 0, "pairs: the first card is never judged");
+          if (ev.some((e) => e.type === "deal")) pairsSeen.clear(); else pairsSeen.add(k);
+        }
+        assert.ok(words.length <= 1 || b.game === "match3" || b.game === "pairs" || b.game === "fish" || b.game === "dice", `${b.id}: one move, one word`);
+        assert.ok(!(words.some((e) => e.type === "smart") && words.some((e) => e.type === "oops")) || words.length > 1, "never both for one move");
+      }
+      assert.equal(st.phase, "done", `${b.id} still ends (seed ${seed})`);
+    }
+  }
+  assert.deepEqual(Object.keys(seen).sort(), Object.keys(SMART_WHY).sort(), "exactly the games with a clever move name one — a game that never says its word is on the list for nothing");
+  for (const [game, n] of Object.entries(seen)) assert.ok(n.smart > 5 && n.oops > 5, `${game}: both words are really said (${n.smart} / ${n.oops})`);
+});
+
 test("an event NAME belongs to one game unless it is on the shared list (the shell dispatches every game's events through ONE switch, so a new game reusing a name steals another's moment)", () => {
   // 🏴‍☠️ Treasure Dig first named its find "found" — Twin Spot's event — and
   // its branch, placed earlier in the shell's switch, swallowed every Twin
@@ -2465,6 +2610,7 @@ test("an event NAME belongs to one game unless it is on the shared list (the she
   const SHARED = {
     turn: "the turn routine", end: "the turn routine", home: "the race games' arrival", helper: "the race games' helper rule",
     roll: "Shut the Doors, Number Bingo and Snowman Build roll the dice's own die (the shell's rollDice branches by game)", hop: "the shell branches the hen's hop by game", spin: "the shell branches the farm's spinner by game",
+    smart: "a clever move, named: ONE shell branch for every game, told apart by its `why`", oops: "a clever move missed: ONE shell branch for every game (only a computer friend ever says so)",
   };
   const by = {};
   for (const b of DATA.BOARDS) {

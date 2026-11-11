@@ -19,10 +19,15 @@
   // `colour` is the token's colour (a friend's own shirt colour), `say` the
   // name the voice uses.
   const JOSH = { id: "josh", face: "Josh", colour: "#e23636", say: "Josh" };
+  // Each friend in the iPad plays their OWN way (PLAN_BOARD.md §18): `sharp`
+  // is how often they see the clever move (0.5 is each game's own level — see
+  // board-logic.js sharpOf), `tag` a word for the grown-up under their face,
+  // and `oops` what they say of their own slip (lightly: how to take one is
+  // shown, not told). The luck is the same fair luck for all three.
   const FRIENDS = [
-    { id: "river", face: "River", colour: "#2bb3c0", say: "River" },
-    { id: "raegar", face: "Raegar", colour: "#4caf6d", say: "Raegar" },
-    { id: "viraj", face: "Viraj", colour: "#ff9f43", say: "Viraj" },
+    { id: "river", face: "River", colour: "#2bb3c0", say: "River", sharp: 0.65, tag: "careful", oops: "Hmm! I missed that one." },
+    { id: "raegar", face: "Raegar", colour: "#4caf6d", say: "Raegar", sharp: 0.35, tag: "playful", oops: "Oops! Silly me!" },
+    { id: "viraj", face: "Viraj", colour: "#ff9f43", say: "Viraj", sharp: 0.5, tag: "steady", oops: "Oh well! Next time." },
   ];
   // Who can sit beside him for real. Six, so the picker is an even 3 x 2.
   const PEOPLE = FRIENDS.concat([
@@ -559,6 +564,22 @@
     endTrail: "You both made it to the party! Hooray!",
     notYet: "It's {n}'s turn. You're next!",
     cpuCheer: "Whoa, {n}!",
+    // a CLEVER move, named by why (`smart` + the engine's `why`): said the
+    // first time each player makes it in a game, with a 💡 over their face
+    smartFour: "{n} left {left}. Clever!",
+    smartArrows: "{n} followed the arrows. Clever!",
+    smartBlock: "{n} stopped the line. Clever!",
+    smartEnough: "Just big enough. Clever, {n}!",
+    smartSave: "{n} saved the big cards. Clever!",
+    smartMost: "{n} took the biggest grab. Clever!",
+    smartRocket: "{n} saw the rocket. Clever!",
+    smartNear: "The quick way to the cheese. Clever, {n}!",
+    smartAsk: "A good question, {n}!",
+    smartSee: "{n} saw that {m} has one. Clever!",
+    smartKeep: "{n} kept the same ones. Clever!",
+    smartRecall: "{n} remembered where it was!",
+    smartOddsUp: "{d} is small, so bigger is a good guess!",
+    smartOddsDown: "{d} is big, so smaller is a good guess!",
     card: "{c} {s}!",
     cardTwo: "Two {c} {s}s!",
     cardPic: "{p}! Zoom!",

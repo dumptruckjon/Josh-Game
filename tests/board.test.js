@@ -472,6 +472,181 @@ test("the voice: every line is words (never a picture, never a {placeholder}) an
   }
 });
 
+// ---- Friends who think (PLAN_BOARD.md §18) ------------------------------------
+test("🧠 the friends in the iPad each play their OWN way (a word under each face), a thinking box's friend LEARNS from how its games go (a step sharper when he takes most of the stars, a step duller the other way, never past the ends), a luck game and a person here have no level, and a broken save's levels are dropped", async () => {
+  const DATA = require("../scripts/board-data.js");
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+    // the picker: a word for the grown-up under each friend in the iPad
+    await go("#board-pick-cookies-cpu", "#screen-board-pick");
+    const people = await page.evaluate(() => [...document.querySelectorAll("#screen-board-pick .bn-person")].map((b) => ({ who: b.dataset.who, tag: (b.querySelector(".bn-person__tag") || {}).textContent || "", label: b.getAttribute("aria-label") })));
+    assert.deepEqual(people.map((p) => [p.who, p.tag]), DATA.FRIENDS.map((f) => [f.id, f.tag]), "each friend's own word");
+    assert.equal(new Set(DATA.FRIENDS.map((f) => f.sharp)).size, 3, "fixture: three friends, three ways of playing");
+    for (const p of people) assert.ok(p.label.indexOf(", " + p.tag) > 0, `…and it is in the button's name ("${p.label}")`);
+    await go("#board-pick-cookies-here", "#screen-board-pick");
+    assert.equal(await page.locator("#screen-board-pick .bn-person__tag").count(), 0, "a person here has no such word");
+    // picking a friend starts the game at THEIR level
+    for (const f of DATA.FRIENDS) {
+      await go("#board-pick-cookies-cpu", "#screen-board-pick");
+      await page.locator(`#screen-board-pick .bn-person[data-who="${f.id}"]`).click();
+      await page.locator("#screen-board-play").waitFor({ state: "visible" });
+      assert.equal((await st()).seats[1].sharp, f.sharp, `${f.id} plays Cookie Jar at ${f.sharp}`);
+      assert.equal((await st()).seats[0].sharp, undefined, "he has no level: he is himself");
+    }
+    await go("#board-pick-moon-cpu", "#screen-board-pick");
+    await page.locator('#screen-board-pick .bn-person[data-who="river"]').click();
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    assert.equal((await st()).seats[1].sharp, undefined, "a luck game has no level: the dice are the same for everyone");
+    // (River sitting beside him is a person, not the friend in the iPad)
+    for (const who of ["dad", "river"]) {
+      await go("#board-pick-cookies-here", "#screen-board-pick");
+      await page.locator(`#screen-board-pick .bn-person[data-who="${who}"]`).click();
+      await page.locator("#screen-board-play").waitFor({ state: "visible" });
+      assert.equal((await st()).seats[1].sharp, undefined, `a person here has no level (${who})`);
+    }
+
+    // LEARNING: the last jar's last two cookies are his to take
+    const nearEnd = (mine, theirs, cpu) => {
+      const s = L.create({ board: "cookies", seats: [{ who: "josh" }, cpu ? { who: "river", cpu: true } : { who: "dad" }], seed: 3, first: 0 });
+      s.jar = 3; s.cookies = 2; s.seats[0].pos = 15; s.seats[1].pos = 15; s.seats[0].stars = mine; s.seats[1].stars = theirs; s.rolls = 20;
+      assert.ok(L.restore(s), "fixture: a real game, two cookies from its end");
+      return s;
+    };
+    const finish = async (mine, theirs, cpu) => {
+      assert.ok(await page.evaluate((x) => window.__BOARD.load("cookies", x), nearEnd(mine, theirs, cpu !== false)), "fixture: the game loads");
+      await page.locator("#screen-board-play").waitFor({ state: "visible" });
+      await page.waitForTimeout(450);
+      await page.locator('.bn-take button.bn-takeb[data-n="2"]').click();
+      await page.waitForFunction(() => window.__BOARD.state().phase === "done", null, { timeout: 5000 });
+    };
+    const level = () => page.evaluate(() => window.__BOARD.level("cookies"));
+    const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem("josh-board-v1")).skill);
+    await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+    assert.equal((await level()).steps, 0, "a fresh box: every friend at their own level");
+    await finish(3, 0);   // he ends with all four golden cookies
+    assert.equal((await level()).steps, 1, "he took most of the stars: the friend is a step sharper on THIS box");
+    assert.deepEqual(await stored(), { cookies: 1 }, "…and it is saved, for this box only");
+    const SK = await page.evaluate(() => window.__BOARD.SKILL);
+    assert.deepEqual((await level()).sharp, DATA.FRIENDS.map((f) => f.sharp + SK.step), "every friend moves a step, so they still differ");
+    assert.deepEqual((await page.evaluate(() => window.__BOARD.level("grab"))).sharp, DATA.FRIENDS.map((f) => f.sharp), "another box is untouched");
+    // …and the next game on the box is played at the new level
+    await go("#board-pick-cookies-cpu", "#screen-board-pick");
+    await page.locator('#screen-board-pick .bn-person[data-who="viraj"]').click();
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    assert.equal((await st()).seats[1].sharp, DATA.person("viraj").sharp + SK.step, "Viraj plays the next Cookie Jar a step sharper");
+    await finish(0, 3);   // the friend ends with three of the four
+    assert.equal((await level()).steps, 0, "the friend took most: a step duller again");
+    assert.deepEqual(await stored(), {}, "…and a box back at its own level stores nothing");
+    await finish(1, 2);   // two each: level
+    assert.equal((await level()).steps, 0, "an even game moves nothing");
+    await finish(3, 0, false);   // against Dad
+    assert.equal((await level()).steps, 0, "a game against a person here teaches the iPad's friends nothing");
+    // never past the ends
+    await page.evaluate((mx) => { const s = JSON.parse(localStorage.getItem("josh-board-v1")); s.skill = { cookies: mx }; localStorage.setItem("josh-board-v1", JSON.stringify(s)); }, SK.max);
+    await page.reload({ waitUntil: "load" });
+    await quick();
+    assert.equal((await level()).steps, SK.max, "fixture: the top step is loaded");
+    await finish(3, 0);
+    assert.equal((await level()).steps, SK.max, "never past the top step");
+    const top = (await level()).sharp;
+    assert.ok(top.every((x) => x <= SK.hi && x >= SK.lo), `every friend stays inside the ends (${top})`);
+    assert.ok(top[0] < 1 && SK.hi < 1, "the sharpest friend still misses sometimes: a careful child can always do better");
+    // a broken save's levels are dropped, one by one
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem("josh-board-v1")); s.skill = { cookies: 99, grab: "2", dig: 1.5, nope: 1, pairs: -2, hilo: 0 }; localStorage.setItem("josh-board-v1", JSON.stringify(s)); });
+    await page.reload({ waitUntil: "load" });
+    assert.deepEqual(await page.evaluate(() => ["cookies", "grab", "dig", "pairs", "hilo"].map((b) => window.__BOARD.level(b).steps)), [0, 0, 0, -2, 0], "only a whole step inside the ends is taken");
+  } finally {
+    await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+    await slow();
+  }
+});
+
+test("💡 a CLEVER move is named: a bulb over the MOVER's own face every time (sound off), WHY said the first time each player does it in a game and not again, nothing at all for a person's missed one, a friend in the iPad saying 'oops' of its own slip once — and a bulb never outlives its game", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await page.evaluate(() => {
+    window.__said = [];
+    window.__realAudio = { isMuted: window.JoshAudio.isMuted, say: window.JoshAudio.say, tone: window.JoshAudio.tone };
+    window.JoshAudio.isMuted = () => false;
+    // (what was on screen when the line was said: each pad's bulb)
+    window.JoshAudio.say = (t) => { window.__said.push([String(t), [0, 1].map((i) => !document.querySelector(".bn-pad--" + i + " .bn-pad__idea").hidden)]); };
+    window.JoshAudio.tone = () => {};
+    // every time a bulb LIGHTS, per pad
+    window.__bulbs = [0, 0];
+    window.__bulbWatch = new MutationObserver((recs) => { for (const r of recs) if (!r.target.hidden) window.__bulbs[r.target.closest(".bn-pad").classList.contains("bn-pad--1") ? 1 : 0]++; });
+    for (const b of document.querySelectorAll(".bn-pad__idea")) window.__bulbWatch.observe(b, { attributes: true, attributeFilter: ["hidden"] });
+  });
+  const said = () => page.evaluate(() => window.__said.map((x) => x[0]));
+  const bulbs = () => page.evaluate(() => window.__bulbs.slice());
+  const take = async (n, seat) => {
+    await untilTap(seat);
+    const before = (await st()).rolls;
+    await page.locator(`.bn-take button.bn-takeb[data-n="${n}"]`).click();
+    await page.waitForFunction((r) => { const x = window.__BOARD.state(); return x.phase === "done" || (x.rolls > r && !window.__BOARD.busy()); }, before, { timeout: 5000 });
+    await page.waitForTimeout(150);   // (a quick bulb goes out again)
+  };
+  try {
+    await quick();
+    // two people, seven cookies: taking three leaves FOUR
+    await startGame("cookies", "dad", false, 3, 0);
+    assert.equal(await page.locator(".bn-pad__idea").count(), 2, "a bulb on each pad");
+    assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll(".bn-pad__idea")].map((b) => b.hidden)), [true, true], "…and neither lit");
+    await take(3, 0);
+    assert.deepEqual(await bulbs(), [1, 0], "his clever take lights the bulb over HIS face");
+    assert.deepEqual((await said()).filter((t) => /Clever/.test(t)), ["Josh left 4. Clever!"], "…and says why");
+    await take(1, 1);    // four in the jar: nothing clever to do
+    await take(3, 0);    // the last three: the golden cookie is its own ⭐
+    assert.deepEqual(await bulbs(), [1, 0], "no bulb where there was nothing to choose, nor for the golden cookie");
+    // the next jar has nine: Dad starts it; one leaves eight
+    assert.deepEqual([(await st()).cookies, (await st()).turn], [9, 1], "fixture: the second jar, Dad's go");
+    await take(1, 1);
+    assert.deepEqual(await bulbs(), [1, 1], "Dad's clever take lights the bulb over HIS face");
+    await take(1, 0);    // eight in the jar: nothing clever
+    await take(3, 1);    // seven → four: Dad's second clever take
+    assert.deepEqual(await bulbs(), [1, 2], "the bulb every time…");
+    assert.deepEqual((await said()).filter((t) => /Clever/.test(t)), ["Josh left 4. Clever!", "Dad left 8. Clever!"], "…but WHY only the first time each player does it");
+    // a person's MISSED clever move is never pointed out
+    await page.evaluate(() => { window.__said = []; window.__bulbs = [0, 0]; });
+    await startGame("cookies", "dad", false, 3, 0);
+    await take(1, 0);    // (three would have left four)
+    assert.deepEqual(await bulbs(), [0, 0], "no bulb for a plain take");
+    assert.deepEqual((await said()).filter((t) => /Clever|Oops|missed|Next time/i.test(t)), [], "…and not a word about what he could have done");
+    // a friend in the iPad says "oops" of ITS OWN slip — once, with no bulb
+    await page.evaluate(() => { window.__said = []; window.__bulbs = [0, 0]; });
+    {
+      const s = L.create({ board: "cookies", seats: [{ who: "josh" }, { who: "river", cpu: true, sharp: 0 }], seed: 1, first: 0 });
+      L.takeCookies(s, 1);
+      assert.notEqual(L.nimChoice(L.snapshot(s)), L.nimBest(s), "fixture: on this seed the dull friend misses the clever take");
+    }
+    await page.evaluate(() => window.__BOARD.start("cookies", "river", true, 1, 0, false, 0));
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    await page.waitForTimeout(400);
+    const oops = require("../scripts/board-data.js").person("river").oops;
+    await take(1, 0);
+    await untilTap(0);
+    assert.ok((await said()).indexOf(oops) >= 0, `River says so of her own slip ("${(await said()).join(" | ")}")`);
+    for (let g = 0; g < 60 && (await st()).phase !== "done"; g++) { await untilTap(0); if ((await st()).phase === "done") break; await take(1, 0); }
+    const all = await page.evaluate(() => window.__said);
+    assert.equal(all.filter((x) => x[0] === oops).length, 1, "…once a game, however many she makes");
+    assert.deepEqual(all.filter((x) => x[0] === oops).map((x) => x[1][1]), [false], "…and a slip lights no bulb");
+    // a bulb never outlives its game
+    await page.evaluate(() => { window.__BOARD.T.cheer = 60000; });
+    await startGame("cookies", "dad", false, 3, 0);
+    await page.locator('.bn-take button.bn-takeb[data-n="3"]').click();
+    await page.waitForFunction(() => !document.querySelector(".bn-pad--0 .bn-pad__idea").hidden, null, { timeout: 5000 });
+    await page.evaluate(() => window.__BOARD.start("cookies", "dad", false, 3, 0));
+    await page.waitForTimeout(200);
+    assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll(".bn-pad__idea")].map((b) => b.hidden)), [true, true], "a new game starts with no bulb lit");
+  } finally {
+    await page.evaluate(() => {
+      Object.assign(window.JoshAudio, window.__realAudio);
+      if (window.__bulbWatch) window.__bulbWatch.disconnect();
+      window.__BOARD.reset({ introSeen: true });
+    });
+    await slow();
+  }
+});
+
 test("the voice on EVERY box: every game, each played a while by tapping whatever is live, and every line said is words — no picture, no {placeholder}, no missing name, never a race's word for the one behind", async () => {
   // The voice test above plays Moon Race and Rainbow Trail; the shelf has
   // since grown to twenty-eight boxes, each with its own lines filled from its own

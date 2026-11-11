@@ -28,6 +28,34 @@
     return arr;
   }
 
+  // ---- How SHARPLY a computer friend plays ----------------------------------
+  // Every thinking game's computer sees the good move only some of the time
+  // (that game's own `*_SHARP`). A seat may carry its own `sharp` (0..1, where
+  // 0.5 is "this game's own level"): a friend who plays a little better or
+  // worse than that. No `sharp` on the seat = the game's own level exactly, so
+  // every seeded game without one replays as it always did. Only SKILL moves:
+  // the dice, cards and bags stay fair for everyone.
+  const SHARP_MIN = 0.1, SHARP_MAX = 0.9;
+  function sharpOf(st, base) {
+    const v = st.seats[st.turn].sharp;
+    return typeof v === "number" ? Math.min(SHARP_MAX, Math.max(SHARP_MIN, base + (v - 0.5))) : base;
+  }
+  // The games whose computer makes a choice a level can sharpen (the shell
+  // gives a friend a level only there, and a test holds this to what the
+  // games really do, both ways).
+  const LEVEL_GAMES = ["pairs", "doors", "acorns", "dig", "nim", "lines", "top", "grab", "match3", "maze", "hide", "fish", "ten", "hilo", "train"];
+  function levelled(boardId) {
+    const b = DATA.board(boardId);
+    return !!b && (LEVEL_GAMES.indexOf(b.game) >= 0 || (b.game === "dice" && !!b.two));
+  }
+  // A CLEVER move is named (`smart`), and a missed one too (`oops`) — only
+  // when there was BOTH a clever move and a plain one to choose from, so the
+  // word is never said for a move anyone would have made. These are events
+  // only: nothing in the state changes.
+  function judged(seat, why, clever, could, extra) {
+    return could ? Object.assign({ type: clever ? "smart" : "oops", seat, why }, extra || {}) : null;
+  }
+
   // ---- FAIR BAGS: each player's luck comes from their own shuffled bag ------
   // A die is a bag of 1..6, refilled once all six are used, so nobody rolls
   // three 1s in a row and both players see the same spread. A card bag holds
@@ -124,6 +152,8 @@
       if (spin) seat.bird = false;   // did the 🐦 visit this player's last spin?
       if (board.game === "hen") seat.fox = false;   // was this player's last spin the 🦊?
       if (board.game === "doors") seat.shut = [];   // the doors this player has shut
+      // a friend's own level (see sharpOf); absent = the game's own
+      if (typeof s.sharp === "number" && s.sharp >= 0 && s.sharp <= 1) seat.sharp = s.sharp;
       return seat;
     });
     if (seats.length !== 2) throw new Error("a game needs two seats");
@@ -341,7 +371,14 @@
   function doorChoice(st) {
     const ways = doorWays(st);
     if (!ways.length) return null;
-    return ways[Math.floor(next(st.seats[st.turn]) * ways.length)];
+    // a friend with its own level looks for TWO doors (the ⭐) that often;
+    // with none, any way — exactly as before
+    const s = st.seats[st.turn];
+    if (typeof s.sharp === "number") {
+      const two = ways.filter((w) => w.length === 2);
+      if (two.length && two.length < ways.length && next(s) < s.sharp) return two[Math.floor(next(s) * two.length)];
+    }
+    return ways[Math.floor(next(s) * ways.length)];
   }
 
   // ---- 🏴‍☠️ Treasure Dig ------------------------------------------------------
@@ -363,6 +400,9 @@
     const board = DATA.board(st.board);
     if (!int(k) || k < 0 || k >= st.dug.length || st.dug[k]) return [];
     const i = st.turn, s = st.seats[i];
+    // clever: a square every arrow still points at (once an arrow rules any out)
+    const maybe = digMaybe(st);
+    const sm = judged(i, "arrows", maybe.indexOf(k) >= 0, maybe.length < st.dug.filter((d) => !d).length);
     st.dug[k] = true;
     st.rolls += 1;
     const ev = [];
@@ -379,7 +419,10 @@
       st.dug = st.dug.map(() => false);
       st.spot = Math.floor(next(st.seats[0]) * st.dug.length);
       ev.push({ type: "bury" });
-    } else ev.push({ type: "hole", seat: i, k, dir: digDir(board, k, st.spot) });
+    } else {
+      ev.push({ type: "hole", seat: i, k, dir: digDir(board, k, st.spot) });
+      if (sm) ev.push(sm);
+    }
     endTurn(st, ev);
     return ev;
   }
@@ -390,7 +433,7 @@
     const s = st.seats[st.turn];
     const open = st.dug.map((d, j) => j).filter((j) => !st.dug[j]);
     const maybe = digMaybe(st);
-    const from = next(s) < DIG_SHARP ? maybe : open;
+    const from = next(s) < sharpOf(st, DIG_SHARP) ? maybe : open;
     return from[Math.floor(next(s) * from.length)];
   }
 
@@ -409,8 +452,12 @@
     const board = DATA.board(st.board);
     if (!int(k) || k < 1 || k > board.take || k > st.cookies) return [];
     const i = st.turn, s = st.seats[i];
+    // clever: the take that leaves the friend a multiple of four
+    const best = nimBest(st);
+    const sm = judged(i, "four", k === best, best > 0 && nimTakes(st).length > 1 && st.cookies - best > 0, { left: st.cookies - k });
     st.cookies -= k; s.pos += k; st.rolls += 1;
     const ev = [{ type: "nibble", seat: i, n: k, left: st.cookies }];
+    if (sm) ev.push(sm);
     if (st.cookies === 0) {
       s.stars += 1;
       ev.push({ type: "golden", seat: i, jar: st.jar });
@@ -440,7 +487,7 @@
   const NIM_SHARP = 0.5;
   function nimChoice(st) {
     const s = st.seats[st.turn], best = nimBest(st);
-    if (best && next(s) < NIM_SHARP) return best;
+    if (best && next(s) < sharpOf(st, NIM_SHARP)) return best;
     const t = nimTakes(st);
     return t[Math.floor(next(s) * t.length)];
   }
@@ -553,9 +600,13 @@
     if (id == null) return [];
     const path = mazePath(st, id, st.mice[i]);
     if (!path.length) return [];
+    // clever: the arrow that ends nearest the cheese
+    const near = mazeBest(st), ways = st.hands[i].filter((c) => mazePath(st, c, st.mice[i]).length).length;
+    const sm = judged(i, "near", near.indexOf(k) >= 0, near.length < ways);
     st.mice[i] = path[path.length - 1];
     st.hands[i][k] = draw(s, () => arrowBag(s));
     const ev = [{ type: "scurry", seat: i, card: id, path, dir: id >> 1 }];
+    if (sm) ev.push(sm);
     if (st.mice[i] === st.cheese) {
       s.stars += 1; s.pos += 1; st.found += 1;
       ev.push({ type: "cheese", seat: i, found: st.found });
@@ -593,7 +644,7 @@
     const s = st.seats[st.turn];
     const moves = st.hands[st.turn].map((id, k) => k).filter((k) => mazePath(st, st.hands[st.turn][k], st.mice[st.turn]).length);
     const best = mazeBest(st);
-    return next(s) < MAZE_SHARP ? best[0] : moves[Math.floor(next(s) * moves.length)];
+    return next(s) < sharpOf(st, MAZE_SHARP) ? best[0] : moves[Math.floor(next(s) * moves.length)];
   }
 
   // ---- 🕵️ Who's Hiding ---------------------------------------------------------------
@@ -638,11 +689,15 @@
     const q = st.asks[k];
     if (q == null) return [];
     const board = DATA.board(st.board), i = st.turn, s = st.seats[i];
+    // clever: the question that turns down the most, whatever the answer
+    const bestQ = hideBest(st);
+    const sm = judged(i, "ask", bestQ.indexOf(k) >= 0, bestQ.length < st.asks.length);
     const yes = hideYes(q, st.cards[st.hidden]);
     const down = [];
     st.cards.forEach((id, j) => { if (st.up[j] && hideYes(q, id) !== yes) { st.up[j] = false; down.push(j); } });
     st.rolls += 1;
     const ev = [{ type: "ask", seat: i, q, yes, down }];
+    if (sm) ev.push(sm);
     if (st.up.filter(Boolean).length === 1) {
       s.stars += 1; s.pos += 1; st.found += 1;
       ev.push({ type: "hideFound", seat: i, card: st.cards[st.hidden], found: st.found });
@@ -670,7 +725,7 @@
   const HIDE_SHARP = 0.5;
   function hideChoice(st) {
     const s = st.seats[st.turn];
-    return next(s) < HIDE_SHARP ? hideBest(st)[0] : Math.floor(next(s) * st.asks.length);
+    return next(s) < sharpOf(st, HIDE_SHARP) ? hideBest(st)[0] : Math.floor(next(s) * st.asks.length);
   }
 
   // ---- 🚂 Pattern Train ---------------------------------------------------------------
@@ -726,7 +781,7 @@
   const TRAIN_SHARP = 0.5;
   function trainChoice(st) {
     const s = st.seats[st.turn];
-    return next(s) < TRAIN_SHARP ? st.options.indexOf(st.answer) : Math.floor(next(s) * st.options.length);
+    return next(s) < sharpOf(st, TRAIN_SHARP) ? st.options.indexOf(st.answer) : Math.floor(next(s) * st.options.length);
   }
 
   // ---- 🔼 Higher or Lower --------------------------------------------------------------
@@ -739,11 +794,16 @@
   function hiloGuess(st, up) {
     if (st.game !== "hilo" || st.phase !== "guess" || typeof up !== "boolean") return [];
     const board = DATA.board(st.board), i = st.turn, s = st.seats[i];
+    // clever: the guess more of the cards still in the deck agree with — said
+    // whether or not the card then obliges (the THINKING is what is named)
+    const hi = st.deck.filter((x) => x > st.top).length, lo = st.deck.filter((x) => x < st.top).length;
+    const sm = judged(i, "odds", up === (hi > lo), hi !== lo, { was: st.top, up });
     const was = st.top, c = st.deck.pop();
     st.top = c; st.flips += 1; st.rolls += 1;
     const right = up ? c > was : c < was;
     if (right) { s.stars += 1; s.pos += 1; }
     const ev = [{ type: "hilo", seat: i, up, was, card: c, right, same: c === was }];
+    if (sm) ev.push(sm);
     if (st.flips >= board.flips) {
       for (const x of st.seats) x.home = true;
       st.order = [0, 1];
@@ -762,7 +822,7 @@
   const HILO_SHARP = 0.5;
   function hiloChoice(st) {
     const s = st.seats[st.turn];
-    return next(s) < HILO_SHARP ? hiloBest(st) : next(s) < 0.5;
+    return next(s) < sharpOf(st, HILO_SHARP) ? hiloBest(st) : next(s) < 0.5;
   }
 
   // ---- 🍯 Honey Ten ----------------------------------------------------------------
@@ -834,7 +894,7 @@
   const TEN_SHARP = 0.5;
   function tenChoice(st) {
     const s = st.seats[st.turn], tens = tenPairs(st);
-    if (next(s) < TEN_SHARP) return tens[Math.floor(next(s) * tens.length)];
+    if (next(s) < sharpOf(st, TEN_SHARP)) return tens[Math.floor(next(s) * tens.length)];
     const live = st.flowers.map((x, k) => k).filter((k) => st.flowers[k] > 0);
     const a = live[Math.floor(next(s) * live.length)], rest = live.filter((k) => k !== a);
     return [a, rest[Math.floor(next(s) * rest.length)]];
@@ -893,9 +953,14 @@
     if (st.game !== "fish" || st.phase !== "ask") return [];
     const q = st.hands[st.turn][k];
     if (q == null) return [];
+    // clever: asking for a picture the friend can be SEEN to hold
+    const both = fishBest(st);
+    const sm = judged(st.turn, "see", both.indexOf(k) >= 0, both.length > 0 && both.length < st.hands[st.turn].length);
     st.want = q; st.misses = 0; st.rolls += 1;
     st.phase = "answer";
-    return [{ type: "fishAsk", seat: st.turn, q }];
+    const ev = [{ type: "fishAsk", seat: st.turn, q }];
+    if (sm) ev.push(sm);
+    return ev;
   }
   // The friend answers: card k of THEIR hand if they have the picture, or -1
   // for "Go fish!" when they do not. Anything else is a kind miss (no fibs:
@@ -937,7 +1002,7 @@
   const FISH_SHARP = 0.5;
   function fishChoice(st) {
     const s = st.seats[st.turn], best = fishBest(st);
-    return best.length && next(s) < FISH_SHARP ? best[0] : Math.floor(next(s) * st.hands[st.turn].length);
+    return best.length && next(s) < sharpOf(st, FISH_SHARP) ? best[0] : Math.floor(next(s) * st.hands[st.turn].length);
   }
   // the right answer to the question asked
   const fishAnswer = (st) => st.hands[other(st.turn)].indexOf(st.want);
@@ -1162,9 +1227,13 @@
       return ev;
     }
     if (st.held.every(Boolean)) return scoreMatch(st, ev);
+    // clever: rolling again with the matching dice KEPT (and only those)
+    const keep = m3Keep(st.dice), some = keep.some(Boolean);
+    const sm = judged(i, "keep", keep.every((x, k) => x === st.held[k]), some);
     st.dice = st.dice.map((d, k) => (st.held[k] ? d : m3Die(st)));
     st.left -= 1;
     ev.push({ type: "roll3", seat: i, dice: st.dice.slice(), all: false });
+    if (sm) ev.push(sm);
     if (st.left <= 0 || m3Score(st.dice) === 3) return scoreMatch(st, ev);
     return ev;
   }
@@ -1200,7 +1269,7 @@
   const M3_SHARP = 0.5;
   function m3Choice(st) {
     const s = st.seats[st.turn];
-    if (next(s) < M3_SHARP) return m3Keep(st.dice);
+    if (next(s) < sharpOf(st, M3_SHARP)) return m3Keep(st.dice);
     return st.dice.map(() => next(s) < 0.5);
   }
 
@@ -1235,12 +1304,16 @@
     if (st.game !== "grab" || st.phase !== "pick") return [];
     if (grabOptions(st).indexOf(c) < 0) return [];
     const board = DATA.board(st.board), i = st.turn, s = st.seats[i];
+    // clever: the colour that grabs the most
+    const most = grabBest(st);
+    const sm = judged(i, "most", most.indexOf(c) >= 0, most.length < grabOptions(st).length);
     const got = grabCells(board, st.paint, st.owner, i, c);
     for (let k = 0; k < st.paint.length; k++) if (st.owner[k] === i) st.paint[k] = c;
     for (const k of got) { st.owner[k] = i; st.paint[k] = c; }
     s.pos += got.length; st.rolls += 1;
     const ev = [{ type: "grab", seat: i, c, cells: got }];
     if (got.length >= board.big) { s.stars += 1; ev.push({ type: "bigGrab", seat: i, n: got.length }); }
+    if (sm) ev.push(Object.assign(sm, { n: got.length }));
     if (st.owner.every((o) => o >= 0)) {
       for (const x of st.seats) x.home = true;
       st.order = [0, 1];
@@ -1260,7 +1333,7 @@
   // seeded luck), else any of the three — so looking is his edge
   const GRAB_SHARP = 0.5;
   function grabChoice(st) {
-    const s = st.seats[st.turn], best = grabBest(st), from = next(s) < GRAB_SHARP ? best : grabOptions(st);
+    const s = st.seats[st.turn], best = grabBest(st), from = next(s) < sharpOf(st, GRAB_SHARP) ? best : grabOptions(st);
     return from[Math.floor(next(s) * from.length)];
   }
 
@@ -1272,6 +1345,13 @@
     if (st.game !== "top" || (st.phase !== "lead" && st.phase !== "follow")) return [];
     const board = DATA.board(st.board), i = st.turn, hand = st.hands[i];
     if (!int(v) || hand.indexOf(v) < 0) return [];
+    // clever (the answer only): the smallest card that is bigger, or — when
+    // none is — the smallest of all, saving the big ones
+    let sm = null;
+    if (st.phase === "follow") {
+      const best = topBest(st);
+      sm = judged(i, best > st.table[st.lead] ? "enough" : "save", v === best, hand.some((x) => x !== best), { v });
+    }
     hand.splice(hand.indexOf(v), 1);
     st.table[i] = v; st.rolls += 1;
     if (st.phase === "lead") {
@@ -1282,6 +1362,7 @@
     const a = st.table[st.lead], b = st.table[other(st.lead)];
     const win = a === b ? -1 : a > b ? st.lead : other(st.lead);
     const ev = [{ type: "answer", seat: i, v }, { type: "trick", win, lead: st.lead, cards: st.table.slice() }];
+    if (sm) ev.push(sm);
     if (win >= 0) { st.seats[win].stars += 1; st.seats[win].pos += 1; }
     for (const j of [0, 1]) {
       st.gone[j].push(st.table[j]);
@@ -1317,7 +1398,7 @@
   const TOP_SHARP = 0.5;
   function topChoice(st) {
     const s = st.seats[st.turn], hand = st.hands[st.turn];
-    if (next(s) < TOP_SHARP) return topBest(st);
+    if (next(s) < sharpOf(st, TOP_SHARP)) return topBest(st);
     return hand[Math.floor(next(s) * hand.length)];
   }
 
@@ -1366,9 +1447,15 @@
     if (row < 0) return [];
     const i = st.turn, s = st.seats[i], cell = row * board.cols + col;
     const made = linesMade(st, col, i);
+    // clever: with no line of your own to make, the column that stops the
+    // friend's (making a line is its own ⭐ and needs no word)
+    const open = linesOpen(st), mine = open.some((c) => linesMade(st, c, i).length);
+    const stop = mine ? [] : open.filter((c) => linesMade(st, c, other(i)).length);
+    const sm = judged(i, "block", stop.indexOf(col) >= 0, stop.length > 0 && stop.length < open.length);
     st.grid[cell] = i;
     s.pos += 1; st.rolls += 1;
     const ev = [{ type: "drop", seat: i, col, row, cell }];
+    if (sm) ev.push(sm);
     for (const ln of made) { s.stars += 1; ev.push({ type: "line", seat: i, cells: ln }); }
     if (st.grid.every((g) => g >= 0)) {
       if (st.boardNo === board.boards - 1) {
@@ -1397,7 +1484,7 @@
   const LINES_SHARP = 0.5;
   function linesChoice(st) {
     const s = st.seats[st.turn], best = linesBest(st);
-    const from = best.length && next(s) < LINES_SHARP ? best : linesOpen(st);
+    const from = best.length && next(s) < sharpOf(st, LINES_SHARP) ? best : linesOpen(st);
     return from[Math.floor(next(s) * from.length)];
   }
 
@@ -1571,7 +1658,7 @@
     const full = potsOf(st, st.turn).filter((k) => st.pots[k] > 0);
     if (!full.length) return -1;
     const again = acornAgains(st);
-    if (again.length && next(s) < ACORN_SHARP) return again[again.length - 1];
+    if (again.length && next(s) < sharpOf(st, ACORN_SHARP)) return again[again.length - 1];
     return full[Math.floor(next(s) * full.length)];
   }
 
@@ -1603,9 +1690,15 @@
   function chooseDie(st, k) {
     if (st.game !== "dice" || st.phase !== "choose" || (k !== 0 && k !== 1)) return [];
     const die = st.dice[k];
+    // clever: the die that lands on a rocket, when only one of them does
+    const board = DATA.board(st.board);
+    const rocket = [0, 1].filter((j) => { const jp = jumpAt(board, dieTarget(st, j)); return jp && jp.kind === "boost"; });
+    const sm = judged(st.turn, "rocket", rocket.indexOf(k) >= 0, rocket.length === 1 && st.dice[0] !== st.dice[1]);
     st.die = die; st.left = tapsOf(die); st.dice = [];
     st.phase = "hop";
-    return [{ type: "choose", seat: st.turn, mover: st.mover, k, die }];
+    const ev = [{ type: "choose", seat: st.turn, mover: st.mover, k, die }];
+    if (sm) ev.push(sm);
+    return ev;
   }
   // Where die k would take the mover (overshoot is the Moon)
   function dieTarget(st, k) {
@@ -1626,7 +1719,7 @@
   const DIE_SHARP = 0.5;
   function dieChoice(st) {
     const s = st.seats[st.turn], best = dieBest(st);
-    const from = next(s) < DIE_SHARP ? best : [0, 1];
+    const from = next(s) < sharpOf(st, DIE_SHARP) ? best : [0, 1];
     return from[Math.floor(next(s) * from.length)];
   }
 
@@ -1917,6 +2010,13 @@
     if (st.game !== "pairs" || (st.phase !== "flip" && st.phase !== "second")) return [];
     if (!int(k) || k < 0 || k >= st.cards.length || st.gone[k] || st.open.indexOf(k) >= 0) return [];
     const board = DATA.board(st.board), s = st.seats[st.turn], pic = st.cards[k];
+    // clever (the second card): its partner had been SEEN, and he went to it
+    let sm = null;
+    if (st.phase === "second") {
+      const a0 = st.open[0];
+      const mate = st.cards.findIndex((c, j) => j !== a0 && !st.gone[j] && c === st.cards[a0] && st.seen[j]);
+      sm = judged(st.turn, "recall", k === mate, mate >= 0);
+    }
     st.rolls += 1;
     st.seen[k] = true;
     const ev = [{ type: "peek", seat: st.turn, k, pic }];
@@ -1934,6 +2034,7 @@
       st.phase = "flip";
       if (st.cards[a] !== pic) {
         ev.push({ type: "nopair", seat: st.turn, a, b: k });
+        if (sm) ev.push(sm);
         endTurn(st, ev);
         return ev;
       }
@@ -1941,6 +2042,7 @@
       s.pos += 1;
       s.stars += 1;
       ev.push({ type: "pair", seat: st.turn, a, b: k, pic, count: s.pos });
+      if (sm) ev.push(sm);
     }
     if (st.gone.every(Boolean)) {
       if (st.boardNo + 1 < board.boards) {
@@ -1963,7 +2065,7 @@
     const s = st.seats[st.turn];
     const down = st.cards.map((c, k) => k).filter((k) => !st.gone[k] && st.open.indexOf(k) < 0);
     if (!down.length) return -1;
-    const known = (k) => st.seen[k] && next(s) < PAIR_RECALL;
+    const known = (k) => st.seen[k] && next(s) < sharpOf(st, PAIR_RECALL);
     if (st.phase === "second") {
       const want = st.cards[st.open[0]];
       const mate = down.find((k) => st.cards[k] === want && st.seen[k]);
@@ -2553,6 +2655,7 @@
         if (spinning && typeof s.bird !== "boolean") return null;
         if (typeof s.home !== "boolean" || typeof s.cpu !== "boolean") return null;
         if (!int(s.stars) || s.stars < 0 || !int(s.rng)) return null;
+        if (s.sharp !== undefined && !(typeof s.sharp === "number" && s.sharp >= 0 && s.sharp <= 1)) return null;
         // home is exactly standing on the last square
         // home is exactly standing on the last square (👀 everyone is home
         // together, once the deck is used up)
@@ -2573,7 +2676,7 @@
 
   const BoardLogic = {
     create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, takeCookies, nimTakes, nimBest, nimChoice, NIM_SHARP, dropLine, dropRow, linesOf, linesOpen, linesMade, linesBest, linesChoice, LINES_SHARP, playCard, topBest, topChoice, TOP_SHARP, grabColour, grabCells, grabOptions, grabGain, grabBest, grabChoice, GRAB_SHARP, chooseDie, dieTarget, dieBest, dieChoice, DIE_SHARP, moveMouse, mazePath, mazeDist, mazeBest, mazeChoice, MAZE_SHARP, MAZE_WORDS, askHide, hideYes, hideSplit, hideBest, hideChoice, hideTraits, HIDE_SHARP, pickCar, trainChoice, TRAIN_SHARP, TRAIN_PATTERNS, hiloGuess, hiloBest, hiloChoice, HILO_SHARP, tenPick, tenPairs, tenChoice, TEN_SHARP, askFish, answerFish, fishBest, fishChoice, fishAnswer, FISH_SHARP, FISH_N, buildSnow, SNOW_NEEDS, SNOW_MAGIC, snowWhich, coverBingo, bingoSpots, bingoBest, BINGO_LINES, playMatch, flipMatch, cmFits, cmColour, cmNumber, cmPlayable, cmChoice, rollMatch, holdDie, m3Score, m3Keep, m3Choice, M3_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
-    cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN,
+    cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN, sharpOf, SHARP_MIN, SHARP_MAX, levelled,
   };
   global.BoardLogic = BoardLogic;
   if (typeof module !== "undefined" && module.exports) module.exports = BoardLogic;

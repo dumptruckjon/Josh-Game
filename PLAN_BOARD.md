@@ -1,6 +1,6 @@
 # 🎲 Game Night — board games for Josh (and a friend)
 
-**Status: BATCHES 1-6 BUILT, audited four times (§16 is the fourth)** (batches 1-2
+**Status: BATCHES 1-6 BUILT, audited five times (§17 is the fifth); §18 is the improvement programme, in progress (part A built)** (batches 1-2
 audited twice; §11 is batch 3: 💯 Hundred Hop, 🐔 Hen House, 🧺 Picnic Lotto,
 and 👀 Twin Spot, the owner's Spot It ask; §12 is batch 4, games of SKILL:
 🧠 Peek-a-Pair, 🚪 Shut the Doors, 🌰 Acorn Pots, 🁢 Dot Dominoes and
@@ -684,3 +684,54 @@ two-person mode. No page error and no stuck game in any of the 28.
   hundred chart's squares are small on a phone but the chart is width-limited
   and must stay ten across; a hop that lands on a tens square says its number
   and then "40! A star!", which counts rather than repeats.
+
+## 18. Games that grow with him (the owner, 2026-11-11: "ALL. Go smartly and build and keep going")
+
+After the fifth audit the owner asked for ways to improve all the games "as a
+master kids games creator … for my 4.5 year old smart Josh … across many
+different angles", and picked every idea on the list. The finding behind the
+list: the games were sound, but they did not GROW with him (in every thinking
+game the computer played at one fixed level for ever, and the three friends
+played identically), no line ever named a clever move, and only about four of
+the twenty-eight touched his working edges. The programme, in the order built:
+
+**A. Friends who think (BUILT).**
+- **Each friend in the iPad plays their own way.** River is careful (sees the
+  clever move a little more often than the game's own level), Viraj steady
+  (the game's own level), Raegar playful (a little less often). A word for the
+  grown-up stands under each face on the pick-a-friend screen. So he picks his
+  challenge by picking a face.
+- **A box's friend learns from how its games go.** After a finished game
+  against a friend in the iPad on a thinking box: he took most of the ⭐s (over
+  60%), and that box's friend is one step sharper next time; the friend took
+  most (he had under 45%), one step duller. Four steps each way at most, and
+  never past the ends, so the sharpest friend still misses sometimes. All three
+  friends move together, so they still differ. Simulated over 80 games a box: a
+  weak player settles at 40-50% of the stars, a sharp one at 55-70%.
+- **Only SKILL moves.** Every die, card, bag and spinner is the same fair luck
+  as before (§4 stands), and the luck games read no level at all: a test plays
+  every board at several levels and requires the luck boards to come out
+  move-for-move the same. A game with no level set plays exactly as it did.
+- **A clever move is NAMED.** In twelve games the engine says when a move was
+  the clever one, and only when there was also a plain one to choose: leaving
+  four cookies, following the arrows, stopping a line, the just-big-enough
+  card (or saving the big ones), the biggest grab, the rocket die, the quick
+  way to the cheese, the best question, asking for a fish the friend can be
+  seen to hold, keeping the matching dice, remembering where a card was, and
+  the guess more of the deck agrees with. A 💡 lights over the mover's own
+  face every time (seen with the sound off); WHY is said the first time each
+  player does it in a game ("Josh left 4. Clever!"). It names the THINKING,
+  not the luck: a good guess in Higher or Lower is clever whether or not the
+  card obliges. The friend's clever moves are named the same way, so the
+  computer's turns explain themselves.
+- **A missed clever move is never pointed out to a person.** Only a friend in
+  the iPad says "Oops! Silly me!" of its OWN slip, once a game: how to take a
+  mistake lightly, shown rather than told (his profile's frustration edge).
+
+Still to build, in order: **B** his working edges (Skip Hop by 2s and 5s, "call
+your landing", Bingo with two dice, take-away and adding said aloud); **C** a
+choice in the luck games (Rainbow Trail's two cards, the Snowman's gift); **D**
+level-two boxes for the thinking games; **E** the shell (tonight's three games,
+pick your token, counting in Chinese, table mode, endings that change the board
+and a high-five); **F** the remaining per-game ideas.
+
