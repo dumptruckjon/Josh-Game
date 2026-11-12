@@ -3233,3 +3233,13 @@ test("🁢 SIX-DOT DOMINOES (Dot Dominoes' level two): every pair of 1 to SIX do
     assert.equal(st.phase, "done", `seed ${seed} ends`);
   }
 });
+
+test("§18 E: counting in Chinese says the numbers right (一 to 一百二十), and its first ten ARE 华丽's CN_NUM, so the two worlds count alike", () => {
+  const HL = require("../scripts/hl-content.js");
+  for (let n = 1; n <= 10; n++) assert.equal(DATA.zhNum(n), HL.CN_NUM[n - 1], `${n} reads ${HL.CN_NUM[n - 1]} in 华丽's world`);
+  const truth = { 0: "零", 11: "十一", 15: "十五", 19: "十九", 20: "二十", 21: "二十一", 30: "三十", 36: "三十六", 45: "四十五", 99: "九十九", 100: "一百", 101: "一百零一", 105: "一百零五", 110: "一百一十", 111: "一百一十一", 120: "一百二十" };
+  for (const [n, zh] of Object.entries(truth)) assert.equal(DATA.zhNum(+n), zh, `${n} is ${zh}`);
+  // every count a board can pop has a Chinese name (the pie is the biggest:
+  // Apple Spin's twenty and the spare apples)
+  for (let n = 0; n <= 120; n++) assert.match(DATA.zhNum(n), /^[零一二三四五六七八九十百]+$/u, `${n} has a Chinese numeral`);
+});

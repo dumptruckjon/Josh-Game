@@ -1846,6 +1846,150 @@ test("§18 E: a race ENDS ON THE BOARD (a 🚩 planted on the last square, befor
   assert.ok(await page.locator(".bn-flag").isHidden(), "a new game takes the flag down");
 });
 
+test("§18 E: Josh picks what he plays as on a race board (himself, a race car, a dump truck, his buddy); the box remembers it, the board shows it, and a game with no token offers no choice", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await go("#board-who-moon", "#screen-board-who");
+  const me = page.locator("#screen-board-who .bn-me");
+  assert.ok(await me.isVisible(), "a race box offers the choice");
+  const r = await me.boundingBox();
+  assert.ok(r.width >= 75 && r.height >= 75, `the choice is a kid-sized button (${Math.round(r.width)}x${Math.round(r.height)})`);
+  assert.match(await me.getAttribute("aria-label"), /You play as you/, "himself to begin with");
+  const ids = await page.evaluate(() => window.BoardData.TOKENS.map((t) => t.id));
+  const seen = [];
+  for (let k = 0; k < ids.length; k++) {
+    await page.waitForTimeout(380);   // a real tap, not the echo of the last one
+    await me.click();
+    seen.push((await page.evaluate(() => window.__BOARD.save())).token);
+  }
+  assert.deepEqual(seen, ids.slice(1).concat(ids[0]), "each tap is the next token, round and back to himself");
+  await page.waitForTimeout(380);
+  await me.click();   // the race car
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).token, "car");
+  assert.match(await me.getAttribute("aria-label"), /race car/);
+  await page.evaluate(() => window.__BOARD.start("moon", "river", true, 3, 0));
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(300);
+  assert.equal((await page.locator(".bn-token--0 .bn-token__face").textContent()).trim(), "🏎️", "his token on the board is the race car");
+  assert.ok(await page.locator(".bn-token--1 .bn-token__face svg").count(), "the friend's token is still the friend's face");
+  // the token never wears a picture a race board already uses
+  const clash = await page.evaluate(() => {
+    const pics = window.BoardData.TOKENS.map((t) => t.pic).filter(Boolean);
+    const board = [...document.querySelectorAll(".bn-svgwrap text")].map((t) => t.textContent);
+    return pics.filter((p) => board.some((b) => b && b.includes(p.replace("\uFE0F", ""))));
+  });
+  assert.deepEqual(clash, [], "a token picture is also a picture on the board");
+  // a game with no token on squares offers nothing to choose
+  await go("#board-who-cookies", "#screen-board-who");
+  assert.ok(await page.locator("#screen-board-who .bn-me").isHidden(), "Cookie Jar has no token, so no choice");
+  // the hen is the hen, whatever he picked
+  await page.evaluate(() => window.__BOARD.start("hen", "river", true, 3, 0));
+  await page.waitForTimeout(300);
+  assert.match(await page.locator(".bn-token--0 .bn-token__face").textContent(), /🐔/, "Hen House's token stays the hen");
+});
+
+test("§18 E: a grown-up switch COUNTS IN CHINESE — every hop is said in a Chinese voice and its pop shows the numeral under the digit; off, it counts in English again", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await go("#board-home", "#screen-board-home");
+  const zh = page.locator("#screen-board-home .bn-zh");
+  assert.equal(await zh.getAttribute("aria-pressed"), "false", "off to begin with");
+  await zh.click();
+  assert.equal(await zh.getAttribute("aria-pressed"), "true");
+  assert.equal(await zh.locator('[lang="zh-CN"]').textContent(), "中文", "the switch names the language in its own script");
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).zh, true, "remembered");
+  await page.evaluate(() => {
+    window.__said = [];
+    window.__realAudio = { isMuted: window.JoshAudio.isMuted, say: window.JoshAudio.say, tone: window.JoshAudio.tone };
+    window.JoshAudio.isMuted = () => false;
+    window.JoshAudio.say = (t, o) => { window.__said.push([String(t), o && o.lang || ""]); };
+    window.JoshAudio.tone = () => {};
+  });
+  try {
+    // Josh on 4 with one hop of a 1 to go: the hop lands on 5
+    const s = L.create({ board: "moon", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
+    s.seats[0].pos = 4; s.phase = "hop"; s.die = 1; s.left = 1; s.rolls = 1;
+    assert.ok(await page.evaluate((x) => window.__BOARD.load("moon", x), s), "fixture loads");
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    await page.waitForTimeout(400);
+    await page.evaluate(() => { window.__said = []; });
+    await page.locator(".bn-pad--0").click();
+    await page.locator(".bn-pop").waitFor({ state: "visible" });
+    assert.equal(await page.locator(".bn-pop .bn-pop__zh").textContent(), "五", "the pop shows 五 under the 5");
+    assert.equal(await page.locator(".bn-pop .bn-pop__zh").getAttribute("lang"), "zh-CN");
+    const said = await page.evaluate(() => window.__said);
+    assert.ok(said.some(([t, l]) => t === "五" && l === "zh-CN"), "the hop is said 五, in a Chinese voice: " + JSON.stringify(said));
+    assert.ok(!said.some(([t]) => t === "5"), "…and not 5 as well");
+    // off again: English
+    await go("#board-home", "#screen-board-home");
+    await zh.click();
+    assert.match(await zh.textContent(), /English/);
+    s.seats[0].pos = 4;
+    assert.ok(await page.evaluate((x) => window.__BOARD.load("moon", x), s), "fixture loads");
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    await page.waitForTimeout(400);
+    await page.evaluate(() => { window.__said = []; });
+    await page.locator(".bn-pad--0").click();
+    await page.locator(".bn-pop").waitFor({ state: "visible" });
+    assert.equal(await page.locator(".bn-pop").textContent(), "5", "off: the pop is the digit alone");
+    assert.ok((await page.evaluate(() => window.__said)).some(([t, l]) => t === "5" && l === ""), "off: the hop is said in English");
+  } finally {
+    await page.evaluate(() => Object.assign(window.JoshAudio, window.__realAudio));
+  }
+});
+
+test("§18 E: TABLE MODE — the iPad flat between two people: the far player's pad goes to the far edge and turns to face them; never against the computer, never on a game whose hand is on the board, and it steps aside when the squares would be too small", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await go("#board-home", "#screen-board-home");
+  await page.locator("#screen-board-home .bn-tablemode").click();
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).table, true, "remembered");
+  const look = () => page.evaluate(() => {
+    const p = document.querySelector("#screen-board-play"), b = document.querySelector(".bn-board").getBoundingClientRect();
+    const r = (s) => document.querySelector(s).getBoundingClientRect();
+    const p0 = r(".bn-pad--0"), p1 = r(".bn-pad--1");
+    return { table: p.dataset.table, boardTop: b.top, boardBottom: b.bottom, cell: b.width / 6, p0, p1, turn1: getComputedStyle(document.querySelector(".bn-pad--1")).transform, scroll: document.documentElement.scrollHeight > innerHeight + 1 };
+  });
+  const sizes = [[390, 844], [834, 1112], [320, 568]];
+  try {
+    for (const [w, h] of sizes) {
+      await page.setViewportSize({ width: w, height: h });
+      await page.evaluate(() => window.__BOARD.start("moon", "dad", false, 3, 0));
+      await page.locator("#screen-board-play").waitFor({ state: "visible" });
+      await page.waitForTimeout(400);
+      const v = await look();
+      if (w === 320) {
+        assert.equal(v.table, "0", "[320x568] table mode steps aside: the squares would be under 38px");
+        assert.ok(v.p0.top >= v.boardBottom && v.p1.top >= v.boardBottom, "[320x568] both pads under the board as usual");
+        continue;
+      }
+      assert.equal(v.table, "1", `[${w}x${h}] two people on a race: table mode`);
+      assert.ok(v.p1.bottom <= v.boardTop + 1, `[${w}x${h}] the far player's pad is above the board`);
+      assert.ok(v.p0.top >= v.boardBottom - 1, `[${w}x${h}] his pad is below it`);
+      assert.match(v.turn1, /matrix\(-1, [^,]*0, [^,]*0, -1/, `[${w}x${h}] the far pad is turned to face its player (${v.turn1})`);
+      assert.ok(v.cell >= 38, `[${w}x${h}] the squares stay at least 38px (${Math.round(v.cell)})`);
+      for (const p of [v.p0, v.p1]) assert.ok(p.height >= 75 && p.width >= 75, `[${w}x${h}] each pad stays kid-sized`);
+      assert.ok(!v.scroll, `[${w}x${h}] play never scrolls`);
+      // the far player's turn: their pad works the right way up for them
+      await page.locator(".bn-pad--0").click();
+      await page.waitForFunction(() => window.__BOARD.state().phase !== "roll", null, { timeout: 5000 }).catch(() => {});
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    // against the computer: nobody sits across, so no turning
+    await page.evaluate(() => window.__BOARD.start("moon", "river", true, 3, 0));
+    await page.waitForTimeout(400);
+    assert.equal((await look()).table, "0", "against a friend in the iPad: no table mode");
+    // a game that draws its own board (the mover's hand is ON the board,
+    // facing Josh): no table mode either
+    await page.evaluate(() => window.__BOARD.start("cookies", "dad", false, 3, 0));
+    await page.waitForTimeout(400);
+    assert.equal(await page.evaluate(() => document.querySelector("#screen-board-play").dataset.table), "0", "Cookie Jar: no table mode");
+    // Apple Spin is all pads: table mode
+    await page.evaluate(() => window.__BOARD.start("apple", "dad", false, 3, 0));
+    await page.waitForTimeout(400);
+    assert.equal(await page.evaluate(() => document.querySelector("#screen-board-play").dataset.table), "1", "Apple Spin: table mode");
+  } finally {
+    await page.setViewportSize({ width: 390, height: 844 });
+  }
+});
+
 test("🌈 a whole Rainbow Trail against the computer: one tap, one card, every move forward to its colour, one party", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await quick();

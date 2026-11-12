@@ -3174,6 +3174,15 @@ body.board-mode { background: linear-gradient(165deg, #fff3e2 0%, #ffeef6 55%, #
 }
 .bn-keep__go { font-size: 2.6rem; color: #1d6b35; }
 .bn-keep__face { display: block; width: 64px; height: 64px; }
+/* §18 E: what he plays as on a race board (a tap changes it) */
+.bn-me {
+  display: grid; grid-auto-flow: column; justify-content: center; align-items: center; gap: 10px;
+  min-width: 140px; min-height: 84px; margin: -6px auto var(--pad); padding: 6px 18px;
+  border: 4px solid #ffd24d; border-radius: 28px; background: #fffbea; box-shadow: var(--card-shadow);
+}
+.bn-me__pic { display: block; width: 64px; height: 64px; font-size: 3rem; line-height: 64px; text-align: center; }
+.bn-me__pic svg { width: 100%; height: 100%; display: block; }
+.bn-me__swap { font-size: 1.8rem; }
 /* who's playing / who's the friend: the PICTURE of the game he just tapped,
    big, over the choices (he cannot read the title in the bar) — not a button */
 .bn-gamepic { display: grid; place-items: center; font-size: 4.6rem; line-height: 1; margin: 4px 0 18px; pointer-events: none; }
@@ -4120,6 +4129,19 @@ button.bn-pickd { cursor: pointer; }
 .bn-hand { position: absolute; z-index: 4; margin: -10px 0 0 -18px; font-size: 3rem; line-height: 1; pointer-events: none; text-shadow: 0 3px 8px rgba(0, 0, 0, 0.28); animation: bnPoke 1s ease-in-out infinite; }
 @keyframes bnPoke { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(10px); } }
 
+/* §18 E: table mode — the iPad flat between two players. The far player's
+   pad goes to the far edge (under the bar) and turns to face them; each pad
+   takes the whole width of its own edge. Portrait only: on its side the pads
+   are a column beside the board. */
+@media (orientation: portrait) {
+  .bn-play[data-table="1"] .bn-tray { display: contents; }
+  .bn-play[data-table="1"] .bn-bar { order: 0; }
+  .bn-play[data-table="1"] .bn-pad--1 { order: 1; transform: rotate(180deg); min-height: 88px; margin-bottom: var(--pad); }
+  .bn-play[data-table="1"] .bn-field { order: 2; }
+  .bn-play[data-table="1"] .bn-choose { order: 3; }
+  .bn-play[data-table="1"] .bn-pad--0 { order: 4; min-height: 88px; margin-top: var(--pad); }
+}
+
 /* everyone home: one party for both */
 .bn-party {
   position: absolute;
@@ -4184,6 +4206,8 @@ button.bn-pickd { cursor: pointer; }
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
 }
 .bn-pop--go { animation: bnPop 0.7s ease-out; }
+/* §18 E: counting in Chinese — the numeral under the digit */
+.bn-pop__zh { display: block; font-size: 0.62em; text-align: center; font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; }
 @keyframes bnPop { 0% { transform: translate(-50%, -60%) scale(0.6); } 25% { transform: translate(-50%, -110%) scale(1.15); } 100% { transform: translate(-50%, -120%) scale(1); } }
 /* a top-row square's number pops BELOW it: above is off the board, over the bar */
 .bn-pop--below { transform: translate(-50%, 0); }

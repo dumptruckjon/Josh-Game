@@ -51,7 +51,7 @@
   // game per box · last: the last box and its players.
   // "has been shown how", per kind of game (each kind's first-time hand)
   const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors", "acorns", "dominoes", "dig", "nim", "lines", "top", "grab", "match3", "maze", "hide", "cmatch", "bingo", "snow", "fish", "ten", "hilo", "train", "pickdie", "call", "sums", "rainbow2", "dicerun", "honey20", "doors9"];
-  function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, next: {}, last: null, skill: {} }; }
+  function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, zh: false, table: false, token: "face", next: {}, last: null, skill: {} }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
   // ---- A friend's LEVEL (PLAN_BOARD.md §18) -----------------------------------
   // How sharply the friend in the iPad plays a thinking game: their own way
@@ -88,6 +88,11 @@
     if (isObj(raw.done)) for (const [box, n] of Object.entries(raw.done)) if (DATA.box(box) && Number.isInteger(n) && n > 0) s.done[box] = n;
     if (isObj(raw.intro)) for (const k of INTRO) s.intro[k] = raw.intro[k] === true;
     s.auto = raw.auto === true;
+    // §18 E: the grown-up switches (count in 中文 · the iPad flat on a table)
+    // and what Josh plays as
+    s.zh = raw.zh === true;
+    s.table = raw.table === true;
+    if (DATA.TOKENS.some((t) => t.id === raw.token)) s.token = raw.token;
     if (isObj(raw.next)) for (const [box, n] of Object.entries(raw.next)) if (DATA.box(box) && (n === 0 || n === 1)) s.next[box] = n;
     if (isObj(raw.skill)) for (const [box, n] of Object.entries(raw.skill)) if (DATA.box(box) && Number.isInteger(n) && n >= SKILL.min && n <= SKILL.max && n !== 0) s.skill[box] = n;
     if (isObj(raw.last) && DATA.box(raw.last.box) && DATA.person(raw.last.who) && typeof raw.last.cpu === "boolean") {
@@ -192,7 +197,14 @@
       // Grown-ups only, small and quiet AFTER the last box (never between
       // boxes): hops by tap (the default — every tap is one hop, one number)
       // or by themselves for a tired evening. Not destructive, so no gate.
-      '<button class="reset-stars bn-auto" type="button" data-adult="1" aria-pressed="false">Grown-ups: hops by tap</button>');
+      '<div class="bn-grown">' +
+        '<button class="reset-stars bn-auto" type="button" data-adult="1" aria-pressed="false">Grown-ups: hops by tap</button>' +
+        // §18 E: count 一, 二, 三 (so Grandma can play too)
+        '<button class="reset-stars bn-zh" type="button" data-adult="1" aria-pressed="false"></button>' +
+        // §18 E: the iPad lying flat between two players: the far player's
+        // pad goes to the far edge and turns to face them
+        '<button class="reset-stars bn-tablemode" type="button" data-adult="1" aria-pressed="false"></button>' +
+      "</div>");
     shelf.querySelector(".bn-exit").addEventListener("click", () => { location.hash = ""; });
     shelf.querySelector(".bn-hear").addEventListener("click", () => say(SAY.shelf));
     shelf.querySelector(".bn-auto").addEventListener("click", () => {
@@ -200,10 +212,15 @@
       persist();
       paintShelf();
     });
+    shelf.querySelector(".bn-zh").addEventListener("click", () => { save.zh = !save.zh; persist(); paintShelf(); });
+    shelf.querySelector(".bn-tablemode").addEventListener("click", () => { save.table = !save.table; persist(); paintShelf(); });
 
     who = section("screen-board-who", "bn-who",
       bar("bn-whoback", "Back to the games", "🏠", "") +
       '<div class="bn-gamepic" aria-hidden="true"></div>' +
+      // §18 E: what he plays as on a race board (tap to change: himself, a
+      // race car, a dump truck, his buddy)
+      '<button class="bn-me tap" type="button" hidden><span class="bn-me__pic" aria-hidden="true"></span><span class="bn-me__swap" aria-hidden="true">🔄</span></button>' +
       '<button class="bn-keep tap" type="button" hidden></button>' +
       '<div class="bn-modes" role="list">' +
         '<button class="bn-mode bn-mode--cpu tap" type="button" role="listitem" data-mode="cpu" aria-label="' + SAY.cpu + '">' +
@@ -218,6 +235,13 @@
     for (const b of who.querySelectorAll(".bn-mode")) {
       b.addEventListener("click", () => { location.hash = "#board-pick-" + whoBox + "-" + b.dataset.mode; });
     }
+    who.querySelector(".bn-me").addEventListener("click", () => {
+      const k = DATA.TOKENS.findIndex((t) => t.id === save.token);
+      save.token = DATA.TOKENS[(k + 1) % DATA.TOKENS.length].id;
+      persist();
+      paintWho();
+      say(fill(SAY.tokenAs, { t: DATA.TOKENS.find((t) => t.id === save.token).say }));
+    });
     who.querySelector(".bn-keep").addEventListener("click", () => {
       if (save.games[whoBox]) { pending = { box: whoBox, resume: true }; location.hash = "#board-play"; }
     });
@@ -519,6 +543,12 @@
     const auto = shelf.querySelector(".bn-auto");
     auto.textContent = save.auto ? "Grown-ups: hops by themselves" : "Grown-ups: hops by tap";
     auto.setAttribute("aria-pressed", save.auto ? "true" : "false");
+    const zh = shelf.querySelector(".bn-zh");
+    zh.innerHTML = save.zh ? 'Grown-ups: count in <span lang="zh-CN">中文</span>' : "Grown-ups: count in English";
+    zh.setAttribute("aria-pressed", save.zh ? "true" : "false");
+    const tb = shelf.querySelector(".bn-tablemode");
+    tb.textContent = save.table ? "Grown-ups: iPad flat on a table" : "Grown-ups: iPad held";
+    tb.setAttribute("aria-pressed", save.table ? "true" : "false");
   }
   function paintBoxes(list, open) {
     // Two columns: rows of single boxes put the last one below the fold of a
@@ -556,6 +586,12 @@
     const b = DATA.box(whoBox);
     who.querySelector(".bn-title").textContent = b.name;
     who.querySelector(".bn-gamepic").innerHTML = boxPic(b);
+    const me = who.querySelector(".bn-me");
+    me.hidden = !tokenBoard(DATA.board(b.board));
+    if (!me.hidden) {
+      me.querySelector(".bn-me__pic").innerHTML = tokenHTML(save.token);
+      me.setAttribute("aria-label", fill(SAY.tokenAs, { t: DATA.TOKENS.find((t) => t.id === save.token).say }));
+    }
     const keep = who.querySelector(".bn-keep");
     const g = save.games[whoBox];
     keep.hidden = !g;
@@ -598,6 +634,33 @@
   function playVisible() { return !!play && !play.hidden && !doc.hidden; }
   function seatPerson(i) { return DATA.person(game.st.seats[i].who); }
   const nameOf = (i) => seatPerson(i).say;
+
+  // ---- §18 E: his token, counting in Chinese, table mode ---------------------------
+  // a race board, where a token stands on the squares (not the hen's farm, the
+  // chart's ring is a face too)
+  function tokenBoard(board) { return !!board && (board.game === "dice" || board.game === "cards"); }
+  function tokenHTML(id) {
+    const t = DATA.TOKENS.find((x) => x.id === id);
+    if (t && t.pic) return '<span class="bn-emoji">' + t.pic + "</span>";
+    if (id === "truck" && global.JoshArt && global.JoshArt.truck) { try { return global.JoshArt.truck("#f2b705"); } catch (e) { /* his face */ } }
+    if (id === "buddy" && global.JoshBuddy) { try { return global.JoshBuddy.art(); } catch (e) { /* his face */ } }
+    return R.faceHTML(DATA.person("josh"));
+  }
+  // the games whose pads are each player's whole play: the far player's pad can
+  // turn to face them. (A game that draws its own board puts the mover's
+  // cards on the board, facing Josh, so turning a pad would not help there;
+  // and a choice row over the pads needs the pads side by side.)
+  const TABLE_CELL = 38;
+  function tableBoard(board) {
+    return !!board && ["dice", "cards", "spin", "hen"].indexOf(board.game) >= 0 && !board.two && !board.call && !board.pick2;
+  }
+  // a COUNT said aloud: in Chinese when the grown-up switch is on
+  function sayCount(n) {
+    if (!playVisible()) return;
+    if (!save.zh) { say(String(n)); return; }
+    const a = global.JoshAudio;
+    if (a && !a.isMuted()) a.say(DATA.zhNum(n), { lang: "zh-CN" });
+  }
 
   function newGame(box, friend, cpu) {
     const b = DATA.box(box);
@@ -643,6 +706,9 @@
     // (🚪 nine doors are three rows of buttons: its pads give way too)
     play.dataset.pad = PAD_TURN.indexOf(board.game) >= 0 || (board.game === "doors" && board.size === 9) ? "turn" : "act";
     play.dataset.box = box;
+    // §18 E: table mode, for two people here on a game whose pads are the
+    // whole of each player's play (a race, Apple Spin, Hen House)
+    play.dataset.tableWant = save.table && !st.seats[1].cpu && tableBoard(board) ? "1" : "0";
     boardEl.classList.toggle("bn-board--chart", board.layout === "chart");
     svgWrap.innerHTML = OWN_BOARD.indexOf(board.game) >= 0 ? "" : board.game === "spin" ? R.orchardSVG() : board.game === "lotto" ? R.picnicSVG(board, st.seats.map((s) => DATA.person(s.who).colour)) : R.boardSVG(board);
     applesEl.innerHTML = "";
@@ -659,7 +725,7 @@
       // 🐔 co-op: ONE token, the hen, that both players walk home
       // 🧺 a picnic has no tokens at all: the foods are the pieces
       tokens[i].hidden = (farm && i === 1) || board.game === "lotto" || OWN_BOARD.indexOf(board.game) >= 0;
-      tokens[i].querySelector(".bn-token__face").innerHTML = farm ? '<span class="bn-emoji">🐔</span>' : R.faceHTML(p);
+      tokens[i].querySelector(".bn-token__face").innerHTML = farm ? '<span class="bn-emoji">🐔</span>' : i === 0 && tokenBoard(board) ? tokenHTML(save.token) : R.faceHTML(p);
       tokens[i].style.borderColor = farm ? "#c2410c" : p.colour;
       tokens[i].style.transitionDuration = "0ms";
       pads[i].querySelector(".bn-pad__face").innerHTML = R.faceHTML(p);
@@ -679,6 +745,14 @@
   function layout() {
     if (!game) return;
     const field = play.querySelector(".bn-field");
+    // §18 E: table mode takes a pad's height from the board, so it steps aside
+    // when the squares would come out under the 38px floor (a 320x568 phone:
+    // 23px squares) — the pads go back side by side under the board
+    play.dataset.table = play.dataset.tableWant || "0";
+    if (play.dataset.table === "1") {
+      const b0 = game.board;
+      if (Math.min(field.clientWidth / b0.cols, field.clientHeight / b0.rows) < TABLE_CELL) play.dataset.table = "0";
+    }
     const w = field.clientWidth, h = field.clientHeight;
     const b = game.board;
     spotsEl.hidden = b.game !== "spot";
@@ -3647,7 +3721,7 @@
         paintCoop();
         paintPads();
         SFX.plop(e.coop);
-        sayPlay(String(e.coop));
+        sayCount(e.coop);
         popOnSquare(e.to, String(e.coop));
         if (e.left === 0) hideMark();
         paintBoardLabel();
@@ -4211,7 +4285,7 @@
             const c = R.centre(game.board, game.board.size);
             popAt({ x: c.x / (game.board.cols * R.CELL), y: (c.y + R.CELL * 0.35) / (game.board.rows * R.CELL) }, String(k), true);
             SFX.ten();
-            sayPlay(String(k));
+            sayCount(k);
           });
         }
         at(T.ten, () => {});
@@ -4231,7 +4305,7 @@
         moveToken(e.seat, e.to, T.hop);
         paintPads();
         SFX.hop(e.to);
-        sayPlay(String(L.labelOf(game.board, e.to)));
+        sayCount(L.labelOf(game.board, e.to));
         popOnSquare(e.to, String(L.labelOf(game.board, e.to)));
         paintBoardLabel();
       } else if (e.type === "pick") {
@@ -4240,7 +4314,7 @@
         paintApples({ seat: e.seat, k: e.to - 1, from: R.treeSpot(e.seat, e.to - 1) });
         paintPads();
         SFX.plop(e.to);
-        sayPlay(String(e.to));
+        sayCount(e.to);
         popAt(orchardFrac(R.slotOf(e.seat, e.to - 1)), String(e.to));
         paintBoardLabel();
       } else if (e.type === "pie") {
@@ -4313,7 +4387,7 @@
           at(T.hop, () => {});
         } else {
           for (const n of e.path) at(T.glide, () => { moveToken(e.mover, n, T.glide); SFX.glide(); });
-          at(0, () => { hideMark(); sayPlay(String(e.to)); popOnSquare(e.to, String(e.to)); paintBoardLabel(); });
+          at(0, () => { hideMark(); sayCount(e.to); popOnSquare(e.to, String(e.to)); paintBoardLabel(); });
         }
       } else if (e.type === "ride") {
         at(T.hop + 120, () => {
@@ -4606,6 +4680,14 @@
   function popAt(f, text, below) {
     if (!popEl) return;
     popEl.textContent = text;
+    // (counting in Chinese: the numeral under the digit, so it is SEEN too)
+    if (save.zh && /^\d+$/.test(text)) {
+      const zh = doc.createElement("span");
+      zh.className = "bn-pop__zh";
+      zh.lang = "zh-CN";
+      zh.textContent = DATA.zhNum(+text);
+      popEl.appendChild(zh);
+    }
     popEl.style.left = (f.x * 100) + "%";
     popEl.style.top = (f.y * 100) + "%";
     popEl.classList.toggle("bn-pop--below", !!below);

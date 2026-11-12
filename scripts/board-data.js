@@ -678,6 +678,8 @@
     here: "A friend is here with me!",
     // §18 E: both hands up at the party
     highFive: "High five!",
+    // (the token button on who's playing)
+    tokenAs: "You play as {t}! Tap to change.",
     turn: "{n}'s turn!",
     rollFirst: "Tap your dice!",
     hopFirst: "Tap to hop! One tap, one hop.",
@@ -899,7 +901,34 @@
     { pic: "🐟", say: "fish" }, { pic: "🐙", say: "octopus" }, { pic: "🦀", say: "crab" }, { pic: "🐢", say: "turtle" }, { pic: "🐸", say: "frog" },
     { pic: "🦆", say: "duck" }, { pic: "🐳", say: "whale" }, { pic: "🐧", say: "penguin" }, { pic: "🐚", say: "shell" }, { pic: "🐬", say: "dolphin" },
   ];
-  const BoardData = { FISH, SNOW_PARTS, HIDERS, JOSH, FRIENDS, PEOPLE, COLOURS, ANIMALS, FOODS, SPOTS, PAIRS, BOARDS, BOXES, SAY };
+  // §18 E: counting in Chinese (a grown-up switch, so Grandma can play
+  // too): the number a hop, an apple or a chick lands on, said and popped
+  // as 一, 二, 三… up to 一百二十 (the biggest count any board makes is the
+  // Apple Spin pie, 20 and a few). The first ten are 华丽's own CN_NUM, which
+  // a test reads, so the two worlds cannot count differently.
+  const ZH_DIGITS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
+  function zhNum(n) {
+    if (!Number.isInteger(n) || n < 0 || n > 999) return String(n);
+    if (n <= 10) return ZH_DIGITS[n];
+    if (n < 20) return "十" + ZH_DIGITS[n - 10];
+    if (n < 100) return ZH_DIGITS[Math.floor(n / 10)] + "十" + (n % 10 ? ZH_DIGITS[n % 10] : "");
+    const h = Math.floor(n / 100), r = n % 100;
+    if (!r) return ZH_DIGITS[h] + "百";
+    // 一百零五 · 一百一十 · 一百二十三 (a ten after a hundred keeps its 一)
+    return ZH_DIGITS[h] + "百" + (r < 10 ? "零" + ZH_DIGITS[r] : ZH_DIGITS[Math.floor(r / 10)] + "十" + (r % 10 ? ZH_DIGITS[r % 10] : ""));
+  }
+  // §18 E: what Josh plays as on a race board — himself (his face, the
+  // default), a race car, a dump truck or his buddy (the one he picked on the
+  // home screen). A friend keeps their face: the token says whose it is.
+  const TOKENS = [
+    { id: "face", say: "you" },
+    // (a race car, not a rocket: Moon Race's boosters are rockets, and a
+    // token must never wear a picture the board already uses)
+    { id: "car", pic: "🏎️", say: "a race car" },
+    { id: "truck", say: "a dump truck" },
+    { id: "buddy", say: "your buddy" },
+  ];
+  const BoardData = { FISH, SNOW_PARTS, HIDERS, JOSH, FRIENDS, PEOPLE, COLOURS, ANIMALS, FOODS, SPOTS, PAIRS, BOARDS, BOXES, SAY, TOKENS, zhNum };
   BoardData.spot = (k) => SPOTS[k] || null;
   BoardData.pairPic = (id) => PAIRS.find((p) => p.id === id) || null;
   BoardData.food = (id) => FOODS.find((f) => f.id === id) || null;
