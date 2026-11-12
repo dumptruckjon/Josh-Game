@@ -839,8 +839,37 @@ grows with him and never shows a padlock.
   nothing when tapped. A derived browser test now taps EVERY box on a fully
   open shelf and opens both ways to play.
 
-**D is done.** Still to build, in order: **E**
-the shell (tonight's three games, pick your token, counting in Chinese, table
-mode, endings that change the board and a high-five); **F** the remaining
-per-game ideas.
+**D is done.**
+
+**E. The shell (BUILT).**
+- **🌙 Tonight.** A tile first on the shelf picks three games for the
+  evening — a lucky one, a thinking one and one more, from the open boxes,
+  the same three all day (the date seeds the pick). Who's playing is chosen
+  once; the games run back to back with that friend. Each party shows how far
+  through tonight (the three pictures, the played ones ringed) and its 🔁
+  becomes ▶ the next game; the third party's is 🌙 and says "That's game
+  night! Good night!". A night left part-way carries on from the tile (▶ with
+  the next game's picture and both faces). Only tonight's next game with
+  tonight's friend moves the night; another day's night is dropped. On a short
+  phone the tile is one line, and the shelf law counts it as a row of choices
+  (it costs 88px against 66px of slack at 320x568).
+- **What Josh plays as.** On a race board (the dice and card games) one tap on
+  who's playing changes his token: himself, a 🏎️ race car, a dump truck or his
+  buddy. The friend keeps their face (the token says whose it is). Not a
+  rocket: Moon Race's boosters are rockets.
+- **Count in 中文.** A grown-up switch: every hop, apple and chick is said in a
+  Chinese voice and the pop shows the numeral under the digit (一 to 一百二十;
+  the first ten are 华丽's CN_NUM).
+- **Table mode.** A grown-up switch for the iPad lying flat: with two people
+  here, the far player's pad goes to the far edge and turns to face them. Only
+  where the pads are each player's whole play (the races, Apple Spin, Hen
+  House), never against the computer, portrait only, and it steps aside where
+  the squares would fall under 38px.
+- **Endings and a high five.** The board shows it is won before the party: a
+  race plants a 🚩 on its last square (and keeps it under the party), the
+  finished train chugs off, the snowmen wave. At the party each face is a
+  high-five button: tap yours and your hand goes up; a friend in the iPad
+  raises theirs after his; both up is a clap.
+
+**E is done.** Still to build: **F** the remaining per-game ideas.
 

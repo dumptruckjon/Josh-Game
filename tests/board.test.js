@@ -1990,6 +1990,122 @@ test("§18 E: TABLE MODE — the iPad flat between two people: the far player's 
   }
 });
 
+test("§18 E: 🌙 tonight's three — a lucky game, a thinking game and one more, the same three all day, only ever boxes that are open", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  const r = await page.evaluate(() => {
+    const D = window.BoardData, B = window.__BOARD;
+    const kind = (id) => D.box(id).kind || "luck";
+    const open = D.BOXES.filter((b) => !b.unlockAfter).map((b) => b.id);
+    const out = { bad: [], days: new Set(), firsts: new Set() };
+    for (let k = 0; k < 60; k++) {
+      const day = "2026-12-" + String(1 + (k % 28)).padStart(2, "0") + (k >= 28 ? "x" + k : "");
+      const p = B.nightPick(day, open);
+      if (p.length !== 3 || new Set(p).size !== 3) out.bad.push(day + ": not three different games " + p);
+      if (p.some((id) => open.indexOf(id) < 0)) out.bad.push(day + ": a locked box " + p);
+      if (!p.some((id) => kind(id) === "luck") || !p.some((id) => kind(id) === "think")) out.bad.push(day + ": not a lucky AND a thinking game " + p);
+      if (JSON.stringify(B.nightPick(day, open)) !== JSON.stringify(p)) out.bad.push(day + ": a different three the same day");
+      out.days.add(p.join());
+      out.firsts.add(p[0]);
+    }
+    // a fresh save: every pick is of open boxes
+    const fresh = [];
+    for (let k = 1; k <= 28; k++) fresh.push(...B.tonight("2027-01-" + String(k).padStart(2, "0")).filter((id) => D.box(id).unlockAfter));
+    return { bad: out.bad, distinct: out.days.size, firsts: out.firsts.size, fresh };
+  });
+  assert.deepEqual(r.bad, []);
+  assert.ok(r.distinct >= 30, `tonight changes from day to day (${r.distinct} different nights in 60)`);
+  assert.ok(r.firsts >= 6, `and it opens with different games (${r.firsts})`);
+  assert.deepEqual(r.fresh, [], "a box still waiting on the shelf is never one of tonight's");
+});
+
+test("§18 E: 🌙 a whole night — three games back to back with the same friend: each party shows how far through tonight and ▶ the next game; a night left part-way carries on from the shelf; the third party is good night", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await page.evaluate(() => {
+    const s = window.__BOARD.save();
+    s.night = { day: window.__BOARD.today(), boxes: ["rainbow", "moon", "hundred"], played: 0, who: "river", cpu: true };
+    localStorage.setItem("josh-board-v1", JSON.stringify(s));
+  });
+  await page.reload({ waitUntil: "load" });
+  await go("#board-home", "#screen-board-home");
+  const tile = page.locator("#screen-board-home .bn-tonight");
+  assert.match(await tile.getAttribute("aria-label"), /Rainbow Trail, Moon Race, Hundred Hop/, "the tile names tonight's three");
+  // game 1: Rainbow Trail, one card from home
+  const r1 = L.create({ board: "rainbow", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
+  r1.seats[1].pos = 36; r1.seats[1].home = true; r1.order = [1]; r1.seats[0].pos = 35; r1.mover = 0;
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("rainbow", x), r1));
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  await page.locator(".bn-pad--0").click();
+  await page.locator(".bn-party").waitFor({ state: "visible", timeout: 10000 });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).night.played, 1, "one of tonight's played");
+  assert.ok(await page.locator(".bn-party__night").isVisible(), "the party shows how far through tonight");
+  assert.equal(await page.locator(".bn-party__nightpic--done").count(), 1, "one picture done");
+  assert.equal(await page.locator(".bn-again").getAttribute("aria-label"), "Next game: Moon Race", "▶ the next game, not play again");
+  // between tonight's games he plays Moon Race with DAD: not tonight's game
+  // (a different friend), so the night does not move
+  const off = L.create({ board: "moon", seats: [{ who: "josh" }, { who: "dad" }], seed: 3, first: 0 });
+  off.seats[1].pos = 36; off.seats[1].home = true; off.order = [1]; off.mover = 0; off.seats[0].pos = 35; off.phase = "hop"; off.die = 1; off.left = 1; off.rolls = 9;
+  await page.waitForTimeout(400);
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("moon", x), off));
+  await page.waitForTimeout(400);
+  await page.locator(".bn-pad--0").click();
+  await page.locator(".bn-party").waitFor({ state: "visible", timeout: 10000 });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).night.played, 1, "a game with a different friend is not tonight's next");
+  assert.ok(await page.locator(".bn-party__night").isHidden(), "…and its party is an ordinary one");
+  assert.equal(await page.locator(".bn-again").getAttribute("aria-label"), "Play again");
+  // he leaves at the party: the shelf's tile carries the night on
+  await page.waitForTimeout(400);
+  await page.locator(".bn-shelf").click();
+  await page.locator("#screen-board-home").waitFor({ state: "visible" });
+  assert.equal(await page.locator(".bn-tonight__pic--done").count(), 1, "the tile rings tonight's played game");
+  await page.waitForTimeout(400);
+  await tile.click();
+  await page.locator("#screen-board-who").waitFor({ state: "visible" });
+  assert.equal(await page.locator("#screen-board-who .bn-title").textContent(), "Tonight");
+  const keep = page.locator("#screen-board-who .bn-keep");
+  assert.ok(await keep.isVisible(), "a night part-way offers to carry on");
+  assert.match(await keep.getAttribute("aria-label"), /Moon Race with River/);
+  await page.waitForTimeout(400);
+  await keep.click();
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(300);
+  let s = await st();
+  assert.equal(s.board, "moon", "carry on: the night's next game");
+  assert.equal(s.seats[1].who, "river", "with the same friend");
+  assert.ok(s.seats[1].cpu, "in the iPad, as before");
+  // game 2: Moon Race, one hop from the Moon
+  const m2 = L.create({ board: "moon", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
+  m2.seats[1].pos = 36; m2.seats[1].home = true; m2.order = [1]; m2.mover = 0; m2.seats[0].pos = 35; m2.phase = "hop"; m2.die = 1; m2.left = 1; m2.rolls = 9;
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("moon", x), m2));
+  await page.waitForTimeout(400);
+  await page.locator(".bn-pad--0").click();
+  await page.locator(".bn-party").waitFor({ state: "visible", timeout: 10000 });
+  assert.equal(await page.locator(".bn-party__nightpic--done").count(), 2);
+  assert.equal(await page.locator(".bn-again").getAttribute("aria-label"), "Next game: Hundred Hop");
+  await page.waitForTimeout(400);
+  await page.locator(".bn-again").click();
+  await page.waitForTimeout(500);
+  s = await st();
+  assert.equal(s.board, "hundred", "▶ starts the third game");
+  assert.equal(s.seats[1].who, "river");
+  // game 3: Hundred Hop, one hop from 100
+  const h3 = L.create({ board: "hundred", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
+  h3.seats[1].pos = 100; h3.seats[1].home = true; h3.order = [1]; h3.mover = 0; h3.seats[0].pos = 99; h3.phase = "hop"; h3.die = 1; h3.left = 1; h3.rolls = 9;
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("hundred", x), h3));
+  await page.waitForTimeout(400);
+  await page.locator(".bn-pad--0").click();
+  await page.locator(".bn-party").waitFor({ state: "visible", timeout: 10000 });
+  assert.equal(await page.locator(".bn-party__nightpic--done").count(), 3, "all three of tonight's played");
+  assert.equal(await page.locator(".bn-again").getAttribute("aria-label"), "Good night!", "the third party is good night");
+  assert.equal(await page.locator(".bn-again").textContent(), "🌙");
+  await page.waitForTimeout(400);
+  await page.locator(".bn-again").click();
+  await page.locator("#screen-board-home").waitFor({ state: "visible" });
+  assert.equal(await page.locator(".bn-tonight__pic--done").count(), 3, "the shelf: tonight all played");
+  // a game played on its own, not tonight's next, never moves the night
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).night.played, 3);
+});
+
 test("🌈 a whole Rainbow Trail against the computer: one tap, one card, every move forward to its colour, one party", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await quick();

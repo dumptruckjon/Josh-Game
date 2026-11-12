@@ -258,11 +258,17 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
       // Two shelves of boxes are more than one phone screen, so the shelf
       // SCROLLS on a phone (Gobble Hole's land pages are the precedent): the
       // first screen must hold at least three full rows of boxes, and the
-      // last box must be reachable by scrolling.
+      // last box must be reachable by scrolling. (§18 E: the 🌙 Tonight tile
+      // above the shelves is a row of CHOICE too — the one a non-reader is
+      // meant to reach for at bedtime — so it counts: on a 320x568 phone it
+      // costs 88px against 66px of slack, and no layout of it keeps three box
+      // rows there. It must itself be on the first screen, whole.)
       if (lbl === "shelf" && h > w) {
         assert.equal(await page.locator(".bn-box").count(), DATA_BOXES, "fixture: the shelf holds every box (every unlocking box unlocked)");
-        const rows = await page.evaluate((vh) => new Set([...document.querySelectorAll(".bn-box")].filter((b) => b.getBoundingClientRect().bottom <= vh).map((b) => Math.round(b.getBoundingClientRect().top))).size, h);
-        assert.ok(rows >= 3, `[shelf@${w}x${h}] only ${rows} full rows of boxes on the first screen`);
+        const tile = await page.evaluate(() => { const t = document.querySelector(".bn-tonight"); return t ? t.getBoundingClientRect().bottom : null; });
+        assert.ok(tile != null && tile <= h, `[shelf@${w}x${h}] the 🌙 Tonight tile is on the first screen`);
+        const rows = await page.evaluate((vh) => new Set([...document.querySelectorAll(".bn-box, .bn-tonight")].filter((b) => b.getBoundingClientRect().bottom <= vh).map((b) => Math.round(b.getBoundingClientRect().top))).size, h);
+        assert.ok(rows >= 3, `[shelf@${w}x${h}] only ${rows} full rows of choices on the first screen`);
         await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
         await page.waitForTimeout(60);
         const last = await page.evaluate(() => Math.max(...[...document.querySelectorAll(".bn-box")].map((b) => b.getBoundingClientRect().bottom)));

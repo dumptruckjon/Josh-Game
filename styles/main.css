@@ -3187,6 +3187,30 @@ body.board-mode { background: linear-gradient(165deg, #fff3e2 0%, #ffeef6 55%, #
    big, over the choices (he cannot read the title in the bar) — not a button */
 .bn-gamepic { display: grid; place-items: center; font-size: 4.6rem; line-height: 1; margin: 4px 0 18px; pointer-events: none; }
 .bn-gamepic .bn-domsvg, .bn-gamepic .bn-doorsvg { width: 1.6em; height: 0.9em; display: block; }
+/* 🌙 tonight's three on who's playing: the three pictures in a row */
+.bn-gamepic__night { display: grid; grid-auto-flow: column; justify-content: center; align-items: center; column-gap: 14px; font-size: 3.2rem; }
+.bn-gamepic__one { display: grid; place-items: center; }
+/* 🌙 the Tonight tile, first on the shelf: a moon, the three pictures, a word
+   for the grown-up */
+.bn-tonight {
+  position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; column-gap: 12px;
+  min-height: 112px; padding: 10px 18px; border: none; border-bottom: 8px solid #2b2f6b; border-radius: 28px;
+  background: linear-gradient(135deg, #1f2560, #3b3f8f); color: #fff8d6; box-shadow: var(--card-shadow); text-align: left;
+}
+.bn-tonight:active { transform: scale(0.97); }
+.bn-tonight__moon { grid-row: 1 / span 2; font-size: 3rem; line-height: 1; }
+.bn-tonight__pics { display: grid; grid-auto-flow: column; justify-content: start; column-gap: 12px; font-size: 2.4rem; line-height: 1; }
+.bn-tonight__pic { display: grid; place-items: center; padding: 4px; border-radius: 14px; }
+/* a game already played tonight: a gold ring (a shape, not a hue alone) */
+.bn-tonight__pic--done { box-shadow: 0 0 0 3px #ffd24d; background: rgba(255, 255, 255, 0.18); }
+.bn-tonight__label { font-size: 1.1rem; font-weight: 800; color: #fff8d6; }
+.bn-tonight .bn-domsvg, .bn-tonight .bn-doorsvg, .bn-party__night .bn-domsvg, .bn-party__night .bn-doorsvg, .bn-again__pic .bn-domsvg, .bn-again__pic .bn-doorsvg { width: 1.6em; height: 0.9em; display: block; }
+.bn-gamepic__one .bn-domsvg, .bn-gamepic__one .bn-doorsvg { width: 1.6em; height: 0.9em; display: block; }
+/* 🌙 at the party: how far through tonight */
+.bn-party__night { display: grid; grid-auto-flow: column; justify-content: center; column-gap: 12px; font-size: 1.9rem; line-height: 1; }
+.bn-party__nightpic { display: grid; place-items: center; padding: 3px; border-radius: 12px; opacity: 0.5; }
+.bn-party__nightpic--done { opacity: 1; box-shadow: 0 0 0 3px #ffd24d; }
+.bn-again__pic { display: inline-grid; place-items: center; margin-left: 6px; vertical-align: middle; }
 .bn-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); }
 .bn-mode {
   min-height: 160px;
@@ -4388,6 +4412,11 @@ button.bn-pickd { cursor: pointer; }
 /* A short phone: the pads and the doors give way a little, the board keeps
    what is left (still 75px+ targets, still 16px apart). */
 @media (max-height: 700px) {
+  /* 🌙 the Tonight tile on one line: the moon, the three pictures, the word */
+  .bn-tonight { min-height: 76px; grid-template-columns: auto auto minmax(0, 1fr); grid-template-rows: auto; padding: 6px 14px; }
+  .bn-tonight__moon { grid-row: auto; font-size: 2.2rem; }
+  .bn-tonight__pics { font-size: 1.9rem; column-gap: 8px; }
+  .bn-tonight__label { font-size: 0.95rem; text-align: right; }
   .bn-box { min-height: 96px; }
   .bn-box__pic { font-size: 2.8rem; }
   /* a full shelf (eight boxes, four rows) on a short phone: each box a
@@ -4474,6 +4503,7 @@ button.bn-pickd { cursor: pointer; }
   .bn-hand { animation: none; }
   .bn-party__face { animation: none; }
   .bn-party__clap { animation: none; }
+  .bn-tonight:active { transform: none; }
   .bn-flag--go { animation: none; }
   .bn-train--off .bn-train__row > * { animation: none; }
   .bn-snow--wave svg { animation: none; }

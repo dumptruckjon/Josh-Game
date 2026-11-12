@@ -678,6 +678,9 @@
     here: "A friend is here with me!",
     // §18 E: both hands up at the party
     highFive: "High five!",
+    // 🌙 tonight's three games
+    tonight: "Three games tonight! Who's playing with you?",
+    nightDone: "That's game night! Good night!",
     // (the token button on who's playing)
     tokenAs: "You play as {t}! Tap to change.",
     turn: "{n}'s turn!",

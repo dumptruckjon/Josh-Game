@@ -51,7 +51,7 @@
   // game per box · last: the last box and its players.
   // "has been shown how", per kind of game (each kind's first-time hand)
   const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors", "acorns", "dominoes", "dig", "nim", "lines", "top", "grab", "match3", "maze", "hide", "cmatch", "bingo", "snow", "fish", "ten", "hilo", "train", "pickdie", "call", "sums", "rainbow2", "dicerun", "honey20", "doors9"];
-  function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, zh: false, table: false, token: "face", next: {}, last: null, skill: {} }; }
+  function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, zh: false, table: false, token: "face", night: null, next: {}, last: null, skill: {} }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
   // ---- A friend's LEVEL (PLAN_BOARD.md §18) -----------------------------------
   // How sharply the friend in the iPad plays a thinking game: their own way
@@ -72,6 +72,41 @@
     const a = st.seats[0].stars, c = st.seats[1].stars;
     return board.two || board.pick2 ? (st.order[0] === 0 ? 1 : 0) : a + c ? a / (a + c) : 0.5;
   }
+  // ---- §18 E: tonight's three games -------------------------------------------------
+  // 28 boxes is a lot for a non-reader, and an evening wants an END. One tile
+  // picks three for the evening — a lucky game, a thinking game and one more,
+  // the same three all day (the date seeds them) — played back to back with
+  // the same friend, and the third ends in one goodnight party.
+  function today() {
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function nightPick(day, open) {
+    let h = 2166136261;
+    for (const ch of String(day)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+    const rnd = () => { h = (Math.imul(h ^ (h >>> 15), 2246822507) + 0x9e3779b9) >>> 0; h ^= h >>> 13; return (h >>> 0) / 4294967296; };
+    const deck = open.slice();
+    for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const t = deck[i]; deck[i] = deck[j]; deck[j] = t; }
+    const kind = (b) => b.kind || "luck";
+    const pick = [];
+    const luck = deck.find((b) => kind(b) === "luck"), think = deck.find((b) => kind(b) === "think");
+    if (luck) pick.push(luck);
+    if (think) pick.push(think);
+    for (const b of deck) if (pick.length < 3 && pick.indexOf(b) < 0) pick.push(b);
+    return pick.slice(0, 3).map((b) => b.id);
+  }
+  // tonight's three: the night in progress, else today's pick of the open boxes
+  function tonight(day) {
+    const d = day || today();
+    if (save.night && save.night.day === d) return save.night.boxes;
+    return nightPick(d, DATA.BOXES.filter(boxOpen));
+  }
+  // the night this finished (or playing) game belongs to, if any
+  function nightOf(g) {
+    const n = save.night;
+    return n && g && n.day === today() && n.played < 3 && n.boxes[n.played] === g.box && g.friend === n.who && !!g.cpu === n.cpu ? n : null;
+  }
+
   function coerce(text) {
     const s = freshSave();
     let raw = null;
@@ -93,6 +128,13 @@
     s.zh = raw.zh === true;
     s.table = raw.table === true;
     if (DATA.TOKENS.some((t) => t.id === raw.token)) s.token = raw.token;
+    // §18 E: tonight's three games (only tonight's: another day's is dropped)
+    const n = raw.night;
+    if (isObj(n) && n.day === today() && Array.isArray(n.boxes) && n.boxes.length === 3 && new Set(n.boxes).size === 3 &&
+        n.boxes.every((b) => DATA.box(b)) && Number.isInteger(n.played) && n.played >= 0 && n.played <= 3 &&
+        DATA.person(n.who) && n.who !== "josh" && typeof n.cpu === "boolean") {
+      s.night = { day: n.day, boxes: n.boxes.slice(), played: n.played, who: n.who, cpu: n.cpu };
+    }
     if (isObj(raw.next)) for (const [box, n] of Object.entries(raw.next)) if (DATA.box(box) && (n === 0 || n === 1)) s.next[box] = n;
     if (isObj(raw.skill)) for (const [box, n] of Object.entries(raw.skill)) if (DATA.box(box) && Number.isInteger(n) && n >= SKILL.min && n <= SKILL.max && n !== 0) s.skill[box] = n;
     if (isObj(raw.last) && DATA.box(raw.last.box) && DATA.person(raw.last.who) && typeof raw.last.cpu === "boolean") {
@@ -243,6 +285,7 @@
       say(fill(SAY.tokenAs, { t: DATA.TOKENS.find((t) => t.id === save.token).say }));
     });
     who.querySelector(".bn-keep").addEventListener("click", () => {
+      if (whoBox === "night") { nightNext(); return; }
       if (save.games[whoBox]) { pending = { box: whoBox, resume: true }; location.hash = "#board-play"; }
     });
 
@@ -250,7 +293,7 @@
       bar("bn-pickback", "Back", "🏠", "") +
       '<div class="bn-gamepic" aria-hidden="true"></div>' +
       '<div class="bn-people" role="list" aria-label="Who is playing with you?"></div>');
-    pick.querySelector(".bn-pickback").addEventListener("click", () => { location.hash = "#board-who-" + whoBox; });
+    pick.querySelector(".bn-pickback").addEventListener("click", () => { location.hash = whoBox === "night" ? "#board-night" : "#board-who-" + whoBox; });
     pick.querySelector(".bn-hear").addEventListener("click", () => say(SAY.who));
 
     play = section("screen-board-play", "bn-play",
@@ -343,6 +386,8 @@
               '<button class="bn-party__who bn-five tap" type="button" data-seat="1"><span class="bn-party__face" aria-hidden="true"></span><span class="bn-party__haul" aria-hidden="true"></span><span class="bn-five__hand" aria-hidden="true" hidden>✋</span></button>' +
               '<span class="bn-party__clap" aria-hidden="true" hidden>👏</span>' +
             "</div>" +
+            // 🌙 tonight's three: how far through the evening
+            '<div class="bn-party__night" aria-hidden="true" hidden></div>' +
             '<div class="bn-party__row">' +
               '<button class="btn-big bn-again" type="button" aria-label="Play again">🔁</button>' +
               '<button class="btn-big bn-shelf" type="button" aria-label="Back to the games">🏠</button>' +
@@ -489,7 +534,12 @@
     coopEl = play.querySelector(".bn-coop");
     play.querySelector(".bn-playback").addEventListener("click", () => { location.hash = "#board-home"; });
     play.querySelector(".bn-hear").addEventListener("click", () => { hint(true); });
-    party.querySelector(".bn-again").addEventListener("click", () => { if (game) newGame(game.box, game.friend, game.cpu); });
+    party.querySelector(".bn-again").addEventListener("click", () => {
+      if (!game) return;
+      // 🌙 a night's party: ▶ the next of tonight's games, or 🌙 good night
+      if (game.nightStep) { if (game.nightStep < 3) nightNext(); else location.hash = "#board-home"; return; }
+      newGame(game.box, game.friend, game.cpu);
+    });
     party.querySelector(".bn-shelf").addEventListener("click", () => { location.hash = "#board-home"; });
     for (const p of pads) {
       p.addEventListener("pointerdown", unlockAudio);
@@ -525,6 +575,21 @@
   function paintShelf() {
     const wrap = shelf.querySelector(".bn-shelves");
     wrap.innerHTML = "";
+    // 🌙 tonight's three, first on the shelf (with three games to pick from)
+    const nightBoxes = tonight();
+    if (nightBoxes.length === 3) {
+      const n = save.night && save.night.day === today() ? save.night : null, played = n ? n.played : 0;
+      const t = doc.createElement("button");
+      t.className = "bn-tonight tap";
+      t.type = "button";
+      t.innerHTML = '<span class="bn-tonight__moon" aria-hidden="true">🌙</span>' +
+        '<span class="bn-tonight__pics" aria-hidden="true">' + nightBoxes.map((id, k) =>
+          '<span class="bn-tonight__pic' + (k < played ? " bn-tonight__pic--done" : "") + '">' + boxPic(DATA.box(id)) + "</span>").join("") + "</span>" +
+        '<span class="bn-tonight__label">Tonight</span>';
+      t.setAttribute("aria-label", "Tonight's three games: " + nightBoxes.map((id) => DATA.box(id).name).join(", ") + (played && played < 3 ? ". " + played + " played" : played === 3 ? ". All played" : ""));
+      t.addEventListener("click", () => { location.hash = "#board-night"; });
+      wrap.appendChild(t);
+    }
     for (const kind of KINDS) {
       const open = DATA.BOXES.filter((b) => (b.kind || "luck") === kind.id && boxOpen(b));
       if (!open.length) continue;
@@ -582,17 +647,31 @@
   function boxPic(b) { return b.art === "domino" ? domSVG(5, 2, false) : b.art === "domino6" ? domSVG(6, 6, false) : b.art === "doors" ? doorsBoxSVG() : b.art === "doors9" ? doorsBoxSVG(9) : b.pic; }
 
   // ---- Who's playing -------------------------------------------------------------
+  // the who/pick screens for TONIGHT: the three pictures, in order
+  function nightPicHTML() { return '<span class="bn-gamepic__night">' + tonight().map((id) => '<span class="bn-gamepic__one">' + boxPic(DATA.box(id)) + "</span>").join("") + "</span>"; }
   function paintWho() {
-    const b = DATA.box(whoBox);
-    who.querySelector(".bn-title").textContent = b.name;
-    who.querySelector(".bn-gamepic").innerHTML = boxPic(b);
+    const night = whoBox === "night";
+    const b = night ? null : DATA.box(whoBox);
+    who.querySelector(".bn-title").textContent = night ? "Tonight" : b.name;
+    who.querySelector(".bn-gamepic").innerHTML = night ? nightPicHTML() : boxPic(b);
     const me = who.querySelector(".bn-me");
-    me.hidden = !tokenBoard(DATA.board(b.board));
+    me.hidden = night ? !tonight().some((id) => tokenBoard(DATA.board(DATA.box(id).board))) : !tokenBoard(DATA.board(b.board));
     if (!me.hidden) {
       me.querySelector(".bn-me__pic").innerHTML = tokenHTML(save.token);
       me.setAttribute("aria-label", fill(SAY.tokenAs, { t: DATA.TOKENS.find((t) => t.id === save.token).say }));
     }
     const keep = who.querySelector(".bn-keep");
+    if (night) {
+      // a night in progress carries on with the same players, at its next game
+      const n = save.night && save.night.day === today() && save.night.played < 3 ? save.night : null;
+      keep.hidden = !n || (n.played === 0 && !save.games[n.boxes[0]]);
+      if (!keep.hidden) {
+        keep.innerHTML = '<span class="bn-keep__go" aria-hidden="true">▶</span>' + '<span class="bn-keep__face">' + boxPic(DATA.box(n.boxes[n.played])) + "</span>" +
+          ["josh", n.who].map((w) => '<span class="bn-keep__face">' + R.faceHTML(DATA.person(w)) + "</span>").join("");
+        keep.setAttribute("aria-label", SAY.keepGoing + " " + DATA.box(n.boxes[n.played]).name + " with " + DATA.person(n.who).say);
+      }
+      return;
+    }
     const g = save.games[whoBox];
     keep.hidden = !g;
     if (g) {
@@ -602,9 +681,10 @@
     }
   }
   function paintPick() {
-    const b = DATA.box(whoBox);
-    pick.querySelector(".bn-title").textContent = b.name;
-    pick.querySelector(".bn-gamepic").innerHTML = boxPic(b);
+    const night = whoBox === "night";
+    const b = night ? null : DATA.box(whoBox);
+    pick.querySelector(".bn-title").textContent = night ? "Tonight" : b.name;
+    pick.querySelector(".bn-gamepic").innerHTML = night ? nightPicHTML() : boxPic(b);
     const list = pick.querySelector(".bn-people");
     list.innerHTML = "";
     const cpu = pickMode === "cpu";
@@ -622,7 +702,7 @@
         '<span class="bn-person__label">' + p.say + "</span>" +
         (cpu && p.tag ? '<span class="bn-person__tag" aria-hidden="true">' + p.tag + "</span>" : "");
       btn.addEventListener("click", () => {
-        newGame(whoBox, p.id, cpu);
+        if (whoBox === "night") startNight(p.id, cpu); else newGame(whoBox, p.id, cpu);
       });
       list.appendChild(btn);
     }
@@ -634,6 +714,21 @@
   function playVisible() { return !!play && !play.hidden && !doc.hidden; }
   function seatPerson(i) { return DATA.person(game.st.seats[i].who); }
   const nameOf = (i) => seatPerson(i).say;
+
+  // ---- §18 E: tonight -----------------------------------------------------------------
+  function startNight(friend, cpu) {
+    save.night = { day: today(), boxes: tonight().slice(), played: 0, who: friend, cpu: !!cpu };
+    newGame(save.night.boxes[0], friend, cpu);
+  }
+  // the night's next game: carry on the one waiting on its box with the same
+  // players, else start it
+  function nightNext() {
+    const n = save.night;
+    if (!n || n.day !== today() || n.played >= 3) { location.hash = "#board-night"; return; }
+    const box = n.boxes[n.played], g = save.games[box];
+    if (g && g.st.seats[1].who === n.who && !!g.st.seats[1].cpu === n.cpu) { pending = { box, resume: true }; if (location.hash === "#board-play") startPending(); else location.hash = "#board-play"; return; }
+    newGame(box, n.who, n.cpu);
+  }
 
   // ---- §18 E: his token, counting in Chinese, table mode ---------------------------
   // a race board, where a token stands on the squares (not the hen's farm, the
@@ -4571,6 +4666,9 @@
       if (lvl) save.skill[game.box] = lvl; else delete save.skill[game.box];
     }
     delete save.games[game.box];
+    // 🌙 a night's game: one more of tonight's three played
+    const n = nightOf(game);
+    if (n) { n.played += 1; game.nightStep = n.played; }
     persist();
   }
   function finishGame() {
@@ -4592,10 +4690,28 @@
       fives[i].setAttribute("aria-label", "High five, " + nameOf(i) + (any ? ", " + stars[i] + (stars[i] === 1 ? " star" : " stars") : ""));
     }
     paintFive();
+    // 🌙 tonight: the three pictures (the played ones bright), and the again
+    // button becomes ▶ the next game — or, after the third, 🌙 good night
+    const ns = game.nightStep || 0, nightRow = party.querySelector(".bn-party__night"), again = party.querySelector(".bn-again");
+    nightRow.hidden = !ns;
+    if (ns) {
+      nightRow.innerHTML = save.night.boxes.map((id, k) => '<span class="bn-party__nightpic' + (k < ns ? " bn-party__nightpic--done" : "") + '">' + boxPic(DATA.box(id)) + "</span>").join("");
+      if (ns < 3) {
+        const next = DATA.box(save.night.boxes[ns]);
+        again.innerHTML = '▶<span class="bn-again__pic">' + boxPic(next) + "</span>";
+        again.setAttribute("aria-label", "Next game: " + next.name);
+      } else {
+        again.textContent = "🌙";
+        again.setAttribute("aria-label", "Good night!");
+      }
+    } else {
+      again.textContent = "🔁";
+      again.setAttribute("aria-label", "Play again");
+    }
     party.setAttribute("aria-label", "Everyone is home!" + (any ? " " + [0, 1].map((i) => nameOf(i) + " has " + stars[i] + (stars[i] === 1 ? " star" : " stars")).join(", ") + "." : ""));
     party.hidden = false;
     party.__shownAt = now();
-    sayPlay(endLine("end"));
+    sayPlay(ns === 3 ? SAY.nightDone : endLine("end"));
     if (game.board.game === "spin") popAt(orchardFrac(R.ORCHARD.pie), String(20 + (game.st.pie || 0)));
     try { if (global.JoshAudio && !global.JoshAudio.isMuted() && playVisible()) global.JoshAudio.winCue(); } catch (e) { /* ignore */ }
     try { if (global.JoshEffects && playVisible()) global.JoshEffects.confetti(); } catch (e) { /* ignore */ }
@@ -4901,6 +5017,15 @@
         later(() => { if (!shelf.hidden) say(SAY.shelf); }, 300);
         return true;
       }
+      if (id === "board-night") {
+        // 🌙 tonight's three: who's playing (or carry on the night)
+        if (tonight().length < 3) return false;
+        whoBox = "night";
+        paintWho();
+        show(who);
+        later(() => { if (!who.hidden) say(SAY.tonight); }, 300);
+        return true;
+      }
       let m = /^board-who-([a-z0-9]+)$/.exec(id);
       if (m) {
         const b = DATA.box(m[1]);
@@ -4912,6 +5037,13 @@
         return true;
       }
       m = /^board-pick-([a-z0-9]+)-(cpu|here)$/.exec(id);
+      if (m && m[1] === "night") {
+        whoBox = "night";
+        pickMode = m[2];
+        paintPick();
+        show(pick);
+        return true;
+      }
       if (m) {
         const b = DATA.box(m[1]);
         if (!b || !boxOpen(b)) return false;
@@ -4985,6 +5117,10 @@
     // a box's level: the steps learned, and how sharply each friend plays it
     level: (box) => ({ steps: save.skill[box] || 0, sharp: DATA.FRIENDS.map((f) => friendSharp(box, f.id)) }),
     SKILL,
+    // 🌙 tonight's pick for a day, over a set of open boxes (default: the open ones)
+    nightPick: (day, ids) => nightPick(day, ids ? ids.map((id) => DATA.box(id)) : DATA.BOXES.filter(boxOpen)),
+    today,
+    tonight: (day) => tonight(day).slice(),
     busy: () => !!(game && (game.busy || timers.size)),
     timers: () => timers.size,
     shown: () => (game ? game.shown.slice() : null),
