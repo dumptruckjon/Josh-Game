@@ -26,7 +26,7 @@ test("data: every box opens a real board, every board is a real grid, every pers
     assert.ok(board, `${b.id} opens a real board`);
     assert.equal(board.box, b.id, `${board.id} names the box that opens it`);
     // (a picture, or drawn art: no domino emoji is a picture on every phone)
-    assert.ok(b.name && (b.pic || ["domino", "doors"].indexOf(b.art) >= 0) && b.colour, `${b.id} has a name, a picture and a colour`);
+    assert.ok(b.name && (b.pic || ["domino", "domino6", "doors", "doors9"].indexOf(b.art) >= 0) && b.colour, `${b.id} has a name, a picture and a colour`);
     if (b.unlockAfter) assert.ok(DATA.box(b.unlockAfter.box), `${b.id} unlocks after a real box`);
   }
   // the PICTURE is how a non-reader picks a box, so no two on the shelf share
@@ -51,7 +51,7 @@ test("data: every box opens a real board, every board is a real grid, every pers
     else if (board.game === "lotto") assert.equal(board.size, board.spots, `${board.id}: a seat is done when its blanket's ${board.spots} spots are full`);
     else if (board.game === "spot") assert.equal(board.size, board.deck.length - 1, `${board.id}: every card but the first is found`);
     else if (board.game === "pairs") assert.equal(board.size, board.pairsPer * 2 + 1, `${board.id}: a board is its pairs and one star`);
-    else if (board.game === "doors") assert.equal(board.size, 6, `${board.id}: six doors a player`);
+    else if (board.game === "doors") assert.ok([6, 9].indexOf(board.size) >= 0 && board.cols * board.rows === board.size, `${board.id}: six doors a player, or nine (three by three)`);
     else if (board.game === "acorns") assert.equal(board.size, 2 * board.pots * board.start, `${board.id}: every acorn of both sides`);
     else if (board.game === "dominoes") assert.equal(board.size, L.domSet(board).length, `${board.id}: every tile of the set`);
     else if (board.game === "dig") assert.equal(board.size, board.treasures, `${board.id}: a pile is the treasures found`);
@@ -200,7 +200,7 @@ test("EVERY GAME ENDS, everyone gets home, and a game is a few minutes long (tho
       else if (board.game === "hilo") assert.ok(g.st.seats.every((s) => s.home) && g.st.flips === board.flips, `${board.id} seed ${seed}: every card turned`);
       else if (board.game === "ten") assert.ok(g.st.seats.every((s) => s.home) && g.st.made.length === 9 && g.st.flowers.every((x) => !x) && !g.st.deck.length, `${board.id} seed ${seed}: all nine tens made`);
       else if (board.game === "fish") assert.ok(g.st.seats.every((s) => s.home) && g.st.pairs[0].length + g.st.pairs[1].length === L.FISH_N && g.st.hands.every((h) => !h.length), `${board.id} seed ${seed}: every pair made`);
-      else if (board.game === "snow") assert.ok(g.st.seats.every((s) => s.home && s.pos === board.size && s.stars === 1) && g.st.parts.every((p) => p.length === 6), `${board.id} seed ${seed}: two whole snowmen`);
+      else if (board.game === "snow") assert.ok(g.st.seats.every((s) => s.home && s.pos === board.size && s.stars >= 1) && g.st.parts.every((p) => p.length === 6), `${board.id} seed ${seed}: two whole snowmen`);
       else if (board.game === "bingo") assert.ok(g.st.seats.every((s) => s.home && s.pos === board.size && s.stars === 8) && g.st.covered.every((c) => c.every(Boolean)), `${board.id} seed ${seed}: both cards full`);
       else if (board.game === "cmatch") assert.ok(g.st.seats.every((s) => s.home) && g.st.round === board.rounds && g.st.seats[0].stars + g.st.seats[1].stars === board.rounds, `${board.id} seed ${seed}: every round played out`);
       else if (board.game === "hide") assert.ok(g.st.seats.every((s) => s.home) && g.st.found === board.rounds && g.st.seats[0].stars + g.st.seats[1].stars === board.rounds, `${board.id} seed ${seed}: everybody found`);
@@ -274,7 +274,10 @@ test("NO-LOSE: a token only ever goes back on a comet, a comet drops at most one
           if (e.type === "roll" && pos[e.mover] + e.die > board.size) overshoots++;
           if (e.type === "hop") { assert.equal(e.to, Math.min(board.size, pos[e.seat] + (e.ten ? L.TEN : 1))); pos[e.seat] = e.to; }
           // 💯 a turn ending on a tens square earns a star (never the hundred)
-          if (e.type === "tens") { assert.ok(e.at % 10 === 0 && e.at < board.size && e.at === pos[e.seat]); stars[e.seat] += 1; }
+          // (a skip-counting board names its own star numbers)
+          // 🔭 a RIGHT call earns a star (and a wrong one nothing)
+          if (e.type === "call" && e.right) stars[e.seat] += 1;
+          if (e.type === "tens") { assert.ok((board.tens ? e.at % 10 === 0 : board.starAt.indexOf(L.labelOf(board, e.at)) >= 0) && e.at < board.size && e.at === pos[e.seat]); stars[e.seat] += 1; }
           if (e.type === "ride") {
             assert.equal(e.from, pos[e.seat], "a ride starts where the token is");
             if (e.kind === "comet") {
@@ -288,7 +291,7 @@ test("NO-LOSE: a token only ever goes back on a comet, a comet drops at most one
           }
         }
       }
-      assert.deepEqual(st.seats.map((s) => s.stars), stars, "every ride, up or down, and every tens square earns exactly one star");
+      assert.deepEqual(st.seats.map((s) => s.stars), stars, "every ride, up or down, every tens square and every right call earns exactly one star");
     }
   }
   assert.ok(comets > 1000, `fixture: comets really happen (${comets})`);
@@ -301,12 +304,14 @@ test("THE HELPER RULE: once a player is home, their turns move their friend, tur
   for (const board of DATA.BOARDS.filter((b) => !b.coop).map((b) => b.id)) {
     for (let seed = 1; seed <= 800; seed++) {
       const st = L.create({ board, seats: SEATS, seed });
-      let last = null, guard = 0;
+      let last = null, guard = 0, again = false;
       while (st.phase !== "done" && guard++ < 400) {
         const t = st.turn;
-        if (last !== null) assert.notEqual(t, last, "turns always alternate, even after someone is home");
+        // (🚪 two doors at once on Doors to Nine is another go: the same seat)
+        if (last !== null && !again) assert.notEqual(t, last, "turns always alternate, even after someone is home");
         last = t;
         const ev = L.autoTurn(st);
+        again = ev.some((e) => e.type === "doorsAgain");
         const moved = ev.filter((e) => e.type === "hop" || e.type === "card" || e.type === "pick").map((e) => (e.type === "card" ? e.mover : e.seat));
         const wasHome = st.seats[t].home && !ev.some((e) => e.type === "home" && e.seat === t);
         for (const m of moved) {
@@ -452,7 +457,7 @@ test("RESTORE takes back EVERY state a real game passes through, and refuses eac
       check();
       let guard = 0;
       while (st.phase !== "done" && guard++ < 500) {
-        if (st.game === "cards") L.drawCard(st);
+        if (st.game === "cards") { if (st.phase === "twocards") L.pickTwoCard(st, (seed + guard) % 2); else L.drawCard(st); }
         else if (st.game === "lotto") { if (st.phase === "draw") L.takeFood(st); else L.giveFood(st, L.ownerOf(st, st.food)); }
         else if (st.game === "spot") { if (st.phase === "flip") L.flipSpot(st); else L.findSpot(st, L.twinOf(DATA.board("spot"), st.centre, st.hand)); }
         else if (st.game === "pairs") L.peekPair(st, L.pairChoice(st));
@@ -476,6 +481,7 @@ test("RESTORE takes back EVERY state a real game passes through, and refuses eac
           L.rollMatch(st);
         }
         else if (st.phase === "choose") L.chooseDie(st, L.dieChoice(st));
+        else if (st.phase === "call") L.callLanding(st, (seed + guard) % 3 ? L.callTarget(st) : st.calls.find((n) => n !== L.callTarget(st)));
         else if (st.game === "dominoes") { if (st.phase === "draw") L.drawTile(st); else { const c = L.domChoice(st); L.layTile(st, c[0], c[1]); } }
         else if (st.game === "doors") {
           if (st.phase === "roll") L.roll(st);
@@ -1809,6 +1815,231 @@ test("🚂 PATTERN TRAIN: five cars in a colour pattern and the next one missing
   assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
 });
 
+test("🚪 DOORS TO NINE (§18 D): Shut the Doors' level two — nine doors and TWO dice (each face from his own fair bag), one die once 7, 8 and 9 are shut so the last small doors can always be made; a roll past nine takes two doors; a roll that fits nothing is rolled again in the same tap (measured: a median of fourteen roll-agains a game without it); two doors at once is a ⭐ AND another go (the starter won 76% of races without it); every game ends with all eighteen doors shut; saves with a tenth door, a roll past twelve or the wrong number of dice are refused", () => {
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  const b = DATA.board("doors9");
+  assert.equal((DATA.box("doors9").unlockAfter || {}).box, "doors", "it waits on the shelf until Shut the Doors has been played");
+  assert.equal(b.size, 9);
+  let twoDice = 0, oneDie = 0, past9 = 0, stuck = 0, agains = 0;
+  for (let seed = 1; seed <= 400; seed++) {
+    const g = L.create({ board: "doors9", seats: SEATS, seed, first: seed % 2 });
+    let n = 0;
+    while (g.phase !== "done" && n++ < 400) {
+      if (g.phase === "roll") {
+        const ev = L.roll(g);
+        const e = ev[0], m = e.mover, open789 = [7, 8, 9].some((d) => g.seats[m].shut.indexOf(d) < 0);
+        assert.equal(e.dice.length, open789 ? 2 : 1, "two dice while 7, 8 or 9 is open, then one");
+        assert.ok(e.dice.every((d) => d >= 1 && d <= 6), "real faces");
+        assert.equal(e.die, e.dice.reduce((x, y) => x + y, 0), "the roll is the dice added");
+        if (e.dice.length === 2) twoDice++; else oneDie++;
+        if (ev.some((x) => x.type === "stuck")) stuck++;
+        if (g.phase === "shut") for (const w of L.doorWays(g)) {
+          assert.equal(w.reduce((x, y) => x + y, 0), g.die, "a way makes the roll");
+          assert.ok(w.every((d) => d >= 1 && d <= 9 && g.seats[g.mover].shut.indexOf(d) < 0), "with open doors");
+          if (g.die > 9) { assert.equal(w.length, 2, "past nine: two doors"); past9++; }
+        }
+      } else {
+        const t = g.turn, ev = L.autoTurn(g), sh = ev.find((x) => x.type === "shut");
+        if (sh && sh.doors.length === 2 && g.phase !== "done" && g.seats[sh.mover].pos < 9) {
+          assert.ok(ev.some((x) => x.type === "doorsAgain"), "two doors at once: another go");
+          assert.equal(g.turn, t, "…for the same player");
+          assert.equal(g.phase, "roll");
+          agains++;
+        } else if (sh) assert.ok(!ev.some((x) => x.type === "doorsAgain"), "one door: the turn passes");
+      }
+      assert.ok(L.restore(L.snapshot(g)), "it comes back from a save");
+    }
+    assert.equal(g.phase, "done", `seed ${seed}: the game ends`);
+    for (const x of g.seats) assert.deepEqual(x.shut.slice().sort((p, q) => p - q), [1, 2, 3, 4, 5, 6, 7, 8, 9], "all nine shut");
+  }
+  assert.ok(twoDice > 1000 && oneDie > 100 && past9 > 100 && agains > 400, `fixture: both kinds of roll, rolls past nine and goes again (${twoDice}, ${oneDie}, ${past9}, ${agains})`);
+  assert.ok(stuck <= (twoDice + oneDie) / 200, `a roll that fits nothing is rare: it is rolled again in the same tap (${stuck} of ${twoDice + oneDie})`);
+  assert.equal(L.create({ board: "doors", seats: SEATS, seed: 3 }).dice, undefined, "Shut the Doors keeps its one die");
+  // refusals
+  const g = L.create({ board: "doors9", seats: SEATS, seed: 7, first: 0 });
+  L.roll(g);
+  while (g.phase !== "shut") L.roll(g);
+  const snap = L.snapshot(g);
+  assert.ok(L.restore(snap), "the real state restores (or the refusals prove nothing)");
+  const bad = [
+    ["a tenth door", { ...snap, seats: [{ ...snap.seats[0], shut: [10], pos: 1 }, snap.seats[1]] }],
+    ["a roll past twelve", { ...snap, die: 13 }],
+    ["one die with 7 to 9 open", { ...snap, dice: [snap.dice[0]], die: snap.dice[0] }],
+    ["dice that do not make the roll", { ...snap, dice: [snap.dice[0], snap.dice[1] === 6 ? 5 : snap.dice[1] + 1] }],
+  ];
+  for (const [what, x] of bad) assert.equal(L.restore(x), null, `refused: ${what}`);
+});
+
+test("🐝 HONEY TWENTY (§18 D): Honey Ten's level two — the flowers are 1 to 9 and 11 to 19 once each, and two make TWENTY, so every twenty is a teen and its little one; the meadow always holds a twenty until the game is over; every card ends up in a twenty; knowing what makes twenty is the edge; a Honey Ten deck on it is refused", () => {
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  const b = DATA.board("honey20");
+  assert.equal((DATA.box("honey20").unlockAfter || {}).box, "honeyten", "it waits on the shelf until Honey Ten has been played");
+  assert.equal(L.tenTarget(b), 20);
+  assert.equal(L.tenTarget(DATA.board("honeyten")), 10, "Honey Ten still makes ten");
+  assert.deepEqual(L.tenCards(b).slice().sort((x, y) => x - y), [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+  for (let seed = 1; seed <= 300; seed++) {
+    const g = L.create({ board: "honey20", seats: SEATS, seed, first: seed % 2 });
+    let n = 0;
+    while (g.phase !== "done" && n++ < 300) {
+      assert.ok(L.tenPairs(g).length > 0, "there is always a twenty to find");
+      for (const [x, y] of L.tenPairs(g)) assert.equal(g.flowers[x] + g.flowers[y], 20);
+      L.autoTurn(g);
+      assert.ok(L.restore(L.snapshot(g)), "it comes back from a save");
+    }
+    assert.equal(g.phase, "done", "the game ends");
+    assert.equal(g.made.length, 9, "every card made a twenty: nine jars");
+    for (const p of g.made) assert.ok(p[0] + p[1] === 20 && (p[0] > 10) !== (p[1] > 10), "a teen and its little one");
+  }
+  const share = (sharp) => {
+    let me = 0, them = 0;
+    for (let seed = 1; seed <= 800; seed++) {
+      const g = L.create({ board: "honey20", seats: SEATS, seed, first: seed % 2 });
+      let n = 0;
+      while (g.phase !== "done" && n++ < 300) {
+        if (g.turn !== 0) { L.autoTurn(g); continue; }
+        const live = g.flowers.map((x, k) => k).filter((k) => g.flowers[k]);
+        const p = sharp ? L.tenPairs(g)[0] : [live[(seed + n) % live.length], live[(seed + n + 1) % live.length]];
+        L.tenPick(g, p[0]); L.tenPick(g, p[1]);
+      }
+      me += g.seats[0].stars; them += g.seats[1].stars;
+    }
+    return me / (me + them);
+  };
+  const sharp = share(true), plain = share(false);
+  assert.ok(sharp - plain >= 0.15, `knowing what makes twenty is the edge (${sharp.toFixed(3)} against ${plain.toFixed(3)})`);
+  const st = L.create({ board: "honey20", seats: SEATS, seed: 4, first: 0 });
+  const snap = L.snapshot(st);
+  assert.equal(L.restore({ ...snap, deck: snap.deck.map((x) => (x > 10 ? x - 10 : x)) }), null, "refused: Honey Ten's cards on Honey Twenty");
+  assert.ok(L.restore(snap), "the real state restores (or the refusal proves nothing)");
+});
+
+test("🪜 DICE RUN (§18 D): Dice Match's level two — three in a row (any order) is two ⭐s, three the same still three, a pair one; Dice Match itself never scores a run; the keep that glows is the BEST for the rolls left (a pair in the hand, or half a run to chase); keeping well is the edge; it waits on the shelf for two Dice Match games", () => {
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  assert.equal((DATA.box("dicerun").unlockAfter || {}).box, "dicematch", "it waits on the shelf until Dice Match has been played");
+  assert.equal(DATA.board("dicerun").game, "match3");
+  assert.equal(L.m3Score([4, 2, 3], true), 2, "a run, in any order");
+  assert.equal(L.m3Score([4, 2, 3]), 0, "…which is nothing on Dice Match's board");
+  assert.equal(L.m3Score([5, 5, 5], true), 3);
+  assert.equal(L.m3Score([1, 5, 1], true), 1);
+  assert.equal(L.m3Score([1, 3, 5], true), 0, "every other number is not a run");
+  assert.equal(L.m3Score([6, 1, 2], true), 0, "a die does not go round from 6 to 1");
+  assert.deepEqual(L.m3Made([5, 3, 4], true), [true, true, true], "a run glows whole");
+  assert.deepEqual(L.m3Keep([2, 5, 2]), [true, false, true], "Dice Match keeps the pair, as it always did");
+  // the best keep, worked out from the expected score (no table to go stale)
+  assert.deepEqual(L.m3Keep([2, 3, 4], true, 2), [true, true, true], "a run in the hand is kept");
+  assert.deepEqual(L.m3Keep([2, 3, 6], true, 1), [true, true, false], "two in a row: chase the run");
+  assert.deepEqual(L.m3Keep([1, 5, 5], true, 1), [false, true, true], "a pair: keep the ⭐ you have");
+  // whole games: every score is the board's own, and the game comes back
+  for (let seed = 1; seed <= 200; seed++) {
+    const g = L.create({ board: "dicerun", seats: SEATS, seed, first: seed % 2 });
+    let n = 0;
+    while (g.phase !== "done" && n++ < 300) {
+      const ev = L.autoTurn(g);
+      for (const e of ev) if (e.type === "match") {
+        assert.equal(e.stars, L.m3Score(e.dice, true), "the score is the dice's");
+        assert.equal(e.run, e.stars === 2, "a run is said as a run");
+      }
+      assert.ok(L.restore(L.snapshot(g)), "it comes back from a save");
+    }
+    assert.equal(g.phase, "done");
+  }
+  const share = (sharp) => {
+    let me = 0, them = 0;
+    for (let seed = 1; seed <= 1200; seed++) {
+      const g = L.create({ board: "dicerun", seats: SEATS, seed, first: seed % 2 });
+      let n = 0;
+      while (g.phase !== "done" && n++ < 300) {
+        if (g.turn !== 0) { L.autoTurn(g); continue; }
+        if (g.phase === "roll") { L.rollMatch(g); continue; }
+        const w = sharp ? L.m3Keep(g.dice, true, g.left) : g.dice.map((d, k) => (seed + n + k) % 3 === 0);
+        w.forEach((x, k) => { if (x !== g.held[k]) L.holdDie(g, k); });
+        L.rollMatch(g);
+      }
+      me += g.seats[0].stars; them += g.seats[1].stars;
+    }
+    return me / (me + them);
+  };
+  const sharp = share(true), plain = share(false);
+  assert.ok(sharp - plain >= 0.1, `keeping well is the edge (${sharp.toFixed(3)} against ${plain.toFixed(3)})`);
+});
+
+test("🔟 TEEN TOP CARD (§18 D): Top Card's level two — each player's own ten cards are 11 to 20, so every card is a ten and some more and the ONES decide a trick; it waits on the shelf for two Top Card games; saving the smallest card that wins is still the edge; a Top Card deck on the teen board is refused", () => {
+  const b = DATA.board("topteen");
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  assert.equal(b.game, "top");
+  assert.equal((DATA.box("topteen").unlockAfter || {}).box, "topcard", "it waits on the shelf until Top Card has been played");
+  const st = L.create({ board: "topteen", seats: SEATS, seed: 4, first: 0 });
+  for (const j of [0, 1]) assert.deepEqual(st.piles[j].concat(st.hands[j]).sort((x, y) => x - y), [11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "each player's cards are 11 to 20");
+  const top = L.create({ board: "topcard", seats: SEATS, seed: 4, first: 0 });
+  assert.deepEqual(top.piles[0].concat(top.hands[0]).sort((x, y) => x - y), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "Top Card keeps 1 to 10");
+  const share = (sharp) => {
+    let me = 0, them = 0;
+    for (let seed = 1; seed <= 1500; seed++) {
+      const g = L.create({ board: "topteen", seats: SEATS, seed, first: seed % 2 });
+      let n = 0;
+      while (g.phase !== "done" && n++ < 200) {
+        if (g.turn !== 0) { L.autoTurn(g); continue; }
+        const h = g.hands[0];
+        L.playCard(g, sharp ? L.topBest(g) : h[(seed + n) % h.length]);
+        assert.ok(L.restore(L.snapshot(g)), "it comes back from a save");
+      }
+      assert.equal(g.phase, "done");
+      me += g.seats[0].stars; them += g.seats[1].stars;
+    }
+    return me / (me + them);
+  };
+  const sharp = share(true), plain = share(false);
+  assert.ok(sharp - plain >= 0.08, `saving the smallest winning card is the edge (${sharp.toFixed(3)} against ${plain.toFixed(3)})`);
+  const snap = L.snapshot(st);
+  assert.equal(L.restore({ ...snap, piles: [snap.piles[0].map((v) => v - 10), snap.piles[1]], hands: [snap.hands[0].map((v) => v - 10), snap.hands[1]] }), null, "refused: Top Card's 1 to 10 on the teen board");
+  assert.ok(L.restore(snap), "the real state restores (or the refusal proves nothing)");
+});
+
+test("🚃 LONG TRAIN (§18 D): Pattern Train's level two — patterns of four and five cars, all three colours in each, seven cars shown so one whole repeat and more is in sight (so none is one of Pattern Train's, which are shorter or two-coloured); EVERY train in both boxes has one answer (no shorter pattern fits what is shown and says another car); it plays like Pattern Train and comes back from a save", () => {
+  const b = DATA.board("train2"), b1 = DATA.board("train");
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  assert.equal(b.game, "train");
+  assert.equal((DATA.box("train2").unlockAfter || {}).box, "train", "it waits on the shelf until Pattern Train has been played");
+  assert.equal(L.trainPats(b1), L.TRAIN_PATTERNS, "Pattern Train keeps its own patterns");
+  assert.equal(L.trainShown(b1), 5);
+  const pats = L.trainPats(b), shown = L.trainShown(b);
+  assert.equal(pats.length, b.trains, "a pattern for every train");
+  assert.ok(shown > L.TRAIN_SHOWN, "a longer train is shown");
+  for (const pat of pats) {
+    assert.ok(pat.length >= 4, `${pat}: a long pattern`);
+    assert.equal(new Set(pat).size, 3, `${pat}: all three colours`);
+    assert.ok(shown >= pat.length + 2, `${pat}: one whole repeat and more is in sight`);
+  }
+  // one answer, on both boxes: a SHORTER pattern that fits every car shown
+  // and says a different car next would make a second right answer
+  for (const [box, P, n] of [["train", L.TRAIN_PATTERNS, L.TRAIN_SHOWN], ["train2", pats, shown]]) {
+    for (const pat of P) {
+      const seq = Array.from({ length: n }, (x, k) => pat[k % pat.length]);
+      for (let p = 1; p < pat.length; p++) {
+        const fits = seq.every((c, k) => k < p || c === seq[k - p]);
+        assert.ok(!fits || seq[n - p] === pat[n % pat.length], `${box} ${pat}: a pattern of ${p} fits ${seq.join("")} and says another car`);
+      }
+    }
+  }
+  for (let seed = 1; seed <= 200; seed++) {
+    const st = L.create({ board: "train2", seats: SEATS, seed, first: seed % 2 });
+    let guard = 0;
+    while (st.phase !== "done" && guard++ < 80) {
+      const pat = pats[st.round % pats.length], map = {};
+      assert.equal(st.cars.length, shown, "seven cars");
+      st.cars.forEach((c, k) => { const ch = pat[k % pat.length]; if (map[ch] != null) assert.equal(map[ch], c, `seed ${seed}: the train repeats its pattern`); map[ch] = c; });
+      assert.equal(new Set(Object.values(map)).size, 3, "three colours");
+      assert.equal(st.answer, map[pat[shown % pat.length]], "the answer is the car that comes next");
+      assert.ok(st.options.indexOf(st.answer) >= 0, "the right car is offered");
+      assert.ok(L.restore(L.snapshot(st)), "it comes back from a save");
+      L.autoTurn(st);
+    }
+    assert.equal(st.phase, "done", `seed ${seed}: the game ends`);
+  }
+  const g = L.create({ board: "train2", seats: SEATS, seed: 5 });
+  assert.equal(L.restore({ ...L.snapshot(g), cars: g.cars.slice(0, 5) }), null, "refused: a Pattern Train-length train on the long board");
+});
+
 test("🔼 HIGHER OR LOWER: twenty cards, 1 to 10 twice, one turned up; guess bigger or smaller and the next is turned (right a ⭐, the same no ⭐ and no loss), then it is the friend's card to beat; twelve cards, one party; guessing toward the far side is the skill; broken saves are refused", () => {
   const b = DATA.board("hilo");
   const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
@@ -2005,27 +2236,42 @@ test("⛄ SNOWMAN BUILD: each snowman starts as its big ball; a picture die of f
   assert.equal(L.snowWhich([1], L.SNOW_MAGIC), 2, "magic snow puts on the next part");
   assert.equal(L.snowWhich([1, 2, 3, 5], L.SNOW_MAGIC), 4, "…the first that can go on");
   assert.equal(L.snowWhich([1, 2, 3, 4, 5, 6], L.SNOW_MAGIC), 0, "nothing on a whole snowman");
+  let gifts = 0;
   for (let seed = 1; seed <= 300; seed++) {
     const st = L.create({ board: "snowman", seats: SEATS, seed, first: seed % 2 });
     assert.deepEqual(st.parts, [[1], [1]], "two big snowballs to begin with");
+    assert.equal(st.gift, null, "no gift waiting");
     let guard = 0;
+    const given = [0, 0];
     while (st.phase !== "done" && guard++ < 200) {
-      const i = st.turn, m = L.moverFor(st, i), have = st.parts[m].slice();
+      const i = st.turn, m = L.moverFor(st, i), o = 1 - m, have = st.parts[m].slice(), theirs = st.parts[o].slice();
+      const friendHome = st.seats[o].home;
       const ev = L.roll(st);
       if (ev.some((e) => e.type === "snowNot")) {
         assert.equal(L.snowWhich(have, ev[0].die), 0, "a part that cannot go on");
+        assert.ok(friendHome || L.snowWhich(theirs, ev[0].die) === 0, "…and the friend's cannot take it either (or it would be a gift)");
         assert.deepEqual(st.parts[m], have, "nothing built");
         continue;
       }
       assert.equal(st.phase, "build");
+      const gift = ev.find((e) => e.type === "giftUp");
+      // 🎁 a part his snowman cannot take and the friend's can is a GIFT:
+      // given with a tap on the friend's snowman, and a ⭐ for being kind
+      const target = gift ? o : m, was = gift ? theirs : have, stars = st.seats[i].stars;
+      if (gift) { assert.equal(L.snowWhich(have, ev[0].die), 0, "a gift only when his own cannot take it"); assert.ok(!friendHome); assert.equal(gift.to, o); }
       const out = L.buildSnow(st);
       const p = out[0].part;
-      assert.ok(have.indexOf(p) < 0 && have.indexOf(L.SNOW_NEEDS[p]) >= 0, "a new part, on the part it needs");
-      assert.equal(out[0].mover, m, "on the mover's snowman (a whole one's builder helps the friend)");
+      assert.ok(was.indexOf(p) < 0 && was.indexOf(L.SNOW_NEEDS[p]) >= 0, "a new part, on the part it needs");
+      assert.equal(out[0].mover, target, gift ? "on the FRIEND's snowman" : "on the mover's snowman (a whole one's builder helps the friend)");
+      assert.equal(!!out[0].gift, !!gift);
+      if (gift) { assert.equal(st.seats[i].stars, stars + 1, "a ⭐ for the gift"); given[i]++; }
       assert.deepEqual(L.buildSnow(st), [], "one tap, one part");
     }
     assert.equal(st.phase, "done", `seed ${seed} ends`);
+    for (const j of [0, 1]) assert.equal(st.seats[j].stars, 1 + given[j], "a ⭐ for his snowman and one for each gift");
+    gifts += given[0] + given[1];
   }
+  assert.ok(gifts > 100, `fixture: gifts were given (${gifts})`);
   // broken saves
   const g = L.snapshot(L.create({ board: "snowman", seats: SEATS, seed: 9, first: 0 }));
   const bad = [
@@ -2035,6 +2281,9 @@ test("⛄ SNOWMAN BUILD: each snowman starts as its big ball; a picture die of f
     ["a part with no count", { ...g, parts: [[1, 2], [1]] }],
     ["building a hat on a bare ball", { ...g, phase: "build", die: 4 }],
     ["a die showing between turns", { ...g, die: 2 }],
+    ["a gift his own snowman could take", { ...g, phase: "build", die: 2, gift: 1 }],
+    ["a gift to himself", { ...g, phase: "build", die: 2, gift: 0, parts: [[1, 2], [1]], seats: [{ ...g.seats[0], pos: 2 }, g.seats[1]] }],
+    ["a gift with no roll", { ...g, gift: 1 }],
   ];
   for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
   assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
@@ -2460,6 +2709,68 @@ test("🎲 PICK A DIE: a roll is TWO dice from his own fair bag, he picks one (t
   assert.equal(L.restore({ ...moon, dice: [1, 2] }), null, "a one-die board never carries two dice");
 });
 
+// ---- 🐸 🦘 Skip counting (PLAN_BOARD.md §18) ----------------------------------
+test("🐸 🦘 SKIP COUNTING: on Hop by Twos and Hop by Fives every square wears the next number of the count (0 first, forty and one hundred last), a hop is ONE square so the taps say 2, 4, 6…, the die is one, two or three hops (two of each in a bag), a ⭐ only for a turn ENDING on a star number, and every other board's squares wear their own count", () => {
+  const skips = DATA.BOARDS.filter((b) => b.step);
+  assert.deepEqual(skips.map((b) => [b.id, b.step]), [["twos", 2], ["fives", 5]], "by twos, then by fives");
+  for (const b of DATA.BOARDS.filter((x) => !x.step)) for (const n of [1, 2, b.size || 9]) assert.equal(L.labelOf(b, n), n, `${b.id}: a plain board's square ${n} is ${n}`);
+  for (const b of skips) {
+    const labels = Array.from({ length: b.size }, (x, k) => L.labelOf(b, k + 1));
+    assert.equal(labels[0], 0, `${b.id}: the count starts at 0`);
+    for (let k = 1; k < labels.length; k++) assert.equal(labels[k] - labels[k - 1], b.step, `${b.id}: every square is ${b.step} more than the last`);
+    assert.equal(labels[labels.length - 1], b.step === 2 ? 40 : 100, `${b.id}: home is ${b.step === 2 ? "forty" : "one hundred"}`);
+    assert.deepEqual(b.faces.slice().sort(), [1, 1, 2, 2, 3, 3], `${b.id}: one, two or three hops, two of each in a bag`);
+    assert.ok(b.starAt.length >= 1 && b.starAt.every((n) => labels.indexOf(n) > 0 && n < labels[labels.length - 1]), `${b.id}: its star numbers are numbers of its count, never home`);
+    assert.ok(b.starAt.every((n) => n % 10 === 0), `${b.id}: the stars are on tens — counting by tens inside the ${b.step}s`);
+    assert.equal(b.cols * b.rows, b.size, `${b.id}: every square of the grid is a pad`);
+    assert.ok(/more/.test(b.lines.hop) && /\{n\}/.test(b.lines.home), `${b.id} says what a hop is worth`);
+    let starTurns = 0, plainEnds = 0, said = 0;
+    for (let seed = 1; seed <= 300; seed++) {
+      const st = L.create({ board: b.id, seats: SEATS, seed, first: seed % 2 });
+      const pos = [1, 1];
+      let g = 0;
+      while (st.phase !== "done" && g++ < 200) {
+        const r = L.roll(st);
+        assert.ok([1, 2, 3].indexOf(r[0].die) >= 0, `${b.id}: the die is hops`);
+        const mover = st.mover;
+        let taps = 0, ev = [];
+        while (st.phase === "hop") {
+          const h = L.hop(st);
+          const hop = h.find((e) => e.type === "hop");
+          taps++;
+          // one tap, one square, the NEXT number of the count
+          assert.equal(hop.to, Math.min(b.size, pos[mover] + 1), `${b.id}: one tap is one pad`);
+          assert.equal(L.labelOf(b, hop.to) - L.labelOf(b, pos[mover]), b.step, `${b.id}: …and ${b.step} more`);
+          pos[mover] = hop.to; said++;
+          ev = h;
+        }
+        assert.ok(taps >= 1 && taps <= r[0].die, `${b.id}: never more taps than the die`);
+        const star = ev.some((e) => e.type === "tens");
+        const endsOn = L.labelOf(b, pos[mover]);
+        assert.equal(star, b.starAt.indexOf(endsOn) >= 0 && pos[mover] < b.size, `${b.id}: a ⭐ exactly for a turn ENDING on a star number (ended on ${endsOn})`);
+        if (star) starTurns++; else plainEnds++;
+      }
+      assert.equal(st.phase, "done", `${b.id} ends (seed ${seed})`);
+      assert.ok(g <= 60, `${b.id}: a short game (${g} rolls on seed ${seed})`);
+    }
+    assert.ok(starTurns > 20 && plainEnds > 200 && said > 5000, `fixture: ${b.id} was really played (${starTurns} stars, ${said} hops)`);
+  }
+  // by fives comes once he has hopped by twos twice — never a padlock
+  assert.deepEqual(DATA.box("fives").unlockAfter, { box: "twos", games: 2 });
+  assert.equal(DATA.box("twos").unlockAfter, undefined);
+  // the picture of the board says the count too: every pad's number is drawn
+  const R = (() => { global.BoardData = DATA; global.BoardLogic = L; delete require.cache[require.resolve("../scripts/board-render.js")]; return require("../scripts/board-render.js"); })();
+  if (R && R.boardSVG) {
+    for (const b of skips) {
+      const svg = R.boardSVG(b);
+      const nums = [...svg.matchAll(/class="bn-num" data-n="(\d+)"[^>]*>(\d+)</g)].map((m) => [Number(m[1]), Number(m[2])]);
+      assert.equal(nums.length, b.size, `${b.id}: every pad wears a number`);
+      for (const [n, lab] of nums) assert.equal(lab, L.labelOf(b, n), `${b.id}: pad ${n} wears ${L.labelOf(b, n)}`);
+      assert.equal((svg.match(/class="bn-cell"/g) || []).length, b.size, `${b.id}: every pad is drawn`);
+    }
+  }
+});
+
 // ---- A friend's LEVEL, and clever moves named (PLAN_BOARD.md §18) -------------
 // The boards whose computer makes a CHOICE that a level can sharpen. Every
 // other board must play EXACTLY the same at any level (its luck is fair, and
@@ -2484,7 +2795,8 @@ const levelRun = (board, a, b, n) => {
     ends.push(JSON.stringify(snap));
   }
   // a race game is scored by who is home first; every other by its ⭐s
-  return { score: DATA.board(board).two ? first / n : sa / Math.max(1, sa + sb), ends };
+  // (🌈 Rainbow Pick too: its clever move is the card that goes further)
+  return { score: DATA.board(board).two || DATA.board(board).pick2 ? first / n : sa / Math.max(1, sa + sb), ends };
 };
 
 test("🧠 A FRIEND'S LEVEL: a seat with no level plays the game's own; 0.5 is that same level; a sharper friend takes more and a duller one less, in every game with a choice; no other game reads it; the level is clamped; junk is refused", () => {
@@ -2495,9 +2807,10 @@ test("🧠 A FRIEND'S LEVEL: a seat with no level plays the game's own; 0.5 is t
     const levelled = LEVELLED.indexOf(b.id) >= 0;
     const n = levelled ? 160 : 12;
     const none = levelRun(b.id, null, null, n), mid = levelRun(b.id, 0.5, 0.5, n);
-    // (Shut the Doors is the one game whose levelled friend rolls its own
-    // luck once more, to look for two doors: 0.5 there is "half the time")
-    if (b.id !== "doors") assert.deepEqual(mid.ends, none.ends, `${b.id}: a level of 0.5 is the game's own level, move for move`);
+    // (Shut the Doors — and Doors to Nine — is the one game whose levelled
+    // friend rolls its own luck once more, to look for two doors: 0.5 there
+    // is "half the time")
+    if (b.game !== "doors") assert.deepEqual(mid.ends, none.ends, `${b.id}: a level of 0.5 is the game's own level, move for move`);
     const hi = levelRun(b.id, 0.9, 0.1, n), lo = levelRun(b.id, 0.1, 0.9, n);
     if (!levelled) {
       assert.deepEqual(hi.ends, none.ends, `${b.id} reads no level — if its computer now makes a choice, add its game to the engine's LEVEL_GAMES`);
@@ -2534,7 +2847,7 @@ test("🧠 A FRIEND'S LEVEL: a seat with no level plays the game's own; 0.5 is t
 });
 
 // What each game's clever move is called. A game not here names none.
-const SMART_WHY = { dice: ["rocket"], pairs: ["recall"], dig: ["arrows"], nim: ["four"], lines: ["block"], top: ["enough", "save"], grab: ["most"], match3: ["keep"], maze: ["near"], hide: ["ask"], fish: ["see"], hilo: ["odds"] };
+const SMART_WHY = { cards: ["far"], dice: ["rocket"], pairs: ["recall"], dig: ["arrows"], nim: ["four"], lines: ["block"], top: ["enough", "save"], grab: ["most"], match3: ["keep"], maze: ["near"], hide: ["ask"], fish: ["see"], hilo: ["odds"] };
 
 test("💡 A CLEVER MOVE IS NAMED (smart) and a missed one too (oops): only by the mover, only with a `why` of its own game, never both at once, never when there was nothing to choose — and Cookie Jar, Higher or Lower and Peek-a-Pair agree with the rule restated here", () => {
   const seen = {};
@@ -2661,4 +2974,215 @@ test("JUNK MOVES on every board: nothing throws, a refused move changes nothing,
     }
   }
   assert.ok(refusals > 5000, `fixture: only ${refusals} refusals were tested`);
+});
+
+test("🔭 MOON CALL: after a roll short of the Moon he CALLS where the hops end, from three numbers in counting order — the real one and two NEAR misses (one or two off, ahead of him whenever two such exist); right is a ⭐, a miss costs nothing, and either way the turn then hops the die; the computer works it out CALL_SHARP of the time, and a level moves it", () => {
+  const b = DATA.board("call");
+  assert.ok(b && b.call && b.game === "dice", "Moon Call is a dice board that calls");
+  assert.ok(L.levelled("call"), "…a thinking game: a friend's level moves it");
+  let calls = 0, rights = 0, offered = { far: 0, behind: 0 }, moonRolls = 0;
+  for (let seed = 1; seed <= 300; seed++) {
+    const st = L.create({ board: "call", seats: [{ who: "josh" }, { who: "dad" }], seed, first: seed % 2 });
+    let g = 0;
+    while (st.phase !== "done" && g++ < 400) {
+      if (st.phase === "roll") {
+        const r = L.roll(st);
+        const from = st.seats[st.mover].pos;   // (no hop has happened yet)
+        const die = r[0].die, to = from + die;
+        if (from + die >= b.size) { assert.equal(st.phase, "hop", "a roll that reaches the Moon is hopped, no call"); moonRolls++; continue; }
+        assert.equal(st.phase, "call", "a roll short of the Moon is called");
+        assert.equal(st.left, 0, "no hop before the call");
+        assert.deepEqual(r[0].calls, st.calls, "the roll says the three numbers");
+        assert.equal(st.calls.length, 3, "three numbers");
+        assert.deepEqual(st.calls.slice().sort((x, y) => x - y), st.calls, "in counting order");
+        assert.equal(new Set(st.calls).size, 3, "three different numbers");
+        assert.ok(st.calls.indexOf(to) >= 0, "one is where the hops really end");
+        for (const n of st.calls) {
+          assert.ok(n >= 1 && n <= b.size, "a square on the board");
+          if (Math.abs(n - to) > 2) offered.far++;
+          if (n <= from && [to - 2, to - 1, to + 1, to + 2].filter((m) => m > from && m <= b.size).length >= 2) offered.behind++;
+        }
+        // a nonsense call does nothing
+        const snap = JSON.stringify(st);
+        assert.deepEqual(L.callLanding(st, 99), []);
+        assert.equal(JSON.stringify(st), snap, "a number not offered changes nothing");
+        const right = (seed + g) % 2 === 0;
+        const n = right ? to : st.calls.find((m) => m !== to);
+        const who = st.turn, stars = st.seats[who].stars;
+        const ev = L.callLanding(st, n);
+        assert.equal(ev[0].type, "call");
+        assert.equal(ev[0].right, right);
+        assert.equal(ev[0].to, to);
+        assert.equal(st.seats[who].stars, stars + (right ? 1 : 0), right ? "a right call is a ⭐" : "a miss gives nothing and costs nothing");
+        assert.equal(st.phase, "hop", "then the turn hops");
+        assert.equal(st.left, die, "…the whole die");
+        calls++; if (right) rights++;
+      } else L.hop(st);
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ends`);
+  }
+  assert.equal(offered.far, 0, "every wrong number is a NEAR miss");
+  assert.equal(offered.behind, 0, "never a square behind him when two ahead are near");
+  assert.ok(calls > 2000 && moonRolls > 100, `fixture: calls (${calls}) and Moon rolls (${moonRolls}) both played`);
+  // the computer: right CALL_SHARP of the time on its own level, and a level moves it
+  const rate = (sharp) => {
+    let n = 0, r = 0;
+    for (let seed = 1; seed <= 300; seed++) {
+      const st = L.create({ board: "call", seats: [{ who: "josh" }, { who: "river", cpu: true, sharp }], seed, first: 1 });
+      let g = 0;
+      while (st.phase !== "done" && g++ < 300) {
+        const who = st.turn;
+        const ev = L.autoTurn(st);
+        for (const e of ev) if (e.type === "call" && e.seat === 1 && who === 1) { n++; if (e.right) r++; }
+      }
+    }
+    return r / n;
+  };
+  const base = rate(undefined), sharp = rate(0.9), dull = rate(0.1);
+  // right = sharp, or a lucky one-in-three of the rest
+  const want = L.CALL_SHARP + (1 - L.CALL_SHARP) / 3;
+  assert.ok(Math.abs(base - want) < 0.05, `the computer calls right about ${want.toFixed(2)} of the time (${base.toFixed(2)})`);
+  assert.ok(sharp > base + 0.08 && dull < base - 0.08, `a level moves it (${dull.toFixed(2)} < ${base.toFixed(2)} < ${sharp.toFixed(2)})`);
+  // restore: a call waits exactly as the engine leaves it
+  const st = L.create({ board: "call", seats: SEATS, seed: 5, first: 0 });
+  L.roll(st);
+  assert.equal(st.phase, "call");
+  assert.ok(L.restore(L.snapshot(st)), "a real call restores");
+  const bad = (f) => { const s = JSON.parse(JSON.stringify(st)); f(s); return L.restore(s); };
+  assert.equal(bad((s) => { s.calls = s.calls.slice(0, 2); }), null, "two numbers");
+  assert.equal(bad((s) => { s.calls = [s.calls[2], s.calls[1], s.calls[0]]; }), null, "out of order");
+  assert.equal(bad((s) => { const to = s.seats[s.mover].pos + s.die; s.calls = s.calls.map((n) => (n === to ? n + 10 : n)).sort((x, y) => x - y); }), null, "without the real landing");
+  // (the real landing, a near miss, and one six squares off: on the board,
+  // in order, so only the near-miss rule can refuse it)
+  assert.equal(bad((s) => { const to = s.seats[s.mover].pos + s.die; s.calls = [to, to + 1, to + 6]; }), null, "a far miss");
+  assert.ok(bad((s) => { const to = s.seats[s.mover].pos + s.die; s.calls = [to, to + 1, to + 2]; }), "fixture: the same shape with a NEAR miss restores");
+  assert.equal(bad((s) => { s.left = 2; }), null, "hops begun before the call");
+  assert.equal(bad((s) => { s.phase = "hop"; s.left = s.die; }), null, "hopping with numbers still waiting");
+  const moon = L.create({ board: "moon", seats: SEATS, seed: 5, first: 0 });
+  moon.calls = [];
+  assert.equal(L.restore(moon), null, "a board that never calls has no calls");
+});
+
+test("➕ SUM BINGO: two little dice of one to three dots, and the number to find is ALL the dots; the card holds 2 to 6 in the shares two dice fall (2 3 3 4 4 4 5 5 6); the bag holds the nine ways two dice fall twice, so no square waits for ever; and a save is refused unless the number IS the dice", () => {
+  const b = DATA.board("sums");
+  assert.ok(b && b.sums && b.game === "bingo", "Sum Bingo is Number Bingo with sums");
+  for (let seed = 1; seed <= 200; seed++) {
+    const st = L.create({ board: "sums", seats: SEATS, seed, first: seed % 2 });
+    for (const c of st.cardsB) assert.deepEqual(c.slice().sort(), [2, 3, 3, 4, 4, 4, 5, 5, 6], "each card holds 2 to 6 in the dice's shares");
+    const pairs = [{}, {}];
+    let g = 0, n = [0, 0];
+    while (st.phase !== "done" && g++ < 400) {
+      const who = st.turn, ev = L.roll(st);
+      const r = ev[0];
+      assert.equal(r.dice.length, 2, "two dice");
+      assert.ok(r.dice.every((d) => d >= 1 && d <= 3), "one to three dots each");
+      assert.equal(r.die, r.dice[0] + r.dice[1], "the number is all the dots");
+      const k = r.dice.join("+");
+      pairs[who][k] = (pairs[who][k] || 0) + 1;
+      n[who]++;
+      // every 18 rolls of one player: each of the nine pairs exactly twice
+      if (n[who] % 18 === 0) { for (const v of Object.values(pairs[who])) assert.equal(v, 2, "a fair bag: each way two dice fall, twice a bag"); assert.equal(Object.keys(pairs[who]).length, 9); pairs[who] = {}; }
+      if (st.phase === "cover") {
+        assert.deepEqual(st.dice, r.dice, "the dice stay showing while he covers");
+        if (!L.restore(L.snapshot(st))) assert.fail("a real cover state restores");
+        const c = L.coverBingo(st, L.bingoSpots(st)[0]);
+        assert.deepEqual(c[0].dice, r.dice, "a cover says which dice made it");
+        assert.equal(c[0].n, r.die);
+      } else assert.ok(ev.some((e) => e.type === "bingoNone" && e.dice), "not on the card: said with its dice");
+      if (st.phase !== "done") assert.deepEqual(st.dice, [], "between turns, no dice");
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ends`);
+  }
+  const st = L.create({ board: "sums", seats: SEATS, seed: 3, first: 0 });
+  for (let g = 0; g < 20 && st.phase !== "cover"; g++) { L.roll(st); if (st.turn !== 0) L.autoTurn(st); }
+  assert.equal(st.phase, "cover", "fixture: a cover to save");
+  const bad = (f) => { const s = JSON.parse(JSON.stringify(st)); f(s); return L.restore(s); };
+  assert.ok(L.restore(L.snapshot(st)), "a real one restores");
+  assert.equal(bad((s) => { s.die = s.die === 6 ? 5 : s.die + 1; }), null, "a number that is not the dice");
+  assert.equal(bad((s) => { s.dice = [s.dice[0]]; }), null, "one die");
+  assert.equal(bad((s) => { s.dice = [4, s.die - 4]; }), null, "a die of four dots");
+  assert.equal(bad((s) => { s.cardsB[0][0] = 1; }), null, "a 1 on a sum card");
+  const plain = L.create({ board: "bingo", seats: SEATS, seed: 3, first: 0 });
+  plain.dice = [];
+  assert.equal(L.restore(plain), null, "plain Number Bingo has no dice pair");
+});
+
+test("🌈 RAINBOW PICK: he flips TWO cards and plays one — it moves exactly as a drawn card would (one rule, `cardMove`), the other waits at the BACK of his own pile, the card that goes further is the clever one, the computer takes it CARD_SHARP of the time and a level moves that, and a save holds the two cards only while he picks", () => {
+  const b = DATA.board("rainbow2");
+  assert.ok(b && b.pick2 && b.game === "cards", "Rainbow Pick is a two-card Rainbow Trail");
+  assert.ok(L.levelled("rainbow2") && !L.levelled("rainbow"), "only the two-card trail reads a level");
+  let picks = 0, fars = 0, same = 0;
+  for (let seed = 1; seed <= 300; seed++) {
+    const st = L.create({ board: "rainbow2", seats: [{ who: "josh" }, { who: "dad" }], seed, first: seed % 2 });
+    let g = 0;
+    while (st.phase !== "done" && g++ < 400) {
+      const was = st.seats.map((x) => x.pos);
+      const ev = L.drawCard(st);
+      assert.equal(ev[0].type, "twocards", "a turn flips two cards");
+      assert.equal(st.phase, "twocards");
+      assert.equal(st.offer.length, 2);
+      assert.deepEqual(st.seats.map((x) => x.pos), was, "nothing moves before he picks");
+      assert.ok(L.restore(L.snapshot(st)), "a real choice restores");
+      const moves = st.offer.map((c) => L.cardMove(st, c));
+      const k = (seed + g) % 2, keep = st.offer[1 - k], who = st.turn, bagLen = st.seats[who].bag.length;
+      const pev = L.pickTwoCard(st, k);
+      assert.equal(pev[0].type, "pickcard");
+      const card = pev.find((e) => e.type === "card");
+      assert.equal(card.to, moves[k].to, "the card moves exactly as cardMove said");
+      assert.equal(card.zoom, moves[k].zoom);
+      assert.equal(card.back, moves[k].back);
+      assert.deepEqual(st.seats[who].bag[st.seats[who].bag.length - 1], keep, "the other card waits at the back of his own pile");
+      assert.equal(st.seats[who].bag.length, bagLen + 1);
+      const sm = pev.find((e) => e.type === "smart" || e.type === "oops");
+      if (moves[0].to === moves[1].to) { assert.ok(!sm, "two cards that go to the same square: nothing to choose"); same++; }
+      else { assert.ok(sm && sm.why === "far" && (sm.type === "smart") === (moves[k].to > moves[1 - k].to), "the card that goes further is the clever one"); if (sm.type === "smart") fars++; }
+      assert.deepEqual(st.offer, [], "then no cards wait");
+      picks++;
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ends`);
+  }
+  assert.ok(picks > 3000 && fars > 500 && same > 50, `fixture: picks ${picks}, clever ${fars}, same ${same}`);
+  // the computer, and a level
+  const rate = (sharp) => {
+    let n = 0, r = 0;
+    for (let seed = 1; seed <= 300; seed++) {
+      const st = L.create({ board: "rainbow2", seats: [{ who: "josh" }, { who: "river", cpu: true, sharp }], seed, first: 1 });
+      let g = 0;
+      while (st.phase !== "done" && g++ < 300) {
+        const who = st.turn;
+        for (const e of L.autoTurn(st)) if (who === 1 && e.seat === 1 && (e.type === "smart" || e.type === "oops")) { n++; if (e.type === "smart") r++; }
+      }
+    }
+    return r / n;
+  };
+  const base = rate(undefined), sharp = rate(0.9), dull = rate(0.1);
+  const want = L.CARD_SHARP + (1 - L.CARD_SHARP) / 2;
+  assert.ok(Math.abs(base - want) < 0.06, `the computer takes the further card about ${want.toFixed(2)} of the time (${base.toFixed(2)})`);
+  assert.ok(sharp > base + 0.08 && dull < base - 0.08, `a level moves it (${dull.toFixed(2)} < ${base.toFixed(2)} < ${sharp.toFixed(2)})`);
+  // restore
+  const st = L.create({ board: "rainbow2", seats: SEATS, seed: 4, first: 0 });
+  L.drawCard(st);
+  const bad = (f) => { const s = JSON.parse(JSON.stringify(st)); f(s); return L.restore(s); };
+  assert.equal(bad((s) => { s.offer = [s.offer[0]]; }), null, "one card");
+  assert.equal(bad((s) => { s.offer = [s.offer[0], { kind: "one", c: "plaid" }]; }), null, "a card no deck has");
+  assert.equal(bad((s) => { s.phase = "draw"; }), null, "cards waiting with no choice to make");
+  const plain = L.create({ board: "rainbow", seats: SEATS, seed: 4, first: 0 });
+  plain.offer = [];
+  assert.equal(L.restore(plain), null, "the plain trail has no offered cards");
+});
+
+test("🁢 SIX-DOT DOMINOES (Dot Dominoes' level two): every pair of 1 to SIX dots once (21 tiles), four in each hand, and every game lays them all", () => {
+  const b = DATA.board("dominoes6");
+  assert.ok(b && b.game === "dominoes" && b.max === 6 && b.size === 21, "a dominoes board of 1 to 6");
+  assert.equal(DATA.box("dominoes6").unlockAfter.box, "dominoes", "it waits for Dot Dominoes");
+  const set = L.domSet(b);
+  assert.equal(set.length, 21);
+  assert.ok(set.indexOf("6-6") >= 0 && set.indexOf("1-6") >= 0 && set.every((t) => t.split("-").every((n) => n >= 1 && n <= 6)), "every pair of one to six, no blanks");
+  for (let seed = 1; seed <= 200; seed++) {
+    const st = L.create({ board: "dominoes6", seats: SEATS, seed, first: seed % 2 });
+    assert.deepEqual(st.hands.map((h) => h.length), [4, 4], "four in each hand");
+    let g = 0;
+    while (st.phase !== "done" && g++ < 400) { L.autoTurn(st); assert.ok(L.restore(L.snapshot(st)), "every state restores"); }
+    assert.equal(st.phase, "done", `seed ${seed} ends`);
+  }
 });

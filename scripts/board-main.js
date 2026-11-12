@@ -19,7 +19,7 @@
   // the games whose FIRST game teaches its rule with a glow (see `teach`)
   // (keyed like `save.intro`: the game, except 🎲 Pick a Die, whose board is
   // Moon Race's dice game with two dice, so it has a key of its own)
-  const TEACH = ["pickdie", "bingo", "doors", "dominoes", "acorns", "nim", "lines", "top", "grab", "match3", "maze", "hide", "cmatch", "fish", "ten", "hilo", "train"];
+  const TEACH = ["pickdie", "call", "sums", "rainbow2", "dicerun", "honey20", "doors9", "bingo", "doors", "dominoes", "acorns", "nim", "lines", "top", "grab", "match3", "maze", "hide", "cmatch", "fish", "ten", "hilo", "train"];
   // the games whose BOARD is the buttons, so a pad only says whose turn it is
   // (and the ⭐s): on a short phone those pads give way to the board
   // The games that draw their OWN board (no track picture, no tokens): ONE
@@ -28,7 +28,9 @@
   const PAD_TURN = ["bingo", "pairs", "acorns", "dominoes", "dig", "nim", "lines", "top", "grab", "match3", "maze", "hide", "cmatch", "fish", "ten", "hilo", "train"];
   const KEY = "josh-board-v1";
   // the key a game's "has been shown how" lives under (`save.intro`)
-  const teachKey = (board) => (board.two ? "pickdie" : board.game);
+  // (and 🔭 Moon Call, Moon Race's dice game where he CALLS the landing)
+  // (➕ Sum Bingo likewise: Number Bingo with two dice to add)
+  const teachKey = (board) => (board.two ? "pickdie" : board.call ? "call" : board.sums ? "sums" : board.pick2 ? "rainbow2" : board.run ? "dicerun" : board.target === 20 ? "honey20" : board.game === "doors" && board.size === 9 ? "doors9" : board.game);
   // A double-tap is a PLACE and a TIME (the framework's echo guard): a screen
   // that has just appeared ignores a finger for this long.
   const ECHO_MS = 350;
@@ -48,7 +50,7 @@
   // grown-up "hop by itself" switch · next: who starts the next two-person
   // game per box · last: the last box and its players.
   // "has been shown how", per kind of game (each kind's first-time hand)
-  const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors", "acorns", "dominoes", "dig", "nim", "lines", "top", "grab", "match3", "maze", "hide", "cmatch", "bingo", "snow", "fish", "ten", "hilo", "train", "pickdie"];
+  const INTRO = ["dice", "cards", "spin", "hen", "lotto", "spot", "pairs", "doors", "acorns", "dominoes", "dig", "nim", "lines", "top", "grab", "match3", "maze", "hide", "cmatch", "bingo", "snow", "fish", "ten", "hilo", "train", "pickdie", "call", "sums", "rainbow2", "dicerun", "honey20", "doors9"];
   function freshSave() { const intro = {}; for (const k of INTRO) intro[k] = false; return { v: 1, games: {}, done: {}, intro, auto: false, next: {}, last: null, skill: {} }; }
   const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
   // ---- A friend's LEVEL (PLAN_BOARD.md §18) -----------------------------------
@@ -68,7 +70,7 @@
   // his share of a finished game: the ⭐s, or in a race who was home first
   function shareOf(st, board) {
     const a = st.seats[0].stars, c = st.seats[1].stars;
-    return board.two ? (st.order[0] === 0 ? 1 : 0) : a + c ? a / (a + c) : 0.5;
+    return board.two || board.pick2 ? (st.order[0] === 0 ? 1 : 0) : a + c ? a / (a + c) : 0.5;
   }
   function coerce(text) {
     const s = freshSave();
@@ -444,7 +446,11 @@
     chooseEl = play.querySelector(".bn-choose");
     chooseEl.addEventListener("click", (e) => {
       const b = e.target.closest(".bn-pickd");
-      if (b && chooseEl.contains(b) && b.tagName === "BUTTON") tapChoose(Number(b.dataset.k), b);
+      if (b && chooseEl.contains(b) && b.tagName === "BUTTON") {
+        if (b.dataset.call) tapCall(Number(b.dataset.call), b);
+        else if (b.dataset.card) tapPickCard(Number(b.dataset.card), b);
+        else tapChoose(Number(b.dataset.k), b);
+      }
     });
     coopEl = play.querySelector(".bn-coop");
     play.querySelector(".bn-playback").addEventListener("click", () => { location.hash = "#board-home"; });
@@ -533,7 +539,7 @@
   // A box's picture: its emoji, or its drawn art (the shelf, and the box's
   // own picture over who's playing — a non-reader cannot read the title, so
   // the picture he just tapped is what says "yes, this game")
-  function boxPic(b) { return b.art === "domino" ? domSVG(5, 2, false) : b.art === "doors" ? doorsBoxSVG() : b.pic; }
+  function boxPic(b) { return b.art === "domino" ? domSVG(5, 2, false) : b.art === "domino6" ? domSVG(6, 6, false) : b.art === "doors" ? doorsBoxSVG() : b.art === "doors9" ? doorsBoxSVG(9) : b.pic; }
 
   // ---- Who's playing -------------------------------------------------------------
   function paintWho() {
@@ -624,7 +630,8 @@
       teach: TEACH.indexOf(teachKey(board)) >= 0 && !save.intro[teachKey(board)] };
     play.querySelector(".bn-title").textContent = DATA.box(box).name;
     play.dataset.game = board.game;
-    play.dataset.pad = PAD_TURN.indexOf(board.game) >= 0 ? "turn" : "act";
+    // (🚪 nine doors are three rows of buttons: its pads give way too)
+    play.dataset.pad = PAD_TURN.indexOf(board.game) >= 0 || (board.game === "doors" && board.size === 9) ? "turn" : "act";
     play.dataset.box = box;
     boardEl.classList.toggle("bn-board--chart", board.layout === "chart");
     svgWrap.innerHTML = OWN_BOARD.indexOf(board.game) >= 0 ? "" : board.game === "spin" ? R.orchardSVG() : board.game === "lotto" ? R.picnicSVG(board, st.seats.map((s) => DATA.person(s.who).colour)) : R.boardSVG(board);
@@ -700,7 +707,7 @@
     if (b.game === "fish") return layoutFish(w, h);
     if (b.game === "ten") return layoutTen(w, h);
     if (b.game === "hilo") return layoutHilo(w, h);
-    if (b.game === "train") return layoutTrain(w, h);
+    if (b.game === "train") return layoutTrain(w, h, b);
     if (b.game === "spot") return layoutSpot(w, h);
     if (b.game === "pairs") return layoutPairs(w, h);
     const cell = Math.max(20, Math.floor(Math.min(w / b.cols, h / b.rows)));
@@ -761,8 +768,11 @@
   // the waiting player's six small ones
   // 🚂 the train across the field (an engine and six cars), the station's
   // three cars below
-  function layoutTrain(w, h) {
-    const car = Math.max(34, Math.min(76, Math.floor((w - 6 * 6 - 8) / 7)));
+  // (🚃 Long Train shows seven cars, so its row is nine across: the cars
+  // are pictures, not buttons, so they may be smaller than a tap target)
+  function layoutTrain(w, h, b) {
+    const n = (b.shown || 5) + 2;
+    const car = Math.max(n > 7 ? 26 : 34, Math.min(76, Math.floor((w - (n - 1) * 6 - 8) / n)));
     const pick = Math.max(80, Math.min(120, Math.floor((w - 2 * 16 - 8) / 3), Math.floor(h - car - 16 - 40)));
     trainEl.style.setProperty("--car", car + "px");
     trainEl.style.setProperty("--pick", pick + "px");
@@ -805,7 +815,7 @@
     const ev = L.pickCar(st, k);
     if (!ev.length) return;
     hideHand();
-    if (!save.intro.train && !st.seats[ev[0].seat].cpu) { save.intro.train = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     if (ev[0].type === "carMiss" && btn) wiggle(btn);
     playEvents(ev);
   }
@@ -863,7 +873,7 @@
     const ev = L.hiloGuess(st, up);
     if (!ev.length) return;
     hideHand();
-    if (!save.intro.hilo && !st.seats[ev[0].seat].cpu) { save.intro.hilo = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function cpuHilo() {
@@ -894,18 +904,21 @@
   function tenView() { const st = game.st; return { flowers: st.flowers.slice(), held: st.held, pair: [], miss: [] }; }
   // a flower's ten-frame: n dots in two rows of five, the empty places
   // lit while it is held (they are how many more make ten)
-  function tenFrameSVG(n, lit) {
+  // (🐝 Honey Twenty's flowers are TWO ten-frames, one above the other: 13
+  // is a full ten and three, and the lit places are how many more make twenty)
+  function tenFrameSVG(n, lit, T) {
+    const slots = T === 20 ? 20 : 10;
     let g = "";
-    for (let k = 0; k < 10; k++) {
-      const x = 10 + (k % 5) * 16, y = 18 + Math.floor(k / 5) * 18;
+    for (let k = 0; k < slots; k++) {
+      const x = 10 + (k % 5) * 16, y = 18 + Math.floor(k / 5) * 18 + (k >= 10 ? 6 : 0);
       g += '<rect x="' + (x - 7) + '" y="' + (y - 7) + '" width="14" height="14" rx="3" fill="' + (k >= n && lit ? "#fff3b0" : "#ffffff") + '" stroke="#7a5200" stroke-width="1.5"/>';
       if (k < n) g += '<circle cx="' + x + '" cy="' + y + '" r="5.2" fill="#d97706" stroke="#7a3500" stroke-width="1.2"/>';
     }
-    return '<svg viewBox="0 0 90 46" aria-hidden="true" focusable="false">' + g + "</svg>";
+    return '<svg viewBox="0 0 90 ' + (slots === 20 ? 88 : 46) + '" aria-hidden="true" focusable="false">' + g + "</svg>";
   }
   function paintTen() {
     if (!game || game.board.game !== "ten" || !game.tv2) return;
-    const st = game.st, v = game.tv2;
+    const st = game.st, v = game.tv2, T = L.tenTarget(game.board), word = T === 20 ? "twenty" : "ten";
     const turn = game.showTurn == null ? st.turn : game.showTurn;
     const mine = st.phase === "pick" && !game.busy && !st.seats[turn].cpu && st.turn === turn;
     // his first game: a ten glows (the held flower's partners, or every ten)
@@ -918,7 +931,7 @@
     v.flowers.forEach((n, k) => {
       if (!n) { html += '<span class="bn-flower bn-flower--gone" aria-hidden="true"></span>'; return; }
       const cls = "bn-flower" + (k === v.held ? " bn-flower--held" : "") + (v.pair.indexOf(k) >= 0 ? " bn-flower--ten" : "") + (v.miss.indexOf(k) >= 0 ? " bn-flower--miss" : "") + (hint.indexOf(k) >= 0 && k !== v.held ? " bn-flower--hint" : "");
-      const inner = '<span class="bn-flower__n">' + n + "</span>" + tenFrameSVG(n, k === v.held);
+      const inner = '<span class="bn-flower__n">' + n + "</span>" + tenFrameSVG(n, k === v.held, T);
       if (mine && v.pair.indexOf(k) < 0) html += '<button class="tap ' + cls + '" type="button" data-k="' + k + '" aria-label="' + n + (k === v.held ? ", held" : "") + '"' + (k === v.held ? ' aria-pressed="true"' : "") + ">" + inner + "</button>";
       else html += '<span class="' + cls + ' bn-flower--still" role="img" aria-label="' + n + '">' + inner + "</span>";
     });
@@ -926,8 +939,8 @@
     // the goal: "7 + ? = 10" while a flower is held, else just the jar
     const goal = tenEl.querySelector(".bn-ten__goal");
     const h = v.held != null ? v.flowers[v.held] : 0;
-    goal.innerHTML = '<span class="bn-goal__op">🍯</span>' + (h ? '<span class="bn-goal__n">' + h + '</span><span class="bn-goal__op">+</span><span class="bn-goal__q">?</span><span class="bn-goal__op">=</span><span class="bn-goal__n">10</span>' : '<span class="bn-goal__n">10</span>');
-    goal.setAttribute("aria-label", h ? h + " and what make ten" : "Make ten");
+    goal.innerHTML = '<span class="bn-goal__op">🍯</span>' + (h ? '<span class="bn-goal__n">' + h + '</span><span class="bn-goal__op">+</span><span class="bn-goal__q">?</span><span class="bn-goal__op">=</span><span class="bn-goal__n">' + T + '</span>' : '<span class="bn-goal__n">' + T + '</span>');
+    goal.setAttribute("aria-label", h ? h + " and what make " + word : "Make " + word);
   }
   function tapTen(k, btn) {
     if (!game || game.board.game !== "ten" || game.busy || !playVisible()) return;
@@ -941,12 +954,12 @@
       game.tv2.held = k;
       paintTen();
       SFX.plop(ev[0].n);
-      sayPlay(fill(SAY.honeyHold, { d: ev[0].n }));
+      sayPlay(fill(honeyLine("honeyHold"), { d: ev[0].n }));
       persistGame();
       if (st.seats[st.turn].cpu) later(cpuTen, T.cpuHop);
       return;
     }
-    if (!save.intro.ten && !st.seats[ev[0].seat].cpu) { save.intro.ten = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function cpuTen() {
@@ -1055,7 +1068,7 @@
       const ev = L.askFish(st, k);
       if (!ev.length) return;
       hideHand();
-      if (!save.intro.fish && !st.seats[st.turn].cpu) { save.intro.fish = true; persist(); }
+      if (!save.intro[teachKey(game.board)] && !st.seats[st.turn].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
       playEvents(ev);
       return;
     }
@@ -1118,8 +1131,10 @@
   }
   function paintSnow() {
     if (!game || game.board.game !== "snow" || !game.sv) return;
-    const st = game.st, v = game.sv, m = game.showMover == null ? st.mover : game.showMover;
-    const live = st.phase === "build" && st.mover === m && !game.busy && !st.seats[st.turn].cpu;
+    const st = game.st, v = game.sv, m0 = game.showMover == null ? st.mover : game.showMover;
+    const live = st.phase === "build" && st.mover === m0 && !game.busy && !st.seats[st.turn].cpu;
+    // 🎁 a gift: the FRIEND's snowman is the one to tap
+    const m = st.phase === "build" && st.gift != null && st.mover === m0 ? st.gift : m0;
     let html = "";
     for (const i of [0, 1]) {
       const inner = '<span class="bn-snow__face" aria-hidden="true">' + R.faceHTML(seatPerson(i)) + "</span>" + snowmanSVG(v.parts[i], v.who === i ? v.fresh : 0);
@@ -1137,7 +1152,7 @@
     const ev = L.buildSnow(st);
     if (!ev.length) return;
     hideHand();
-    if (!save.intro.snow && !st.seats[ev[0].seat].cpu) { save.intro.snow = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function cpuSnow() {
@@ -1148,6 +1163,7 @@
     tapSnow(null);
   }
   function snowBuildLine(st) {
+    if (st.gift != null) return fill(SAY.snowGift, { n: nameOf(st.gift), w: snowSay(L.snowWhich(st.parts[st.gift], st.die)) });
     const w = snowSay(L.snowWhich(st.parts[st.mover], st.die));
     return st.die === L.SNOW_MAGIC ? fill(SAY.snowMagic, { w }) : st.mover === st.turn ? fill(SAY.snowBuild, { w: cap(w) }) : fill(SAY.snowHelp, { w: cap(w), n: nameOf(st.mover) });
   }
@@ -1210,10 +1226,11 @@
     grid.style.borderColor = owner.colour;
     grid.style.setProperty("--owner", owner.colour);
     let top = '<span class="bn-bingo__face" aria-hidden="true">' + R.faceHTML(owner) + "</span>";
-    if (live) top += '<span class="bn-goal__op">🎯</span><span class="bn-goal__die">' + pipsHTML(st.die) + '</span><span class="bn-goal__n">' + st.die + "</span>";
+    if (live && game.board.sums && st.dice && st.dice.length === 2) top += '<span class="bn-goal__op">🎯</span><span class="bn-goal__die">' + pipsHTML(st.dice[0]) + '</span><span class="bn-goal__op">+</span><span class="bn-goal__die">' + pipsHTML(st.dice[1]) + "</span>";
+    else if (live) top += '<span class="bn-goal__op">🎯</span><span class="bn-goal__die">' + pipsHTML(st.die) + '</span><span class="bn-goal__n">' + st.die + "</span>";
     const row = bingoEl.querySelector(".bn-bingo__top");
     row.innerHTML = top;
-    row.setAttribute("aria-label", live ? "Find " + st.die + " on " + nameOf(m) + "'s card" : nameOf(m) + "'s card");
+    row.setAttribute("aria-label", live ? (game.board.sums && st.dice && st.dice.length === 2 ? "Find " + st.dice[0] + " and " + st.dice[1] + " together" : "Find " + st.die) + " on " + nameOf(m) + "'s card" : nameOf(m) + "'s card");
   }
   function tapBingo(k, btn) {
     if (!game || game.board.game !== "bingo" || game.busy || !playVisible()) return;
@@ -1232,7 +1249,7 @@
       persistGame();
       return;
     }
-    if (!save.intro.bingo && !st.seats[ev[0].seat].cpu) { save.intro.bingo = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function cpuBingo() {
@@ -1243,17 +1260,30 @@
     const b = L.bingoBest(st);
     tapBingo(b[0], null);
   }
+  // what to find: the number — or, ➕ adding, the two dice (never the sum:
+  // counting all the dots is his)
+  function bingoFindLine() {
+    const st = game.st, mine = st.mover === st.turn;
+    if (game.board.sums) return fill(mine ? SAY.bingoSumFind : SAY.bingoSumHelp, { a: st.dice[0], b: st.dice[1], n: nameOf(st.mover) });
+    return fill(mine ? SAY.bingoFind : SAY.bingoHelp, { d: st.die, n: nameOf(st.mover) });
+  }
   function afterBingoRoll(ev) {
     const st = game.st;
     if (ev.some((e) => e.type === "bingoNone")) { playEvents(ev.filter((e) => e.type !== "roll")); return; }
     paintBingo();
     if (st.seats[st.turn].cpu) { later(cpuBingo, T.cpuHop); return; }
-    sayPlay(fill(st.mover === st.turn ? SAY.bingoFind : SAY.bingoHelp, { d: st.die, n: nameOf(st.mover) }));
-    if (!save.intro.bingo) showHand(st.turn);
+    sayPlay(bingoFindLine());
+    if (!save.intro[teachKey(game.board)]) showHand(st.turn);
   }
   function layoutDoors(w, h) {
     const GAP = 16, STRIP = 40;
-    const cell = Math.max(40, Math.floor(Math.min((w - 2 * GAP) / 3, (h - STRIP - GAP - GAP) / 2, 130)));
+    // (on a short field the row above the doors steps aside — the pad shows
+    // the dice and the roll — so nine doors stay 75px: Honey Ten's rule)
+    const rows = Math.ceil(game.board.size / 3);
+    const fit = (top) => Math.floor(Math.min((w - 2 * GAP) / 3, (h - top - (rows - 1) * GAP) / rows, 130));
+    const short = fit(STRIP + GAP + 6) < 75;
+    doorsEl.dataset.short = short ? "1" : "0";
+    const cell = Math.max(40, fit(short ? 0 : STRIP + GAP + 6));
     doorsEl.style.setProperty("--door", cell + "px");
     doorsEl.style.fontSize = Math.round(cell * 0.5) + "px";
     boardEl.style.width = w + "px";
@@ -1274,7 +1304,7 @@
     const hint = ways.length ? (ways.find((x) => st.held == null || x.indexOf(st.held) >= 0) || ways[0]) : [];
     const cpu = st.phase !== "done" && st.seats[game.showTurn == null ? st.turn : game.showTurn].cpu;
     let html = "";
-    for (let n = 1; n <= 6; n++) {
+    for (let n = 1; n <= game.board.size; n++) {
       // a SHUT door is a closed wooden door (its number small on it); an
       // OPEN one is a lit doorway showing its number AND its dots, the die's
       // own dots, so he can match the roll by counting
@@ -1293,7 +1323,8 @@
     // "held + ? = roll" — so the goal sits beside the doors, not down on the pad
     let goal = '<span class="bn-doors__face" aria-hidden="true">' + R.faceHTML(seatPerson(m)) + "</span>";
     if (live) {
-      const want = '<span class="bn-goal__die">' + pipsHTML(st.die) + '</span><span class="bn-goal__n">' + st.die + "</span>";
+      // (two dice on Doors to Nine: both dice, then the number they make)
+      const want = (st.dice && st.dice.length === 2 ? '<span class="bn-goal__die">' + pipsHTML(st.dice[0]) + '</span><span class="bn-goal__op">+</span><span class="bn-goal__die">' + pipsHTML(st.dice[1]) + '</span><span class="bn-goal__op">=</span>' : '<span class="bn-goal__die">' + pipsHTML(st.die) + "</span>") + '<span class="bn-goal__n">' + st.die + "</span>";
       goal += st.held != null
         ? '<span class="bn-goal__die">' + pipsHTML(st.held) + '</span><span class="bn-goal__op">+</span><span class="bn-goal__q">?</span><span class="bn-goal__op">=</span>' + want
         : '<span class="bn-goal__op">🎯</span>' + want;
@@ -1345,7 +1376,7 @@
       persistGame();
       return;
     }
-    if (!save.intro.doors && !st.seats[e.seat].cpu) { save.intro.doors = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[e.seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function cpuDoors() {
@@ -1358,6 +1389,13 @@
     if (way.length > 1) later(() => { if (game && game.st.phase === "shut") tapDoor(way[1], null); }, T.cpuHop);
   }
   // after a roll: nothing fits (roll again), or tap the doors that make it
+  // what to shut: door d, or two that make it — and on Doors to Nine a roll
+  // past nine can only be two doors (the two dice are said first)
+  function doorsPickLine() {
+    const st = game.st, d = st.die;
+    const two = st.dice && st.dice.length === 2 ? fill(SAY.doorsDice, { a: st.dice[0], b: st.dice[1], d }) + " " : "";
+    return two + fill(d > game.board.size ? SAY.doorsPickTwo : SAY.doorsPick, { d });
+  }
   function afterDoorsRoll(ev) {
     const st = game.st;
     if (ev.some((e) => e.type === "stuck")) {
@@ -1421,7 +1459,7 @@
     const ev = L.digAt(st, k);
     if (!ev.length) return;   // a square already dug (the hammer's echo)
     hideHand();
-    if (!save.intro.dig && !st.seats[ev[0].seat].cpu) { save.intro.dig = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function cpuDig() {
@@ -1437,6 +1475,8 @@
   // die that lands on a rocket (or, with none, the bigger one).
   function showChoice() {
     const st = game && game.st;
+    if (st && st.phase === "call" && st.calls && st.calls.length === 3) { showCall(); return; }
+    if (st && st.phase === "twocards" && st.offer && st.offer.length === 2) { showTwoCards(); return; }
     if (!st || st.phase !== "choose" || !st.dice || st.dice.length !== 2) { hideChoice(); return; }
     const mine = !st.seats[st.turn].cpu, best = mine && game.teach ? L.dieBest(st) : [], b = game.board;
     const same = st.dice[0] === st.dice[1];
@@ -1456,6 +1496,7 @@
       const el = targetEls[k];
       if (same && k === 1) { el.hidden = true; continue; }
       const to = L.dieTarget(st, k), c = L.cellOf(b, to);
+      el.classList.remove("bn-target--from");
       el.style.left = (c.col / b.cols * 100) + "%";
       el.style.top = ((b.rows - 1 - c.row) / b.rows * 100) + "%";
       el.style.width = (100 / b.cols) + "%";
@@ -1465,10 +1506,128 @@
       el.hidden = false;
     }
   }
-  function hideChoice() {
-    if (chooseEl) { chooseEl.hidden = true; chooseEl.innerHTML = ""; }
-    if (play) { const t = play.querySelector(".bn-tray"); if (t) t.classList.remove("bn-tray--choose"); }
+  // 🔭 Moon Call: three numbers over the pads — where will the hops END?
+  // Nothing on the board gives it away (the token and the die on his pad are
+  // the whole question). His first game lights the right one: a worked
+  // example of the new rule.
+  function showCall() {
+    const st = game.st, mine = !st.seats[st.turn].cpu, right = L.callTarget(st);
+    let html = "";
+    for (const n of st.calls) {
+      const label = "Land on " + n;
+      html += mine
+        ? '<button class="tap bn-pickd bn-callnum' + (game.teach && n === right ? " bn-pickd--hint" : "") + '" type="button" data-call="' + n + '" aria-label="' + label + '">' + n + "</button>"
+        : '<span class="bn-pickd bn-callnum bn-pickd--still" role="img" aria-label="' + label + '">' + n + "</span>";
+    }
+    chooseEl.innerHTML = html;
+    chooseEl.dataset.n = "3";
+    chooseEl.hidden = false;
+    play.querySelector(".bn-tray").classList.add("bn-tray--choose");
     for (const el of targetEls) el.hidden = true;
+    // The numbers cover the pads, so the QUESTION stands on the board: his
+    // die, floating over the square he hops from ("from here, this many").
+    // (over it, or under it on the top row; never on the answer's square)
+    const b = game.board, from = st.seats[st.mover].pos, c = L.cellOf(b, from), el = targetEls[0];
+    el.style.left = (c.col / b.cols * 100) + "%";
+    el.style.top = ((b.rows - 1 - c.row) / b.rows * 100) + "%";
+    el.style.width = (100 / b.cols) + "%";
+    el.style.height = (100 / b.rows) + "%";
+    el.innerHTML = dieHTML(st.die, st.die);
+    el.dataset.n = String(from);
+    el.dataset.side = c.row === b.rows - 1 ? "below" : "above";
+    el.classList.add("bn-target--from");
+    el.hidden = false;
+  }
+  function tapCall(n, btn) {
+    if (!game || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "call") return;
+    if (btn && st.seats[st.turn].cpu) return;
+    const ev = L.callLanding(st, n);
+    if (!ev.length) return;
+    hideChoice();
+    hideHand();
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
+    persistGame();
+    playEvents(ev);
+    // (a call is not a hop, so it held the board: after its beat the hops
+    // play — by themselves after a right call, which he counted in his head;
+    // a tap a hop after a miss, so the count shows where he really lands)
+    later(() => {
+      if (!game || game.st.phase !== "hop") return;
+      game.busy = false;
+      paintPads();
+      if (game.st.seats[game.st.turn].cpu) later(cpuHop, T.cpuHop);
+      else if (ev[0].right || save.auto) autoHops();
+      else sayPlay(hopLine());
+    }, T.ride + 20);
+  }
+  function cpuCall() {
+    if (!game) return;
+    if (!playVisible()) { game.cpuWaiting = true; return; }
+    const st = game.st;
+    if (game.busy || st.phase !== "call" || !st.seats[st.turn].cpu) return;
+    tapCall(L.callChoice(st), null);
+  }
+  // 🌈 Rainbow Pick: the two cards, big, over the pads — and on the board the
+  // square each would take him to, wearing that card, so the button and its
+  // square are the same picture (Pick a Die's rule). His first game lights
+  // the card that goes further.
+  function showTwoCards() {
+    const st = game.st, b = game.board, mine = !st.seats[st.turn].cpu;
+    const to = st.offer.map((c) => L.cardMove(st, c).to);
+    const best = mine && game.teach && to[0] !== to[1] ? [to[0] > to[1] ? 0 : 1] : [];
+    let html = "";
+    st.offer.forEach((c, k) => {
+      const label = "Play the " + cardName(c) + ": to square " + to[k] + (to[k] >= b.size ? ", the cake" : "");
+      html += mine
+        ? '<button class="tap bn-pickd bn-pickc' + (best.indexOf(k) >= 0 ? " bn-pickd--hint" : "") + '" type="button" data-card="' + k + '" aria-label="' + label + '">' + cardHTML(c) + '<span class="bn-pickd__to" aria-hidden="true">' + to[k] + "</span></button>"
+        : '<span class="bn-pickd bn-pickc bn-pickd--still" role="img" aria-label="' + label + '">' + cardHTML(c) + '<span class="bn-pickd__to" aria-hidden="true">' + to[k] + "</span></span>";
+    });
+    chooseEl.innerHTML = html;
+    chooseEl.dataset.n = "2";
+    chooseEl.dataset.kind = "cards";
+    chooseEl.hidden = false;
+    play.querySelector(".bn-tray").classList.add("bn-tray--choose");
+    for (let k = 0; k < 2; k++) {
+      const el = targetEls[k], c = L.cellOf(b, to[k]);
+      el.classList.remove("bn-target--from");
+      el.style.left = (c.col / b.cols * 100) + "%";
+      el.style.top = ((b.rows - 1 - c.row) / b.rows * 100) + "%";
+      el.style.width = (100 / b.cols) + "%";
+      el.style.height = (100 / b.rows) + "%";
+      el.innerHTML = cardHTML(st.offer[k]);
+      el.dataset.n = String(to[k]);
+      el.hidden = k === 1 && to[1] === to[0];
+    }
+  }
+  function cardName(c) {
+    if (c.kind === "pic") { const lm = (game.board.landmarks || []).find((l) => l.at === c.at); return (lm ? lm.say : "picture") + " card"; }
+    return (c.kind === "two" ? "double " : "") + DATA.colour(c.c).name + " card";
+  }
+  function tapPickCard(k, btn) {
+    if (!game || game.busy || !playVisible()) return;
+    const st = game.st;
+    if (st.phase !== "twocards") return;
+    if (btn && st.seats[st.turn].cpu) return;
+    const ev = L.pickTwoCard(st, k);
+    if (!ev.length) return;
+    hideChoice();
+    hideHand();
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
+    playEvents(ev);
+  }
+  function cpuPickCard() {
+    if (!game) return;
+    if (!playVisible()) { game.cpuWaiting = true; return; }
+    const st = game.st;
+    if (game.busy || st.phase !== "twocards" || !st.seats[st.turn].cpu) return;
+    tapPickCard(L.cardChoice(st), null);
+  }
+  function hideChoice() {
+    if (chooseEl) { chooseEl.hidden = true; chooseEl.innerHTML = ""; delete chooseEl.dataset.kind; }
+    if (play) { const t = play.querySelector(".bn-tray"); if (t) t.classList.remove("bn-tray--choose"); }
+    for (const el of targetEls) { el.hidden = true; el.classList.remove("bn-target--from"); }
   }
   function tapChoose(k, btn) {
     if (!game || game.busy || !playVisible()) return;
@@ -1480,7 +1639,7 @@
     // (gone in the same tap: a doubled tap must find nothing left to pick)
     hideChoice();
     hideHand();
-    if (!save.intro.pickdie && !st.seats[st.turn].cpu) { save.intro.pickdie = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[st.turn].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     persistGame();
     playEvents(ev);
     // (the pick is not a hop, so it held the board: after its beat the hops
@@ -1563,7 +1722,7 @@
     const ev = L.grabColour(st, c);
     if (!ev.length) return;
     hideHand();
-    if (!save.intro.grab && !st.seats[ev[0].seat].cpu) { save.intro.grab = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function cpuGrab() {
@@ -1595,10 +1754,17 @@
   // table and refilled the hands while the trick's winner is still glowing
   function topView() { const st = game.st; return { hands: st.hands.map((h) => h.slice()), table: st.table.slice(), win: null, fresh: -1 }; }
   // a number card: the numeral and its dots in a ten-frame (two rows of five)
+  // (a teen card, 🔟 Teen Top Card's, is a FULL ten-frame and a second one
+  // with the ones: 14 is ten and four more, which is what makes it bigger
+  // than 13 — the ones decide)
   function numCardHTML(v) {
-    let dots = "";
-    for (let k = 0; k < 10; k++) dots += '<span class="bn-tc__dot' + (k < v ? "" : " bn-tc__dot--none") + '"></span>';
-    return '<span class="bn-tc__n" aria-hidden="true">' + v + '</span><span class="bn-tc__dots" aria-hidden="true">' + dots + "</span>";
+    const frame = (n) => {
+      let dots = "";
+      for (let k = 0; k < 10; k++) dots += '<span class="bn-tc__dot' + (k < n ? "" : " bn-tc__dot--none") + '"></span>';
+      return '<span class="bn-tc__dots">' + dots + "</span>";
+    };
+    if (v <= 10) return '<span class="bn-tc__n" aria-hidden="true">' + v + '</span><span class="bn-tc__frames" aria-hidden="true">' + frame(v) + "</span>";
+    return '<span class="bn-tc__n" aria-hidden="true">' + v + '</span><span class="bn-tc__frames bn-tc__frames--teen" aria-hidden="true">' + frame(10) + frame(v - 10) + "</span>";
   }
   function paintTop() {
     if (!game || game.board.game !== "top" || !game.tv) return;
@@ -1640,7 +1806,7 @@
     const ev = L.playCard(st, c);
     if (!ev.length) return;
     hideHand();
-    if (!save.intro.top && !st.seats[ev[0].seat].cpu) { save.intro.top = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function cpuTop() {
@@ -1700,7 +1866,7 @@
     const ev = L.dropLine(st, c);
     if (!ev.length) return;   // a full column (or the hammer's echo)
     hideHand();
-    if (!save.intro.lines && !st.seats[ev[0].seat].cpu) { save.intro.lines = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function cpuLines() {
@@ -1765,7 +1931,7 @@
     const ev = L.moveMouse(st, k);
     if (!ev.length) return;
     hideHand();
-    if (!save.intro.maze && !st.seats[ev[0].seat].cpu) { save.intro.maze = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function cpuMaze() {
@@ -1854,7 +2020,7 @@
       persistGame();
       return;
     }
-    if (!save.intro.cmatch && !st.seats[ev[0].seat].cpu) { save.intro.cmatch = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function tapCmDeck(btn) {
@@ -1946,7 +2112,7 @@
     const ev = L.askHide(st, k);
     if (!ev.length) return;
     hideHand();
-    if (!save.intro.hide && !st.seats[ev[0].seat].cpu) { save.intro.hide = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function cpuHide() {
@@ -1981,8 +2147,9 @@
     const turn = game.showTurn == null ? st.turn : game.showTurn;
     const mine = !game.busy && !st.seats[turn].cpu && st.turn === turn && (st.phase === "roll" || st.phase === "keep");
     const keeping = mine && st.phase === "keep" && !v.rolling;
-    // his first game: the dice worth keeping glow (the ones that match)
-    const hint = keeping && game.teach ? L.m3Keep(v.dice) : [false, false, false];
+    // his first game: the dice worth keeping glow (the ones that match; on
+    // Dice Run's board, the best keep for the rolls left)
+    const hint = keeping && game.teach ? L.m3Keep(v.dice, game.board.run, v.left) : [false, false, false];
     let html = "";
     for (let k = 0; k < 3; k++) {
       const n = v.dice[k], held = v.held[k], go = v.rolling && !held;
@@ -2009,7 +2176,7 @@
     const ev = L.rollMatch(st);
     if (!ev.length) return;
     hideHand();
-    if (!save.intro.match3 && !st.seats[ev[0].seat].cpu) { save.intro.match3 = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   // keep (or let go of) a die: no wait, so it never holds the board
@@ -2097,7 +2264,7 @@
     const ev = L.takeCookies(st, n);
     if (!ev.length) return;
     hideHand();
-    if (!save.intro.nim && !st.seats[ev[0].seat].cpu) { save.intro.nim = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function cpuNim() {
@@ -2109,7 +2276,7 @@
   }
   // 🁢 one domino, drawn: two halves of dots (1 to 5), side by side or one
   // above the other. The dots are the same five patterns as the die.
-  const PIPS = { 1: [[50, 50]], 2: [[27, 27], [73, 73]], 3: [[25, 25], [50, 50], [75, 75]], 4: [[27, 27], [73, 27], [27, 73], [73, 73]], 5: [[25, 25], [75, 25], [50, 50], [25, 75], [75, 75]] };
+  const PIPS = { 1: [[50, 50]], 2: [[27, 27], [73, 73]], 3: [[25, 25], [50, 50], [75, 75]], 4: [[27, 27], [73, 27], [27, 73], [73, 73]], 5: [[25, 25], [75, 25], [50, 50], [25, 75], [75, 75]], 6: [[27, 22], [73, 22], [27, 50], [73, 50], [27, 78], [73, 78]] };   // (6: 🁢 Six-Dot Dominoes)
   function domSVG(a, b, upright) {
     const half = (n, dx, dy) => (PIPS[n] || []).map((p) => '<circle cx="' + (p[0] + dx) + '" cy="' + (p[1] + dy) + '" r="10" fill="#1f2937"/>').join("");
     const w = upright ? 100 : 200, h = upright ? 200 : 100;
@@ -2120,10 +2287,10 @@
   // 🚪 Shut the Doors' box: three of its own doors, one SHUT and two lit with
   // their numbers. It is drawn because 🚪 is the bar's way OUT on the very
   // shelf the box stands on, and one picture must not mean two things there.
-  function doorsBoxSVG() {
+  function doorsBoxSVG(last) {
     const door = (x, n, shut) => '<path d="M' + x + ' 92 V30 a24 24 0 0 1 48 0 V92 Z" fill="' + (shut ? "#b8520f" : "#ffe48a") + '" stroke="#6b2d06" stroke-width="6"/>' +
       (shut ? '<circle cx="' + (x + 36) + '" cy="62" r="5" fill="#ffd24d"/>' : '<text x="' + (x + 24) + '" y="72" text-anchor="middle" font-size="34" font-weight="900" fill="#3b1a03" font-family="system-ui, sans-serif">' + n + "</text>");
-    return '<svg class="bn-doorsvg" viewBox="0 0 176 100" aria-hidden="true">' + door(6, 1, true) + door(64, 2, false) + door(122, 3, false) + "</svg>";
+    return '<svg class="bn-doorsvg" viewBox="0 0 176 100" aria-hidden="true">' + door(6, 1, true) + door(64, last ? 8 : 2, false) + door(122, last || 3, false) + "</svg>";
   }
   function dotFace(n) {
     return '<svg class="bn-domsvg" viewBox="0 0 100 100" aria-hidden="true"><rect x="3" y="3" width="94" height="94" rx="16" fill="#fffdf6" stroke="#1f2937" stroke-width="5"/>' +
@@ -2237,7 +2404,7 @@
       persistGame();
       return;
     }
-    if (!save.intro.dominoes && !st.seats[e.seat].cpu) { save.intro.dominoes = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[e.seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function fishTile() {
@@ -2336,7 +2503,7 @@
     const ev = L.sowPot(st, k);
     if (!ev.length) return;   // an empty pot, or not his (the hammer's echo)
     hideHand();
-    if (!save.intro.acorns && !st.seats[ev[0].seat].cpu) { save.intro.acorns = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     game.busy = true;
     playEvents(ev);
   }
@@ -2380,7 +2547,7 @@
     const ev = L.peekPair(st, k);
     if (!ev.length) return;   // a card already up (the hammer's echo) or gone
     hideHand();
-    if (!save.intro.pairs && !st.seats[ev[0].seat].cpu) { save.intro.pairs = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function cpuPair() {
@@ -2457,7 +2624,7 @@
       persistGame();
       return;
     }
-    if (!save.intro.spot && !st.seats[ev[0].seat].cpu) { save.intro.spot = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     // the twin glows on BOTH cards before the card moves to the middle
     game.spotYes = ev[0].twin;
     game.spotHand = hand;
@@ -2689,7 +2856,7 @@
       boardEl.setAttribute("aria-label", "The hen is " + (st.seats[0].home ? "home" : "on square " + game.shown[0]) + ". " + game.shownCoop + (game.shownCoop === 1 ? " chick is" : " chicks are") + " in the hen house.");
       return;
     }
-    boardEl.setAttribute("aria-label", st.seats.map((s, i) => nameOf(i) + (s.home ? " is home" : " is on " + game.shown[i])).join(". "));
+    boardEl.setAttribute("aria-label", st.seats.map((s, i) => nameOf(i) + (s.home ? " is home" : " is on " + L.labelOf(game.board, game.shown[i]))).join(". "));
   }
 
   // The pads: the active one is bright and ringed, the other dimmed. The dice
@@ -2720,22 +2887,22 @@
         else if (active && game.rolled && st.phase === "build") act.innerHTML = snowDieHTML(st.die);
         else act.innerHTML = dieHTML(0, 0);
         pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
-        pad.setAttribute("aria-label", nameOf(i) + (active ? (st.phase === "build" ? ": tap the snowman to put on the " + snowSay(L.snowWhich(st.parts[st.mover], st.die)) : ": tap to roll the snowman die") : ": wait for your turn") + (s.home ? ", snowman built" : ""));
+        pad.setAttribute("aria-label", nameOf(i) + (active ? (st.phase === "build" ? (st.gift != null ? ": tap " + nameOf(st.gift) + "'s snowman to give the " + snowSay(L.snowWhich(st.parts[st.gift], st.die)) : ": tap the snowman to put on the " + snowSay(L.snowWhich(st.parts[st.mover], st.die))) : ": tap to roll the snowman die") : ": wait for your turn") + (s.home ? ", snowman built" : ""));
       } else if (game.board.game === "dice" || game.board.game === "doors" || game.board.game === "bingo") {
         // while the dice tumble, a tumbling face; then the real one, its
         // dots going dark one per hop
-        if (active && game.tumbleFace && game.board.two) act.innerHTML = '<span class="bn-dice2">' + dieHTML(game.tumbleFace, game.tumbleFace) + dieHTML(7 - game.tumbleFace, 7 - game.tumbleFace) + "</span>";
+        if (active && game.tumbleFace && (game.board.two || game.board.sums || (game.board.game === "doors" && game.board.size === 9 && L.twoDoorDice(st, st.mover)))) act.innerHTML = '<span class="bn-dice2">' + dieHTML(game.tumbleFace, game.tumbleFace) + dieHTML(7 - game.tumbleFace, 7 - game.tumbleFace) + "</span>";
         else if (active && game.tumbleFace) act.innerHTML = dieHTML(game.tumbleFace, game.tumbleFace);
         // 🎲 his two dice, while he picks one (the big ones are in the choice)
-        else if (active && st.phase === "choose" && st.dice && st.dice.length === 2) act.innerHTML = '<span class="bn-dice2">' + dieHTML(st.dice[0], st.dice[0]) + dieHTML(st.dice[1], st.dice[1]) + "</span>";
+        else if (active && (st.phase === "choose" || (st.phase === "cover" && game.board.sums) || st.phase === "shut") && st.dice && st.dice.length === 2) act.innerHTML = '<span class="bn-dice2">' + dieHTML(st.dice[0], st.dice[0]) + dieHTML(st.dice[1], st.dice[1]) + "</span>";
         // (🚪 the roll stays lit while he finds the doors that make it)
-        else if (active && game.rolled) act.innerHTML = dieHTML(st.die, game.board.game === "doors" || game.board.game === "bingo" ? (st.phase === "shut" || st.phase === "cover" ? st.die : 0) : st.phase === "hop" && st.turn === i ? st.left : 0);
+        else if (active && game.rolled) act.innerHTML = dieHTML(st.die, game.board.game === "doors" || game.board.game === "bingo" ? (st.phase === "shut" || st.phase === "cover" ? st.die : 0) : st.phase === "hop" && st.turn === i ? st.left : st.phase === "call" && st.turn === i ? st.die : 0);
         else act.innerHTML = dieHTML(0, 0);
         pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
         const hopping = active && st.phase === "hop" && st.turn === i;
         const shutting = active && st.phase === "shut", covering = active && st.phase === "cover";
-        const choosing = active && st.phase === "choose";
-        pad.setAttribute("aria-label", nameOf(i) + (active ? (choosing ? ": pick one of the two dice" : covering ? ": cover " + st.die + " on the card" : shutting ? ": shut the doors that make " + st.die : hopping ? (st.die === L.TEN ? ": tap for ten more" : ": tap to hop, " + st.left + " to go") : ": tap to roll the dice") : ": wait for your turn") + (s.home ? (game.board.game === "doors" ? ", every door shut" : game.board.game === "bingo" ? ", card full" : ", home") : ""));
+        const choosing = active && st.phase === "choose", calling = active && st.phase === "call";
+        pad.setAttribute("aria-label", nameOf(i) + (active ? (choosing ? ": pick one of the two dice" : calling ? ": rolled " + st.die + ", where will you land?" : covering ? (game.board.sums && st.dice && st.dice.length === 2 ? ": find " + st.dice[0] + " and " + st.dice[1] + " together on the card" : ": cover " + st.die) + " on the card" : shutting ? ": shut the doors that make " + st.die : hopping ? (st.die === L.TEN ? ": tap for ten more" : ": tap to hop, " + st.left + " to go") : ": tap to roll the dice") : ": wait for your turn") + (s.home ? (game.board.game === "doors" ? ", every door shut" : game.board.game === "bingo" ? ", card full" : ", home") : ""));
       } else if (game.board.game === "grab") {
         // 🎨 the colours under the grid are the buttons; the pad shows the
         // player's own colour now (their patch's) and the ⭐s
@@ -2768,7 +2935,7 @@
         // 🍯 the flowers are the buttons; the pad is the honey jars (⭐s)
         act.innerHTML = '<span class="bn-card bn-card--basket">🍯</span>';
         pad.querySelector(".bn-pad__stars").textContent = game.shownStars[i] ? "⭐ " + game.shownStars[i] : "";
-        pad.setAttribute("aria-label", nameOf(i) + (active ? ": tap two flowers that make ten" : ": wait for your turn") + ". " + game.shownStars[i] + (game.shownStars[i] === 1 ? " jar of honey" : " jars of honey"));
+        pad.setAttribute("aria-label", nameOf(i) + (active ? ": tap two flowers that make " + (L.tenTarget(game.board) === 20 ? "twenty" : "ten") : ": wait for your turn") + ". " + game.shownStars[i] + (game.shownStars[i] === 1 ? " jar of honey" : " jars of honey"));
       } else if (game.board.game === "fish") {
         // 🐟 the cards are the buttons; the pad is the pairs made (⭐s)
         act.innerHTML = '<span class="bn-card bn-card--basket">🐟</span>';
@@ -2894,7 +3061,8 @@
     }
   }
   // A die: up to nine dot places, `n` dots, the first `lit` of them lit
-  const DOTS = { 0: [], 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+  // (7 to 9 are a door's dots on Doors to Nine: a full row in the middle)
+  const DOTS = { 0: [], 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8], 7: [0, 2, 3, 4, 5, 6, 8], 8: [0, 1, 2, 3, 5, 6, 7, 8], 9: [0, 1, 2, 3, 4, 5, 6, 7, 8] };
   function dieHTML(n, lit) {
     // not rolled yet: just a die to tap (an empty frame beside it read as a
     // missing picture)
@@ -2951,7 +3119,7 @@
     game.tumbleFace = 0;
     game.showTurn = st.turn;
     game.showMover = st.mover;
-    game.rolled = st.phase === "hop" || st.phase === "choose" || st.phase === "pick" || st.phase === "give" || st.phase === "find" || st.phase === "second" || st.phase === "shut" || st.phase === "cover" || st.phase === "build";   // a game restored mid-move shows its die / spin / food
+    game.rolled = st.phase === "hop" || st.phase === "choose" || st.phase === "call" || st.phase === "pick" || st.phase === "give" || st.phase === "find" || st.phase === "second" || st.phase === "shut" || st.phase === "cover" || st.phase === "build";   // a game restored mid-move shows its die / spin / food
     game.foodShown = st.phase === "give" ? st.food : null;
     paintPads();
     paintPairs();
@@ -2996,7 +3164,7 @@
     const mid = phaseLine();
     if (mid) sayPlay((mid.named ? fill(SAY.turn, { n: nameOf(i) }) + " " : "") + mid.line);
     else sayPlay(fill(SAY.turn, { n: nameOf(i) }) + (first ? " " + firstLine() : ""));
-    if (st.phase === "choose") showChoice();
+    if (st.phase === "choose" || st.phase === "call" || st.phase === "twocards") showChoice();
     else hideChoice();
     if (first) showHand(i);
     if (st.phase === "hop" && save.auto) autoHops();
@@ -3018,18 +3186,23 @@
     if (g === "lotto" && st.phase === "give") return { line: whoseLine() + " " + SAY.whoseFirst };
     if (g === "spot" && st.phase === "find") return { line: SAY.findTwin };
     if (g === "pairs" && st.phase === "second") return { line: SAY.pairsFirst };
-    if (g === "doors" && st.phase === "shut") return { line: fill(SAY.doorsPick, { d: st.die }) };
+    if (g === "doors" && st.phase === "shut") return { line: doorsPickLine() };
     if (g === "dominoes" && st.phase === "draw") return { line: SAY.domDraw, named: true };
     if (g === "dice" && st.phase === "choose") return { line: SAY.pickDieAgain };
+    if (g === "dice" && st.phase === "call") return { line: SAY.callAgain };
+    if (g === "cards" && st.phase === "twocards") return { line: SAY.twoAgain };
     if (g === "top" && st.phase === "follow") return { line: fill(SAY.topFollow, { d: st.table[st.lead] }), named: true };
     return null;
   }
   // what to do with a die just rolled: hop once a tap — or, for a 💯 ten-bar,
   // one tap for ten more
-  function hopLine() { return !game ? SAY.hopFirst : game.board.game === "hen" ? SAY.henFirst : game.st.die === L.TEN ? SAY.tenFirst : SAY.hopFirst; }
+  // (a skip-counting board says what a hop is worth: "Every hop is two more.")
+  function hopLine() { return !game ? SAY.hopFirst : game.board.game === "hen" ? SAY.henFirst : game.st.die === L.TEN ? SAY.tenFirst : game.board.step ? game.board.lines.hop : SAY.hopFirst; }
   // which first-time hand a HOP belongs to: the dice's, or the farm's
   function introKey() { return game && game.board.game === "hen" ? "hen" : "dice"; }
-  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" || g === "hen" ? SAY.spinFirst : g === "lotto" ? SAY.basketFirst : g === "pairs" ? SAY.pairsFirst : g === "doors" ? SAY.doorsFirst : g === "bingo" ? SAY.bingoFirst : g === "snow" ? SAY.snowFirst : g === "fish" ? SAY.fishFirst : g === "ten" ? SAY.honeyFirst : g === "hilo" ? SAY.hiloFirst : g === "train" ? SAY.trainFirst : g === "acorns" ? SAY.acornsFirst : g === "dominoes" ? SAY.domFirst : g === "dig" ? SAY.digFirst : g === "nim" ? SAY.nimFirst : g === "match3" ? SAY.m3First : g === "maze" ? SAY.mazeFirst : g === "hide" ? SAY.hideFirst : g === "cmatch" ? SAY.cmFirst : g === "lines" ? SAY.linesFirst : g === "top" ? SAY.topLead : g === "grab" ? SAY.grabFirst : SAY.flipFirst; }
+  // a Honey line, for the board's own number (🍯 ten, 🐝 twenty)
+  function honeyLine(k) { return game && game.board.target === 20 ? SAY[k.replace("honey", "honey20")] : SAY[k]; }
+  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" || g === "hen" ? SAY.spinFirst : g === "lotto" ? SAY.basketFirst : g === "pairs" ? SAY.pairsFirst : g === "doors" ? SAY.doorsFirst : g === "bingo" ? SAY.bingoFirst : g === "snow" ? SAY.snowFirst : g === "fish" ? SAY.fishFirst : g === "ten" ? honeyLine("honeyFirst") : g === "hilo" ? SAY.hiloFirst : g === "train" ? SAY.trainFirst : g === "acorns" ? SAY.acornsFirst : g === "dominoes" ? SAY.domFirst : g === "dig" ? SAY.digFirst : g === "nim" ? SAY.nimFirst : g === "match3" ? (game.board.run ? SAY.m3RunFirst : SAY.m3First) : g === "maze" ? SAY.mazeFirst : g === "hide" ? SAY.hideFirst : g === "cmatch" ? SAY.cmFirst : g === "lines" ? SAY.linesFirst : g === "top" ? SAY.topLead : g === "grab" ? SAY.grabFirst : SAY.flipFirst; }
 
   function padTap(i) {
     if (!game || !playVisible()) return;
@@ -3062,6 +3235,7 @@
       return;
     }
     if (game.busy || i !== st.turn) return;
+    if (game.board.game === "cards" && game.st.phase === "twocards") { sayPlay(SAY.twoAgain); showChoice(); showHand(i); later(hideHand, 2600); return; }
     if (game.board.game === "cards") return flipCard();
     if (game.board.game === "lotto") return takeFood();
     if (game.board.game === "spot") { if (st.phase === "flip") flipSpot(); return; }
@@ -3082,14 +3256,15 @@
       sayPlay(SAY.domFirst); showHand(i); later(hideHand, 2600); return;
     }
     // 🚪 rolled: the doors are the buttons now
-    if (game.board.game === "doors" && st.phase === "shut") { sayPlay(fill(SAY.doorsPick, { d: st.die })); return; }
+    if (game.board.game === "doors" && st.phase === "shut") { sayPlay(doorsPickLine()); return; }
     if (game.board.game === "fish") { sayPlay(SAY.fishFirst); showHand(i); later(hideHand, 2600); return; }
-    if (game.board.game === "ten") { sayPlay(SAY.honeyFirst); showHand(i); later(hideHand, 2600); return; }
+    if (game.board.game === "ten") { sayPlay(honeyLine("honeyFirst")); showHand(i); later(hideHand, 2600); return; }
     if (game.board.game === "hilo") { sayPlay(SAY.hiloFirst); showHand(i); later(hideHand, 2600); return; }
     if (game.board.game === "train") { sayPlay(SAY.trainFirst); showHand(i); later(hideHand, 2600); return; }
     if (game.board.game === "snow" && st.phase === "build") { sayPlay(snowBuildLine(st)); showHand(i); later(hideHand, 2600); return; }
-    if (game.board.game === "bingo" && st.phase === "cover") { sayPlay(fill(st.mover === st.turn ? SAY.bingoFind : SAY.bingoHelp, { d: st.die, n: nameOf(st.mover) })); showHand(i); later(hideHand, 2600); return; }
+    if (game.board.game === "bingo" && st.phase === "cover") { sayPlay(bingoFindLine()); showHand(i); later(hideHand, 2600); return; }
     if (st.phase === "choose") { sayPlay(SAY.pickDieAgain); showChoice(); showHand(i); later(hideHand, 2600); return; }
+    if (st.phase === "call") { sayPlay(SAY.callAgain); showChoice(); showHand(i); later(hideHand, 2600); return; }
     if (st.phase === "roll") return rollDice();
     if (st.phase === "hop" && !save.auto) return hopOnce();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
@@ -3133,6 +3308,7 @@
       if (game.board.game === "bingo") { afterBingoRoll(ev); return; }
       if (game.board.game === "snow") { afterSnowRoll(ev); return; }
       if (st.phase === "choose") { showChoice(); if (st.seats[st.turn].cpu) later(cpuChoose, T.cpuHop); else sayPlay(save.intro.pickdie ? SAY.pickDieAgain : SAY.pickFirstDie); return; }
+      if (st.phase === "call") { showChoice(); if (st.seats[st.turn].cpu) later(cpuCall, T.cpuHop); else sayPlay(save.intro.call ? SAY.callAgain : SAY.callFirst); return; }
       if (st.seats[st.turn].cpu) { later(cpuHop, T.cpuHop); return; }
       if (!save.intro[introKey()]) { sayPlay(hopLine()); showHand(st.turn); }
       if (save.auto) autoHops();
@@ -3174,7 +3350,7 @@
     if (game.busy) return;
     const st = game.st;
     if (st.phase === "done" || !st.seats[st.turn].cpu) return;
-    if (game.board.game === "cards") return flipCard();
+    if (game.board.game === "cards") return st.phase === "twocards" ? cpuPickCard() : flipCard();
     // A turn can come back HALF DONE: the iPad slept, he went 🏠 and back,
     // or the page reloaded, after the computer took its food or flipped its
     // card but before it answered. Starting the turn again does nothing in
@@ -3201,6 +3377,7 @@
     if (game.board.game === "hilo") return cpuHilo();
     if (game.board.game === "train") return cpuTrain();
     if (st.phase === "choose") return cpuChoose();
+    if (st.phase === "call") return cpuCall();
     if (st.phase === "roll") return rollDice();
     if (st.phase === "spin") return game.board.game === "hen" ? spinFarm() : spinApples();
     if (game.board.game === "spin" && st.phase === "pick") return cpuPick();
@@ -3275,7 +3452,7 @@
       persistGame();
       return;
     }
-    if (!save.intro.lotto && !st.seats[ev[0].seat].cpu) { save.intro.lotto = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   // Every food on the two blankets: the ones placed in full colour, the ones
@@ -3340,7 +3517,7 @@
     hideHand();
     // the TAPPER's seat, read off the event: a pick that ends the turn has
     // already handed st.turn to the other player (hopOnce reads it the same way)
-    if (!save.intro.spin && !st.seats[ev[0].seat].cpu) { save.intro.spin = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
   function cpuPick() {
@@ -3424,7 +3601,7 @@
     hideHand();
     const ev = L.drawCard(game.st);
     if (!ev.length) { game.busy = false; return; }
-    if (!save.intro.cards && !game.st.seats[ev[0].seat].cpu) { save.intro.cards = true; persist(); }
+    if (!save.intro[teachKey(game.board)] && !game.st.seats[ev[0].seat].cpu) { save.intro[teachKey(game.board)] = true; persist(); }
     playEvents(ev);
   }
 
@@ -3495,7 +3672,7 @@
           v.held = null; v.pair = [e.a, e.b];
           paintTen();
           SFX.boost();
-          sayPlay(fill(SAY.honeyPair, { a: e.na, b: e.nb, n: nameOf(e.seat) }));
+          sayPlay(fill(honeyLine("honeyPair"), { a: e.na, b: e.nb, n: nameOf(e.seat) }));
           cheer(e.seat, true);
         });
         at(T.ride, () => { landStar(e.seat); paintBoardLabel(); });
@@ -3505,7 +3682,7 @@
           v.held = null; v.miss = [e.a, e.b];
           paintTen();
           SFX.tick();
-          sayPlay(fill(SAY.honeyMiss, { a: e.na, b: e.nb, c: e.sum }));
+          sayPlay(fill(honeyLine("honeyMiss"), { a: e.na, b: e.nb, c: e.sum }));
         });
         at(T.look, () => { if (game.tv2) { game.tv2.miss = []; paintTen(); } });
       } else if (e.type === "tenFresh") {
@@ -3548,15 +3725,16 @@
           game.sv.fresh = e.part; game.sv.who = e.mover;
           paintSnow(); paintBoardLabel();
           SFX.plop(e.part);
-          sayPlay(fill(SAY.snowOn, { w: snowSay(e.part) }));
+          if (e.gift) { sayPlay(fill(SAY.snowGave, { n: nameOf(e.mover) })); cheer(e.seat, true); }
+          else sayPlay(fill(SAY.snowOn, { w: snowSay(e.part) }));
         });
-        at(T.card, () => {});
+        at(T.card, () => { if (e.gift) { landStar(e.seat); paintBoardLabel(); } });
       } else if (e.type === "snowDone") {
         at(0, () => { SFX.home(); sayPlay(fill(SAY.snowDone, { n: nameOf(e.seat) })); cheer(e.seat, true); });
         at(T.ride, () => { landStar(e.seat); });
       } else if (e.type === "bingoNone") {
         // 🔢 the number is not on the card: said, and the turn passes
-        at(0, () => { SFX.tick(); sayPlay(fill(SAY.bingoNone, { d: e.die })); });
+        at(0, () => { SFX.tick(); sayPlay(e.dice ? fill(SAY.bingoSumNone, { a: e.dice[0], b: e.dice[1], d: e.die }) : fill(SAY.bingoNone, { d: e.die })); });
         at(T.look, () => {});
       } else if (e.type === "cover") {
         // 🔢 a counter in the card owner's colour lands on the number; a line
@@ -3571,7 +3749,7 @@
             sayPlay(fill(SAY.bingoLine, { n: nameOf(e.mover) }));
             cheer(e.mover, true);
             for (let j = 0; j < e.lines.length; j++) later(() => { landStar(e.mover); paintBoardLabel(); }, T.ride * (j + 1) / e.lines.length);
-          } else sayPlay(String(e.n));
+          } else sayPlay(e.dice ? fill(SAY.bingoSum, { a: e.dice[0], b: e.dice[1], d: e.n }) : String(e.n));
           paintBoardLabel();
         });
         at(e.lines.length ? T.ride : T.card, () => { if (game.bv) game.bv.lines = []; });
@@ -3594,6 +3772,9 @@
           paintBoardLabel();
         });
         at(T.ride, () => { game.doorsGo = null; });
+      } else if (e.type === "doorsAgain") {
+        // 🚪 nine doors: two at once is another go
+        at(0, () => { SFX.boost(); sayPlay(fill(SAY.doorsAgain, { n: nameOf(e.seat) })); });
       } else if (e.type === "hole") {
         // 🏴‍☠️ not here: the hole shows an arrow toward the treasure
         at(0, () => {
@@ -3612,13 +3793,39 @@
           cheer(e.seat, true);
         });
         at(T.ride, () => { landStar(e.seat); paintBoardLabel(); });
+      } else if (e.type === "twocards") {
+        // 🌈 two cards flip over the pads, and each lights its square
+        at(0, () => { SFX.flip(); showChoice(); paintPads(); });
+        at(T.card, () => {});
+      } else if (e.type === "pickcard") {
+        at(0, () => { hideChoice(); });
+      } else if (e.type === "call") {
+        // 🔭 the call: right is a ⭐ and the sum said ("12 and 3 more is
+        // 15!"); a miss says nothing against him — "let's hop and count"
+        at(0, () => {
+          hideChoice();
+          paintPads();
+          if (e.right) {
+            SFX.boost();
+            sayPlay(fill(SAY.callRight, { a: e.from, d: e.die, to: e.to }));
+            popOnSquare(e.to, String(e.to));
+            cheer(e.seat, true);
+          } else {
+            SFX.thunk();
+            sayPlay(SAY.callMiss);
+          }
+        });
+        at(T.ride, () => { if (e.right) landStar(e.seat); paintBoardLabel(); });
       } else if (e.type === "choose") {
         // 🎲 the die he picked is the roll: the choice goes, its dots light
+        // …and is said as a SUM, where it lands short of the Moon ("12 and 3
+        // more is 15!"); the hops then count it out
+        const from = game.st.seats[e.mover].pos, to = from + e.die;
         at(0, () => {
           hideChoice();
           paintPads();
           SFX.thunk();
-          sayPlay(String(e.die));
+          sayPlay(to < game.board.size ? fill(SAY.pickSum, { a: from, d: e.die, to }) : String(e.die));
         });
         at(T.glide, () => {});
       } else if (e.type === "grab") {
@@ -3767,9 +3974,9 @@
         at(T.glide, () => {
           const v = game.mv;
           v.dice = e.dice.slice(); v.held = [false, false, false]; v.left = 0;
-          v.glow = e.stars ? L.m3Keep(e.dice) : [];
+          v.glow = e.stars ? L.m3Made(e.dice, game.board.run) : [];
           paintM3();
-          if (e.stars) { SFX.home(); sayPlay(fill(e.stars === 3 ? SAY.m3Three : SAY.m3Pair, { n: nameOf(e.seat) })); cheer(e.seat, true); }
+          if (e.stars) { SFX.home(); sayPlay(fill(e.stars === 3 ? SAY.m3Three : e.run ? SAY.m3Run : SAY.m3Pair, { n: nameOf(e.seat), a: Math.min(...e.dice), c: Math.max(...e.dice) })); cheer(e.seat, true); }
           else { SFX.whoosh(); sayPlay(SAY.m3None); }
         });
         for (let k = 0; k < e.stars; k++) at(k ? T.glide : T.ride, () => { landStar(e.seat); paintBoardLabel(); });
@@ -3979,6 +4186,22 @@
           paintBoardLabel();
         });
         at(900, () => {});
+        // …and the whole hen house is counted by TENS (§18: the pie's finale
+        // shape, and the count he has mastered): "10, 20, 30… 35!", each
+        // popped over the hen house so it reads with the sound off
+        const tensOf = [];
+        for (let k = 10; k <= e.coop; k += 10) tensOf.push(k);
+        if (e.coop % 10) tensOf.push(e.coop);
+        for (const k of tensOf) {
+          at(T.ten, () => {
+            if (!game) return;
+            const c = R.centre(game.board, game.board.size);
+            popAt({ x: c.x / (game.board.cols * R.CELL), y: (c.y + R.CELL * 0.35) / (game.board.rows * R.CELL) }, String(k), true);
+            SFX.ten();
+            sayPlay(String(k));
+          });
+        }
+        at(T.ten, () => {});
       } else if (e.type === "hop" && e.ten) {
         // 💯 a ten-bar: one slide straight DOWN one row of the chart, ten
         // more ("24… 34! Ten more!"): slower than a hop, so the straight-down
@@ -3991,11 +4214,12 @@
         paintBoardLabel();
         at(T.ten, () => {});
       } else if (e.type === "hop") {
+        // (the NUMBER the square wears: on a skip-counting board, 2, 4, 6…)
         moveToken(e.seat, e.to, T.hop);
         paintPads();
         SFX.hop(e.to);
-        sayPlay(String(e.to));
-        popOnSquare(e.to, String(e.to));
+        sayPlay(String(L.labelOf(game.board, e.to)));
+        popOnSquare(e.to, String(L.labelOf(game.board, e.to)));
         paintBoardLabel();
       } else if (e.type === "pick") {
         // one apple from the tree into the next slot of the ten-frame
@@ -4023,7 +4247,7 @@
           paintApples();
           flyAway(from, R.treeSpot(e.seat, e.to), T.ride);
           SFX.tweet();
-          sayPlay(fill(SAY.bird, { to: e.to }));
+          sayPlay(fill(SAY.bird, { from: e.to + 1, to: e.to }));
           popAt(orchardFrac(R.slotOf(e.seat, Math.max(0, e.to - 1))), String(e.to));
           paintPads();
           paintBoardLabel();
@@ -4098,7 +4322,7 @@
           popOnSquare(e.at, "⭐");
           landStar(e.seat);
           SFX.boost();
-          sayPlay(fill(SAY.tens, { to: e.at }));
+          sayPlay(fill(SAY.tens, { to: L.labelOf(game.board, e.at) }));
           cheer(e.seat);
           paintPads();
         });
@@ -4148,6 +4372,18 @@
           else if (st.phase === "lay") sayPlay(SAY.domFirst);
         });
       }
+      // 🌈 two cards up: his to pick (or the computer's)
+      if (game.board.game === "cards" && game.st.phase === "twocards") {
+        at(0, () => {
+          if (!game) return;
+          game.busy = false;
+          paintPads();
+          showChoice();
+          const st = game.st;
+          if (st.seats[st.turn].cpu) later(cpuPickCard, T.cpuThink);
+          else { sayPlay(save.intro.rainbow2 ? SAY.twoAgain : SAY.twoFirst); if (!save.intro.rainbow2) showHand(st.turn); }
+        });
+      }
       // 🐟 asked (the friend answers), or a pair made (ask again)
       if (game.board.game === "fish") {
         at(0, () => {
@@ -4173,6 +4409,18 @@
           const st = game.st;
           if (st.phase === "keep" && st.seats[st.turn].cpu) later(cpuM3, T.cpuThink);
           else if (st.phase === "keep" && !game.m3Told) { game.m3Told = true; sayPlay(SAY.m3Keep); }
+        });
+      }
+      // 🚪 two doors at once on nine doors: he rolls again (or the computer)
+      if (game.board.game === "doors" && game.st.phase === "roll") {
+        at(0, () => {
+          if (!game) return;
+          game.busy = false;
+          game.rolled = false;
+          paintPads();
+          paintDoors();
+          const st = game.st;
+          if (st.seats[st.turn].cpu) later(cpuTurn, T.cpuHop);
         });
       }
       // 🌰 a last acorn in the nest: his next pot (or the computer's)
@@ -4397,6 +4645,10 @@
     const card = game && game.board.game === "pairs" ? pairsEl.querySelector("button.bn-pc:not(.bn-pc--up)")
       : game && game.board.game === "dig" ? digEl.querySelector("button.bn-sand")
       : game && game.st.phase === "choose" && !chooseEl.hidden ? chooseEl.querySelector("button.bn-pickd--hint") || chooseEl.querySelector("button.bn-pickd")
+      // (🔭 the right number only where it glows; else the die on his pad, the question)
+      : game && game.st.phase === "call" && !chooseEl.hidden ? chooseEl.querySelector("button.bn-pickd--hint")
+      // (🌈 either card is a fair move: the lit one, else the first)
+      : game && game.st.phase === "twocards" && !chooseEl.hidden ? chooseEl.querySelector("button.bn-pickd--hint") || chooseEl.querySelector("button.bn-pickd")
       : game && game.board.game === "grab" ? grabEl.querySelector("button.bn-swatch--hint") || grabEl.querySelector("button.bn-swatch")
       : game && game.board.game === "top" ? topEl.querySelector("button.bn-tc--hint") || topEl.querySelector("button.bn-tc")
       : game && game.board.game === "lines" ? linesEl.querySelector("button.bn-col--hint") || linesEl.querySelector("button.bn-col")
@@ -4483,7 +4735,7 @@
         later(() => { if (!shelf.hidden) say(SAY.shelf); }, 300);
         return true;
       }
-      let m = /^board-who-([a-z]+)$/.exec(id);
+      let m = /^board-who-([a-z0-9]+)$/.exec(id);
       if (m) {
         const b = DATA.box(m[1]);
         if (!b || !boxOpen(b)) return false;
@@ -4493,7 +4745,7 @@
         later(() => { if (!who.hidden) say(SAY.who); }, 300);
         return true;
       }
-      m = /^board-pick-([a-z]+)-(cpu|here)$/.exec(id);
+      m = /^board-pick-([a-z0-9]+)-(cpu|here)$/.exec(id);
       if (m) {
         const b = DATA.box(m[1]);
         if (!b || !boxOpen(b)) return false;

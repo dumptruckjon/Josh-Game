@@ -46,7 +46,7 @@
   const LEVEL_GAMES = ["pairs", "doors", "acorns", "dig", "nim", "lines", "top", "grab", "match3", "maze", "hide", "fish", "ten", "hilo", "train"];
   function levelled(boardId) {
     const b = DATA.board(boardId);
-    return !!b && (LEVEL_GAMES.indexOf(b.game) >= 0 || (b.game === "dice" && !!b.two));
+    return !!b && (LEVEL_GAMES.indexOf(b.game) >= 0 || (b.game === "dice" && (!!b.two || !!b.call)) || (b.game === "cards" && !!b.pick2));
   }
   // A CLEVER move is named (`smart`), and a missed one too (`oops`) — only
   // when there was BOTH a clever move and a plain one to choose from, so the
@@ -101,6 +101,10 @@
     const k = i % board.cols;
     return { col: row % 2 === 0 ? k : board.cols - 1 - k, row };
   }
+  // The NUMBER a square wears. On most boards it is the square's own count;
+  // on a skip-counting board (`step`) every square is `step` more than the
+  // last and the first is 0 — so a hop along it counts 2, 4, 6…
+  function labelOf(board, n) { return board.step ? (n - 1) * board.step : n; }
   function jumpAt(board, n) { return (board.jumps || []).find((j) => j.from === n) || null; }
   // Rainbow Trail: the colour of square n (null on the start and the cake)
   function colourAt(board, n) {
@@ -167,6 +171,10 @@
     if (spin) { st.pie = 0; st.birds = !!opts.birds; }
     // 🎲 a two-dice board: the two dice rolled, while he picks one
     if (board.two) st.dice = [];
+    // 🌈 a two-card board: the two cards offered, while he picks one
+    if (board.pick2) st.offer = [];
+    // 🔭 a calling board: the three landings he may call, while he calls one
+    if (board.call) st.calls = [];
     // 🐔 co-op: ONE hen for both (both seats stand where she stands), the
     // chicks she has brought home, and the chicks out playing with the fox
     if (board.game === "hen") { st.coop = 0; st.out = 0; st.fox = !!opts.fox; }
@@ -210,7 +218,8 @@
     // played (`gone`, in trick order, so trick t is gone[0][t] v gone[1][t]).
     // `lead` leads this trick; `first` led the first, and the lead alternates.
     if (board.game === "top") {
-      st.piles = [0, 1].map((i) => shuffle(seats[i], Array.from({ length: board.deck }, (x, k) => k + 1)));
+      // (🔟 Teen Top Card's cards start at `low`, 11: its ten cards are 11 to 20)
+      st.piles = [0, 1].map((i) => shuffle(seats[i], Array.from({ length: board.deck }, (x, k) => k + (board.low || 1))));
       st.hands = st.piles.map((p) => p.splice(0, board.hand));
       st.table = [null, null];
       st.gone = [[], []];
@@ -235,20 +244,21 @@
     // turns each player has played (`pos`)
     if (board.game === "maze") mazeSetup(st, board);
     if (board.game === "cmatch") { cmDeal(st, seats[0]); st.round = 0; }
-    if (board.game === "snow") st.parts = [[1], [1]];
+    if (board.game === "snow") { st.parts = [[1], [1]]; st.gift = null; }
     if (board.game === "fish") fishDeal(st, seats[0], board);
     if (board.game === "train") { st.round = 0; trainDeal(st, seats[0]); }
     if (board.game === "hilo") {
       st.deck = shuffle(seats[0], Array.from({ length: 20 }, (x, k) => (k % 10) + 1));
       st.top = st.deck.pop(); st.flips = 0;
     }
+    if (board.game === "doors" && board.size === 9) st.dice = [];
     if (board.game === "ten") {
-      st.deck = shuffle(seats[0], Array.from({ length: 18 }, (x, k) => (k % 9) + 1));
+      st.deck = shuffle(seats[0], tenCards(board));
       st.flowers = st.deck.splice(0, board.cols * board.rows);
       st.held = null; st.made = [];
       tenFill(st, seats[0]);
     }
-    if (board.game === "bingo") { st.cardsB = seats.map((s) => bingoCard(s)); st.covered = [0, 1].map(() => new Array(9).fill(false)); st.misses = 0; }
+    if (board.game === "bingo") { st.cardsB = seats.map((s) => bingoCard(s, board)); if (board.sums) st.dice = []; st.covered = [0, 1].map(() => new Array(9).fill(false)); st.misses = 0; }
     if (board.game === "hide") { hideRound(st, seats[0]); st.found = 0; st.asks = []; hideDeal(st); }
     if (board.game === "match3") { st.dice = [0, 0, 0]; st.held = [false, false, false]; st.left = 0; }
     if (board.game === "lines") { st.grid = new Array(board.cols * board.rows).fill(-1); st.boardNo = 0; st.first = first; }
@@ -318,21 +328,40 @@
   // ---- 🚪 Shut the Doors -------------------------------------------------------
   // The ways to make `d` from the mover's open doors: the door itself, or two
   // different doors that add up to it
+  // (🚪 Doors to Nine, the level two, has nine doors and TWO dice — one die
+  // once its 7, 8 and 9 are shut, as in the classic box, so a last small door
+  // can always be made)
+  const doorCount = (board) => board.size;
+  const twoDoorDice = (st, m) => doorCount(DATA.board(st.board)) === 9 && [7, 8, 9].some((n) => st.seats[m].shut.indexOf(n) < 0);
   function doorWays(st) {
-    const shut = st.seats[st.mover].shut, d = st.die, open = (n) => n >= 1 && n <= 6 && shut.indexOf(n) < 0;
+    const N = doorCount(DATA.board(st.board));
+    const shut = st.seats[st.mover].shut, d = st.die, open = (n) => n >= 1 && n <= N && shut.indexOf(n) < 0;
     const ways = [];
     if (open(d)) ways.push([d]);
     for (let a = 1; a < d - a; a++) if (open(a) && open(d - a)) ways.push([a, d - a]);
     return ways;
   }
   function rollDoors(st) {
-    const seat = st.seats[st.turn];
-    st.die = draw(seat, () => dieBag(seat, DATA.board(st.board)));
-    st.rolls += 1;
+    const seat = st.seats[st.turn], board = DATA.board(st.board);
     st.mover = moverFor(st, st.turn);
+    if (doorCount(board) === 9) {
+      // two dice from his own fair bag (two draws), or one once 7-9 are shut.
+      // Nine doors leave many rolls that fit nothing near the end (measured:
+      // a median of fourteen "roll again"s a game), so a roll that fits
+      // nothing is rolled again in the same tap — every die still from his
+      // own fair bag — and he only ever sees a roll he can use
+      for (let guard = 0; guard < 60; guard++) {
+        st.dice = [draw(seat, () => dieBag(seat, board))];
+        if (twoDoorDice(st, st.mover)) st.dice.push(draw(seat, () => dieBag(seat, board)));
+        st.die = st.dice.reduce((a, b) => a + b, 0);
+        if (doorWays(st).length) break;
+      }
+    } else st.die = draw(seat, () => dieBag(seat, board));
+    st.rolls += 1;
     st.held = null;
     st.misses = 0;
     const ev = [{ type: "roll", seat: st.turn, die: st.die, mover: st.mover }];
+    if (st.dice) ev[0].dice = st.dice.slice();
     if (!doorWays(st).length) {
       // nothing fits: never a lost turn — roll again (the fair bag brings
       // every number within six rolls), so every turn shuts a door
@@ -347,10 +376,10 @@
   // kind miss (the doors stay as they are).
   function shutDoor(st, n) {
     if (st.game !== "doors" || st.phase !== "shut") return [];
-    const m = st.mover, s = st.seats[m], d = st.die;
-    if (!int(n) || n < 1 || n > 6 || s.shut.indexOf(n) >= 0) return [];
+    const m = st.mover, s = st.seats[m], d = st.die, N = doorCount(DATA.board(st.board));
+    if (!int(n) || n < 1 || n > N || s.shut.indexOf(n) >= 0) return [];
     if (st.held === n) return [];   // the door already held (the hammer's echo)
-    const open = (x) => x >= 1 && x <= 6 && s.shut.indexOf(x) < 0;
+    const open = (x) => x >= 1 && x <= N && s.shut.indexOf(x) < 0;
     let doors = null;
     if (n === d) doors = [n];
     else if (st.held != null && st.held + n === d) doors = [st.held, n];
@@ -362,7 +391,15 @@
     st.held = null;
     st.misses = 0;
     const ev = [{ type: "shut", seat: st.turn, mover: m, doors, die: d, count: s.pos }];
-    if (s.pos === 6) arrive(st, m, ev);
+    if (st.dice) { ev[0].dice = st.dice.slice(); st.dice = []; }
+    if (s.pos === N) arrive(st, m, ev);
+    // 🚪 nine doors: two at once is a ⭐ AND another go — the skill pays, and
+    // the swing keeps the race from being the starter's (76% without it)
+    if (N === 9 && doors.length === 2 && s.pos < N) {
+      st.phase = "roll";
+      ev.push({ type: "doorsAgain", seat: st.turn, mover: m });
+      return ev;
+    }
     endTurn(st, ev);
     return ev;
   }
@@ -374,9 +411,14 @@
     // a friend with its own level looks for TWO doors (the ⭐) that often;
     // with none, any way — exactly as before
     const s = st.seats[st.turn];
+    // (and otherwise the plain move, the one door — so a duller friend
+    // really does take fewer ⭐s, on nine doors too, where most ways are two)
     if (typeof s.sharp === "number") {
       const two = ways.filter((w) => w.length === 2);
-      if (two.length && two.length < ways.length && next(s) < s.sharp) return two[Math.floor(next(s) * two.length)];
+      if (two.length && two.length < ways.length) {
+        if (next(s) < s.sharp) return two[Math.floor(next(s) * two.length)];
+        return ways.filter((w) => w.length === 1)[0];
+      }
     }
     return ways[Math.floor(next(s) * ways.length)];
   }
@@ -737,12 +779,17 @@
   // patterns growing (AB, then AAB and ABB, then ABC and AABB): one party.
   const TRAIN_PATTERNS = ["AB", "AB", "AAB", "ABB", "ABC", "AABB", "ABC", "AAB"];
   const TRAIN_SHOWN = 5;
+  // (a board may bring its own: 🚂 Long Train's longer patterns, §18, need
+  // more cars shown so one whole repeat is always in sight)
+  const trainPats = (board) => board.patterns || TRAIN_PATTERNS;
+  const trainShown = (board) => board.shown || TRAIN_SHOWN;
   function trainDeal(st, s) {
+    const board = DATA.board(st.board), PATS = trainPats(board), SHOWN = trainShown(board);
     const ids = shuffle(s, DATA.COLOURS.map((c) => c.id));
-    const pat = TRAIN_PATTERNS[st.round % TRAIN_PATTERNS.length];
+    const pat = PATS[st.round % PATS.length];
     const col = (ch) => ids["ABC".indexOf(ch)];
-    st.cars = Array.from({ length: TRAIN_SHOWN }, (x, k) => col(pat[k % pat.length]));
-    st.answer = col(pat[TRAIN_SHOWN % pat.length]);
+    st.cars = Array.from({ length: SHOWN }, (x, k) => col(pat[k % pat.length]));
+    st.answer = col(pat[SHOWN % pat.length]);
     // the answer and two others: a colour of the pattern that is not next
     // (when there is one), and one the pattern never uses
     const inPat = [...new Set(pat.split("").map(col))].filter((c) => c !== st.answer);
@@ -833,21 +880,29 @@
   // The meadow always holds a ten to find. Every ten made, one party. The
   // skill: knowing what makes ten (a held card's ten-frame shows how many
   // more it needs).
-  function tenHasPair(v) {
-    const live = v.filter((x) => x > 0);
-    return live.some((x, k) => live.some((y, j) => j !== k && x + y === 10));
+  // (🍯 Honey Twenty, the level two, makes `target` 20 from 1 to 9 and 11 to
+  // 19, once each: every twenty is a teen and its little one)
+  const tenTarget = (board) => board.target || 10;
+  function tenCards(board) {
+    if (tenTarget(board) === 10) return Array.from({ length: 18 }, (x, k) => (k % 9) + 1);
+    return Array.from({ length: 9 }, (x, k) => k + 1).concat(Array.from({ length: 9 }, (x, k) => k + 11));
+  }
+  function tenHasPair(v, T) {
+    const live = v.filter((x) => x > 0), t = T || 10;
+    return live.some((x, k) => live.some((y, j) => j !== k && x + y === t));
   }
   // fill the empty places from the deck, then make sure there is a ten to find
   function tenFill(st, s) {
     for (let k = 0; k < st.flowers.length; k++) if (!st.flowers[k] && st.deck.length) st.flowers[k] = st.deck.pop();
+    const T = tenTarget(DATA.board(st.board));
     let g = 0;
-    while (!tenHasPair(st.flowers) && st.deck.length && g++ < 40) {
+    while (!tenHasPair(st.flowers, T) && st.deck.length && g++ < 40) {
       // swap a flower for a deck card that makes ten with another flower
       const live = st.flowers.map((x, k) => k).filter((k) => st.flowers[k] > 0);
-      const want = st.deck.map((x, j) => j).filter((j) => live.some((k) => st.flowers[k] + st.deck[j] === 10));
+      const want = st.deck.map((x, j) => j).filter((j) => live.some((k) => st.flowers[k] + st.deck[j] === T));
       if (!want.length) break;
       const j = want[Math.floor(next(s) * want.length)];
-      const partner = live.filter((k) => st.flowers[k] + st.deck[j] === 10);
+      const partner = live.filter((k) => st.flowers[k] + st.deck[j] === T);
       const out = live.filter((k) => partner.indexOf(k) < 0 || partner.length > 1);
       const k = out[Math.floor(next(s) * out.length)];
       const was = st.flowers[k];
@@ -860,9 +915,9 @@
     const i = st.turn, s = st.seats[i], v = st.flowers;
     if (!int(k) || k < 0 || k >= v.length || !v[k] || k === st.held) return [];
     if (st.held == null) { st.held = k; return [{ type: "tenHold", seat: i, k, n: v[k] }]; }
-    const a = st.held, ev = [];
+    const a = st.held, ev = [], T = tenTarget(DATA.board(st.board));
     st.held = null; st.rolls += 1;
-    if (v[a] + v[k] !== 10) {
+    if (v[a] + v[k] !== T) {
       ev.push({ type: "tenMiss", seat: i, a, b: k, sum: v[a] + v[k], na: v[a], nb: v[k] });
       endTurn(st, ev);
       return ev;
@@ -872,7 +927,7 @@
     ev.push({ type: "tenPair", seat: i, a, b: k, na: v[a], nb: v[k] });
     v[a] = 0; v[k] = 0;
     tenFill(st, s);
-    if (!tenHasPair(v)) {
+    if (!tenHasPair(v, T)) {
       for (const x of st.seats) x.home = true;
       st.order = [0, 1];
       st.phase = "done";
@@ -885,8 +940,8 @@
   }
   // the tens in the meadow, as pairs of places
   function tenPairs(st) {
-    const v = st.flowers, out = [];
-    for (let a = 0; a < v.length; a++) for (let b = a + 1; b < v.length; b++) if (v[a] && v[b] && v[a] + v[b] === 10) out.push([a, b]);
+    const v = st.flowers, out = [], T = tenTarget(DATA.board(st.board));
+    for (let a = 0; a < v.length; a++) for (let b = a + 1; b < v.length; b++) if (v[a] && v[b] && v[a] + v[b] === T) out.push([a, b]);
     return out;
   }
   // the computer finds a ten only `TEN_SHARP` of the time (else it tries two
@@ -1031,6 +1086,16 @@
     st.rolls += 1;
     const have = st.parts[st.mover];
     const ev = [{ type: "roll", seat: i, die: st.die, mover: st.mover }];
+    // 🎁 a part his snowman cannot take, the FRIEND's can: a gift (§18). He
+    // gives it with a tap on the friend's snowman — a turn that used to pass
+    // with nothing is a kind one, and it earns him a ⭐.
+    const o = other(st.mover);
+    if (!snowCan(have, st.die) && !st.seats[o].home && snowCan(st.parts[o], st.die)) {
+      st.gift = o;
+      st.phase = "build";
+      ev.push({ type: "giftUp", seat: i, mover: st.mover, to: o, part: snowWhich(st.parts[o], st.die) });
+      return ev;
+    }
     if (!snowCan(have, st.die)) {
       ev.push({ type: "snowNot", seat: i, mover: st.mover, part: st.die, need: have.indexOf(st.die) >= 0 ? 0 : SNOW_NEEDS[st.die] });
       st.die = 0;
@@ -1043,10 +1108,11 @@
   // The tap on the snowman: the part rolled goes on
   function buildSnow(st) {
     if (st.game !== "snow" || st.phase !== "build") return [];
-    const m = st.mover, i = st.turn, p = snowWhich(st.parts[m], st.die), owner = st.seats[m];
+    const gift = st.gift != null, m = gift ? st.gift : st.mover, i = st.turn, p = snowWhich(st.parts[m], st.die), owner = st.seats[m];
     st.parts[m].push(p);
     owner.pos += 1;
     const ev = [{ type: "build", seat: i, mover: m, part: p, magic: st.die === SNOW_MAGIC }];
+    if (gift) { ev[0].gift = true; st.seats[i].stars += 1; st.gift = null; }
     st.die = 0;
     if (owner.pos === 6 && !owner.home) {
       owner.home = true; owner.stars += 1;
@@ -1066,7 +1132,18 @@
   // card is home, and its owner's rolls then help cover the friend's card (the
   // helper rule), so the game ends when both cards are full, with one party.
   const BINGO_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
-  function bingoCard(s) {
+  // ➕ Sum Bingo (`sums`, §18): TWO little dice of one to three dots, and the
+  // number to find is ALL the dots — 2 to 6. Two dice land on the middle most
+  // (a 4 three ways in nine, a 2 or a 6 one), so the card holds the numbers
+  // in exactly those shares, 2 3 3 4 4 4 5 5 6 — and the fair bag holds the
+  // nine ways two dice can fall (1+1, 1+2 … 3+3) TWICE, so no square waits
+  // for ever, yet who fills first is still luck (one set a bag made the
+  // starter win every time).
+  function bingoNums(board) { return board.sums ? [2, 3, 4, 5, 6] : [1, 2, 3, 4, 5, 6]; }
+  const SUM_CARD = [2, 3, 3, 4, 4, 4, 5, 5, 6];
+  const SUM_BAG = [0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8];
+  function bingoCard(s, board) {
+    if (board && board.sums) return shuffle(s, SUM_CARD.slice());
     const extra = shuffle(s, [1, 2, 3, 4, 5, 6]).slice(0, 3);
     return shuffle(s, [1, 2, 3, 4, 5, 6].concat(extra));
   }
@@ -1076,13 +1153,20 @@
   function rollBingo(st) {
     const i = st.turn, seat = st.seats[i];
     st.mover = moverFor(st, i);
-    st.die = draw(seat, () => dieBag(seat, DATA.board(st.board)));
+    const board = DATA.board(st.board);
+    if (board.sums) {
+      const c = draw(seat, () => shuffle(seat, SUM_BAG.slice()));
+      st.dice = [1 + Math.floor(c / 3), 1 + (c % 3)];
+      st.die = st.dice[0] + st.dice[1];
+    } else st.die = draw(seat, () => dieBag(seat, board));
     st.rolls += 1;
     st.misses = 0;
     const ev = [{ type: "roll", seat: i, die: st.die, mover: st.mover }];
+    if (board.sums) ev[0].dice = st.dice.slice();
     if (!bingoSpots(st).length) {
-      ev.push({ type: "bingoNone", seat: i, mover: st.mover, die: st.die });
+      ev.push({ type: "bingoNone", seat: i, mover: st.mover, die: st.die, dice: board.sums ? st.dice.slice() : undefined });
       st.die = 0;
+      if (board.sums) st.dice = [];
       endTurn(st, ev);
       return ev;
     }
@@ -1106,6 +1190,7 @@
     const lines = BINGO_LINES.filter((l) => l.indexOf(k) >= 0 && l.every((j) => st.covered[m][j]));
     owner.stars += bingoLinesOf(st.covered[m]) - before;
     const ev = [{ type: "cover", seat: i, mover: m, k, n: st.die, lines }];
+    if (st.dice) { ev[0].dice = st.dice.slice(); st.dice = []; }
     st.die = 0; st.misses = 0;
     if (owner.pos === 9 && !owner.home) {
       owner.home = true;
@@ -1204,10 +1289,21 @@
   // 1-6 deals three DIFFERENT faces every time, so three dice could never
   // match — the whole game. Three independent dice are the honest ones.
   const m3Die = (st) => 1 + Math.floor(next(st.seats[st.turn]) * 6);
-  // How the three dice score: three the same 3, two the same 1, else 0
-  function m3Score(dice) {
+  // How the three dice score: three the same 3, two the same 1, else 0 — and
+  // on 🎲 Dice Run's board (`run`, §18 D) three in a row (4-5-6, any order) 2
+  const isRun = (dice) => { const d = dice.slice().sort((x, y) => x - y); return d[1] === d[0] + 1 && d[2] === d[1] + 1; };
+  function m3Score(dice, run) {
     const a = dice[0], b = dice[1], c = dice[2];
-    return a === b && b === c ? 3 : a === b || b === c || a === c ? 1 : 0;
+    if (a === b && b === c) return 3;
+    if (run && isRun(dice)) return 2;
+    return a === b || b === c || a === c ? 1 : 0;
+  }
+  // The dice that MADE a score (the ones that glow): all three for three the
+  // same or a run, the two for a pair
+  function m3Made(dice, run) {
+    const got = m3Score(dice, run);
+    if (got >= 2) return [true, true, true];
+    return dice.map((d, k) => dice.some((e, j) => j !== k && e === d));
   }
   // The roll: the first of a turn rolls all three; after that, the dice not
   // kept. When the re-rolls are used up (or every die is kept) the turn
@@ -1222,26 +1318,26 @@
       st.left = board.rerolls;
       st.rolls += 1;
       ev.push({ type: "roll3", seat: i, dice: st.dice.slice(), all: true });
-      if (m3Score(st.dice) === 3) return scoreMatch(st, ev);
+      if (m3Score(st.dice, board.run) === 3) return scoreMatch(st, ev);
       st.phase = "keep";
       return ev;
     }
     if (st.held.every(Boolean)) return scoreMatch(st, ev);
     // clever: rolling again with the matching dice KEPT (and only those)
-    const keep = m3Keep(st.dice), some = keep.some(Boolean);
+    const keep = m3Keep(st.dice, board.run, st.left), some = keep.some(Boolean);
     const sm = judged(i, "keep", keep.every((x, k) => x === st.held[k]), some);
     st.dice = st.dice.map((d, k) => (st.held[k] ? d : m3Die(st)));
     st.left -= 1;
     ev.push({ type: "roll3", seat: i, dice: st.dice.slice(), all: false });
     if (sm) ev.push(sm);
-    if (st.left <= 0 || m3Score(st.dice) === 3) return scoreMatch(st, ev);
+    if (st.left <= 0 || m3Score(st.dice, board.run) === 3) return scoreMatch(st, ev);
     return ev;
   }
   function scoreMatch(st, ev) {
     const board = DATA.board(st.board), i = st.turn, s = st.seats[i];
-    const got = m3Score(st.dice);
+    const got = m3Score(st.dice, board.run);
     s.stars += got; s.pos += 1;
-    ev.push({ type: "match", seat: i, stars: got, dice: st.dice.slice() });
+    ev.push({ type: "match", seat: i, stars: got, dice: st.dice.slice(), run: !!board.run && got === 2 });
     st.held = [false, false, false]; st.left = 0;
     if (st.seats.every((x) => x.pos >= board.rounds)) {
       for (const x of st.seats) x.home = true;
@@ -1261,15 +1357,49 @@
   }
   // The dice worth keeping: the ones that match another (or, with no match,
   // none — roll all three again)
-  function m3Keep(dice) {
-    return dice.map((d, k) => dice.some((e, j) => j !== k && e === d));
+  // (on Dice Run's board the best keep is worked out: a pair is a ⭐ in the
+  // hand, two in a row is half a run, and which to chase depends on the
+  // rolls left — the expected score of every keep, the biggest kept, ties
+  // to the one that keeps more)
+  function m3Keep(dice, run, left) {
+    if (!run) return dice.map((d, k) => dice.some((e, j) => j !== k && e === d));
+    let best = null, bestV = -1;
+    for (let m = 0; m < 8; m++) {
+      const mask = [0, 1, 2].map((k) => !!(m & (1 << k)));
+      const v = m3Value(dice, mask, left == null ? 1 : left);
+      const kept = mask.filter(Boolean).length;
+      if (v > bestV + 1e-9 || (Math.abs(v - bestV) <= 1e-9 && kept > best.filter(Boolean).length)) { best = mask; bestV = v; }
+    }
+    return best;
+  }
+  // the expected score of rolling the dice not kept, `left` rolls left, and
+  // then keeping the best each time (Dice Run's board)
+  const M3_MEMO = new Map();
+  function m3Value(dice, mask, left) {
+    if (left <= 0 || mask.every(Boolean)) return m3Score(dice, true);
+    const key = dice.map((d, k) => (mask[k] ? d : 0)).sort().join("") + ":" + left;
+    if (M3_MEMO.has(key)) return M3_MEMO.get(key);
+    const free = [0, 1, 2].filter((k) => !mask[k]);
+    let sum = 0, n = 0;
+    const roll = (j, d) => {
+      if (j === free.length) {
+        if (m3Score(d, true) === 3 || left - 1 <= 0) sum += m3Score(d, true);
+        else { let b = 0; for (let m = 0; m < 8; m++) b = Math.max(b, m3Value(d, [0, 1, 2].map((k) => !!(m & (1 << k))), left - 1)); sum += b; }
+        n++; return;
+      }
+      for (let f = 1; f <= 6; f++) { const e = d.slice(); e[free[j]] = f; roll(j + 1, e); }
+    };
+    roll(0, dice.slice());
+    const v = sum / n;
+    M3_MEMO.set(key, v);
+    return v;
   }
   // The computer keeps the matching dice only `M3_SHARP` of the time (its own
   // seeded luck), else keeps any — so matching is his edge
   const M3_SHARP = 0.5;
   function m3Choice(st) {
     const s = st.seats[st.turn];
-    if (next(s) < sharpOf(st, M3_SHARP)) return m3Keep(st.dice);
+    if (next(s) < sharpOf(st, M3_SHARP)) return m3Keep(st.dice, DATA.board(st.board).run, st.left);
     return st.dice.map(() => next(s) < 0.5);
   }
 
@@ -1680,10 +1810,55 @@
       st.phase = "choose";
       return [{ type: "roll", seat: st.turn, mover: st.mover, die: 0, dice: st.dice.slice() }];
     }
+    // 🔭 a calling board: before any hop, he says where the hops will END
+    // (three numbers to choose from). Not when the roll reaches the Moon:
+    // there is nothing to work out.
+    if (board.call && st.seats[st.mover].pos + die < board.size) {
+      st.die = die; st.left = 0;
+      st.calls = callOptions(st, seat, board);
+      st.phase = "call";
+      return [{ type: "roll", seat: st.turn, mover: st.mover, die, calls: st.calls.slice() }];
+    }
     // a ten-bar is ONE tap: ten more, straight down a row
     st.die = die; st.left = tapsOf(die);
     st.phase = "hop";
     return [{ type: "roll", seat: st.turn, mover: st.mover, die }];
+  }
+
+  // 🔭 Call the landing. The three numbers offered: where the hops really
+  // end, and two NEAR misses (one or two squares off — a count that slipped),
+  // ahead of where he stands whenever there are two such, in counting order.
+  function callTarget(st) { return st.seats[st.mover].pos + st.die; }
+  function callOptions(st, seat, board) {
+    const from = st.seats[st.mover].pos, to = from + st.die;
+    const near = [to - 2, to - 1, to + 1, to + 2].filter((n) => n >= 1 && n <= board.size);
+    const ahead = near.filter((n) => n > from);
+    const pool = ahead.length >= 2 ? ahead : near;
+    const out = [to];
+    while (out.length < 3) out.push(pool.splice(Math.floor(next(seat) * pool.length), 1)[0]);
+    return out.sort((a, b) => a - b);
+  }
+  // He calls `n`. Right: a ⭐ (and the shell hops it out by itself — he has
+  // done the counting in his head). Not right: nothing is lost and nothing is
+  // said against him — he hops it out a tap a hop, and the count shows the
+  // answer. Either way the turn then HOPS, so the rest is Moon Race's rules.
+  function callLanding(st, n) {
+    if (st.game !== "dice" || st.phase !== "call" || st.calls.indexOf(n) < 0) return [];
+    const to = callTarget(st), right = n === to, from = st.seats[st.mover].pos;
+    const ev = [{ type: "call", seat: st.turn, mover: st.mover, n, right, from, die: st.die, to }];
+    st.calls = [];
+    st.left = tapsOf(st.die);
+    st.phase = "hop";
+    if (right) st.seats[st.turn].stars += 1;
+    return ev;
+  }
+  // The computer works it out only `CALL_SHARP` of the time (its own seeded
+  // luck), else calls any of the three — so adding on is his edge
+  const CALL_SHARP = 0.6;
+  function callChoice(st) {
+    const s = st.seats[st.turn];
+    if (next(s) < sharpOf(st, CALL_SHARP)) return callTarget(st);
+    return st.calls[Math.floor(next(s) * st.calls.length)];
   }
 
   // 🎲 Pick one of the two dice: it is the roll, hopped one tap a hop
@@ -1753,7 +1928,8 @@
     }
     // 💯 a turn that ENDS on a tens square (10, 20, … 90) earns a ⭐: he
     // counts by tens. Never the hundred itself, which is home.
-    if (board.tens && s.pos % TEN === 0 && s.pos < board.size) {
+    // (a skip-counting board names its own star numbers: `starAt`)
+    if ((board.tens ? s.pos % TEN === 0 : (board.starAt || []).indexOf(labelOf(board, s.pos)) >= 0) && s.pos < board.size) {
       s.stars += 1;
       ev.push({ type: "tens", seat: i, at: s.pos });
     }
@@ -1768,6 +1944,54 @@
     const seat = st.seats[st.turn];
     const card = draw(seat, () => cardBag(seat, board));
     st.mover = moverFor(st, st.turn);
+    // 🌈 Rainbow Pick (`pick2`, §18): TWO cards, and he chooses which to play
+    if (board.pick2) {
+      st.offer = [card, draw(seat, () => cardBag(seat, board))];
+      st.phase = "twocards";
+      return [{ type: "twocards", seat: st.turn, mover: st.mover, cards: st.offer.slice() }];
+    }
+    return playCardMove(st, card);
+  }
+  // Where a card would take the mover (and how): the ONE rule a drawn card
+  // and an offered one share, so the two can never disagree
+  function cardMove(st, card) {
+    const board = DATA.board(st.board), from = st.seats[st.mover].pos;
+    let to;
+    const zoom = card.kind === "pic" && card.at > from;
+    const back = card.kind === "pic" && card.at < from && !anyHome(st) && st.rolls + 1 <= BACK_CAP;
+    if (zoom || back) to = card.at;
+    else if (card.kind === "pic") to = nextOf(board, from, colourAt(board, card.at));
+    else if (card.kind === "two") to = nextOf(board, nextOf(board, from, card.c), card.c);
+    else to = nextOf(board, from, card.c);
+    to = Math.min(board.size, to);
+    if (to < from && !back) to = from;
+    return { from, to, zoom, back };
+  }
+  // 🌈 he picks offered card k; the other goes to the BACK of his bag (never
+  // away: the bag stays fair, it only waits — the bird's rule)
+  function pickTwoCard(st, k) {
+    if (st.game !== "cards" || st.phase !== "twocards" || (k !== 0 && k !== 1)) return [];
+    const card = st.offer[k], other = st.offer[1 - k], seat = st.seats[st.turn];
+    // clever: the card that takes him further, when the two differ
+    const far = [0, 1].map((j) => cardMove(st, st.offer[j]).to);
+    const sm = judged(st.turn, "far", far[k] > far[1 - k], far[0] !== far[1]);
+    seat.bag.push(other);
+    st.offer = [];
+    const ev = [{ type: "pickcard", seat: st.turn, mover: st.mover, k, card }];
+    ev.push(...playCardMove(st, card));
+    if (sm) ev.splice(1, 0, sm);
+    return ev;
+  }
+  // The computer takes the card that goes further `CARD_SHARP` of the time
+  // (its own seeded luck), else either
+  const CARD_SHARP = 0.6;
+  function cardChoice(st) {
+    const s = st.seats[st.turn], far = [0, 1].map((j) => cardMove(st, st.offer[j]).to);
+    if (next(s) < sharpOf(st, CARD_SHARP) && far[0] !== far[1]) return far[0] > far[1] ? 0 : 1;
+    return next(s) < 0.5 ? 0 : 1;
+  }
+  function playCardMove(st, card) {
+    const board = DATA.board(st.board);
     const i = st.mover, s = st.seats[i];
     const from = s.pos;
     let to;
@@ -2086,7 +2310,7 @@
   // One whole turn for the computer (and the tests' bot)
   function autoTurn(st) {
     if (st.phase === "done") return [];
-    if (st.game === "cards") return drawCard(st);
+    if (st.game === "cards") { const ev = drawCard(st); if (st.phase === "twocards") ev.push(...pickTwoCard(st, cardChoice(st))); return ev; }
     if (st.game === "doors") {
       const ev = [];
       let g = 0;
@@ -2173,6 +2397,7 @@
     }
     const ev = roll(st);
     if (st.phase === "choose") ev.push(...chooseDie(st, dieChoice(st)));
+    if (st.phase === "call") ev.push(...callLanding(st, callChoice(st)));
     while (st.phase === "hop" && guard++ < 20) ev.push(...hop(st));
     return ev;
   }
@@ -2192,7 +2417,7 @@
     if (board.game === "lotto" || board.game === "spot" || board.game === "pairs" || board.game === "acorns" || board.game === "dominoes" || board.game === "dig" || board.game === "nim" || board.game === "lines" || board.game === "top" || board.game === "grab") return bag.length === 0;
     if (board.game === "match3" || board.game === "hide" || board.game === "cmatch" || board.game === "fish" || board.game === "ten" || board.game === "hilo" || board.game === "train") return bag.length === 0;
     if (board.game === "snow") { const left = [1, 2, 3, 4, 5, 6]; for (const n of bag) { const k = left.indexOf(n); if (!int(n) || k < 0) return false; left.splice(k, 1); } return true; }
-    if (board.game === "bingo") { const left = [1, 2, 3, 4, 5, 6]; for (const n of bag) { const k = left.indexOf(n); if (!int(n) || k < 0) return false; left.splice(k, 1); } return true; }
+    if (board.game === "bingo") { const left = board.sums ? SUM_BAG.slice() : facesOf(board).slice(); for (const n of bag) { const k = left.indexOf(n); if (!int(n) || k < 0) return false; left.splice(k, 1); } return true; }
     if (board.game === "maze") return bag.length <= 8 && new Set(bag).size === bag.length && bag.every((n) => int(n) && n >= 0 && n <= 7);
     if (board.game === "doors") {
       const left = [1, 2, 3, 4, 5, 6];
@@ -2233,7 +2458,7 @@
       const spinning = board.game === "spin";
       const hen = board.game === "hen";
       const lotto = board.game === "lotto", spotting = board.game === "spot", pairing = board.game === "pairs", acorning = board.game === "acorns", domino = board.game === "dominoes", digging = board.game === "dig", nimming = board.game === "nim", lining = board.game === "lines", topping = board.game === "top", grabbing = board.game === "grab", matching3 = board.game === "match3", mazing = board.game === "maze", hiding = board.game === "hide", cmatching = board.game === "cmatch", bingoing = board.game === "bingo", snowing = board.game === "snow", fishing = board.game === "fish", tenning = board.game === "ten", hiloing = board.game === "hilo", training = board.game === "train";
-      const okPhase = board.game === "cards" ? ["draw", "done"] : matching3 ? ["roll", "keep", "done"] : mazing ? ["move", "done"] : hiding ? ["ask", "done"] : cmatching ? ["play", "done"] : bingoing ? ["roll", "cover", "done"] : snowing ? ["roll", "build", "done"] : fishing ? ["ask", "answer", "done"] : tenning ? ["pick", "done"] : hiloing ? ["guess", "done"] : training ? ["pick", "done"] : grabbing ? ["pick", "done"] : nimming ? ["take", "done"] : lining ? ["drop", "done"] : topping ? ["lead", "follow", "done"] : pairing ? ["flip", "second", "done"] : acorning ? ["choose", "done"] : domino ? ["lay", "draw", "done"] : digging ? ["dig", "done"] : lotto ? ["draw", "give", "done"] : board.game === "doors" ? ["roll", "shut", "done"] : spotting ? ["flip", "find", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : board.two ? ["roll", "choose", "hop", "done"] : ["roll", "hop", "done"];
+      const okPhase = board.game === "cards" ? (board.pick2 ? ["draw", "twocards", "done"] : ["draw", "done"]) : matching3 ? ["roll", "keep", "done"] : mazing ? ["move", "done"] : hiding ? ["ask", "done"] : cmatching ? ["play", "done"] : bingoing ? ["roll", "cover", "done"] : snowing ? ["roll", "build", "done"] : fishing ? ["ask", "answer", "done"] : tenning ? ["pick", "done"] : hiloing ? ["guess", "done"] : training ? ["pick", "done"] : grabbing ? ["pick", "done"] : nimming ? ["take", "done"] : lining ? ["drop", "done"] : topping ? ["lead", "follow", "done"] : pairing ? ["flip", "second", "done"] : acorning ? ["choose", "done"] : domino ? ["lay", "draw", "done"] : digging ? ["dig", "done"] : lotto ? ["draw", "give", "done"] : board.game === "doors" ? ["roll", "shut", "done"] : spotting ? ["flip", "find", "done"] : spinning ? ["spin", "pick", "done"] : hen ? ["spin", "hop", "done"] : board.two ? ["roll", "choose", "hop", "done"] : board.call ? ["roll", "call", "hop", "done"] : ["roll", "hop", "done"];
       if (okPhase.indexOf(snap.phase) < 0) return null;
       const moving = spinning ? "pick" : "hop";
       if (spinning) {
@@ -2244,7 +2469,8 @@
       if (!int(snap.mover) || snap.mover < 0 || snap.mover > 1) return null;
       if (!int(snap.left) || snap.left < 0 || snap.left > 6) return null;
       if (!int(snap.die) || snap.die < 0) return null;
-      if (board.game === "dice" || board.game === "doors" || bingoing || snowing ? snap.die !== 0 && facesOf(board).indexOf(snap.die) < 0 : snap.die > 6) return null;
+      // (🚪 nine doors roll two dice: 2 to 12)
+      if (board.game === "doors" && board.size === 9 ? snap.die > 12 : board.game === "dice" || board.game === "doors" || (bingoing && !board.sums) || snowing ? snap.die !== 0 && facesOf(board).indexOf(snap.die) < 0 : snap.die > 6) return null;
       // hops (or apples) are left exactly while hopping (picking): a "hop"
       // turn with none left would be stuck for good (hop() refuses, nothing
       // ends the turn)
@@ -2254,7 +2480,23 @@
         if (!Array.isArray(snap.dice) || snap.dice.length !== (snap.phase === "choose" ? 2 : 0)) return null;
         if (snap.dice.some((d) => facesOf(board).indexOf(d) < 0)) return null;
         if (snap.phase === "choose" && snap.die !== 0) return null;
-      } else if (snap.dice !== undefined && !matching3) return null;
+      } else if (board.sums) {
+        // ➕ two dice showing exactly while he covers, and the number is ALL
+        // their dots
+        if (!Array.isArray(snap.dice) || snap.dice.length !== (snap.phase === "cover" ? 2 : 0)) return null;
+        if (snap.dice.some((d) => [1, 2, 3].indexOf(d) < 0)) return null;
+        if (snap.phase === "cover" && snap.die !== snap.dice[0] + snap.dice[1]) return null;
+      } else if (snap.dice !== undefined && !matching3 && !(board.game === "doors" && board.size === 9)) return null;
+      // 🔭 three landings wait exactly while he calls one: the real one and
+      // two near it, in counting order, with the die rolled and no hop begun
+      if (board.call) {
+        if (!Array.isArray(snap.calls) || snap.calls.length !== (snap.phase === "call" ? 3 : 0)) return null;
+        if (snap.phase === "call") {
+          const m = snap.seats[snap.mover], to = m && int(m.pos) ? m.pos + snap.die : 0;
+          if (!snap.die || snap.left !== 0 || to >= board.size || snap.calls.indexOf(to) < 0) return null;
+          if (snap.calls.some((n, k) => !int(n) || n < 1 || n > board.size || Math.abs(n - to) > 2 || (k && n <= snap.calls[k - 1]))) return null;
+        }
+      } else if (snap.calls !== undefined) return null;
       if (snap.phase === moving && snap.left > (spinning ? snap.die : tapsOf(snap.die))) return null;
       if (!int(snap.rolls) || snap.rolls < 0) return null;
       if (hen) {
@@ -2270,8 +2512,17 @@
         // open, smaller than the roll, with its partner open too; and a shut
         // turn always has a way to make the roll (else it would be stuck)
         for (const s of snap.seats) {
-          if (!Array.isArray(s.shut) || s.shut.some((n) => !int(n) || n < 1 || n > 6) || new Set(s.shut).size !== s.shut.length || s.pos !== s.shut.length) return null;
+          if (!Array.isArray(s.shut) || s.shut.some((n) => !int(n) || n < 1 || n > board.size) || new Set(s.shut).size !== s.shut.length || s.pos !== s.shut.length) return null;
         }
+        // nine doors: the dice of the roll (two, or one once 7-9 are shut),
+        // adding to it while he shuts; none between turns but a roll that
+        // fitted nothing (still shown)
+        if (board.size === 9) {
+          const Dc = snap.dice;
+          if (!Array.isArray(Dc) || Dc.length > 2 || Dc.some((x) => !int(x) || x < 1 || x > 6)) return null;
+          if (snap.phase === "shut" && (Dc.length !== (twoDoorDice(snap, snap.mover) ? 2 : 1) || Dc.reduce((a, b) => a + b, 0) !== snap.die)) return null;
+          if (snap.phase === "done" && Dc.length) return null;
+        } else if (snap.dice !== undefined) return null;
         if (!int(snap.misses) || snap.misses < 0 || (snap.phase !== "shut" && snap.misses !== 0)) return null;
         if (snap.card !== null) return null;
         if (snap.phase === "shut") {
@@ -2318,12 +2569,13 @@
         if (snap.round !== snap.seats[0].stars + snap.seats[1].stars || snap.seats.some((x) => x.pos !== x.stars)) return null;
         if ((snap.phase === "done") !== (snap.round === board.trains)) return null;
         if (snap.phase === "pick") {
-          const pat = TRAIN_PATTERNS[snap.round % TRAIN_PATTERNS.length], Cr = snap.cars, Op = snap.options;
-          if (!Array.isArray(Cr) || Cr.length !== TRAIN_SHOWN || Cr.some((c) => ids.indexOf(c) < 0)) return null;
+          const PATS = trainPats(board), SHOWN = trainShown(board);
+          const pat = PATS[snap.round % PATS.length], Cr = snap.cars, Op = snap.options;
+          if (!Array.isArray(Cr) || Cr.length !== SHOWN || Cr.some((c) => ids.indexOf(c) < 0)) return null;
           const map = {};
-          for (let k = 0; k < TRAIN_SHOWN; k++) { const ch = pat[k % pat.length]; if (map[ch] == null) map[ch] = Cr[k]; else if (map[ch] !== Cr[k]) return null; }
+          for (let k = 0; k < SHOWN; k++) { const ch = pat[k % pat.length]; if (map[ch] == null) map[ch] = Cr[k]; else if (map[ch] !== Cr[k]) return null; }
           if (new Set(Object.values(map)).size !== Object.keys(map).length) return null;
-          if (snap.answer !== map[pat[TRAIN_SHOWN % pat.length]]) return null;
+          if (snap.answer !== map[pat[SHOWN % pat.length]]) return null;
           if (!Array.isArray(Op) || Op.length !== 3 || new Set(Op).size !== 3 || Op.some((c) => ids.indexOf(c) < 0) || Op.indexOf(snap.answer) < 0) return null;
         }
         if (!int(snap.misses) || snap.misses < 0) return null;
@@ -2348,14 +2600,18 @@
         // always holds a ten until the game is over; a held flower is a real one
         const F = snap.flowers, Dk = snap.deck, Md = snap.made, n = board.cols * board.rows;
         if (!Array.isArray(F) || F.length !== n || !Array.isArray(Dk) || !Array.isArray(Md)) return null;
-        const count = new Array(10).fill(0);
-        for (const x of F) { if (!int(x) || x < 0 || x > 9) return null; if (x) count[x] += 1; }
-        for (const x of Dk) { if (!int(x) || x < 1 || x > 9) return null; count[x] += 1; }
-        for (const p of Md) { if (!Array.isArray(p) || p.length !== 2 || p.some((x) => !int(x) || x < 1 || x > 9) || p[0] + p[1] !== 10) return null; count[p[0]] += 1; count[p[1]] += 1; }
-        if (count.slice(1).some((c) => c !== 2)) return null;
+        // (on Honey Twenty: every card of 1-9 and 11-19 exactly once, each
+        // twenty adding to 20 — the deck the board deals, counted)
+        const T = tenTarget(board), want = new Array(T).fill(0);
+        for (const x of tenCards(board)) want[x] += 1;
+        const count = new Array(T).fill(0), real = (x) => int(x) && x >= 1 && x < T && want[x] > 0;
+        for (const x of F) { if (x !== 0 && !real(x)) return null; if (x) count[x] += 1; }
+        for (const x of Dk) { if (!real(x)) return null; count[x] += 1; }
+        for (const p of Md) { if (!Array.isArray(p) || p.length !== 2 || p.some((x) => !real(x)) || p[0] + p[1] !== T) return null; count[p[0]] += 1; count[p[1]] += 1; }
+        if (count.some((c, x) => c !== want[x])) return null;
         if (Md.length !== snap.seats[0].stars + snap.seats[1].stars || snap.seats.some((x) => x.pos !== x.stars)) return null;
         if (F.some((x) => !x) && Dk.length) return null;
-        if ((snap.phase === "done") !== !tenHasPair(F)) return null;
+        if ((snap.phase === "done") !== !tenHasPair(F, T)) return null;
         if (snap.held !== null && (!int(snap.held) || snap.held < 0 || snap.held >= n || !F[snap.held] || snap.phase !== "pick")) return null;
         if (snap.die !== 0 || snap.card !== null || snap.left !== 0) return null;
       } else if (fishing) {
@@ -2389,10 +2645,15 @@
           const h = Pt[j], x = snap.seats[j];
           if (h[0] !== 1 || h.some((p) => !int(p) || p < 1 || p > 6) || new Set(h).size !== h.length) return null;
           if (h.some((p, k) => k > 0 && h.slice(0, k).indexOf(SNOW_NEEDS[p]) < 0)) return null;
-          if (x.pos !== h.length || x.home !== (h.length === 6) || x.stars !== (h.length === 6 ? 1 : 0)) return null;
+          // (a ⭐ for a whole snowman, and one for every 🎁 given — so never
+          // fewer than the snowman's own)
+          if (x.pos !== h.length || x.home !== (h.length === 6) || !int(x.stars) || x.stars < (h.length === 6 ? 1 : 0) || x.stars > (h.length === 6 ? 1 : 0) + 5) return null;
         }
         if (snap.phase !== "done" && snap.mover !== moverFor(snap, snap.turn)) return null;
-        if (snap.phase === "build") { if (!snowCan(Pt[snap.mover], snap.die)) return null; }
+        // 🎁 a gift waits only while building, for the friend's snowman, with
+        // a roll his own cannot take and the friend's can
+        if (snap.gift !== null && !(snap.gift === other(snap.mover) && snap.phase === "build" && !snap.seats[snap.gift].home && !snowCan(Pt[snap.mover], snap.die) && snowCan(Pt[snap.gift], snap.die))) return null;
+        if (snap.phase === "build") { if (!snowCan(Pt[snap.gift != null ? snap.gift : snap.mover], snap.die)) return null; }
         else if (snap.die !== 0) return null;
         if (snap.card !== null || snap.left !== 0) return null;
       } else if (bingoing) {
@@ -2404,8 +2665,9 @@
         const Cd = snap.cardsB, Cv = snap.covered;
         if (!Array.isArray(Cd) || Cd.length !== 2 || !Array.isArray(Cv) || Cv.length !== 2) return null;
         for (const j of [0, 1]) {
-          if (!Array.isArray(Cd[j]) || Cd[j].length !== 9 || Cd[j].some((n) => !int(n) || n < 1 || n > 6)) return null;
-          if ([1, 2, 3, 4, 5, 6].some((n) => Cd[j].indexOf(n) < 0)) return null;
+          const nums = bingoNums(board);
+          if (!Array.isArray(Cd[j]) || Cd[j].length !== 9 || Cd[j].some((n) => nums.indexOf(n) < 0)) return null;
+          if (nums.some((n) => Cd[j].indexOf(n) < 0)) return null;
           if (!Array.isArray(Cv[j]) || Cv[j].length !== 9 || Cv[j].some((c) => typeof c !== "boolean")) return null;
           const x = snap.seats[j], n = Cv[j].filter(Boolean).length;
           if (x.pos !== n || x.stars !== bingoLinesOf(Cv[j]) || x.home !== (n === 9)) return null;
@@ -2459,7 +2721,7 @@
         if (snap.phase === "keep") {
           if (D.some((d) => !int(d) || d < 1 || d > 6)) return null;
           if (!int(snap.left) || snap.left < 1 || snap.left > board.rerolls) return null;
-          if (m3Score(D) === 3) return null;
+          if (m3Score(D, board.run) === 3) return null;
         } else if (snap.left !== 0 || Hd.some(Boolean)) return null;
         if (snap.seats.some((x) => !int(x.pos) || x.pos > board.rounds)) return null;
         if (Math.abs(snap.seats[0].pos - snap.seats[1].pos) > 1) return null;
@@ -2503,7 +2765,8 @@
         if (Gn[1].length !== T || T > board.deck) return null;
         for (const j of [0, 1]) {
           const here = P[j].concat(H[j], Gn[j], Tb[j] == null ? [] : [Tb[j]]);
-          if (here.length !== board.deck || new Set(here).size !== board.deck || here.some((v) => !int(v) || v < 1 || v > board.deck)) return null;
+          const lo = board.low || 1;
+          if (here.length !== board.deck || new Set(here).size !== board.deck || here.some((v) => !int(v) || v < lo || v > lo + board.deck - 1)) return null;
           if (H[j].length + (Tb[j] == null ? 0 : 1) !== Math.min(board.hand, board.deck - T)) return null;
           const won = Gn[j].filter((v, t) => v > Gn[1 - j][t]).length;
           if (snap.seats[j].stars !== won || snap.seats[j].pos !== won) return null;
@@ -2649,6 +2912,10 @@
         if (!int(snap.misses) || snap.misses < 0 || (snap.phase !== "give" && snap.misses !== 0)) return null;
         if (snap.card !== null) return null;
       } else if (snap.card !== null && !okCard(board, snap.card)) return null;
+      // 🌈 two offered cards wait exactly while he picks one
+      if (board.pick2) {
+        if (!Array.isArray(snap.offer) || snap.offer.length !== (snap.phase === "twocards" ? 2 : 0) || snap.offer.some((c) => !okCard(board, c))) return null;
+      } else if (snap.offer !== undefined) return null;
       for (const s of snap.seats) {
         if (!s || typeof s.who !== "string" || !DATA.person(s.who)) return null;
         if (!int(s.pos) || s.pos < startOf(board) || s.pos > board.size) return null;
@@ -2675,8 +2942,8 @@
   }
 
   const BoardLogic = {
-    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, takeCookies, nimTakes, nimBest, nimChoice, NIM_SHARP, dropLine, dropRow, linesOf, linesOpen, linesMade, linesBest, linesChoice, LINES_SHARP, playCard, topBest, topChoice, TOP_SHARP, grabColour, grabCells, grabOptions, grabGain, grabBest, grabChoice, GRAB_SHARP, chooseDie, dieTarget, dieBest, dieChoice, DIE_SHARP, moveMouse, mazePath, mazeDist, mazeBest, mazeChoice, MAZE_SHARP, MAZE_WORDS, askHide, hideYes, hideSplit, hideBest, hideChoice, hideTraits, HIDE_SHARP, pickCar, trainChoice, TRAIN_SHARP, TRAIN_PATTERNS, hiloGuess, hiloBest, hiloChoice, HILO_SHARP, tenPick, tenPairs, tenChoice, TEN_SHARP, askFish, answerFish, fishBest, fishChoice, fishAnswer, FISH_SHARP, FISH_N, buildSnow, SNOW_NEEDS, SNOW_MAGIC, snowWhich, coverBingo, bingoSpots, bingoBest, BINGO_LINES, playMatch, flipMatch, cmFits, cmColour, cmNumber, cmPlayable, cmChoice, rollMatch, holdDie, m3Score, m3Keep, m3Choice, M3_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
-    cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN, sharpOf, SHARP_MIN, SHARP_MAX, levelled,
+    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, twoDoorDice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, takeCookies, nimTakes, nimBest, nimChoice, NIM_SHARP, dropLine, dropRow, linesOf, linesOpen, linesMade, linesBest, linesChoice, LINES_SHARP, playCard, topBest, topChoice, TOP_SHARP, grabColour, grabCells, grabOptions, grabGain, grabBest, grabChoice, GRAB_SHARP, chooseDie, dieTarget, dieBest, dieChoice, DIE_SHARP, callLanding, callTarget, callChoice, CALL_SHARP, pickTwoCard, cardMove, cardChoice, CARD_SHARP, moveMouse, mazePath, mazeDist, mazeBest, mazeChoice, MAZE_SHARP, MAZE_WORDS, askHide, hideYes, hideSplit, hideBest, hideChoice, hideTraits, HIDE_SHARP, pickCar, trainChoice, trainPats, trainShown, TRAIN_SHOWN, TRAIN_SHARP, TRAIN_PATTERNS, hiloGuess, hiloBest, hiloChoice, HILO_SHARP, tenPick, tenPairs, tenChoice, tenTarget, tenCards, TEN_SHARP, askFish, answerFish, fishBest, fishChoice, fishAnswer, FISH_SHARP, FISH_N, buildSnow, SNOW_NEEDS, SNOW_MAGIC, snowWhich, coverBingo, bingoSpots, bingoBest, BINGO_LINES, playMatch, flipMatch, cmFits, cmColour, cmNumber, cmPlayable, cmChoice, rollMatch, holdDie, m3Score, m3Keep, m3Made, m3Choice, M3_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
+    cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN, sharpOf, SHARP_MIN, SHARP_MAX, levelled, labelOf,
   };
   global.BoardLogic = BoardLogic;
   if (typeof module !== "undefined" && module.exports) module.exports = BoardLogic;

@@ -297,8 +297,15 @@ const BOARD_MIDTURN = [
   ["bingo", (L, st) => { for (let g = 0; g < 80 && !(st.phase === "cover" && st.turn === 0); g++) { if (st.turn !== 0) L.autoTurn(st); else L.roll(st); } return st.phase === "cover" && st.turn === 0; }],
   ["snowman", (L, st) => { for (let g = 0; g < 80 && !(st.phase === "build" && st.turn === 0); g++) { if (st.turn !== 0) L.autoTurn(st); else L.roll(st); } return st.phase === "build" && st.turn === 0; }],
   ["doors", (L, st) => { for (let g = 0; g < 40 && st.phase === "roll"; g++) L.roll(st); return st.phase === "shut"; }],
+  ["doors9", (L, st) => { for (let g = 0; g < 40 && st.phase === "roll"; g++) L.roll(st); return st.phase === "shut"; }],
   ["gofish", (L, st) => { L.askFish(st, 0); return st.phase === "answer" && st.seats[1 - st.turn].cpu !== true; }],
   ["honeyten", (L, st) => { L.tenPick(st, st.flowers.findIndex((n) => n)); return st.held != null; }],
+  ["honey20", (L, st) => { L.tenPick(st, st.flowers.findIndex((n) => n)); return st.held != null; }],
+  ["dicerun", (L, st) => { L.rollMatch(st); return st.phase === "keep"; }],
+  // ➕ two dice over the card while he covers; 🔭 three numbers to call
+  ["sums", (L, st) => { for (let g = 0; g < 80 && !(st.phase === "cover" && st.turn === 0); g++) { if (st.turn !== 0) L.autoTurn(st); else L.roll(st); } return st.phase === "cover" && st.turn === 0; }],
+  ["rainbow2", (L, st) => { for (let g = 0; g < 40 && !(st.phase === "twocards" && st.turn === 0); g++) { if (st.turn !== 0) L.autoTurn(st); else L.drawCard(st); } return st.phase === "twocards" && st.turn === 0; }],
+  ["call", (L, st) => { for (let g = 0; g < 80 && !(st.phase === "call" && st.turn === 0); g++) { if (st.turn !== 0 || st.phase === "hop") L.autoTurn(st); else L.roll(st); } return st.phase === "call" && st.turn === 0; }],
 ];
 
 module.exports = {

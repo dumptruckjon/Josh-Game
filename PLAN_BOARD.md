@@ -728,10 +728,114 @@ the twenty-eight touched his working edges. The programme, in the order built:
   the iPad says "Oops! Silly me!" of its OWN slip, once a game: how to take a
   mistake lightly, shown rather than told (his profile's frustration edge).
 
-Still to build, in order: **B** his working edges (Skip Hop by 2s and 5s, "call
-your landing", Bingo with two dice, take-away and adding said aloud); **C** a
-choice in the luck games (Rainbow Trail's two cards, the Snowman's gift); **D**
-level-two boxes for the thinking games; **E** the shell (tonight's three games,
-pick your token, counting in Chinese, table mode, endings that change the board
-and a high-five); **F** the remaining per-game ideas.
+**B. His working edges (BUILT).** Four new boxes and three new lines, each
+aimed at a skill his June 2026 report lists as Working rather than Mastered.
+- **🐸 Hop by Twos and 🦘 Hop by Fives (skip counting).** A board of 21 lily
+  pads (or sand stones) numbered 0, 2, 4 … 40 (or 0, 5 … 100): a hop is still
+  ONE pad, so every tap says the next number of the count, and a turn ending
+  on a ten is a ⭐ (counting by tens inside the twos). The die is one, two or
+  three hops, two of each in a bag. Fives waits for two finished Twos games.
+- **🔭 Moon Call (counting on in his head).** Moon Race, but after the roll
+  and before any hop he calls where the hops will END, from three big numbers:
+  the real one and two near misses (one or two off, ahead of him whenever two
+  such exist, in counting order). Nothing on the board lights the answer; his
+  token and the die on his pad are the whole question. A right call is a ⭐,
+  the sum is said ("12 and 3 more is 15! A star!") and the rocket hops by
+  itself; a miss costs nothing and says nothing against him ("Let's hop and
+  count to see!") — he hops it out and the count shows the answer. His first
+  game lights the right number, as every thinking game's first game does. The
+  computer calls right 60% of the time on its own level (73% with lucky
+  guesses), and a friend's level moves it. Waits for two finished Moon games.
+- **➕ Sum Bingo (adding).** Number Bingo with TWO little dice of one to three
+  dots; the number to find is all the dots, never shown or said first ("2 and
+  3! Count all the dots, and find it on your card!"), and every square wears
+  its dots, so counting all is enough. The card holds 2 to 6 in exactly the
+  shares two dice fall (2 3 3 4 4 4 5 5 6), and the fair bag is the nine ways
+  two dice fall, twice: with one set a bag every card filled in exactly nine
+  rolls and the starter won every game (the first-player law caught it); with
+  the dice drawn as plain dice, a 2 or a 6 could keep a card waiting and a
+  median game ran 140s against a 120s law. Waits for two Number Bingo games.
+- **Said aloud.** 🎲 Pick a Die says the pick as a sum ("12 and 3 more is
+  15!"), 🍎 the bird as a take-away ("4 take away one is 3"), and 🐔 the hen
+  house is counted by tens at the end ("10, 20, 30, 35"), popped over it.
+
+**C. A choice in the luck games (BUILT).**
+- **🍭 Rainbow Pick (Rainbow Trail's level two).** A tap flips TWO cards over
+  the pads, and the square each would reach lights up wearing that card; he
+  plays one and the other waits at the BACK of his own pile (never away: the
+  bag stays fair). One rule (`cardMove`) says where a card goes, so the offer
+  and the move cannot disagree. The card that goes further is the clever one
+  (named with a 💡); the computer takes it 60% of the time on its own level
+  (80% with lucky picks), and a friend's level moves it. Scored as a race (who
+  is home first), like Pick a Die. Waits for two Rainbow Trail games.
+- **🎁 The Snowman's gift.** A roll his snowman cannot take but the friend's
+  can is no longer a turn that passes with nothing: the friend's snowman
+  becomes the one button ("River needs the tummy! Tap River's snowman to give
+  it!"), one tap puts it on, and he earns a ⭐ for being kind. A part neither
+  can take still just passes.
+- **Measured and not built: a wild card for 🎴 Colour Match.** Its row is the
+  hand and the deck, already at the three-across ceiling on a 320px phone, so a
+  wild would be a fourth control in it; and round 3 measured no strategy edge
+  there (careful play 50.7% against 49.9%), which a single wild per game does
+  not change. It stays on the Thinking shelf for recognising what fits.
+
+**D. Level two of the thinking games (IN PROGRESS).** A level-two box waits on
+the shelf until its game has been finished twice (`unlockAfter`), so the shelf
+grows with him and never shows a padlock.
+- **🁢 Six-Dot Dominoes (Dot Dominoes' level two).** Every pair of one to SIX
+  dots (twenty-one tiles against fifteen), so a match is read off the patterns
+  a die shows and a longer line has more ends to choose between. Its box is
+  drawn with a six.
+- **🚃 Long Train (Pattern Train's level two).** Patterns of four and five cars
+  in all three colours (AABC, ABBC, ABCBA…), with seven cars shown so one whole
+  repeat and more is always in sight. A board may now bring its own patterns
+  and length (`trainPats`, `trainShown`); the row of nine across fits a 320px
+  phone because a car is a picture, not a button. A law over BOTH boxes: no
+  shorter pattern that fits the cars shown may say a different next car, so
+  every train has exactly one answer.
+- **🔟 Teen Top Card (Top Card's level two).** Each player's ten cards are 11
+  to 20 (`low: 11`), drawn as a FULL ten-frame above a second one with the
+  ones, so every card starts with the same ten and the ones decide a trick —
+  teen numbers, compared by what makes them bigger. Saving the smallest card
+  that wins is still the edge (55% of the tricks against 44%).
+- **🪜 Dice Run (Dice Match's level two).** Three in a row (2-3-4, any order,
+  never round from 6 to 1) is two ⭐s; three the same is still three, a pair
+  one. That makes WHAT to keep a real choice — a pair is a ⭐ in the hand, two
+  in a row is half a run — so the best keep is worked out (the expected score
+  of every keep for the rolls left), not listed: it is what glows in his first
+  game and what the computer keeps when it plays well. Keeping well wins 57%
+  of the stars against 41%. Its box is a 🪜, because 🎲 is Pick a Die's.
+- **🐝 Honey Twenty (Honey Ten's level two).** The flowers are 1 to 9 and 11
+  to 19, once each (`target: 20`), each drawn as TWO ten-frames, and two make
+  TWENTY — so every twenty is a teen and its little one, and a held flower
+  lights how many more make twenty. The meadow always holds a twenty; nine
+  jars, one party. Knowing what makes twenty wins 62% of the jars against 22%.
+- **🚪 Doors to Nine (Shut the Doors' level two).** Nine doors, 1 to 9, and
+  TWO dice (each from his own fair bag) until 7, 8 and 9 are shut, then one
+  die, as in the classic box. Three things the engine's laws measured and
+  forced: two dice leave many rolls that fit nothing at the end (a median of
+  fourteen "roll again"s a game, the longest game 225s against the 160s law),
+  so a roll that fits nothing is rolled again in the same tap and he only sees
+  a roll he can use (median 43s); with that, the starter was home first 76% of
+  the time, so two doors at once is a ⭐ AND another go (73%, and the skill
+  pays); and with most rolls having a two-door way, a friend's level had no
+  slope, so a levelled friend takes the plain one-door way when it does not
+  take two. Two dice and the roll they make sit beside the doors; on a
+  320x568 phone that row and the colour edge step aside so nine doors stay
+  75px (three rows of 75 and two 16px gaps are its whole 257px field), and on
+  a phone on its side the bar gives 6px, Treasure Dig's precedent. Measured
+  and not built: a fair 1-9 number bag (still fourteen roll-agains) and "use
+  either die or both" (sixteen).
+- **Measured and not built: Big Acorn Pots (four pots of four).** Its longest
+  game ran 161s against the 160s law every game is held to, and the extra pot
+  added waiting, not thinking.
+- **Router fix found on the way.** The board router read a box id as
+  `[a-z]+`, so a box whose id has a digit (dominoes6, rainbow2, train2) did
+  nothing when tapped. A derived browser test now taps EVERY box on a fully
+  open shelf and opens both ways to play.
+
+Still to build, in order: the rest of **D** (two-arrow mazes); **E**
+the shell (tonight's three games, pick your token, counting in Chinese, table
+mode, endings that change the board and a high-five); **F** the remaining
+per-game ideas.
 

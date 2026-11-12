@@ -156,6 +156,20 @@
       ],
     },
     {
+      // 🔭 Moon Call (Moon Race's level two, §18): roll, and BEFORE hopping,
+      // call where the hops will end — three numbers to pick from, the right
+      // one and two near misses. A right call is a ⭐ and the rocket hops by
+      // itself; a miss costs nothing: he hops and counts, and the count shows
+      // the answer. Counting ON in his head is the skill.
+      id: "call", box: "call", game: "dice", name: "Moon Call", call: true,
+      cols: 6, rows: 6, size: 36,
+      jumps: [
+        { from: 7, to: 17, kind: "boost" },
+        { from: 12, to: 21, kind: "boost" },
+        { from: 20, to: 28, kind: "boost" },
+      ],
+    },
+    {
       id: "comet", box: "comet", game: "dice", name: "Comet Moon",
       cols: 6, rows: 6, size: 36,
       jumps: [
@@ -188,6 +202,20 @@
       ],
     },
     {
+      // 🌈 Rainbow Pick (Rainbow Trail's level two, §18): flip TWO cards, see
+      // where each would take you (both squares light up, wearing the card),
+      // and play one. The other waits at the back of your pile. The trail is
+      // Rainbow Trail's own, so the colours are the ones he already knows.
+      id: "rainbow2", box: "rainbow2", game: "cards", name: "Rainbow Pick", pick2: true,
+      cols: 6, rows: 6, size: 36,
+      colours: "GYBRPGYPBRPGYBRPGYRBPGYRGYBPBRGYPB",
+      landmarks: [
+        { at: 9, pic: "🦕", say: "Dino land" },
+        { at: 19, pic: "🚀", say: "Rocket land" },
+        { at: 28, pic: "🏰", say: "Castle land" },
+      ],
+    },
+    {
       // 💯 Hundred Hop: a race down a real HUNDRED CHART (1 at the top left,
       // reading like a book, 100 at the bottom right — the Montessori hundred
       // board he has mastered). `layout: "chart"` is that reading order, so a
@@ -199,6 +227,22 @@
       cols: 10, rows: 10, size: 100, layout: "chart",
       faces: [1, 2, 3, 10, 10, 10], tens: true, jumps: [],
       lines: { home: "{n} made it to one hundred!", end: "You both made it to one hundred! High five!" },
+    },
+    {
+      // 🐸 Hop by Twos and 🦘 Hop by Fives (PLAN_BOARD.md §18): SKIP COUNTING,
+      // his working edge. Twenty pads from 0; the die is how many HOPS (1, 2
+      // or 3) and every hop is `step` more, said and popped as he taps: "2,
+      // 4, 6!". A square's number is (n - 1) × step (board-logic.js labelOf),
+      // so his token is only ever ON a number of the count. `starAt`: the
+      // numbers a turn may END on for a ⭐. `art` is the board's look.
+      id: "twos", box: "twos", game: "dice", name: "Hop by Twos",
+      cols: 3, rows: 7, size: 21, step: 2, faces: [1, 1, 2, 2, 3, 3], starAt: [10, 20, 30], jumps: [], art: "pond",
+      lines: { home: "{n} hopped all the way to forty!", end: "You both counted by twos to forty! High five!", hop: "Tap to hop! Every hop is two more." },
+    },
+    {
+      id: "fives", box: "fives", game: "dice", name: "Hop by Fives",
+      cols: 3, rows: 7, size: 21, step: 5, faces: [1, 1, 2, 2, 3, 3], starAt: [50], jumps: [], art: "sand",
+      lines: { home: "{n} hopped all the way to one hundred!", end: "You both counted by fives to one hundred! High five!", hop: "Tap to hop! Every hop is five more." },
     },
     {
       // 🐔 Hen House (the Count Your Chickens shape): CO-OP. One shared hen
@@ -271,6 +315,15 @@
       lines: { home: "{n} shut every door!", end: "Every door is shut! Hooray!" },
     },
     {
+      // 🚪 Doors to Nine (Shut the Doors' level two, §18): nine doors, 1 to
+      // 9, and TWO dice — 11 is 9 and 2, or 5 and 6 — until 7, 8 and 9 are
+      // shut, then one die, as in the classic box, so the last small doors
+      // can always be made. More ways to make each roll: more to choose.
+      id: "doors9", box: "doors9", game: "doors", name: "Doors to Nine",
+      cols: 3, rows: 3, size: 9,
+      lines: { home: "{n} shut every door!", end: "Every door is shut! Hooray!" },
+    },
+    {
       // 🌰 Acorn Pots (mancala, for a four-year-old — the bean emoji is Emoji 14.0,
       // invisible on his iPad, so the seeds are acorns and the store is a
       // squirrel's NEST). Each player has three pots of three acorns and a
@@ -296,6 +349,14 @@
       // that match each other.
       id: "dominoes", box: "dominoes", game: "dominoes", name: "Dot Dominoes", coop: true,
       cols: 4, rows: 4, max: 5, hand: 4, size: 15,
+      lines: { home: "", end: "The line is finished! What a long line!" },
+    },
+    {
+      // 🁢 Six-Dot Dominoes (Dot Dominoes' level two, §18): every pair of 1 to
+      // SIX dots, twenty-one tiles — six dots is the most a die shows, and a
+      // longer line means more ends to choose between.
+      id: "dominoes6", box: "dominoes6", game: "dominoes", name: "Six-Dot Dominoes", coop: true,
+      cols: 4, rows: 4, max: 6, hand: 4, size: 21,
       lines: { home: "", end: "The line is finished! What a long line!" },
     },
     {
@@ -349,6 +410,14 @@
       lines: { home: "", end: "Every card is played! What a game!" },
     },
     {
+      // 🔟 Teen Top Card (Top Card's level two, §18): each player's ten cards
+      // are 11 to 20, a full ten-frame and some more, so the cards to beat
+      // all start with the same ten and the ONES decide the trick.
+      id: "topteen", box: "topteen", game: "top", name: "Teen Top Card", coop: true,
+      cols: 3, rows: 3, deck: 10, low: 11, hand: 3, size: 10,
+      lines: { home: "", end: "Every card is played! What a game!" },
+    },
+    {
       // 🎨 Colour Grab (a territory game, for a four-year-old: a game of
       // LOOKING AHEAD). A grid of colours (each with its shape, so it reads in
       // any colour vision). Josh starts in the bottom left corner and his
@@ -367,6 +436,14 @@
       // the rest again. Two the same is a ⭐; all three the same is three ⭐s.
       // Five turns each, one party. The skill: keep the ones that match.
       id: "dicematch", box: "dicematch", game: "match3", name: "Dice Match", coop: true,
+      cols: 3, rows: 3, rounds: 5, rerolls: 2, size: 9,
+      lines: { home: "", end: "Every turn is rolled! What dice!" },
+    },
+    {
+      // 🎲 Dice Run (Dice Match's level two, §18): three in a row — 2, 3, 4,
+      // in any order — is two ⭐s, so a roll can chase a pair or a run, and
+      // which to keep becomes a real choice.
+      id: "dicerun", box: "dicerun", game: "match3", name: "Dice Run", coop: true, run: true,
       cols: 3, rows: 3, rounds: 5, rerolls: 2, size: 9,
       lines: { home: "", end: "Every turn is rolled! What dice!" },
     },
@@ -425,6 +502,15 @@
       lines: { home: "", end: "Both cards are full! Bingo!" },
     },
     {
+      // ➕ Sum Bingo (Number Bingo's level two, §18): roll TWO little dice of
+      // one to three dots, count ALL the dots, and cover that number. The card
+      // holds 2 to 6, its squares wearing their dots too, so counting all is
+      // enough: adding is his working edge.
+      id: "sums", box: "sums", game: "bingo", name: "Sum Bingo", sums: true,
+      cols: 3, rows: 3, size: 9,
+      lines: { home: "", end: "Both cards are full! You added it all up! Bingo!" },
+    },
+    {
       // ⛄ Snowman Build (a building game, for a four-year-old: a game of
       // WHAT COMES FIRST). Each snowman starts as a big snowball. A picture
       // die of snowman parts — the tummy, the head, a hat, a carrot nose, a
@@ -462,6 +548,15 @@
       lines: { home: "", end: "Every ten is made! Buzz buzz!" },
     },
     {
+      // 🍯 Honey Twenty (Honey Ten's level two, §18): the flowers are 1 to 9
+      // and 11 to 19, once each, drawn as TWO ten-frames, and two make
+      // TWENTY — so every twenty is a teen and its little one (13 and 7: ten,
+      // and three and seven make the other ten).
+      id: "honey20", box: "honey20", game: "ten", name: "Honey Twenty", coop: true, target: 20,
+      cols: 3, rows: 3, size: 9,
+      lines: { home: "", end: "Every twenty is made! Buzz buzz!" },
+    },
+    {
       // 🔼 Higher or Lower (a guessing card game, for a four-year-old: a game
       // of BIGGER AND SMALLER). One card of 1 to 10 is turned up. Will the next
       // be bigger or smaller? Tap ⬆️ or ⬇️ and turn it over: right is a ⭐, and
@@ -481,6 +576,15 @@
       id: "train", box: "train", game: "train", name: "Pattern Train", coop: true,
       cols: 3, rows: 3, trains: 8, size: 8,
       lines: { home: "", end: "Every train is finished! Choo choo!" },
+    },
+    {
+      // 🚂 Long Train (Pattern Train's level two, §18): patterns of four and
+      // five cars, three colours in each, and seven cars shown so one whole
+      // repeat is always in sight. The answer is in the pattern every time.
+      id: "train2", box: "train2", game: "train", name: "Long Train", coop: true,
+      cols: 3, rows: 3, trains: 8, size: 8, shown: 7,
+      patterns: ["AABC", "ABBC", "ABCC", "ABAC", "ABCB", "ABCA", "AABCC", "ABCBA"],
+      lines: { home: "", end: "Every long train is finished! Choo choo!" },
     },
     {
       // 🍎 Apple Spin (Hi-Ho Cherry-O's mechanic): no track at all. Each
@@ -506,10 +610,15 @@
     { id: "comet", board: "comet", name: "Comet Moon", pic: "☄️", colour: "#6a3fb8", unlockAfter: { box: "moon", games: 2 } },
     { id: "rainbow", board: "rainbow", name: "Rainbow Trail", pic: "🌈", colour: "#e0569b" },
     { id: "bingo", board: "bingo", name: "Number Bingo", pic: "🔢", colour: "#0369a1" },
+    // adding (§18): Sum Bingo once he has played Number Bingo twice
+    { id: "sums", board: "sums", name: "Sum Bingo", pic: "➕", colour: "#0f5f8c", unlockAfter: { box: "bingo", games: 2 } },
     { id: "snowman", board: "snowman", name: "Snowman Build", pic: "⛄", colour: "#0e7490" },
     // the 🐦 joins from his THIRD Apple game, exactly as the comets do
     { id: "apple", board: "apple", name: "Apple Spin", pic: "🍎", colour: "#d63b3b", birdsAfter: 2 },
     { id: "hundred", board: "hundred", name: "Hundred Hop", pic: "💯", colour: "#e08a00" },
+    // skip counting (§18): by fives once he has hopped by twos twice
+    { id: "twos", board: "twos", name: "Hop by Twos", pic: "🐸", colour: "#12715b" },
+    { id: "fives", board: "fives", name: "Hop by Fives", pic: "🦘", colour: "#a8551a", unlockAfter: { box: "twos", games: 2 } },
     // the 🦊 joins from his THIRD Hen House game, exactly as the comets do
     { id: "hen", board: "hen", name: "Hen House", pic: "🐔", colour: "#c2410c", foxAfter: 2 },
     // the THINKING games (`kind: "think"`) stand on their own shelf: games of
@@ -519,23 +628,32 @@
     { id: "pairs", board: "pairs", name: "Peek-a-Pair", pic: "🧠", colour: "#db2777", kind: "think" },
     // (drawn: 🚪 is the shelf bar's way OUT, so it cannot also be a box)
     { id: "doors", board: "doors", name: "Shut the Doors", pic: "", art: "doors", colour: "#b45309", kind: "think" },
+    { id: "doors9", board: "doors9", name: "Doors to Nine", pic: "", art: "doors9", colour: "#92400e", kind: "think", unlockAfter: { box: "doors", games: 2 } },
     { id: "acorns", board: "acorns", name: "Acorn Pots", pic: "🌰", colour: "#92400e", kind: "think" },
     // (no domino emoji is a picture on every phone, so its box is drawn)
     { id: "dig", board: "dig", name: "Treasure Dig", pic: "🏴‍☠️", colour: "#a16207", kind: "think" },
     { id: "dominoes", board: "dominoes", name: "Dot Dominoes", pic: "", art: "domino", colour: "#0f766e", kind: "think" },
+    // level two of a thinking game (§18): once he has played it twice
+    { id: "dominoes6", board: "dominoes6", name: "Six-Dot Dominoes", pic: "", art: "domino6", colour: "#115e59", kind: "think", unlockAfter: { box: "dominoes", games: 2 } },
     { id: "cookies", board: "cookies", name: "Cookie Jar", pic: "🍪", colour: "#9a3412", kind: "think" },
     { id: "lineup", board: "lineup", name: "Line Up", pic: "🔴", colour: "#be123c", kind: "think" },
     { id: "topcard", board: "topcard", name: "Top Card", pic: "🃏", colour: "#4338ca", kind: "think" },
+    { id: "topteen", board: "topteen", name: "Teen Top Card", pic: "🔟", colour: "#3730a3", kind: "think", unlockAfter: { box: "topcard", games: 2 } },
     { id: "grab", board: "grab", name: "Colour Grab", pic: "🎨", colour: "#0e7490", kind: "think" },
     // (choosing the die that lands on a rocket gets home first 70% of the time
     // against 29%: a game of choosing, so it stands with the thinking games)
     { id: "pickdie", board: "pickdie", name: "Pick a Die", pic: "🎲", colour: "#2563eb", kind: "think" },
+    { id: "rainbow2", board: "rainbow2", name: "Rainbow Pick", pic: "🍭", colour: "#be3a82", kind: "think", unlockAfter: { box: "rainbow", games: 2 } },
+    { id: "call", board: "call", name: "Moon Call", pic: "🔭", colour: "#1d4ed8", kind: "think", unlockAfter: { box: "moon", games: 2 } },
     { id: "dicematch", board: "dicematch", name: "Dice Match", pic: "🎯", colour: "#b91c1c", kind: "think" },
+    { id: "dicerun", board: "dicerun", name: "Dice Run", pic: "🪜", colour: "#991b1b", kind: "think", unlockAfter: { box: "dicematch", games: 2 } },
     { id: "maze", board: "maze", name: "Mouse Maze", pic: "🐭", colour: "#a16207", kind: "think" },
     { id: "hide", board: "hide", name: "Who's Hiding", pic: "🕵️", colour: "#475569", kind: "think" },
     { id: "train", board: "train", name: "Pattern Train", pic: "🚂", colour: "#15803d", kind: "think" },
+    { id: "train2", board: "train2", name: "Long Train", pic: "🚃", colour: "#166534", kind: "think", unlockAfter: { box: "train", games: 2 } },
     { id: "hilo", board: "hilo", name: "Higher or Lower", pic: "🔼", colour: "#be185d", kind: "think" },
     { id: "honeyten", board: "honeyten", name: "Honey Ten", pic: "🍯", colour: "#b45309", kind: "think" },
+    { id: "honey20", board: "honey20", name: "Honey Twenty", pic: "🐝", colour: "#92400e", kind: "think", unlockAfter: { box: "honeyten", games: 2 } },
     { id: "gofish", board: "gofish", name: "Go Fish", pic: "🐟", colour: "#0369a1", kind: "think" },
     { id: "colourmatch", board: "colourmatch", name: "Colour Match", pic: "🎴", colour: "#7e22ce", kind: "think" },
   ];
@@ -572,6 +690,7 @@
     smartEnough: "Just big enough. Clever, {n}!",
     smartSave: "{n} saved the big cards. Clever!",
     smartMost: "{n} took the biggest grab. Clever!",
+    smartFar: "{n} picked the card that goes further. Clever!",
     smartRocket: "{n} saw the rocket. Clever!",
     smartNear: "The quick way to the cheese. Clever, {n}!",
     smartAsk: "A good question, {n}!",
@@ -590,7 +709,9 @@
     pickFirst: "Tap to pick! One tap, one apple.",
     full: "{n}'s basket is full! Ten apples!",
     pie: "{k} more for the pie!",
-    bird: "Tweet! A silly bird put one back. {to} in the basket.",
+    // (said as a TAKE-AWAY, §18: subtraction is new to him, and here he can
+    // see it happen — one apple leaves the ten-frame)
+    bird: "Tweet! A silly bird took one back. {from} take away one is {to}.",
     endApple: "Ten, twenty! {k} apples in the pie! Yum!",
     tenFirst: "Tap once for ten more!",
     henSpin: "A {a}! Walk to the {a}!",
@@ -611,6 +732,9 @@
     pairsFirst: "Tap two cards!",
     doorsFirst: "Roll the dice!",
     doorsPick: "Shut door {d}, or two doors that make {d}!",
+    doorsPickTwo: "Find two doors that make {d}!",
+    doorsDice: "{a} and {b} make {d}!",
+    doorsAgain: "Two doors! Roll again, {n}!",
     doorsShut: "Door {d} is shut!",
     doorsTwo: "{a} and {b} make {d}! Two doors!",
     doorsHold: "{a}… and what makes {d}?",
@@ -650,6 +774,17 @@
     grabBig: "A big grab for {n}!",
     pickFirstDie: "Two dice! Tap the one you want!",
     pickDieAgain: "Pick a die!",
+    // the die he picked, as a SUM (§18: adding on is his working edge): where
+    // he stands, how many more, where that lands — then the hops count it out
+    pickSum: "{a} and {d} more is {to}!",
+    // 🌈 Rainbow Pick
+    twoFirst: "Two cards! Which one takes you further? Tap it!",
+    twoAgain: "Which card?",
+    // 🔭 Moon Call
+    callFirst: "Where will you land? Count on in your head, then tap the number!",
+    callAgain: "Where will you land?",
+    callRight: "Yes! {a} and {d} more is {to}! A star!",
+    callMiss: "Let's hop and count to see!",
     mazeFirst: "Play an arrow to move the mouse!",
     mazeCheese: "Cheese! A star for {n}!",
     mazeNew: "New cheese!",
@@ -684,6 +819,10 @@
     honeyHold: "{d}! What makes ten with {d}?",
     honeyPair: "{a} and {b} make ten! Honey for {n}!",
     honeyMiss: "{a} and {b} make {c}. Not ten this time!",
+    honey20First: "Tap two flowers that make twenty!",
+    honey20Hold: "{d}! What makes twenty with {d}?",
+    honey20Pair: "{a} and {b} make twenty! Honey for {n}!",
+    honey20Miss: "{a} and {b} make {c}. Not twenty this time!",
     fishFirst: "Tap a card to ask for it! Ask for one you both have!",
     fishAsk: "Do you have the {w}?",
     fishYes: "Yes! Here it is! A pair for {n}!",
@@ -697,6 +836,9 @@
     snowMagic: "Magic snow! The {w}! Tap the snowman to put it on!",
     snowBuild: "{w}! Tap the snowman to put it on!",
     snowHelp: "{w}! Tap {n}'s snowman to put it on!",
+    // 🎁 a part his snowman cannot take, the friend's can (§18)
+    snowGift: "{n} needs the {w}! Tap {n}'s snowman to give it!",
+    snowGave: "A present for {n}! So kind! A star!",
     snowHave: "{w}! The snowman has one already.",
     snowFirstNeed: "{w}! Not yet. First the {x}!",
     snowOn: "On goes the {w}!",
@@ -706,9 +848,16 @@
     bingoHelp: "{d}! Find {d} on {n}'s card!",
     bingoNone: "{d}! Not on the card this time.",
     bingoMiss: "Look for {d}!",
+    // ➕ Sum Bingo: the number is never said first — he counts the dots
+    bingoSumFind: "{a} and {b}! Count all the dots, and find it on your card!",
+    bingoSumHelp: "{a} and {b}! Count all the dots, and find it on {n}'s card!",
+    bingoSumNone: "{a} and {b} make {d}. Not on the card this time.",
+    bingoSum: "{a} and {b} make {d}!",
     bingoLine: "A line! A star for {n}!",
     bingoFull: "{n}'s card is full! Bingo!",
     m3First: "Roll your three dice!",
+    m3RunFirst: "Roll your three dice! Three in a row is two stars!",
+    m3Run: "Three in a row, {a} up to {c}! Two stars for {n}!",
     m3Keep: "Tap the dice to keep, then roll the rest!",
     m3Pair: "Two the same! A star for {n}!",
     m3Three: "Three the same! Three stars for {n}!",

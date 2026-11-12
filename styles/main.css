@@ -3425,6 +3425,10 @@ button.bn-tc { cursor: pointer; }
 @keyframes bnCardIn { from { transform: translateY(40%) scale(0.8); opacity: 0.4; } to { transform: none; opacity: 1; } }
 .bn-tc__n { font-size: 1.6em; font-weight: 900; }
 .bn-tc__dots { display: grid; grid-template-columns: repeat(5, 0.22em); grid-auto-rows: 0.22em; gap: 0.06em; }
+/* a teen card: the full ten above its ones, two ten-frames stacked (a grid,
+   so the gap holds on iOS 14) */
+.bn-tc__frames { display: grid; grid-template-columns: max-content; row-gap: 0.1em; justify-items: center; }
+.bn-tc__frames--teen .bn-tc__dots { grid-template-columns: repeat(5, 0.17em); grid-auto-rows: 0.17em; gap: 0.045em; }
 .bn-tc__dot { border-radius: 50%; background: #312e81; }
 .bn-tc__dot--none { background: #dfe3f5; }
 /* 🔴 Line Up: three columns (each one big button), five slots high; a
@@ -3959,6 +3963,12 @@ button.bn-domt { cursor: pointer; }
   align-content: center;
   justify-items: center;
 }
+/* (a short field: the row above steps aside and so does the 6px colour edge
+   — three rows of 75px doors and two 16px gaps are exactly 257px, a 320x568
+   phone's whole field; the lit pad still says whose turn it is) */
+.bn-doors[data-short="1"] { grid-template-rows: auto; }
+.bn-doors[data-short="1"] .bn-doors__other { display: none; }
+.bn-doors[data-short="1"] .bn-doors__grid { border-bottom-width: 0; }
 .bn-doors__other { display: grid; grid-auto-flow: column; grid-auto-columns: auto; column-gap: 8px; align-items: center; height: 40px; }
 .bn-doors__face { display: block; width: 40px; height: 40px; }
 .bn-goal__die { display: block; width: 40px; height: 40px; padding: 4px; border: 3px solid #2b2b3a; border-radius: 10px; background: #ffffff; }
@@ -4021,6 +4031,9 @@ button.bn-domt { cursor: pointer; }
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--pad);
 }
 .bn-choose[data-n="1"] { grid-template-columns: minmax(0, 1fr); }
+/* 🔭 Moon Call: three numbers to call, the board's three-across ceiling */
+.bn-choose[data-n="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.bn-callnum { font-size: 2.2rem; font-variant-numeric: tabular-nums; }
 .bn-pickd {
   min-height: 75px; display: grid; grid-auto-flow: column; justify-content: center; align-items: center; column-gap: 12px;
   border: 5px solid #2563eb; border-radius: 24px; background: #ffffff; color: #1e3a8a;
@@ -4038,6 +4051,15 @@ button.bn-pickd { cursor: pointer; }
   box-shadow: 0 0 0 3px #2b2b3a; pointer-events: none;
 }
 .bn-target .bn-die { width: 60%; height: 60%; padding: 2px; }
+/* 🌈 Rainbow Pick: the card, small, on the square it would take him to */
+.bn-target .bn-card { width: 62%; height: 62%; box-sizing: border-box; border-width: 2px; border-radius: 8px; font-size: 1.1rem; }
+/* 🔭 Moon Call's question: his die, floating over the square he hops from */
+/* (on the square's top-right corner, leaning out: the square's own number,
+   top left, and his token stay in sight, and it never sits on another
+   square's number) */
+.bn-target--from { z-index: 3; border: none; background: transparent; box-shadow: none; place-items: start end; }
+.bn-target--from .bn-die { width: 62%; height: 62%; padding: 2px; background: #ffffff; border: 3px solid #1d4ed8; border-radius: 10px; box-shadow: 0 0 0 3px #ffd24d; transform: translate(34%, -34%); }
+.bn-target--from[data-side="below"] .bn-die { transform: translate(34%, 34%); }
 .bn-pad {
   position: relative;
   min-height: 112px;
@@ -4372,9 +4394,15 @@ button.bn-pickd { cursor: pointer; }
   body.in-game .screen.bn-play[data-game="pairs"] { grid-template-columns: minmax(0, 1fr) 150px; }
   /* 🏴‍☠️ three rows of 75px sand and two 16px gaps is 257px: the bar gives
      6px (the sand sits between the bar's buttons, never under one) */
-  .bn-play[data-game="dig"] .bn-bar, .bn-play[data-game="bingo"] .bn-bar, .bn-play[data-game="ten"] .bn-bar { margin-bottom: 10px; }
+  .bn-play[data-game="dig"] .bn-bar, .bn-play[data-game="bingo"] .bn-bar, .bn-play[data-game="ten"] .bn-bar, .bn-play[data-box="doors9"] .bn-bar { margin-bottom: 10px; }
   /* …and a grid with no room to spare stands to the right, clear of 🏠 */
-  .bn-bingo[data-tight="1"], .bn-ten[data-tight="1"] { justify-items: end; }
+  .bn-bingo[data-tight="1"], .bn-ten[data-tight="1"], .bn-doors[data-short="1"] { justify-items: end; }
+  /* 🔭 three numbers in the pads' narrow column: two above, one across below
+     (three across were 53px wide; three stacked, 72px tall on a 667x375) */
+  .bn-choose[data-n="3"] { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--pad); }
+  .bn-choose[data-n="3"] .bn-callnum:last-child { grid-column: 1 / -1; }
+  /* 🌈 a card and its square's number side by side want a whole row each */
+  .bn-choose[data-kind="cards"] { grid-template-columns: minmax(0, 1fr); row-gap: var(--pad); }
 }
 @media (prefers-reduced-motion: reduce) {
   .bn-token { transition: none; }

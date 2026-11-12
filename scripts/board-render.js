@@ -47,13 +47,21 @@
   }
 
   // ---- The board ----------------------------------------------------------
+  // 🐸 lily pads on a pond · 🦘 warm rocks on sand
+  const SKIP_ART = {
+    pond: { bg: "#0b6e8a", path: "#d8f6ff", pad: "#63c36f", pad2: "#4fb062", rim: "#1e6b34", start: "#bfe8ff", end: "#ffe08a", star: "#ffe39a", from: "🐸", to: "🏁" },
+    sand: { bg: "#c98f4a", path: "#fff3d6", pad: "#f6dfae", pad2: "#eecb8a", rim: "#8a5a1e", start: "#ffffff", end: "#ffe08a", star: "#ffe39a", from: "🦘", to: "🏁" },
+  };
   function boardSVG(board) {
     if (board.layout === "chart") return chartSVG(board);
     if (board.game === "hen") return farmSVG(board);
     const W = board.cols * CELL, H = board.rows * CELL;
-    const moon = board.game === "dice";
+    // 🐸 🦘 a skip-counting board has its own look (`art`): round pads on
+    // water or sand, each wearing its number big, since the number IS the game
+    const skip = board.step ? SKIP_ART[board.art] || SKIP_ART.pond : null;
+    const moon = board.game === "dice" && !skip;
     let s = '<svg class="bn-svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-hidden="true" focusable="false">';
-    s += '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="22" fill="' + (moon ? "#1f2b63" : "#fff2f8") + '"/>';
+    s += '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="22" fill="' + (skip ? skip.bg : moon ? "#1f2b63" : "#fff2f8") + '"/>';
     if (moon) {
       // a few fixed stars in the gaps (the same on every game: no randomness)
       for (let k = 0; k < board.size; k++) {
@@ -64,10 +72,18 @@
     // the path, square to square, so "which way next" can be seen at a row's end
     let pts = "";
     for (let n = 1; n <= board.size; n++) { const p = centre(board, n); pts += p.x + "," + p.y + " "; }
-    s += '<polyline points="' + pts + '" fill="none" stroke="' + (moon ? "#ffffff" : "#b07ac9") + '" stroke-opacity="0.35" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 18"/>';
+    s += '<polyline points="' + pts + '" fill="none" stroke="' + (skip ? skip.path : moon ? "#ffffff" : "#b07ac9") + '" stroke-opacity="' + (skip ? "0.55" : "0.35") + '" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 18"/>';
     // 1. the squares (a rainbow square also wears its white shape)
     for (let n = 1; n <= board.size; n++) {
       const c = L.cellOf(board, n), x = c.col * CELL, y = (board.rows - 1 - c.row) * CELL;
+      if (skip) {
+        // a round pad: the start, the pads (two shades, so the path reads),
+        // a star pad in gold, and home
+        const lab = L.labelOf(board, n), star = (board.starAt || []).indexOf(lab) >= 0;
+        const f = n === 1 ? skip.start : n === board.size ? skip.end : star ? skip.star : n % 2 ? skip.pad : skip.pad2;
+        s += '<circle class="bn-cell" data-n="' + n + '" cx="' + (x + 50) + '" cy="' + (y + 50) + '" r="45" fill="' + f + '" stroke="' + (star ? "#c98a00" : skip.rim) + '" stroke-width="' + (star ? 4 : 3) + '"/>';
+        continue;
+      }
       let fill;
       if (moon) fill = n === 1 ? "#8fd3ff" : n === board.size ? "#ffe08a" : (c.col + c.row) % 2 ? "#e2e4ff" : "#cfe1ff";
       else fill = n === 1 ? "#ffffff" : n === board.size ? "#ffe3f0" : DATA.colour(L.colourAt(board, n)).fill;
@@ -99,11 +115,25 @@
     // crossing a square never hides which square it is
     for (let n = 1; n <= board.size; n++) {
       const c = L.cellOf(board, n), x = c.col * CELL, y = (board.rows - 1 - c.row) * CELL;
+      if (skip) {
+        // (bigger than a Moon square's number: he reads the COUNT off the pads)
+        const lab = L.labelOf(board, n);
+        s += '<circle cx="' + (x + 30) + '" cy="' + (y + 30) + '" r="24" fill="#ffffff" stroke="rgba(0,0,0,0.3)" stroke-width="2"/>';
+        s += '<text class="bn-num" data-n="' + n + '" x="' + (x + 30) + '" y="' + (y + 40) + '" text-anchor="middle" font-size="' + (lab > 99 ? 21 : 29) + '" font-weight="900" fill="#1d1d3b">' + lab + "</text>";
+        continue;
+      }
       s += '<circle cx="' + (x + 24) + '" cy="' + (y + 24) + '" r="17" fill="#ffffff" stroke="rgba(0,0,0,0.25)" stroke-width="1.5"/>';
       s += '<text x="' + (x + 24) + '" y="' + (y + 32) + '" text-anchor="middle" font-size="' + (n > 99 ? 16 : 22) + '" font-weight="800" fill="#1d1d3b">' + n + "</text>";
     }
     // 4. the pictures: the start, the finish, each jump's foot, each landmark
     const a = centre(board, 1), z = centre(board, board.size);
+    if (skip) {
+      s += emojiAt(skip.from, a.x + 16, a.y + 34, 40);
+      s += emojiAt(skip.to, z.x + 16, z.y + 34, 44);
+      // each star pad wears its ⭐ (a turn that ends there earns one)
+      for (let n = 2; n < board.size; n++) if ((board.starAt || []).indexOf(L.labelOf(board, n)) >= 0) { const q = centre(board, n); s += emojiAt("⭐", q.x + 18, q.y + 34, 34); }
+      return s + "</svg>";
+    }
     s += emojiAt(moon ? "🌍" : "🏁", a.x + 10, a.y + 14, 46);
     s += emojiAt(moon ? "🌙" : "🎂", z.x + 8, z.y + 14, 58);
     if (moon) {

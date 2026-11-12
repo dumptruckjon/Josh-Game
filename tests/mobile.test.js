@@ -107,6 +107,9 @@ const TAP_BOXES = () => {
     // [data-adult] controls (the grown-ups reset gate) are intentionally small
     // so a preschooler ignores them — the ≥75px rule is a KID-tap requirement.
     if (el.hidden || el.closest("[hidden]") || el.closest("[data-adult]") || el.offsetParent === null) continue;
+    // (a visibility:hidden control takes no tap at all — 🎲 the pads a choice
+    // row of dice or numbers stands over — so it is no neighbour to overlap)
+    if (getComputedStyle(el).visibility === "hidden") continue;
     const r = el.getBoundingClientRect();
     if (r.width === 0 && r.height === 0) continue;
     out.push({ x: r.x, y: r.y, r: r.right, b: r.bottom, k: ((el.id || el.className || el.tagName) + "").slice(0, 30) });
@@ -237,7 +240,10 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
     await page.setViewportSize({ width: w, height: h });
     // the fullest shelf: four boxes (two by two), one with a game waiting on it
     await page.evaluate(() => {
-      window.__BOARD.reset({ introSeen: true, done: { moon: 2 } });
+      // (every box that waits on another opened: derived from the shelf)
+      const done = {};
+      for (const b of window.BoardData.BOXES) if (b.unlockAfter) done[b.unlockAfter.box] = Math.max(done[b.unlockAfter.box] || 0, b.unlockAfter.games);
+      window.__BOARD.reset({ introSeen: true, done });
       const s = window.BoardLogic.create({ board: "moon", seats: [{ who: "josh" }, { who: "viraj", cpu: true }], seed: 4, first: 0 });
       const raw = JSON.parse(localStorage.getItem("josh-board-v1"));
       raw.games.moon = { st: s, at: Date.now() };
@@ -254,7 +260,7 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
       // first screen must hold at least three full rows of boxes, and the
       // last box must be reachable by scrolling.
       if (lbl === "shelf" && h > w) {
-        assert.equal(await page.locator(".bn-box").count(), DATA_BOXES, "fixture: the shelf holds every box (Comet Moon unlocked)");
+        assert.equal(await page.locator(".bn-box").count(), DATA_BOXES, "fixture: the shelf holds every box (every unlocking box unlocked)");
         const rows = await page.evaluate((vh) => new Set([...document.querySelectorAll(".bn-box")].filter((b) => b.getBoundingClientRect().bottom <= vh).map((b) => Math.round(b.getBoundingClientRect().top))).size, h);
         assert.ok(rows >= 3, `[shelf@${w}x${h}] only ${rows} full rows of boxes on the first screen`);
         await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
@@ -2185,7 +2191,8 @@ test("🎲 Game Night MID-TURN: the boards whose buttons CHANGE inside a turn st
       assert.ok(ok, `[${box}@${w}x${h}] fixture: the engine reached the mid-turn state and it loads`);
       await page.locator("#screen-board-play").waitFor({ state: "visible" });
       await page.waitForTimeout(300);
-      const btns = await page.evaluate(() => [...document.querySelectorAll("#screen-board-play .bn-field button")].filter((b) => b.offsetParent).length);
+      // (🔭 Moon Call's three numbers stand over the pads, in the choice row)
+      const btns = await page.evaluate(() => [...document.querySelectorAll("#screen-board-play .bn-field button, #screen-board-play .bn-choose button")].filter((b) => b.offsetParent).length);
       assert.ok(btns >= (box === "snowman" ? 1 : 2), `[${box}@${w}x${h}] fixture: the board's own buttons are up (${btns})`);   // ⛄ his snowman is the one button
       await noOverflow(page, `board-${box}-midturn@${w}x${h}`);
       await auditActiveScreen(page, `board-${box}-midturn@${w}x${h}`);

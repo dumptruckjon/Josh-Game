@@ -118,11 +118,14 @@ test("the shelf: two shelves (🎲 lucky, 🧠 thinking); Moon Race and Rainbow 
   const boxes = () => page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-box")].map((b) => b.dataset.box));
   const kinds = () => page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-boxes")].map((l) => [l.dataset.kind, [...l.querySelectorAll(".bn-box")].map((b) => b.dataset.box)]));
   // what the shelf should hold, from the data: the lucky boxes, then the
-  // thinking ones, each in its data order, Comet Moon only once unlocked
-  const want = (comet) => page.evaluate((c) => {
-    const ok = window.BoardData.BOXES.filter((b) => !b.unlockAfter || c);
+  // thinking ones, each in its data order, an unlocking box (Comet Moon,
+  // Moon Call, Hop by Fives, Sum Bingo) only once its own box has been
+  // finished enough times
+  const want = (moonDone) => page.evaluate((m) => {
+    const done = { moon: m ? 2 : 0 };
+    const ok = window.BoardData.BOXES.filter((b) => !b.unlockAfter || (done[b.unlockAfter.box] || 0) >= b.unlockAfter.games);
     return ok.filter((b) => (b.kind || "luck") === "luck").concat(ok.filter((b) => b.kind === "think")).map((b) => b.id);
-  }, comet);
+  }, moonDone);
   assert.deepEqual(await boxes(), await want(false), "a fresh shelf: every box but Comet Moon, nothing locked");
   assert.deepEqual((await boxes()).slice(0, 2), ["moon", "rainbow"], "Moon Race and Rainbow Trail first");
   // every box is on the shelf its data names, and a thinking game is never
@@ -472,6 +475,477 @@ test("the voice: every line is words (never a picture, never a {placeholder}) an
   }
 });
 
+// ---- His working edges (PLAN_BOARD.md §18, part B) ----------------------------
+test("🐸 🦘 Hop by Twos and Hop by Fives: the pads wear the COUNT (0, 2, 4 … 40; 0, 5 … 100), each tap is one pad and the next number is popped and said, a turn ending on a star number is a ⭐, Fives is on the shelf only after two finished Twos games, and a whole game ends in one party", async () => {
+  const DATA = require("../scripts/board-data.js");
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await page.evaluate(() => {
+    window.__said = [];
+    window.__realAudio = { isMuted: window.JoshAudio.isMuted, say: window.JoshAudio.say, tone: window.JoshAudio.tone };
+    window.JoshAudio.isMuted = () => false;
+    window.JoshAudio.say = (t) => { window.__said.push(String(t)); };
+    window.JoshAudio.tone = () => {};
+  });
+  try {
+    await quick();
+    // the shelf: Twos is there, Fives not yet — and never as a padlock
+    await go("#board-home", "#screen-board-home");
+    const boxes = () => page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-box")].filter((b) => b.getClientRects().length).map((b) => b.dataset.box));
+    assert.ok((await boxes()).indexOf("twos") >= 0, "Hop by Twos is on the shelf");
+    assert.equal((await boxes()).indexOf("fives"), -1, "Hop by Fives is not there yet");
+    for (const [id, step, last] of [["twos", 2, 40], ["fives", 5, 100]]) {
+      await page.evaluate(() => { window.__said = []; });
+      await startGame(id, "dad", false, 5, 0);
+      const drawn = await page.evaluate(() => ({
+        nums: [...document.querySelectorAll(".bn-svg .bn-num")].map((t) => [Number(t.dataset.n), Number(t.textContent), t.getBoundingClientRect().width, t.getBoundingClientRect().height]),
+        pads: [...document.querySelectorAll(".bn-svg .bn-cell")].map((c) => { const r = c.getBoundingClientRect(); return [r.width, r.height]; }),
+      }));
+      assert.equal(drawn.nums.length, 21, `${id}: twenty pads and the start`);
+      assert.deepEqual(drawn.nums.map((n) => n[1]), Array.from({ length: 21 }, (x, k) => k * step), `${id}: the pads wear 0, ${step}, ${2 * step} … ${last}`);
+      // a number he can read: it fits inside its pad with room, and is not tiny
+      const pad = drawn.pads[0][0];
+      for (const [n, lab, w, h] of drawn.nums) {
+        assert.ok(w <= pad * 0.5 && h >= 13, `${id}: "${lab}" is ${Math.round(w)}x${Math.round(h)} on a ${Math.round(pad)}px pad`);
+      }
+      assert.ok(pad >= 44, `${id}: a pad is ${Math.round(pad)}px on a phone`);
+      // one roll: every tap is ONE pad, popped and said as the count
+      await untilTap(0);
+      await page.locator(".bn-pad--0").click();
+      await page.waitForFunction(() => window.__BOARD.state().phase === "hop" && !window.__BOARD.busy(), null, { timeout: 5000 });
+      // 👂 says what a hop is worth here
+      await page.locator("#screen-board-play .bn-hear").click();
+      await page.waitForTimeout(60);
+      const die = (await st()).die;
+      assert.ok([1, 2, 3].indexOf(die) >= 0, `${id}: the die is one, two or three hops`);
+      const want = [];
+      for (let k = 1; k <= die; k++) {
+        await page.locator(".bn-pad--0").click();
+        await page.waitForFunction((n) => document.querySelector(".bn-token--0").dataset.pos === String(n), k + 1, { timeout: 5000 });
+        want.push(String(k * step));
+        assert.equal(await page.evaluate(() => document.querySelector(".bn-pop").textContent), String(k * step), `${id}: hop ${k} pops ${k * step}`);
+        await page.waitForTimeout(80);
+      }
+      const said = await page.evaluate(() => window.__said);
+      assert.deepEqual(said.filter((t) => /^\d+$/.test(t)).slice(-die), want, `${id}: the count is said: ${want.join(", ")}`);
+      assert.ok(said.some((t) => t === DATA.board(id).lines.hop), `${id}: it says what a hop is worth ("${said.join(" | ")}")`);
+      assert.equal(await page.locator("#screen-board-play .bn-board").getAttribute("aria-label").then((l) => new RegExp("Josh is on " + die * step + "\\b").test(l)), true, `${id}: the board's name says the NUMBER he is on`);
+    }
+    // a turn ending on a star number is a ⭐ (popped on the pad, counted on his pad)
+    {
+      const s = L.create({ board: "twos", seats: [{ who: "josh" }, { who: "dad" }], seed: 5, first: 0 });
+      s.seats[0].pos = 4; s.seats[0].bag = [2];     // on 6: two hops end on 10
+      assert.ok(L.restore(s), "fixture: a real game");
+      assert.ok(await page.evaluate((x) => window.__BOARD.load("twos", x), s), "fixture: the game loads");
+      await page.locator("#screen-board-play").waitFor({ state: "visible" });
+      await page.waitForTimeout(450);
+      await page.evaluate(() => { window.__said = []; });
+      await page.locator(".bn-pad--0").click();
+      await page.waitForFunction(() => window.__BOARD.state().phase === "hop" && !window.__BOARD.busy(), null, { timeout: 5000 });
+      await page.locator(".bn-pad--0").click();
+      await page.waitForFunction(() => document.querySelector(".bn-token--0").dataset.pos === "5", null, { timeout: 5000 });
+      await page.locator(".bn-pad--0").click();
+      await page.waitForFunction(() => window.__BOARD.state().seats[0].stars === 1 && window.__BOARD.state().turn === 1 && !window.__BOARD.busy(), null, { timeout: 8000 });
+      const said = await page.evaluate(() => window.__said);
+      assert.ok(said.indexOf("10! A star!") >= 0, `ending on ten is a star, said with its NUMBER ("${said.join(" | ")}")`);
+      assert.equal(await page.evaluate(() => (document.querySelector(".bn-pad--0 .bn-pad__stars").textContent.match(/\d+/) || [""])[0]), "1", "…and counted on his pad");
+    }
+    // a whole game against the computer, to the party
+    await page.evaluate(() => { window.__said = []; });
+    await startGame("twos", "river", true, 7, 0);
+    for (let g = 0; g < 200; g++) {
+      await untilTap(0);
+      if ((await st()).phase === "done") break;
+      await page.locator(".bn-pad--0").click();
+      await page.waitForTimeout(40);
+    }
+    assert.equal((await st()).phase, "done", "the game ends");
+    await page.locator(".bn-party").waitFor({ state: "visible", timeout: 8000 });
+    const end = await page.evaluate(() => window.__said);
+    assert.ok(end.some((t) => /hopped all the way to forty/.test(t)), "home is said as forty");
+    assert.ok(end.indexOf(DATA.board("twos").lines.end) >= 0, "one party for both, by name of the count");
+    assert.ok(!end.some((t) => /\{\w+\}|undefined/.test(t)), "every line is whole");
+    // two finished Twos games bring Hop by Fives to the shelf
+    await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { twos: 2 } }));
+    await go("#board-home", "#screen-board-home");
+    assert.ok((await boxes()).indexOf("fives") >= 0, "after two Twos games, Hop by Fives is on the shelf");
+  } finally {
+    await page.evaluate(() => { Object.assign(window.JoshAudio, window.__realAudio); window.__BOARD.reset({ introSeen: true }); });
+    await slow();
+  }
+});
+
+test("➕ ➖ the sums are SAID: Pick a Die says where he stands, how many more and where that lands ('12 and 3 more is 15!'); Apple Spin's bird is a take-away ('4 take away one is 3'); and the hen house is counted by TENS at the end (10, 20, 30, 35), popped over it", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await page.evaluate(() => {
+    window.__said = [];
+    window.__realAudio = { isMuted: window.JoshAudio.isMuted, say: window.JoshAudio.say, tone: window.JoshAudio.tone };
+    window.JoshAudio.isMuted = () => false;
+    window.JoshAudio.say = (t) => { window.__said.push(String(t)); };
+    window.JoshAudio.tone = () => {};
+    // every number the board pops, in order
+    window.__pops = [];
+    window.__popWatch = new MutationObserver(() => { const p = document.querySelector(".bn-pop"); if (p && !p.hidden && window.__pops[window.__pops.length - 1] !== p.textContent) window.__pops.push(p.textContent); });
+    window.__popWatch.observe(document.querySelector(".bn-pop"), { childList: true, characterData: true, subtree: true });
+  });
+  try {
+    await quick();
+    // 🎲 Pick a Die: the pick is a sum
+    await startGame("pickdie", "dad", false, 4, 0);
+    let sums = 0;
+    for (let g = 0; g < 12 && sums < 3; g++) {
+      const x = await st();
+      if (x.phase === "done") break;
+      await untilTap(x.turn);
+      await page.locator(".bn-pad--" + x.turn).click();
+      await page.locator(".bn-choose").waitFor({ state: "visible", timeout: 5000 });
+      const before = await st();
+      const from = before.seats[before.mover].pos;
+      await page.evaluate(() => { window.__said = []; });
+      await page.locator(".bn-choose button.bn-pickd").first().click();
+      await page.waitForFunction(() => window.__BOARD.state().phase === "hop" && !window.__BOARD.busy(), null, { timeout: 5000 });
+      const die = (await st()).die;
+      const said = await page.evaluate(() => window.__said);
+      if (from + die < 36) {
+        assert.ok(said.indexOf(`${from} and ${die} more is ${from + die}!`) >= 0, `from ${from}, a ${die} is said as a sum ("${said.join(" | ")}")`);
+        sums++;
+      }
+      for (let k = 0; k < die && (await st()).phase === "hop"; k++) { await page.locator(".bn-pad--" + before.turn).click(); await page.waitForTimeout(120); }
+      await page.waitForFunction(() => !window.__BOARD.busy(), null, { timeout: 8000 });
+    }
+    assert.ok(sums >= 3, `fixture: three picks were heard as sums (${sums})`);
+    // 🍎 the bird: a take-away
+    const a = L.create({ board: "apple", seats: [{ who: "josh" }, { who: "dad" }], seed: 3, first: 0, birds: true });
+    a.seats[0].pos = 4; a.seats[0].bag = [0];
+    assert.ok(await page.evaluate((x) => window.__BOARD.load("apple", x), a), "fixture: the game loads");
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    await page.waitForTimeout(450);
+    await page.evaluate(() => { window.__said = []; });
+    await page.locator(".bn-pad--0").click();
+    await page.waitForFunction(() => window.__BOARD.state().seats[0].pos === 3 && !window.__BOARD.busy(), null, { timeout: 8000 });
+    const birdSaid = await page.evaluate(() => window.__said);
+    assert.ok(birdSaid.some((t) => /4 take away one is 3\./.test(t)), `the bird is a take-away, with both numbers ("${birdSaid.join(" | ")}")`);
+    // 🐔 the hen house, counted by tens
+    const h = L.create({ board: "hen", seats: [{ who: "josh" }, { who: "dad" }], seed: 3, first: 0 });
+    h.seats[0].pos = h.seats[1].pos = 33; h.coop = 32;
+    assert.ok(L.restore(h), "fixture: a real game, near its end");
+    assert.ok(await page.evaluate((x) => window.__BOARD.load("hen", x), h), "fixture: the game loads");
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    await page.waitForTimeout(450);
+    await page.evaluate(() => { window.__said = []; window.__pops = []; });
+    for (let g = 0; g < 40; g++) {
+      const x = await st();
+      if (x.phase === "done") break;
+      await untilTap(x.turn);
+      if ((await st()).phase === "done") break;
+      await page.locator(".bn-pad--" + (await st()).turn).click();
+      await page.waitForTimeout(60);
+    }
+    await page.locator(".bn-party").waitFor({ state: "visible", timeout: 15000 });
+    const pops = await page.evaluate(() => window.__pops), henSaid = await page.evaluate(() => window.__said);
+    assert.deepEqual(pops.slice(-4), ["10", "20", "30", "35"], `the hen house is counted by tens, popped (${pops.join(" ")})`);
+    const k = henSaid.lastIndexOf("10");
+    assert.deepEqual(henSaid.slice(k, k + 4), ["10", "20", "30", "35"], `…and said ("${henSaid.join(" | ")}")`);
+    const home = henSaid.indexOf(require("../scripts/board-data.js").SAY.henHome);
+    assert.ok(home >= 0 && home < k, `…right after "all home", which it counts out ("${henSaid.join(" | ")}")`);
+  } finally {
+    await page.evaluate(() => { Object.assign(window.JoshAudio, window.__realAudio); if (window.__popWatch) window.__popWatch.disconnect(); window.__BOARD.reset({ introSeen: true }); });
+    await slow();
+  }
+});
+
+test("🔭 Moon Call: after two Moon games it is on the shelf; roll, then CALL where the hops end from three big numbers (the real one and two near it, nothing on the board giving it away); right is a ⭐, the sum said and the hops play themselves; a miss costs nothing and he hops it out; a whole game ends in one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await go("#board-home", "#screen-board-home");
+  const boxes = () => page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-box")].filter((b) => b.getClientRects().length).map((b) => b.dataset.box));
+  assert.equal((await boxes()).indexOf("call"), -1, "Moon Call waits for two finished Moon games");
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }));
+  await go("#board-home", "#screen-board-home");
+  assert.ok((await boxes()).indexOf("call") >= 0, "…then it is on the shelf");
+  await page.evaluate(() => {
+    window.__said = [];
+    window.__realAudio = { isMuted: window.JoshAudio.isMuted, say: window.JoshAudio.say, tone: window.JoshAudio.tone };
+    window.JoshAudio.isMuted = () => false;
+    window.JoshAudio.say = (t) => { window.__said.push(String(t)); };
+    window.JoshAudio.tone = () => {};
+  });
+  const callNow = () => page.evaluate(() => ({
+    phase: window.__BOARD.state().phase,
+    btns: [...document.querySelectorAll(".bn-choose button.bn-callnum")].map((b) => { const r = b.getBoundingClientRect(); return { n: Number(b.dataset.call), w: r.width, h: r.height, l: r.left, r: r.right, hint: b.classList.contains("bn-pickd--hint") }; }),
+    targets: [...document.querySelectorAll(".bn-target")].filter((t) => !t.hidden).map((t) => ({ n: Number(t.dataset.n), from: t.classList.contains("bn-target--from"), dots: t.querySelectorAll(".bn-dot:not(.bn-dot--none)").length, seen: (() => { const d = t.querySelector(".bn-die"), r = d.getBoundingClientRect(); t.style.pointerEvents = "auto"; const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); t.style.pointerEvents = ""; return !!(e && t.contains(e)); })() })),
+  }));
+  try {
+    await quick();
+    // 1) his FIRST Moon Call game lights the right number: a worked example
+    await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+    await page.evaluate(() => { window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }); });
+    await page.evaluate(() => { const s = JSON.parse(localStorage.getItem("josh-board-v1")); s.intro.call = false; localStorage.setItem("josh-board-v1", JSON.stringify(s)); });
+    await page.reload();
+    await page.evaluate(() => {
+      window.__said = [];
+      window.__realAudio = { isMuted: window.JoshAudio.isMuted, say: window.JoshAudio.say, tone: window.JoshAudio.tone };
+      window.JoshAudio.isMuted = () => false;
+      window.JoshAudio.say = (t) => { window.__said.push(String(t)); };
+      window.JoshAudio.tone = () => {};
+    });
+    await quick();
+    assert.equal((await page.evaluate(() => window.__BOARD.save())).intro.call, false, "fixture: Moon Call has never been shown");
+    await startGame("call", "dad", false, 9, 0);
+    let rights = 0, misses = 0;
+    for (let g = 0; g < 30 && (rights < 1 || misses < 1); g++) {
+      const x = await st();
+      if (x.phase === "done") break;
+      await untilTap(x.turn);
+      const y = await st();
+      if (y.phase === "done") break;
+      await page.locator(".bn-pad--" + y.turn).click();
+      await page.waitForFunction(() => { const s = window.__BOARD.state(); return (s.phase === "call" || s.phase === "hop" || s.phase === "done") && !window.__BOARD.busy(); }, null, { timeout: 5000 });
+      const z = await st();
+      if (z.phase !== "call") { // a roll that reaches the Moon is hopped as ever
+        for (let k = 0; k < 8 && (await st()).phase === "hop"; k++) { await page.locator(".bn-pad--" + z.turn).click(); await page.waitForTimeout(80); }
+        continue;
+      }
+      const c = await callNow();
+      const from = z.seats[z.mover].pos, to = from + z.die;
+      assert.equal(c.btns.length, 3, "three numbers to call");
+      assert.deepEqual(c.btns.map((b) => b.n), z.calls, "the buttons are the engine's three, in counting order");
+      assert.ok(c.btns.some((b) => b.n === to), "one of them is where the hops really end");
+      assert.ok(c.btns.every((b) => Math.abs(b.n - to) <= 2), "the others are NEAR misses (one or two off)");
+      for (const b of c.btns) assert.ok(b.w >= 75 && b.h >= 75, `a number is ${Math.round(b.w)}x${Math.round(b.h)}`);
+      for (let k = 1; k < 3; k++) assert.ok(c.btns[k].l - c.btns[k - 1].r >= 16, "16px apart");
+      // the numbers cover the pads, so the QUESTION is on the board: his die,
+      // over the square he hops from — and nothing on the answer's square
+      assert.equal(c.targets.length, 1, "one thing on the board: the die he hops by");
+      assert.deepEqual(c.targets.map((t) => [t.n, t.from, t.dots, t.seen]), [[from, true, z.die, true]], "his die, all its dots, in sight over the square he hops FROM");
+      assert.deepEqual(c.btns.filter((b) => b.hint).map((b) => b.n), [to], "the first Moon Call game lights the right number");
+      // alternate: right, then a miss
+      const pick = rights === 0 ? to : c.btns.find((b) => b.n !== to).n;
+      const stars0 = z.seats[z.turn].stars;
+      await page.evaluate(() => { window.__said = []; });
+      await page.locator('.bn-choose button.bn-callnum[data-call="' + pick + '"]').click();
+      if (pick === to) {
+        rights++;
+        // the hops play THEMSELVES: no tap, and the token lands on the call
+        await page.waitForFunction((a) => { const s = window.__BOARD.state(); return s.seats[a.m].pos !== a.from && !window.__BOARD.busy() && s.phase !== "hop"; }, { m: z.mover, from }, { timeout: 8000 });
+        const after = await st();
+        assert.equal(after.seats[z.turn].stars, stars0 + 1 + (after.seats[z.mover].pos !== to ? 1 : 0), "a right call is a ⭐ (and a rocket its own)");
+        const said = await page.evaluate(() => window.__said);
+        assert.ok(said.indexOf(`Yes! ${from} and ${z.die} more is ${to}! A star!`) >= 0, `the sum is said ("${said.join(" | ")}")`);
+      } else {
+        misses++;
+        await page.waitForFunction(() => window.__BOARD.state().phase === "hop" && !window.__BOARD.busy(), null, { timeout: 5000 });
+        const after = await st();
+        assert.equal(after.seats[z.turn].stars, stars0, "a miss costs nothing and gives nothing");
+        assert.equal(after.seats[z.mover].pos, from, "…and the hops are HIS to tap");
+        const said = await page.evaluate(() => window.__said);
+        assert.ok(said.indexOf("Let's hop and count to see!") >= 0, `a miss says nothing against him ("${said.join(" | ")}")`);
+        assert.ok(!said.some((t) => /wrong|no!|oops/i.test(t)), "never a scold");
+        for (let k = 0; k < z.die; k++) { await page.locator(".bn-pad--" + z.turn).click(); await page.waitForTimeout(90); }
+        await page.waitForFunction((a) => window.__BOARD.state().seats[a.m].pos >= a.to, { m: z.mover, to }, { timeout: 5000 });
+      }
+    }
+    assert.ok(rights >= 1 && misses >= 1, `fixture: a right call and a miss were both played (${rights}, ${misses})`);
+    // 2) a whole game against the computer, to one party (its calls are its own)
+    await page.evaluate(() => { window.__said = []; });
+    await startGame("call", "river", true, 11, 0);
+    let unlit = 0;
+    for (let g = 0; g < 200; g++) {
+      await untilTap(0);
+      const x = await st();
+      if (x.phase === "done") break;
+      if (x.phase === "call") {
+        const c = await callNow();
+        assert.equal(c.btns.filter((b) => b.hint).length, 0, "after his first game nothing glows: the count is his");
+        unlit++;
+        await page.locator('.bn-choose button.bn-callnum[data-call="' + (x.seats[x.mover].pos + x.die) + '"]').click();
+      } else await page.locator(".bn-pad--0").click();
+      await page.waitForTimeout(40);
+    }
+    assert.equal((await st()).phase, "done", "the game ends");
+    assert.ok(unlit >= 2, `fixture: he called in the second game (${unlit})`);
+    await page.locator(".bn-party").waitFor({ state: "visible", timeout: 8000 });
+    const end = await page.evaluate(() => window.__said);
+    assert.ok(!end.some((t) => /\{\w+\}|undefined|NaN/.test(t)), "every line is whole");
+  } finally {
+    await page.evaluate(() => { Object.assign(window.JoshAudio, window.__realAudio); window.__BOARD.reset({ introSeen: true }); });
+    await slow();
+  }
+});
+
+test("➕ Sum Bingo: after two Number Bingo games it is on the shelf; his roll is TWO little dice (on his pad and over the card), the number to find is never shown or said first, the card holds 2 to 6 with their dots, a cover says the sum, and a whole game ends in one party", async () => {
+  const D = require("../scripts/board-data.js");
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { bingo: 1 } }));
+  await go("#board-home", "#screen-board-home");
+  const boxes = () => page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-box")].map((b) => b.dataset.box));
+  assert.equal((await boxes()).indexOf("sums"), -1, "one Number Bingo is not enough");
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { bingo: 2 } }));
+  await go("#board-home", "#screen-board-home");
+  assert.ok((await boxes()).indexOf("sums") >= 0, "after two, Sum Bingo is on the shelf");
+  await page.evaluate(() => {
+    window.__said = [];
+    window.__realAudio = { isMuted: window.JoshAudio.isMuted, say: window.JoshAudio.say, tone: window.JoshAudio.tone };
+    window.JoshAudio.isMuted = () => false;
+    window.JoshAudio.say = (t) => { window.__said.push(String(t)); };
+    window.JoshAudio.tone = () => {};
+  });
+  try {
+    await quick();
+    await startGame("sums", "river", true, 5, 0);
+    const card = await page.evaluate(() => [...document.querySelectorAll(".bn-bingo__grid .bn-bsq")].map((b) => [Number(b.querySelector(".bn-bsq__n").textContent), b.querySelectorAll(".bn-pip:not(.bn-pip--none)").length]));
+    assert.deepEqual(card.map((c) => c[0]).sort(), [2, 3, 3, 4, 4, 4, 5, 5, 6], "the card holds 2 to 6, in the shares two dice fall");
+    assert.ok(card.every((c) => c[0] === c[1]), "each number wears its dots, so counting all is enough");
+    let covered = 0, saw = 0;
+    for (let guard = 0; guard < 160; guard++) {
+      await untilTap(0);
+      const s = await st();
+      if (s.phase === "done") break;
+      if (s.phase === "roll") {
+        await page.evaluate(() => { window.__said = []; });
+        await page.locator(".bn-pad--0").click();
+        await page.waitForFunction((r) => { const x = window.__BOARD.state(); return x.rolls > r && (x.phase !== "cover" || !window.__BOARD.busy()); }, s.rolls, { timeout: 6000 });
+        const x = await st();
+        if (x.phase !== "cover") continue;
+        // two dice to add, on his pad and over the card — and no number
+        const view = await page.evaluate(() => ({
+          pad: [...document.querySelectorAll(".bn-pad--0 .bn-dice2 .bn-die")].map((d) => d.querySelectorAll(".bn-dot:not(.bn-dot--none)").length),
+          top: [...document.querySelectorAll(".bn-bingo__top .bn-goal__die")].map((d) => d.querySelectorAll(".bn-pip:not(.bn-pip--none)").length),
+          num: document.querySelector(".bn-bingo__top .bn-goal__n"),
+          said: window.__said.slice(),
+        }));
+        assert.deepEqual(view.pad, x.dice, "his pad shows the two dice");
+        assert.deepEqual(view.top, x.dice, "the card's top shows the two dice to add");
+        assert.equal(view.num, null, "the sum itself is not shown: counting all the dots is his");
+        const find = D.SAY.bingoSumFind.replace("{a}", x.dice[0]).replace("{b}", x.dice[1]);
+        assert.ok(view.said.indexOf(find) >= 0, `the dice are said, not the sum ("${view.said.join(" | ")}")`);
+        assert.ok(!view.said.some((t) => t === String(x.die) || t.indexOf("make " + x.die) >= 0), "the sum is not said before he finds it");
+        saw++;
+        const k = (await page.evaluate(() => window.BoardLogic.bingoSpots(window.__BOARD.state())))[0];
+        await page.evaluate(() => { window.__said = []; });
+        await page.locator('.bn-bingo__grid button.bn-bsq[data-k="' + k + '"]').click();
+        await page.waitForFunction((kk) => window.__BOARD.state().covered[0][kk], k, { timeout: 5000 });
+        await page.waitForTimeout(80);
+        const said = await page.evaluate(() => window.__said);
+        if (!said.some((t) => /A line!/.test(t))) assert.ok(said.indexOf(`${x.dice[0]} and ${x.dice[1]} make ${x.die}!`) >= 0, `a cover says the sum ("${said.join(" | ")}")`);
+        covered++;
+        continue;
+      }
+      // (covering a friend's card as the helper)
+      const k = (await page.evaluate(() => window.BoardLogic.bingoSpots(window.__BOARD.state())))[0];
+      await page.locator('.bn-bingo__grid button.bn-bsq[data-k="' + k + '"]').click();
+      await page.waitForTimeout(80);
+    }
+    assert.equal((await st()).phase, "done", "the game ends");
+    assert.ok(saw >= 3 && covered >= 3, `fixture: he added and covered (${saw}, ${covered})`);
+    await page.locator(".bn-party").waitFor({ state: "visible", timeout: 8000 });
+  } finally {
+    await page.evaluate(() => { Object.assign(window.JoshAudio, window.__realAudio); window.__BOARD.reset({ introSeen: true }); });
+    await slow();
+  }
+});
+
+test("🎁 the Snowman's GIFT: a part his snowman cannot take and the friend's can is given — the friend's snowman becomes the button, the line says who needs it, one tap puts it on, and a ⭐ for being kind; a part neither can take still just passes", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await page.evaluate(() => {
+    window.__said = [];
+    window.__realAudio = { isMuted: window.JoshAudio.isMuted, say: window.JoshAudio.say, tone: window.JoshAudio.tone };
+    window.JoshAudio.isMuted = () => false;
+    window.JoshAudio.say = (t) => { window.__said.push(String(t)); };
+    window.JoshAudio.tone = () => {};
+  });
+  try {
+    await quick();
+    // he has the tummy, River does not: he rolls a tummy
+    const s = L.create({ board: "snowman", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 4, first: 0 });
+    s.parts = [[1, 2], [1]]; s.seats[0].pos = 2; s.seats[0].bag = [2];
+    assert.ok(L.restore(s), "fixture: a real state");
+    assert.ok(await page.evaluate((x) => window.__BOARD.load("snowman", x), s), "fixture: it loads");
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    await page.waitForTimeout(450);
+    await page.locator(".bn-pad--0").click();
+    await page.waitForFunction(() => window.__BOARD.state().phase === "build" && !window.__BOARD.busy(), null, { timeout: 6000 });
+    assert.equal((await st()).gift, 1, "a gift for River");
+    const btn = await page.evaluate(() => [...document.querySelectorAll(".bn-snow .bn-snowman")].map((b) => [b.tagName === "BUTTON", b.getAttribute("aria-label")]));
+    assert.deepEqual(btn.map((b) => b[0]), [false, true], "River's snowman is the one to tap");
+    assert.match(btn[1][1], /tap|Tap/, "and it says so");
+    const said = await page.evaluate(() => window.__said);
+    assert.ok(said.indexOf("River needs the tummy! Tap River's snowman to give it!") >= 0, `the line says who needs it ("${said.join(" | ")}")`);
+    await page.evaluate(() => { window.__said = []; });
+    await page.locator(".bn-snow button.bn-snowman").click();
+    await page.waitForFunction(() => window.__BOARD.state().parts[1].length === 2, null, { timeout: 5000 });
+    const after = await st();
+    assert.deepEqual(after.parts, [[1, 2], [1, 2]], "the tummy went on River's snowman");
+    assert.equal(after.seats[0].stars, 1, "a ⭐ for being kind");
+    await page.waitForTimeout(200);
+    assert.ok((await page.evaluate(() => window.__said)).indexOf("A present for River! So kind! A star!") >= 0, "and it is said");
+  } finally {
+    await page.evaluate(() => { Object.assign(window.JoshAudio, window.__realAudio); window.__BOARD.reset({ introSeen: true }); });
+    await slow();
+  }
+});
+
+test("🌈 Rainbow Pick: after two Rainbow Trail games it is on the shelf; a tap flips TWO cards over the pads and lights the square each would reach, wearing the card; his pick moves him exactly there and the other card is gone; his first game lights the card that goes further; a whole game ends in one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { rainbow: 1 } }));
+  await go("#board-home", "#screen-board-home");
+  const boxes = () => page.evaluate(() => [...document.querySelectorAll("#screen-board-home .bn-box")].map((b) => b.dataset.box));
+  assert.equal((await boxes()).indexOf("rainbow2"), -1, "one Rainbow Trail is not enough");
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { rainbow: 2 } }));
+  await go("#board-home", "#screen-board-home");
+  assert.ok((await boxes()).indexOf("rainbow2") >= 0, "after two, Rainbow Pick is on the shelf");
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem("josh-board-v1")); s.intro.rainbow2 = false; localStorage.setItem("josh-board-v1", JSON.stringify(s)); });
+  await page.reload();
+  try {
+    await quick();
+    await startGame("rainbow2", "river", true, 6, 0);
+    let picks = 0, lit = 0;
+    for (let g = 0; g < 200; g++) {
+      await untilTap(0);
+      const x = await st();
+      if (x.phase === "done") break;
+      if (x.phase === "draw") {
+        await page.locator(".bn-pad--0").click();
+        await page.waitForFunction(() => { const s = window.__BOARD.state(); return (s.phase === "twocards" && !window.__BOARD.busy()) || s.turn !== 0 || s.phase === "done"; }, null, { timeout: 6000 });
+        continue;
+      }
+      if (x.phase !== "twocards") continue;
+      const to = await page.evaluate(() => { const s = window.__BOARD.state(); return s.offer.map((c) => window.BoardLogic.cardMove(s, c).to); });
+      const v = await page.evaluate(() => ({
+        btns: [...document.querySelectorAll(".bn-choose button.bn-pickc")].map((b) => { const r = b.getBoundingClientRect(); return { k: Number(b.dataset.card), w: r.width, h: r.height, hint: b.classList.contains("bn-pickd--hint"), to: Number(b.querySelector(".bn-pickd__to").textContent) }; }),
+        targets: [...document.querySelectorAll(".bn-target")].filter((t) => !t.hidden).map((t) => Number(t.dataset.n)),
+      }));
+      assert.equal(v.btns.length, 2, "two cards to pick from");
+      assert.ok(v.btns.every((b) => b.w >= 75 && b.h >= 75), "big cards");
+      assert.deepEqual(v.btns.map((b) => b.to), to, "each card says where it would take him");
+      assert.deepEqual(v.targets.sort(), [...new Set(to)].sort(), "the squares they reach light up");
+      if (to[0] !== to[1]) { assert.deepEqual(v.btns.filter((b) => b.hint).map((b) => b.k), [to[0] > to[1] ? 0 : 1], "his first game lights the card that goes further"); lit++; }
+      const k = picks % 2, mover = x.mover;
+      await page.locator('.bn-choose button.bn-pickc[data-card="' + k + '"]').click();
+      await page.waitForFunction(([m, t]) => window.__BOARD.state().seats[m].pos === t || window.__BOARD.state().phase === "done", [mover, to[k]], { timeout: 8000 });
+      assert.equal(await page.locator(".bn-choose button").count(), 0, "the choice is gone");
+      picks++;
+    }
+    assert.equal((await st()).phase, "done", "the game ends");
+    assert.ok(picks >= 4 && lit >= 2, `fixture: he picked (${picks}) and saw the lit card (${lit})`);
+    await page.locator(".bn-party").waitFor({ state: "visible", timeout: 8000 });
+  } finally {
+    await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+    await slow();
+  }
+});
+
+test("🁢 Six-Dot Dominoes: after two Dot Dominoes games it is on the shelf, and every tile shows ALL its dots — a six too (the domino drawing knew only one to five)", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { dominoes: 2 } }));
+  await go("#board-home", "#screen-board-home");
+  assert.ok(await page.locator('.bn-box[data-box="dominoes6"]').count(), "after two, Six-Dot Dominoes is on the shelf");
+  const s = L.create({ board: "dominoes6", seats: [{ who: "josh" }, { who: "dad" }], seed: 5, first: 0 });
+  for (let g = 0; g < 30 && !s.line.some((t) => t[0] === 6 || t[1] === 6); g++) L.autoTurn(s);
+  assert.ok(s.line.some((t) => t[0] === 6 || t[1] === 6), "fixture: a six on the line");
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("dominoes6", x), s), "fixture: it loads");
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  const drawn = await page.evaluate(() => [...document.querySelectorAll("#screen-board-play .bn-dom__bit svg")].map((v) => v.querySelectorAll("circle").length));
+  const want = s.line.map((t) => t[0] + t[1]);
+  assert.deepEqual(drawn, want, "each tile on the line wears exactly its dots");
+});
+
 // ---- Friends who think (PLAN_BOARD.md §18) ------------------------------------
 test("🧠 the friends in the iPad each play their OWN way (a word under each face), a thinking box's friend LEARNS from how its games go (a step sharper when he takes most of the stars, a step duller the other way, never past the ends), a luck game and a person here have no level, and a broken save's levels are dropped", async () => {
   const DATA = require("../scripts/board-data.js");
@@ -704,6 +1178,9 @@ test("the voice on EVERY box: every game, each played a while by tapping whateve
       [S.pickFirst, ["apple"]], [S.domDraw, ["dominoes"]], [S.domFirst, ["dominoes"]],
       [S.pickDieAgain, ["pickdie"]], [S.pickFirstDie, ["pickdie"]], [S.pairsFirst, ["pairs"]],
       [S.findTwin, ["spot"]], [S.whoseFirst, ["lotto"]], [S.basketFirst, ["lotto"]], [S.acornsFirst, ["acorns"]],
+      [S.callFirst, ["call"]], [S.callAgain, ["call"]], [S.callMiss, ["call"]],
+      [S.bingoSumFind.slice(S.bingoSumFind.indexOf("Count")), ["sums"]],
+      [D.board("twos").lines.hop, ["twos"]], [D.board("fives").lines.hop, ["fives"]],
     ];
     const stray = said.filter(([b, t]) => OWN.some(([line, owners]) => t.indexOf(line) >= 0 && owners.indexOf(b) < 0));
     assert.deepEqual(stray, [], "a game said ANOTHER game's line");
@@ -1285,7 +1762,8 @@ test("every finished game earns its box a 🏆 on the shelf, counted — and a f
   })));
   // (every box on the shelf, derived: a hand-typed list went stale the day a
   // fourteenth box landed)
-  const want = await page.evaluate(() => Object.fromEntries(window.BoardData.BOXES.map((b) => [b.id, b.id === "moon" ? "🏆 3" : null])));
+  // (and only the boxes on it: one waiting for another box is not there yet)
+  const want = await page.evaluate(() => Object.fromEntries(window.BoardData.BOXES.filter((b) => !b.unlockAfter || b.unlockAfter.box === "moon").map((b) => [b.id, b.id === "moon" ? "🏆 3" : null])));
   assert.ok(Object.keys(want).length >= 14, "fixture: the whole shelf");
   assert.deepEqual(await won(), want, "three Moon games: 🏆 3; the rest none yet");
   assert.match(await page.locator('.bn-box[data-box="moon"]').getAttribute("aria-label"), /played 3 times/);
@@ -2414,6 +2892,240 @@ test("🚂 a whole Pattern Train against the computer: the engine and five cars 
   } finally { await slow(); }
 });
 
+test("🚃 a whole Long Train (§18 D, Pattern Train's level two): the engine and SEVEN cars, then a ?; the whole train fits the field on a 320px phone and on an iPad; the right car is a ⭐; eight trains and one party, counted as a Long Train", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  const size = page.viewportSize();
+  try {
+    await startGame("train2", "river", true, 3, 0);
+    const row = () => page.evaluate(() => {
+      const r = document.querySelector(".bn-train__row"), f = document.querySelector(".bn-board").getBoundingClientRect();
+      const cars = [...r.querySelectorAll(".bn-car")].map((c) => c.getBoundingClientRect());
+      return { cars: r.querySelectorAll(".bn-car:not(.bn-car--engine):not(.bn-car--q)").length, q: !!r.querySelector(".bn-car--q"), left: Math.min(...cars.map((c) => c.left)), right: Math.max(...cars.map((c) => c.right)), fl: f.left, fr: f.right, w: Math.min(...cars.map((c) => c.width)), page: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+    });
+    const r0 = await row();
+    assert.equal(r0.cars, 7, "seven cars");
+    assert.ok(r0.q, "…and the one missing");
+    for (const [w, h] of [[320, 568], [834, 1112]]) {
+      await page.setViewportSize({ width: w, height: h });
+      await page.waitForTimeout(150);
+      const r = await row();
+      assert.ok(r.left >= r.fl - 1 && r.right <= r.fr + 1, `at ${w}x${h} the whole train is on the field (${Math.round(r.left)}..${Math.round(r.right)} in ${Math.round(r.fl)}..${Math.round(r.fr)})`);
+      assert.ok(r.w >= 26, `at ${w}x${h} a car is still a picture you can see (${Math.round(r.w)}px)`);
+      assert.ok(r.page <= 0, `at ${w}x${h} the page does not scroll sideways`);
+    }
+    await page.setViewportSize(size);
+    for (let guard = 0; guard < 60; guard++) {
+      await untilTap(0);
+      const s = await st();
+      if (s.phase === "done") break;
+      await page.locator('.bn-train__pick button.bn-carb[data-k="' + s.options.indexOf(s.answer) + '"]').click();
+      await page.waitForFunction((r) => window.__BOARD.state().round > r || window.__BOARD.state().phase === "done", s.round, { timeout: 5000 });
+    }
+    const end = await st();
+    assert.equal(end.phase, "done", "the game ends");
+    assert.equal(end.seats[0].stars + end.seats[1].stars, 8, "eight trains, eight stars");
+    await page.locator(".bn-party").waitFor({ state: "visible" });
+    const done = (await page.evaluate(() => window.__BOARD.save())).done;
+    assert.equal(done.train2, 1, "a finished Long Train counts as a Long Train");
+    assert.ok(!done.train, "…and not as a Pattern Train");
+  } finally { await page.setViewportSize(size); await slow(); }
+});
+
+test("🪜 a whole Dice Run (§18 D, Dice Match's level two): his first game lights the BEST keep for the rolls left (worked out, so half a run can glow), a run scores two ⭐s and glows whole, and the game counts as a Dice Run", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: false }));
+  await quick();
+  try {
+    await startGame("dicerun", "river", true, 3, 0);
+    let checked = 0, ran = false;
+    for (let guard = 0; guard < 80; guard++) {
+      await untilTap(0);
+      const s = await st();
+      if (s.phase === "done") break;
+      if (s.phase === "keep") {
+        const g = await page.evaluate(() => ({
+          want: window.BoardLogic.m3Keep(window.__BOARD.state().dice, true, window.__BOARD.state().left),
+          hint: [...document.querySelectorAll(".bn-m3__dice .bn-m3d")].map((d) => d.classList.contains("bn-m3d--hint")),
+        }));
+        // (a die already kept wears its ring instead of the glow)
+        assert.deepEqual(g.hint, g.want.map((x, k) => x && !s.held[k]), "his first Dice Run: the best keep glows");
+        checked++;
+        for (let k = 0; k < 3; k++) if (g.want[k] !== s.held[k]) await page.locator('.bn-m3__dice button.bn-m3d[data-k="' + k + '"]').click();
+      }
+      // (a re-roll does not count as a roll of the turn: wait for the dice,
+      // the rolls left, the phase or the turn to move)
+      const was = JSON.stringify([s.dice, s.left, s.phase, s.turn, s.rolls]);
+      await page.locator(".bn-m3__roll button.bn-m3roll").click();
+      await page.waitForFunction((w) => { const x = window.__BOARD.state(); return JSON.stringify([x.dice, x.left, x.phase, x.turn, x.rolls]) !== w; }, was, { timeout: 8000 });
+      if (!ran) ran = await page.evaluate(() => { const v = window.__BOARD.state(); return v.seats.some((x) => x.stars >= 2); });
+    }
+    assert.ok(checked >= 3, "fixture: he chose what to keep (" + checked + ")");
+    assert.equal((await st()).phase, "done", "the game ends");
+    await page.locator(".bn-party").waitFor({ state: "visible" });
+    const done = (await page.evaluate(() => window.__BOARD.save())).done;
+    assert.equal(done.dicerun, 1, "a finished Dice Run counts as a Dice Run");
+    assert.equal((await page.evaluate(() => window.__BOARD.save())).intro.dicerun, true, "his first Dice Run taught it: the next one does not glow");
+    assert.ok(!done.dicematch, "…and not as a Dice Match");
+    // the keep that only Dice Run can teach: two in a row and no pair (Dice
+    // Match would keep nothing) — half a run glows
+    await page.evaluate(() => window.__BOARD.reset({ introSeen: false }));
+    const half = await page.evaluate(() => {
+      const L = window.BoardLogic;
+      for (let seed = 1; seed < 600; seed++) {
+        const g = L.create({ board: "dicerun", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed, first: 0 });
+        L.rollMatch(g);
+        const d = g.dice, keep = L.m3Keep(d, true, g.left);
+        if (g.phase === "keep" && L.m3Score(d, true) === 0 && keep.filter(Boolean).length === 2) return window.__BOARD.load("dicerun", L.snapshot(g)) && keep;
+      }
+      return null;
+    });
+    assert.ok(half, "fixture: a roll with half a run and no pair");
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    await page.waitForFunction(() => !window.__BOARD.busy(), null, { timeout: 5000 });
+    assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll(".bn-m3__dice .bn-m3d")].map((d) => d.classList.contains("bn-m3d--hint"))), half, "half a run glows");
+    // a run glows WHOLE when it scores (the dice that made it)
+    const glow = await page.evaluate(() => {
+      const L = window.BoardLogic;
+      for (let seed = 1; seed < 400; seed++) {
+        const g = L.create({ board: "dicerun", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed, first: 0 });
+        L.rollMatch(g);
+        if (g.phase === "keep" && L.m3Score(g.dice, true) === 2) { g.held = [true, true, true]; return window.__BOARD.load("dicerun", L.snapshot(g)); }
+      }
+      return false;
+    });
+    assert.ok(glow, "fixture: a first roll that is a run");
+    await page.locator("#screen-board-play").waitFor({ state: "visible" });
+    await page.waitForFunction(() => !window.__BOARD.busy(), null, { timeout: 5000 });
+    await page.waitForTimeout(400);
+    await page.locator(".bn-m3__roll button.bn-m3roll").click();
+    await page.waitForFunction(() => document.querySelectorAll(".bn-m3__dice .bn-m3d--win").length === 3, null, { timeout: 5000 }).catch(() => {});
+    assert.equal(await page.locator(".bn-m3__dice .bn-m3d--win").count(), 3, "a run glows whole");
+    assert.equal((await st()).seats[0].stars, 2, "a run is two stars");
+  } finally { await slow(); }
+});
+
+test("🚪 a whole Doors to Nine (§18 D, Shut the Doors' level two): nine big doors three by three, 16px apart; two dice rolled and shown with the number they make; a roll past nine is made with two doors; two doors at once is a ⭐ and HE rolls again; every door shut and one party, counted as a Doors to Nine", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+    await startGame("doors9", "river", true, 3, 0);
+    const doors = () => page.evaluate(() => [...document.querySelectorAll(".bn-doors__grid .bn-door")].map((d) => { const r = d.getBoundingClientRect(); return { n: Number(d.querySelector(".bn-door__n").textContent), button: d.tagName === "BUTTON", l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height }; }));
+    const d0 = await doors();
+    assert.deepEqual(d0.map((d) => d.n), [1, 2, 3, 4, 5, 6, 7, 8, 9], "nine doors, 1 to 9");
+    assert.ok(d0.every((d) => d.w >= 75 && d.h >= 75), `big doors (${d0.map((d) => Math.round(d.w) + "x" + Math.round(d.h))})`);
+    assert.equal(new Set(d0.map((d) => Math.round(d.t))).size, 3, "three rows");
+    assert.ok(d0[1].l - d0[0].r >= 16 && d0[3].t - d0[0].b >= 16, "16px apart");
+    let rolledTwo = false, again = 0, guard = 0;
+    while (guard++ < 120) {
+      await untilTap(0);
+      const s = await st();
+      if (s.phase === "done") break;
+      if (s.phase === "roll") {
+        await page.locator("#screen-board-play .bn-pad--0").click();
+        await page.waitForFunction(() => window.__BOARD.state().phase !== "roll", null, { timeout: 8000 });
+        continue;
+      }
+      // a roll: the dice are shown with the number they make
+      if (s.dice.length === 2 && !rolledTwo) {
+        rolledTwo = true;
+        const goal = await page.evaluate(() => ({ dice: document.querySelectorAll(".bn-doors__other .bn-goal__die").length, n: document.querySelector(".bn-doors__other .bn-goal__n").textContent }));
+        assert.equal(goal.dice, 2, "both dice are shown beside the doors");
+        assert.equal(Number(goal.n), s.die, "…with the number they make");
+      }
+      const ways = await page.evaluate(() => window.BoardLogic.doorWays(window.__BOARD.state()));
+      assert.ok(ways.length, "a roll he sees always fits");
+      const w = ways.find((x) => x.length === 2) || ways[0];
+      if (s.die > 9) assert.equal(w.length, 2, "past nine: two doors");
+      const before = s.turn;
+      for (const n of w) await page.locator('.bn-doors__grid button.bn-door[data-n="' + n + '"]').click();
+      await page.waitForFunction((r) => window.__BOARD.state().phase !== "shut" || window.__BOARD.state().rolls > r, s.rolls, { timeout: 8000 });
+      const after = await st();
+      if (w.length === 2 && after.phase === "roll" && after.turn === before && after.seats[s.mover].pos < 9) again++;
+    }
+    assert.ok(rolledTwo, "fixture: two dice were rolled");
+    assert.ok(again >= 1, "two doors at once: he rolled again (" + again + ")");
+    assert.equal((await st()).phase, "done", "the game ends");
+    await page.locator(".bn-party").waitFor({ state: "visible" });
+    const done = (await page.evaluate(() => window.__BOARD.save())).done;
+    assert.equal(done.doors9, 1, "a finished Doors to Nine counts as one");
+    assert.ok(!done.doors, "…and not as a Shut the Doors");
+  } finally { await slow(); }
+});
+
+test("🐝 a whole Honey Twenty (§18 D, Honey Ten's level two): every flower is TWO ten-frames (13 is a full ten and three), the goal says 20, a held flower lights how many more make twenty, his first game glows a twenty, and it counts as a Honey Twenty", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: false }));
+  await quick();
+  try {
+    await startGame("honey20", "river", true, 3, 0);
+    let looked = false;
+    for (let guard = 0; guard < 60; guard++) {
+      await untilTap(0);
+      const s = await st();
+      if (s.phase === "done") break;
+      const pair = await page.evaluate(() => window.BoardLogic.tenPairs(window.__BOARD.state())[0]);
+      if (!looked) {
+        looked = true;
+        const m = await page.evaluate(() => ({
+          flowers: [...document.querySelectorAll(".bn-ten__grid .bn-flower:not(.bn-flower--gone)")].map((f) => ({ n: Number(f.querySelector(".bn-flower__n").textContent), dots: f.querySelectorAll("svg circle").length, slots: f.querySelectorAll("svg rect").length })),
+          goal: document.querySelector(".bn-ten__goal").textContent,
+          hint: document.querySelectorAll(".bn-ten__grid .bn-flower--hint").length,
+        }));
+        assert.ok(m.flowers.length >= 2 && m.flowers.every((f) => f.slots === 20 && f.dots === f.n), "every flower is two ten-frames with its dots");
+        assert.ok(m.goal.indexOf("20") >= 0, "the goal is twenty (" + m.goal + ")");
+        assert.ok(m.hint >= 2, "his first Honey Twenty: a twenty glows");
+        await page.locator('.bn-ten__grid button.bn-flower[data-k="' + pair[0] + '"]').click();
+        const held = await page.evaluate(() => ({ lit: [...document.querySelectorAll(".bn-flower--held svg rect")].filter((r) => r.getAttribute("fill") === "#fff3b0").length, n: Number(document.querySelector(".bn-flower--held .bn-flower__n").textContent) }));
+        assert.equal(held.lit, 20 - held.n, "the lit places are how many more make twenty");
+        await page.locator('.bn-ten__grid button.bn-flower[data-k="' + pair[1] + '"]').click();
+      } else {
+        await page.locator('.bn-ten__grid button.bn-flower[data-k="' + pair[0] + '"]').click();
+        await page.locator('.bn-ten__grid button.bn-flower[data-k="' + pair[1] + '"]').click();
+      }
+      await page.waitForFunction((r) => window.__BOARD.state().rolls > r || window.__BOARD.state().phase === "done", s.rolls, { timeout: 8000 });
+    }
+    const end = await st();
+    assert.equal(end.phase, "done", "the game ends");
+    assert.equal(end.made.length, 9, "nine twenties");
+    await page.locator(".bn-party").waitFor({ state: "visible" });
+    const done = (await page.evaluate(() => window.__BOARD.save())).done;
+    assert.equal(done.honey20, 1, "a finished Honey Twenty counts as one");
+    assert.equal((await page.evaluate(() => window.__BOARD.save())).intro.honey20, true, "his first Honey Twenty taught it: the next one does not glow");
+    assert.ok(!done.honeyten, "…and not as a Honey Ten");
+  } finally { await slow(); }
+});
+
+test("🔟 a whole Teen Top Card (§18 D, Top Card's level two): his cards are 11 to 20, each a FULL ten-frame and a second with its ones, so a card shows what makes it bigger; ten tricks and one party, counted as a Teen Top Card", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+    await startGame("topteen", "river", true, 3, 0);
+    let looked = 0;
+    for (let guard = 0; guard < 60; guard++) {
+      await untilTap(0);
+      const s = await st();
+      if (s.phase === "done") break;
+      const cards = await page.evaluate(() => [...document.querySelectorAll(".bn-top button.bn-tc, .bn-top .bn-tc--table")].map((c) => ({
+        n: Number(c.querySelector(".bn-tc__n").textContent),
+        frames: [...c.querySelectorAll(".bn-tc__dots")].map((f) => f.querySelectorAll(".bn-tc__dot:not(.bn-tc__dot--none)").length),
+      })));
+      for (const c of cards) {
+        assert.ok(c.n >= 11 && c.n <= 20, "a teen card (" + c.n + ")");
+        assert.deepEqual(c.frames, [10, c.n - 10], c.n + " is a full ten and " + (c.n - 10) + " more");
+        looked++;
+      }
+      const best = await page.evaluate(() => window.BoardLogic.topBest(window.__BOARD.state()));
+      await page.locator('.bn-top button.bn-tc[data-v="' + best + '"]').click();
+      await page.waitForFunction((g) => window.__BOARD.state().gone[0].length + (window.__BOARD.state().table[0] == null ? 0 : 1) > g || window.__BOARD.state().phase === "done", s.gone[0].length + (s.table[0] == null ? 0 : 1), { timeout: 8000 });
+    }
+    assert.ok(looked >= 20, "fixture: he saw his cards (" + looked + ")");
+    assert.equal((await st()).phase, "done", "the game ends");
+    await page.locator(".bn-party").waitFor({ state: "visible" });
+    const done = (await page.evaluate(() => window.__BOARD.save())).done;
+    assert.equal(done.topteen, 1, "a finished Teen Top Card counts as one");
+    assert.ok(!done.topcard, "…and not as a Top Card");
+  } finally { await slow(); }
+});
+
 test("🔼 a whole Higher or Lower against the computer: the card to beat shows its number and that many dots; two big guesses (⬆️ bigger, ⬇️ smaller); a guess turns the next card over and shows ✅ or 😮 (sound off; never a red ❌); a doubled tap guesses once; the computer's guesses are not his; twelve cards and one party", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await quick();
@@ -2624,14 +3336,15 @@ test("⛄ a whole Snowman Build against the computer: two snowmen side by side, 
       if (a.phase !== "build") not++;
       continue;
     }
-    // building: his (or, once his is whole, his friend's) snowman is the one button
-    const d = await dom();
-    assert.deepEqual(d.map((c) => c.button), [s.mover === 0, s.mover === 1], "only the mover's snowman is a button");
-    const before = s.parts[s.mover].length;
+    // building: his (or, once his is whole, his friend's) snowman is the one
+    // button — or, 🎁 a part only the friend's can take, the friend's
+    const d = await dom(), to = s.gift != null ? s.gift : s.mover;
+    assert.deepEqual(d.map((c) => c.button), [to === 0, to === 1], "only the snowman the part goes on is a button");
+    const before = s.parts[to].length;
     if (!doubled) { doubled = true; await page.locator(".bn-snow button.bn-snowman").dblclick(); }
     else await page.locator(".bn-snow button.bn-snowman").click();
-    await page.waitForFunction(([m, n]) => window.__BOARD.state().parts[m].length > n, [s.mover, before], { timeout: 5000 });
-    assert.equal((await st()).parts[s.mover].length, before + 1, "one part on, even for a doubled tap");
+    await page.waitForFunction(([m, n]) => window.__BOARD.state().parts[m].length > n, [to, before], { timeout: 5000 });
+    assert.equal((await st()).parts[to].length, before + 1, "one part on, even for a doubled tap");
     built++;
     const x = await st();
     if (x.phase !== "done" && x.turn === 1 && !cpuTried) {
@@ -3396,6 +4109,25 @@ test("🁢 a tile FISHED from the pile is shown WHOLE, not cut in half by the li
   assert.ok(r.inside, "the fished tile lies inside the line, not cut off");
 });
 
+test("🎲 EVERY box on the shelf OPENS: tapped, it shows who's playing, and both ways to play open (derived from the shelf — a box id with a digit, 🁢 dominoes6, was once refused by the router and its tap did nothing)", async () => {
+  const open = await page.evaluate(() => Object.fromEntries(window.BoardData.BOXES.filter((b) => b.unlockAfter).map((b) => [b.unlockAfter.box, b.unlockAfter.games])));
+  await page.evaluate((d) => window.__BOARD.reset({ introSeen: true, done: d }), open);
+  const boxes = await page.evaluate(() => window.BoardData.BOXES.map((b) => b.id));
+  assert.ok(boxes.some((b) => /\d/.test(b)), "fixture: a box id with a digit is on the shelf");
+  const dead = [];
+  for (const box of boxes) {
+    await go("#board-home", "#screen-board-home");
+    await page.locator('.bn-box[data-box="' + box + '"]').click();
+    try { await page.locator("#screen-board-who").waitFor({ state: "visible", timeout: 3000 }); } catch (e) { dead.push(box + " (its tap did nothing)"); continue; }
+    if (!(await page.evaluate((b) => location.hash === "#board-who-" + b, box))) dead.push(box + " (the wrong who screen)");
+    for (const way of ["cpu", "here"]) {
+      await page.evaluate((h) => { location.hash = h; }, "#board-pick-" + box + "-" + way);
+      try { await page.locator("#screen-board-pick").waitFor({ state: "visible", timeout: 3000 }); } catch (e) { dead.push(box + " (no " + way + " pick)"); }
+    }
+  }
+  assert.deepEqual(dead, [], "a box on the shelf that does not open");
+});
+
 test("🎲 EVERY box carries on: played a while, the page RELOADED, and ▶ carry on brings back the very same game, still playable (derived from the shelf)", async () => {
   // Moon Race's carry-on is tested above; each newer game keeps its own
   // fields (a hand, a pond, a held flower, covered squares, a train) and the
@@ -3408,8 +4140,11 @@ test("🎲 EVERY box carries on: played a while, the page RELOADED, and ▶ carr
   try {
     const boxes = await page.evaluate(() => window.BoardData.BOXES.map((b) => b.id));
     const lost = [];
+    // (every box unlocked, derived: a box that waits for another — Comet
+    // Moon, Moon Call, Hop by Fives, Sum Bingo — has no who screen until then)
+    const open = await page.evaluate(() => Object.fromEntries(window.BoardData.BOXES.filter((b) => b.unlockAfter).map((b) => [b.unlockAfter.box, b.unlockAfter.games])));
     for (const box of boxes) {
-      await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { moon: 2 } }));
+      await page.evaluate((d) => window.__BOARD.reset({ introSeen: true, done: d }), open);
       await startGame(box, "raegar", true, 11, 0);
       for (let k = 0; k < 8; k++) {
         await page.evaluate((n) => {

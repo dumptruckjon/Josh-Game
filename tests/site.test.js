@@ -7144,3 +7144,16 @@ test("no spoken line STAMMERS: a doubled word is a sound word or a typo", () => 
   assert.deepEqual(stammers, [], "a doubled word in a spoken line:\n" + stammers.join("\n"));
   assert.deepEqual(SOUNDS.filter((w) => !used.has(w)), [], "a sound word nothing says any more — drop it from the list");
 });
+
+test("guardrail: Game Night marks a lesson as learned through its ONE key — a level-two box teaches its own first game", () => {
+  // A level-two box (🐝 Honey Twenty, 🪜 Dice Run, 🚪 Doors to Nine) shares
+  // its game with its first level but teaches its OWN first game, under its
+  // own key (teachKey). A handler that marks the old literal key —
+  // save.intro.ten = true — leaves the new key unmarked for ever, so the
+  // first-game glow never switches off: it shipped that way in two boxes.
+  const src = read("scripts/board-main.js").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+  const literal = src.match(/save\.intro\.[a-z0-9]+\s*=\s*true/g) || [];
+  assert.deepEqual(literal, [], "a lesson marked by a literal key, not teachKey(game.board)");
+  const keyed = (src.match(/save\.intro\[teachKey\(game\.board\)\]\s*=\s*true/g) || []).length;
+  assert.ok(keyed >= 20, "every game marks its lesson through teachKey (saw " + keyed + ")");
+});
