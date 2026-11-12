@@ -539,16 +539,23 @@
   // right) and its steps (id & 1) + 1. Each player has a fair bag of all eight.
   const MAZE_DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
   const MAZE_WORDS = ["up", "down", "left", "right"];
-  const arrowBag = (seat) => shuffle(seat, [0, 1, 2, 3, 4, 5, 6, 7]);
+  // 🐭 Twisty Maze (the level two, `turns`): eight more cards, each a TURN —
+  // one step one way, then one step another (up then right…) — so the way
+  // round a pot can be one card. Card 8 + k is MAZE_TURNS[k], two directions.
+  const MAZE_TURNS = [[0, 2], [0, 3], [1, 2], [1, 3], [2, 0], [2, 1], [3, 0], [3, 1]];
+  const mazeCards = (board) => (board.turns ? 16 : 8);
+  const arrowBag = (seat, board) => shuffle(seat, Array.from({ length: mazeCards(board) }, (x, k) => k));
+  // the directions card `id` steps in, one per step
+  const mazeSteps = (id) => (id >= 8 ? MAZE_TURNS[id - 8].slice() : new Array((id & 1) + 1).fill(id >> 1));
   const mazeFree = (st, board, k) => k >= 0 && k < board.cols * board.rows && st.pots.indexOf(k) < 0;
   // the squares the mouse steps on for card `id`, from `from`: it stops at
   // the garden's edge, a plant pot, or the cheese (it eats it on the way)
   function mazePath(st, id, from) {
-    const board = DATA.board(st.board), d = MAZE_DIRS[id >> 1];
+    const board = DATA.board(st.board);
     let c = from % board.cols, r = Math.floor(from / board.cols);
     const path = [];
-    for (let s = 0; s < (id & 1) + 1; s++) {
-      const nc = c + d[0], nr = r + d[1];
+    for (const di of mazeSteps(id)) {
+      const d = MAZE_DIRS[di], nc = c + d[0], nr = r + d[1];
       if (nc < 0 || nc >= board.cols || nr < 0 || nr >= board.rows || !mazeFree(st, board, nr * board.cols + nc)) break;
       c = nc; r = nr;
       path.push(r * board.cols + c);
@@ -613,7 +620,7 @@
     st.cheese = -1;
     placeCheese(st, s0);
     st.found = 0;
-    st.hands = st.seats.map((s) => { const h = []; while (h.length < board.hand) h.push(draw(s, () => arrowBag(s))); return h; });
+    st.hands = st.seats.map((s) => { const h = []; while (h.length < board.hand) h.push(draw(s, () => arrowBag(s, board))); return h; });
     mazeRedeal(st, st.turn);
   }
   // does card `id` take mouse i nearer the cheese (or onto it)?
@@ -629,7 +636,7 @@
     const s = st.seats[i];
     let changed = false;
     for (let guard = 0; guard < 24 && (st.cheese < 0 ? !st.hands[i].some((id) => mazePath(st, id, st.mice[i]).length) : !st.hands[i].some((id) => mazeNearer(st, i, id))); guard++) {
-      st.hands[i][guard % st.hands[i].length] = draw(s, () => arrowBag(s));
+      st.hands[i][guard % st.hands[i].length] = draw(s, () => arrowBag(s, DATA.board(st.board)));
       changed = true;
     }
     return changed;
@@ -646,8 +653,8 @@
     const near = mazeBest(st), ways = st.hands[i].filter((c) => mazePath(st, c, st.mice[i]).length).length;
     const sm = judged(i, "near", near.indexOf(k) >= 0, near.length < ways);
     st.mice[i] = path[path.length - 1];
-    st.hands[i][k] = draw(s, () => arrowBag(s));
-    const ev = [{ type: "scurry", seat: i, card: id, path, dir: id >> 1 }];
+    st.hands[i][k] = draw(s, () => arrowBag(s, board));
+    const ev = [{ type: "scurry", seat: i, card: id, path, dir: mazeSteps(id)[0], dirs: mazeSteps(id) }];
     if (sm) ev.push(sm);
     if (st.mice[i] === st.cheese) {
       s.stars += 1; s.pos += 1; st.found += 1;
@@ -2418,7 +2425,7 @@
     if (board.game === "match3" || board.game === "hide" || board.game === "cmatch" || board.game === "fish" || board.game === "ten" || board.game === "hilo" || board.game === "train") return bag.length === 0;
     if (board.game === "snow") { const left = [1, 2, 3, 4, 5, 6]; for (const n of bag) { const k = left.indexOf(n); if (!int(n) || k < 0) return false; left.splice(k, 1); } return true; }
     if (board.game === "bingo") { const left = board.sums ? SUM_BAG.slice() : facesOf(board).slice(); for (const n of bag) { const k = left.indexOf(n); if (!int(n) || k < 0) return false; left.splice(k, 1); } return true; }
-    if (board.game === "maze") return bag.length <= 8 && new Set(bag).size === bag.length && bag.every((n) => int(n) && n >= 0 && n <= 7);
+    if (board.game === "maze") return bag.length <= mazeCards(board) && new Set(bag).size === bag.length && bag.every((n) => int(n) && n >= 0 && n < mazeCards(board));
     if (board.game === "doors") {
       const left = [1, 2, 3, 4, 5, 6];
       for (const n of bag) { const k = left.indexOf(n); if (!int(n) || k < 0) return false; left.splice(k, 1); }
@@ -2551,7 +2558,7 @@
         if (!Array.isArray(snap.pots) || snap.pots.length !== board.pots || !snap.pots.every(sq) || new Set(snap.pots).size !== board.pots) return null;
         if (!Array.isArray(snap.mice) || snap.mice.length !== 2 || snap.mice.some((m) => !sq(m) || snap.pots.indexOf(m) >= 0)) return null;
         if (snap.phase === "done" ? snap.cheese !== -1 : !sq(snap.cheese) || snap.mice.indexOf(snap.cheese) >= 0 || snap.pots.indexOf(snap.cheese) >= 0) return null;
-        if (!Array.isArray(snap.hands) || snap.hands.length !== 2 || snap.hands.some((h) => !Array.isArray(h) || h.length !== board.hand || !h.every((id) => int(id) && id >= 0 && id <= 7))) return null;
+        if (!Array.isArray(snap.hands) || snap.hands.length !== 2 || snap.hands.some((h) => !Array.isArray(h) || h.length !== board.hand || !h.every((id) => int(id) && id >= 0 && id < mazeCards(board)))) return null;
         if (!int(snap.found) || snap.found !== snap.seats[0].stars + snap.seats[1].stars || snap.found > board.cheese) return null;
         if (snap.seats.some((x) => x.pos !== x.stars)) return null;
         if ((snap.phase === "done") !== (snap.found === board.cheese)) return null;
@@ -2942,7 +2949,7 @@
   }
 
   const BoardLogic = {
-    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, twoDoorDice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, takeCookies, nimTakes, nimBest, nimChoice, NIM_SHARP, dropLine, dropRow, linesOf, linesOpen, linesMade, linesBest, linesChoice, LINES_SHARP, playCard, topBest, topChoice, TOP_SHARP, grabColour, grabCells, grabOptions, grabGain, grabBest, grabChoice, GRAB_SHARP, chooseDie, dieTarget, dieBest, dieChoice, DIE_SHARP, callLanding, callTarget, callChoice, CALL_SHARP, pickTwoCard, cardMove, cardChoice, CARD_SHARP, moveMouse, mazePath, mazeDist, mazeBest, mazeChoice, MAZE_SHARP, MAZE_WORDS, askHide, hideYes, hideSplit, hideBest, hideChoice, hideTraits, HIDE_SHARP, pickCar, trainChoice, trainPats, trainShown, TRAIN_SHOWN, TRAIN_SHARP, TRAIN_PATTERNS, hiloGuess, hiloBest, hiloChoice, HILO_SHARP, tenPick, tenPairs, tenChoice, tenTarget, tenCards, TEN_SHARP, askFish, answerFish, fishBest, fishChoice, fishAnswer, FISH_SHARP, FISH_N, buildSnow, SNOW_NEEDS, SNOW_MAGIC, snowWhich, coverBingo, bingoSpots, bingoBest, BINGO_LINES, playMatch, flipMatch, cmFits, cmColour, cmNumber, cmPlayable, cmChoice, rollMatch, holdDie, m3Score, m3Keep, m3Made, m3Choice, M3_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
+    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, twoDoorDice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, takeCookies, nimTakes, nimBest, nimChoice, NIM_SHARP, dropLine, dropRow, linesOf, linesOpen, linesMade, linesBest, linesChoice, LINES_SHARP, playCard, topBest, topChoice, TOP_SHARP, grabColour, grabCells, grabOptions, grabGain, grabBest, grabChoice, GRAB_SHARP, chooseDie, dieTarget, dieBest, dieChoice, DIE_SHARP, callLanding, callTarget, callChoice, CALL_SHARP, pickTwoCard, cardMove, cardChoice, CARD_SHARP, moveMouse, mazePath, mazeSteps, MAZE_TURNS, mazeDist, mazeBest, mazeChoice, MAZE_SHARP, MAZE_WORDS, askHide, hideYes, hideSplit, hideBest, hideChoice, hideTraits, HIDE_SHARP, pickCar, trainChoice, trainPats, trainShown, TRAIN_SHOWN, TRAIN_SHARP, TRAIN_PATTERNS, hiloGuess, hiloBest, hiloChoice, HILO_SHARP, tenPick, tenPairs, tenChoice, tenTarget, tenCards, TEN_SHARP, askFish, answerFish, fishBest, fishChoice, fishAnswer, FISH_SHARP, FISH_N, buildSnow, SNOW_NEEDS, SNOW_MAGIC, snowWhich, coverBingo, bingoSpots, bingoBest, BINGO_LINES, playMatch, flipMatch, cmFits, cmColour, cmNumber, cmPlayable, cmChoice, rollMatch, holdDie, m3Score, m3Keep, m3Made, m3Choice, M3_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
     cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN, sharpOf, SHARP_MIN, SHARP_MAX, levelled, labelOf,
   };
   global.BoardLogic = BoardLogic;

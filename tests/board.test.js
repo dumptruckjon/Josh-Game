@@ -3004,6 +3004,45 @@ test("🪜 a whole Dice Run (§18 D, Dice Match's level two): his first game lig
   } finally { await slow(); }
 });
 
+test("🌀 a whole Twisty Maze (§18 D, Mouse Maze's level two): a turn card shows its two arrows and says both (a step one way, then another), the mouse takes that turn on the garden, and the game counts as a Twisty Maze", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+    await startGame("maze2", "river", true, 3, 0);
+    let turned = 0, guard = 0;
+    while (guard++ < 120) {
+      await untilTap(0);
+      const s = await st();
+      if (s.phase === "done") break;
+      const look = await page.evaluate(() => {
+        const st = window.__BOARD.state(), L = window.BoardLogic;
+        return st.hands[0].map((id, k) => ({ id, k, goes: L.mazePath(st, id, st.mice[0]).length > 0 }));
+      });
+      const turnCard = look.find((c) => c.id >= 8 && c.goes);
+      const pick = turnCard || look.find((c) => c.goes);
+      if (turnCard) {
+        const c = await page.evaluate((k) => { const b = document.querySelector('.bn-maze__hand button.bn-arrow[data-k="' + k + '"]'); return { pic: b.querySelector(".bn-arrow__pic").textContent, label: b.getAttribute("aria-label") }; }, turnCard.k);
+        const want = await page.evaluate((id) => window.BoardLogic.mazeSteps(id).map((d) => ["⬆️", "⬇️", "⬅️", "➡️"][d]).join(""), turnCard.id);
+        assert.equal(c.pic, want, "a turn card shows its two arrows");
+        assert.ok(/then one step/.test(c.label), "…and says both steps (" + c.label + ")");
+        const path = await page.evaluate((id) => { const st = window.__BOARD.state(); return window.BoardLogic.mazePath(st, id, st.mice[0]); }, turnCard.id);
+        await page.locator('.bn-maze__hand button.bn-arrow[data-k="' + turnCard.k + '"]').click();
+        await page.waitForFunction((p) => window.__BOARD.state().mice[0] === p[p.length - 1], path, { timeout: 8000 });
+        if (path.length === 2) turned++;
+        continue;
+      }
+      await page.locator('.bn-maze__hand button.bn-arrow[data-k="' + pick.k + '"]').click();
+      await page.waitForFunction((t) => window.__BOARD.state().turn !== 0 || window.__BOARD.state().phase === "done" || window.__BOARD.state().rolls > t, s.rolls, { timeout: 8000 }).catch(() => {});
+    }
+    assert.ok(turned >= 1, "fixture: he took a turn (" + turned + ")");
+    assert.equal((await st()).phase, "done", "the game ends");
+    await page.locator(".bn-party").waitFor({ state: "visible" });
+    const done = (await page.evaluate(() => window.__BOARD.save())).done;
+    assert.equal(done.maze2, 1, "a finished Twisty Maze counts as one");
+    assert.ok(!done.maze, "…and not as a Mouse Maze");
+  } finally { await slow(); }
+});
+
 test("🚪 a whole Doors to Nine (§18 D, Shut the Doors' level two): nine big doors three by three, 16px apart; two dice rolled and shown with the number they make; a roll past nine is made with two doors; two doors at once is a ⭐ and HE rolls again; every door shut and one party, counted as a Doors to Nine", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await quick();

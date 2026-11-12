@@ -461,6 +461,14 @@
       lines: { home: "", end: "Every cheese is found! Squeak!" },
     },
     {
+      // 🐭 Twisty Maze (Mouse Maze's level two, §18): eight more arrow cards,
+      // each a TURN — a step one way, then a step another — so getting round
+      // a pot can be one card, if he sees it.
+      id: "maze2", box: "maze2", game: "maze", name: "Twisty Maze", coop: true, turns: true,
+      cols: 4, rows: 5, pots: 3, cheese: 5, hand: 3, size: 20,
+      lines: { home: "", end: "Every cheese is found! Squeak!" },
+    },
+    {
       // 🕵️ Who's Hiding (Guess Who, together, for a four-year-old: a game of
       // RULING OUT). Nine friends on the board: a dog, a cat or a bunny, in a
       // red, blue or yellow shirt, some in a hat. One of them is hiding. On
@@ -648,6 +656,7 @@
     { id: "dicematch", board: "dicematch", name: "Dice Match", pic: "🎯", colour: "#b91c1c", kind: "think" },
     { id: "dicerun", board: "dicerun", name: "Dice Run", pic: "🪜", colour: "#991b1b", kind: "think", unlockAfter: { box: "dicematch", games: 2 } },
     { id: "maze", board: "maze", name: "Mouse Maze", pic: "🐭", colour: "#a16207", kind: "think" },
+    { id: "maze2", board: "maze2", name: "Twisty Maze", pic: "🌀", colour: "#854d0e", kind: "think", unlockAfter: { box: "maze", games: 2 } },
     { id: "hide", board: "hide", name: "Who's Hiding", pic: "🕵️", colour: "#475569", kind: "think" },
     { id: "train", board: "train", name: "Pattern Train", pic: "🚂", colour: "#15803d", kind: "think" },
     { id: "train2", board: "train2", name: "Long Train", pic: "🚃", colour: "#166534", kind: "think", unlockAfter: { box: "train", games: 2 } },
@@ -790,6 +799,7 @@
     mazeNew: "New cheese!",
     mazeSteps: "{d} steps {w}!",
     mazeStep: "One step {w}!",
+    mazeTurn: "{a}, then {b}!",
     hideFirst: "Ask a question! Who is hiding?",
     hideAnimal: "Is it a {w}?",
     hideColour: "Is it {w}?",

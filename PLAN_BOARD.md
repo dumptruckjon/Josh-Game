@@ -779,7 +779,7 @@ aimed at a skill his June 2026 report lists as Working rather than Mastered.
   there (careful play 50.7% against 49.9%), which a single wild per game does
   not change. It stays on the Thinking shelf for recognising what fits.
 
-**D. Level two of the thinking games (IN PROGRESS).** A level-two box waits on
+**D. Level two of the thinking games (BUILT).** A level-two box waits on
 the shelf until its game has been finished twice (`unlockAfter`), so the shelf
 grows with him and never shows a padlock.
 - **🁢 Six-Dot Dominoes (Dot Dominoes' level two).** Every pair of one to SIX
@@ -826,6 +826,11 @@ grows with him and never shows a padlock.
   a phone on its side the bar gives 6px, Treasure Dig's precedent. Measured
   and not built: a fair 1-9 number bag (still fourteen roll-agains) and "use
   either die or both" (sixteen).
+- **🌀 Twisty Maze (Mouse Maze's level two).** Eight more arrow cards, each
+  a TURN — a step one way, then a step another (`turns: true`, sixteen cards
+  in his fair bag) — so the way round a pot can be one card, if he sees it.
+  A turn stops where it is blocked, like any arrow; it shows its two arrows
+  and says both ("Up, then right!"). Its box is a 🌀.
 - **Measured and not built: Big Acorn Pots (four pots of four).** Its longest
   game ran 161s against the 160s law every game is held to, and the extra pot
   added waiting, not thinking.
@@ -834,7 +839,7 @@ grows with him and never shows a padlock.
   nothing when tapped. A derived browser test now taps EVERY box on a fully
   open shelf and opens both ways to play.
 
-Still to build, in order: the rest of **D** (two-arrow mazes); **E**
+**D is done.** Still to build, in order: **E**
 the shell (tonight's three games, pick your token, counting in Chinese, table
 mode, endings that change the board and a high-five); **F** the remaining
 per-game ideas.

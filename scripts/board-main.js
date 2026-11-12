@@ -1914,10 +1914,11 @@
     const best = mine && game.teach ? L.mazeBest(st) : [];
     let cards = "";
     hand.forEach((id, k) => {
-      const n = (id & 1) + 1, word = L.MAZE_WORDS[id >> 1];
+      // (🌀 a turn card is two different arrows: a step one way, then another)
+      const steps = L.mazeSteps(id), turn2 = steps[0] !== steps[steps.length - 1];
       const goes = L.mazePath(st, id, st.mice[turn]).length > 0;
-      const pics = '<span class="bn-arrow__pic" aria-hidden="true">' + ARROWS[id >> 1].repeat(n) + "</span>";
-      const label = (n === 1 ? "One step " : "Two steps ") + word + (goes ? "" : ", but the way is blocked");
+      const pics = '<span class="bn-arrow__pic" aria-hidden="true">' + steps.map((d) => ARROWS[d]).join("") + "</span>";
+      const label = (turn2 ? "One step " + L.MAZE_WORDS[steps[0]] + ", then one step " + L.MAZE_WORDS[steps[1]] : (steps.length === 1 ? "One step " : "Two steps ") + L.MAZE_WORDS[steps[0]]) + (goes ? "" : ", but the way is blocked");
       if (mine && goes && v.used == null) cards += '<button class="tap bn-arrow' + (best.indexOf(k) >= 0 ? " bn-arrow--hint" : "") + '" type="button" data-k="' + k + '" aria-label="' + label + '">' + pics + "</button>";
       else cards += '<span class="bn-arrow bn-arrow--still' + (v.used === id ? " bn-arrow--used" : "") + '" role="img" aria-label="' + label + '">' + pics + "</span>";
     });
@@ -3938,8 +3939,9 @@
         at(T.look - T.ride, () => { game.hv = hideView(); SFX.whoosh(); sayPlay(SAY.hideNew); paintHide(); });
       } else if (e.type === "scurry") {
         // 🐭 the mouse scurries square by square; the steps are counted
-        const word = L.MAZE_WORDS[e.dir];
-        at(0, () => { game.zv.used = e.card; paintMaze(); sayPlay(e.path.length === 1 ? fill(SAY.mazeStep, { w: word }) : fill(SAY.mazeSteps, { d: e.path.length, w: word })); });
+        const word = L.MAZE_WORDS[e.dir], dirs = e.dirs || [e.dir];
+        const line = dirs.length === 2 && dirs[0] !== dirs[1] && e.path.length === 2 ? cap(fill(SAY.mazeTurn, { a: L.MAZE_WORDS[dirs[0]], b: L.MAZE_WORDS[dirs[1]] })) : e.path.length === 1 ? fill(SAY.mazeStep, { w: word }) : fill(SAY.mazeSteps, { d: e.path.length, w: word });
+        at(0, () => { game.zv.used = e.card; paintMaze(); sayPlay(line); });
         e.path.forEach((sq, k) => at(k ? T.hop + 60 : T.glide, () => {
           game.zv.mice[e.seat] = sq;
           game.zv.used = null;

@@ -1815,6 +1815,53 @@ test("🚂 PATTERN TRAIN: five cars in a colour pattern and the next one missing
   assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
 });
 
+test("🌀 TWISTY MAZE (§18 D): Mouse Maze's level two — eight more cards, each a TURN (a step one way, then a step another), in his own fair bag of sixteen; a turn stops where it is blocked, like any arrow; finding the card that ends nearest the cheese is still the edge; a turn card on Mouse Maze is refused", () => {
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  assert.equal((DATA.box("maze2").unlockAfter || {}).box, "maze", "it waits on the shelf until Mouse Maze has been played");
+  assert.equal(L.MAZE_TURNS.length, 8, "eight turns");
+  for (const t of L.MAZE_TURNS) assert.ok((t[0] < 2) !== (t[1] < 2), "a turn is one step up or down and one across (or the other way round)");
+  assert.deepEqual(L.mazeSteps(5), [2, 2], "an arrow card is still its arrow, once or twice");
+  assert.deepEqual(L.mazeSteps(9), L.MAZE_TURNS[1]);
+  // a turn, on an open garden: up then right is one up and one right
+  const g0 = L.create({ board: "maze2", seats: SEATS, seed: 4, first: 0 });
+  const b = DATA.board("maze2");
+  const open = { ...g0, pots: [], cheese: -1 };
+  const from = 2 * b.cols + 1;
+  assert.deepEqual(L.mazePath(open, 8 + 1, from), [1 * b.cols + 1, 1 * b.cols + 2], "up, then right");
+  assert.deepEqual(L.mazePath({ ...open, pots: [1 * b.cols + 2] }, 8 + 1, from), [1 * b.cols + 1], "a turn stops where it is blocked");
+  let turns = 0;
+  for (let seed = 1; seed <= 300; seed++) {
+    const g = L.create({ board: "maze2", seats: SEATS, seed, first: seed % 2 });
+    let n = 0;
+    while (g.phase !== "done" && n++ < 400) {
+      for (const h of g.hands) for (const id of h) { assert.ok(id >= 0 && id < 16); if (id >= 8) turns++; }
+      L.autoTurn(g);
+      assert.ok(L.restore(L.snapshot(g)), "it comes back from a save");
+    }
+    assert.equal(g.phase, "done", `seed ${seed}: the game ends`);
+  }
+  assert.ok(turns > 500, "fixture: turn cards are dealt (" + turns + ")");
+  const share = (sharp) => {
+    let me = 0, them = 0;
+    for (let seed = 1; seed <= 800; seed++) {
+      const g = L.create({ board: "maze2", seats: SEATS, seed, first: seed % 2 });
+      let n = 0;
+      while (g.phase !== "done" && n++ < 400) {
+        if (g.turn !== 0) { L.autoTurn(g); continue; }
+        const live = g.hands[0].map((id, k) => k).filter((k) => L.mazePath(g, g.hands[0][k], g.mice[0]).length);
+        L.moveMouse(g, sharp ? L.mazeBest(g)[0] : live[(seed + n) % live.length]);
+      }
+      me += g.seats[0].stars; them += g.seats[1].stars;
+    }
+    return me / (me + them);
+  };
+  const sharp = share(true), plain = share(false);
+  assert.ok(sharp - plain >= 0.1, `the card that ends nearest the cheese is the edge (${sharp.toFixed(3)} against ${plain.toFixed(3)})`);
+  const m = L.snapshot(L.create({ board: "maze", seats: SEATS, seed: 4, first: 0 }));
+  assert.equal(L.restore({ ...m, hands: [[8, ...m.hands[0].slice(1)], m.hands[1]] }), null, "refused: a turn card on Mouse Maze");
+  assert.ok(L.restore(m), "the real state restores (or the refusal proves nothing)");
+});
+
 test("🚪 DOORS TO NINE (§18 D): Shut the Doors' level two — nine doors and TWO dice (each face from his own fair bag), one die once 7, 8 and 9 are shut so the last small doors can always be made; a roll past nine takes two doors; a roll that fits nothing is rolled again in the same tap (measured: a median of fourteen roll-agains a game without it); two doors at once is a ⭐ AND another go (the starter won 76% of races without it); every game ends with all eighteen doors shut; saves with a tenth door, a roll past twelve or the wrong number of dice are refused", () => {
   const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
   const b = DATA.board("doors9");
