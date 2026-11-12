@@ -676,6 +676,8 @@
     who: "Who's playing with you?",
     cpu: "Play with a friend in the iPad!",
     here: "A friend is here with me!",
+    // §18 E: both hands up at the party
+    highFive: "High five!",
     turn: "{n}'s turn!",
     rollFirst: "Tap your dice!",
     hopFirst: "Tap to hop! One tap, one hop.",

@@ -4147,6 +4147,25 @@ button.bn-pickd { cursor: pointer; }
    356px wide with the box's padding, 40px past a 320px phone. They share the
    row instead — still 100px+ each at 320. */
 .bn-party__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
+/* §18 E: each face is a high five (a button: 80px at least, so the short
+   screen's 64px faces still give a kid-sized target) */
+.bn-party__faces { position: relative; }
+.bn-five { position: relative; min-width: 80px; min-height: 80px; margin: 0; padding: 4px; border: 0; border-radius: 22px; background: transparent; font: inherit; color: inherit; cursor: pointer; }
+.bn-five--up { background: #fff4c2; box-shadow: 0 0 0 3px #f2b705; }
+.bn-five__hand { position: absolute; top: -10px; right: -12px; font-size: 2.2rem; line-height: 1; pointer-events: none; }
+.bn-party__clap { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); font-size: 3.2rem; line-height: 1; pointer-events: none; animation: bnClap 0.5s ease-out both; }
+@keyframes bnClap { from { transform: translate(-50%, -50%) scale(0.3); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+/* §18 E: the endings that change the board — a flag planted on the last
+   square of a race (over the party's veil), the train chugging off, the
+   snowmen waving */
+.bn-flag { position: absolute; z-index: 4; margin: 0; transform: translate(-30%, -88%); line-height: 1; pointer-events: none; text-shadow: 0 3px 6px rgba(0, 0, 0, 0.35); }
+.bn-flag--go { animation: bnPlant 0.7s cubic-bezier(0.3, 1.4, 0.6, 1) both; }
+@keyframes bnPlant { from { transform: translate(-30%, -260%); opacity: 0; } to { transform: translate(-30%, -88%); opacity: 1; } }
+.bn-train--off { overflow: hidden; }
+.bn-train--off .bn-train__row > * { animation: bnChug 1.2s ease-in both; }
+@keyframes bnChug { 0% { transform: translateX(0); } 20% { transform: translateX(-6px); } 100% { transform: translateX(110vw); } }
+.bn-snow--wave svg { transform-origin: 50% 100%; animation: bnWave 0.55s ease-in-out infinite alternate; }
+@keyframes bnWave { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
 .bn-party .btn-big { min-width: 0; padding: 0 12px; }
 
 /* the number that pops on each hop (counting with the sound off) */
@@ -4375,7 +4394,9 @@ button.bn-pickd { cursor: pointer; }
   .bn-spin { font-size: 1.3rem; }
   /* the party fits the short field, ⭐ haul and all, its buttons clear of the
      pads below (a 96px face put 🔁 7px from a pad on a 320x568 phone) */
-  .bn-party__box { display: grid; padding: 12px 16px; gap: 10px; }
+  /* (16px, not 10: the faces are high-five BUTTONS now, so the gap to 🔁 is
+     a gap between taps) */
+  .bn-party__box { display: grid; padding: 12px 16px; gap: var(--pad); }
   .bn-party__face { width: 64px; height: 64px; }
   .bn-party__haul { font-size: 1.1rem; }
 }
@@ -4428,6 +4449,10 @@ button.bn-pickd { cursor: pointer; }
   .bn-grab__fresh { animation: none; fill-opacity: 0; }
   .bn-hand { animation: none; }
   .bn-party__face { animation: none; }
+  .bn-party__clap { animation: none; }
+  .bn-flag--go { animation: none; }
+  .bn-train--off .bn-train__row > * { animation: none; }
+  .bn-snow--wave svg { animation: none; }
   .bn-box:active { transform: none; }
   .bn-pop--go { animation: none; }
   .bn-pop--below.bn-pop--go { animation: none; }

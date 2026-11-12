@@ -38,7 +38,7 @@
   const KEEP_MS = 24 * 60 * 60 * 1000;
   // The pace of everything that is NOT his finger: the dice tumbling, a hop,
   // a ride, the hand-over, and the computer friend's turn.
-  const T = { tumble: 700, hop: 240, autoHop: 480, cpuThink: 900, cpuHop: 560, ride: 900, card: 520, glide: 300, handoff: 700, pop: 700, cheer: 1400, tip: 1000, ten: 520, look: 1500 };
+  const T = { tumble: 700, hop: 240, autoHop: 480, cpuThink: 900, cpuHop: 560, ride: 900, card: 520, glide: 300, handoff: 700, pop: 700, cheer: 1400, tip: 1000, ten: 520, look: 1500, ending: 1300, five: 450 };
   const now = () => (global.performance && global.performance.now ? global.performance.now() : Date.now());
   const $ = (sel, root) => (root || doc).querySelector(sel);
   const fill = (line, o) => String(line).replace(/\{(\w+)\}/g, (m, k) => (o && o[k] != null ? o[k] : m));
@@ -154,13 +154,14 @@
     tweet: () => notes([[1568, 0, { type: "sine", duration: 0.08 }], [1976, 90, { type: "sine", duration: 0.08 }], [1568, 180, { type: "sine", duration: 0.1 }]]),
     pie: () => notes([[659.25, 0], [880, 100, { duration: 0.25 }]]),
     ten: () => notes([[392, 0, { type: "triangle" }], [523.25, 120, { type: "triangle", duration: 0.25 }]]),
+    clap: () => notes([[1568, 0, { type: "square", duration: 0.04, gain: 0.07, plain: true }], [1976, 70, { type: "square", duration: 0.04, gain: 0.07, plain: true }], [1046.5, 160, { type: "triangle", duration: 0.3 }]]),
     idea: () => notes([[1318.5, 0, { type: "sine", duration: 0.08, gain: 0.1 }], [1760, 90, { type: "sine", duration: 0.16, gain: 0.1 }]]),
   };
 
   // ---- The screens -----------------------------------------------------------
   let shelf = null, who = null, pick = null, play = null;
   let boardEl = null, svgWrap = null, tokens = [null, null], pads = [null, null], hand = null, party = null;
-  let applesEl = null, popEl = null, markEl = null, coopEl = null, spotsEl = null, pairsEl = null, doorsEl = null, acornsEl = null, domEl = null, digEl = null, nimEl = null, linesEl = null, topEl = null, grabEl = null, m3El = null, mazeEl = null, hideEl = null, cmEl = null, bingoEl = null, snowEl = null, fishEl = null, tenEl = null, hiloEl = null, trainEl = null, chooseEl = null, targetEls = [];
+  let flagEl = null, applesEl = null, popEl = null, markEl = null, coopEl = null, spotsEl = null, pairsEl = null, doorsEl = null, acornsEl = null, domEl = null, digEl = null, nimEl = null, linesEl = null, topEl = null, grabEl = null, m3El = null, mazeEl = null, hideEl = null, cmEl = null, bingoEl = null, snowEl = null, fishEl = null, tenEl = null, hiloEl = null, trainEl = null, chooseEl = null, targetEls = [];
   let whoBox = null, pickMode = null;   // which box the who/pick screens are for
 
   const bar = (cls, backLabel, backIcon, title) =>
@@ -303,13 +304,20 @@
           // the number of the square just reached (or the apples in the
           // basket): he counts with it when the sound is off
           '<div class="bn-pop" aria-hidden="true" hidden></div>' +
+          // 🚩 the ending (§18 E): a flag planted on the last square of a
+          // race, over the party's veil, so the board itself shows it is won
+          '<div class="bn-flag" aria-hidden="true" hidden>🚩</div>' +
         "</div>" +
         '<div class="bn-party" role="dialog" aria-label="Everyone is home!" hidden>' +
           '<div class="bn-party__box">' +
-            // each player dances over the ⭐ they collected on the way
-            '<div class="bn-party__faces" aria-hidden="true">' +
-              '<span class="bn-party__who"><span class="bn-party__face"></span><span class="bn-party__haul"></span></span>' +
-              '<span class="bn-party__who"><span class="bn-party__face"></span><span class="bn-party__haul"></span></span>' +
+            // each player dances over the ⭐ they collected on the way — and
+            // each face is a HIGH FIVE (§18 E): tap yours and your hand goes
+            // up; both up is a clap. A friend in the iPad raises theirs as
+            // soon as he raises his. Nothing to get wrong, nothing to wait on.
+            '<div class="bn-party__faces" role="group" aria-label="High five">' +
+              '<button class="bn-party__who bn-five tap" type="button" data-seat="0"><span class="bn-party__face" aria-hidden="true"></span><span class="bn-party__haul" aria-hidden="true"></span><span class="bn-five__hand" aria-hidden="true" hidden>✋</span></button>' +
+              '<button class="bn-party__who bn-five tap" type="button" data-seat="1"><span class="bn-party__face" aria-hidden="true"></span><span class="bn-party__haul" aria-hidden="true"></span><span class="bn-five__hand" aria-hidden="true" hidden>✋</span></button>' +
+              '<span class="bn-party__clap" aria-hidden="true" hidden>👏</span>' +
             "</div>" +
             '<div class="bn-party__row">' +
               '<button class="btn-big bn-again" type="button" aria-label="Play again">🔁</button>' +
@@ -331,6 +339,8 @@
     pads = [...play.querySelectorAll(".bn-pad")];
     hand = play.querySelector(".bn-hand");
     party = play.querySelector(".bn-party");
+    flagEl = play.querySelector(".bn-flag");
+    for (const b of party.querySelectorAll(".bn-five")) b.addEventListener("click", () => highFive(+b.dataset.seat));
     applesEl = play.querySelector(".bn-apples");
     spotsEl = play.querySelector(".bn-spots");
     spotsEl.addEventListener("click", (e) => {
@@ -642,6 +652,7 @@
     endWiggles();
     endCheer();
     endIdea();
+    hideEnding();
     const farm = board.game === "hen";
     for (let i = 0; i < 2; i++) {
       const p = seatPerson(i);
@@ -659,7 +670,7 @@
     paintAll();
     // the next frame, so the tokens jump to their squares without a slide
     later(() => { for (const t of tokens) t.style.transitionDuration = ""; }, 30);
-    if (st.phase === "done") { showParty(); return; }
+    if (st.phase === "done") { showEnding(false); showParty(); return; }
     startTurn(true);
   }
 
@@ -4354,7 +4365,10 @@
           for (const i of [0, 1]) at(T.tip, () => tipBasket(i));
           if (game.st.pie > 0) at(T.tip, () => { popAt(orchardFrac(R.ORCHARD.pie), String(20 + game.st.pie)); SFX.pie(); });
         }
-        at(T.handoff, () => { finishGame(); });
+        // the board shows it is won before the party covers it (🚩 · the train
+        // chugs off · the snowmen wave), then the party
+        at(T.handoff, () => showEnding(true));
+        at(endingKind() ? T.ending : 0, () => { finishGame(); });
       }
     }
     if (!turnEnded) {
@@ -4495,11 +4509,15 @@
     // the haul: every ⭐ a ride or a zoom gave (Apple Spin's haul is the pie)
     const stars = game.st.seats.map((s) => s.stars);
     const any = game.board.game !== "spin" && stars.some((n) => n > 0);
+    const fives = party.querySelectorAll(".bn-five");
+    if (!game.up) game.up = [false, false];
     for (let i = 0; i < 2; i++) {
       faces[i].innerHTML = R.faceHTML(seatPerson(i));
       hauls[i].textContent = any ? "⭐ " + stars[i] : "";
       hauls[i].hidden = !any;
+      fives[i].setAttribute("aria-label", "High five, " + nameOf(i) + (any ? ", " + stars[i] + (stars[i] === 1 ? " star" : " stars") : ""));
     }
+    paintFive();
     party.setAttribute("aria-label", "Everyone is home!" + (any ? " " + [0, 1].map((i) => nameOf(i) + " has " + stars[i] + (stars[i] === 1 ? " star" : " stars")).join(", ") + "." : ""));
     party.hidden = false;
     party.__shownAt = now();
@@ -4509,6 +4527,70 @@
     try { if (global.JoshEffects && playVisible()) global.JoshEffects.confetti(); } catch (e) { /* ignore */ }
   }
   function hideParty() { if (party) party.hidden = true; }
+
+  // ---- The high five (§18 E) ------------------------------------------------------
+  // Tap your face at the party and your hand goes up; both hands up is a clap.
+  // A friend in the iPad raises theirs a moment after he raises his (it never
+  // goes first: the high five is his to start). No wrong tap: a hand already
+  // up stays up, and the computer's face does nothing.
+  function highFive(i) {
+    if (!game || !party || party.hidden || game.fived) return;
+    if (game.st.seats[i].cpu) return;
+    raiseHand(i);
+    const o = 1 - i;
+    if (game.st.seats[o].cpu && !game.up[o]) later(() => raiseHand(o), T.five);
+  }
+  function raiseHand(i) {
+    if (!game || game.fived || !game.up || game.up[i]) return;
+    game.up[i] = true;
+    SFX.tick();
+    if (game.up[0] && game.up[1]) {
+      game.fived = true;
+      SFX.clap();
+      sayPlay(SAY.highFive);
+    }
+    paintFive();
+  }
+  function paintFive() {
+    if (!game || !party) return;
+    const up = game.up || [false, false];
+    party.querySelectorAll(".bn-five").forEach((b, i) => {
+      b.querySelector(".bn-five__hand").hidden = !up[i];
+      b.classList.toggle("bn-five--up", !!up[i]);
+      b.setAttribute("aria-pressed", up[i] ? "true" : "false");
+    });
+    party.querySelector(".bn-party__clap").hidden = !game.fived;
+  }
+
+  // ---- The ending (§18 E) ---------------------------------------------------------
+  // Most games used to end in the same party. Now the BOARD shows it is won
+  // first: a race plants a 🚩 on its last square, the train chugs off, the
+  // snowmen wave. (The other games end on their own picture already: the pie,
+  // the full hen house, the full blankets, a cleared board.)
+  function endingKind() {
+    const g = game && game.board.game;
+    return g === "dice" || g === "cards" ? "flag" : g === "train" ? "chug" : g === "snow" ? "wave" : "";
+  }
+  function showEnding(go) {
+    const kind = endingKind();
+    if (kind === "flag" && flagEl) {
+      const b = game.board, c = R.centre(b, b.size);
+      flagEl.style.left = (c.x / (b.cols * R.CELL) * 100) + "%";
+      flagEl.style.top = (c.y / (b.rows * R.CELL) * 100) + "%";
+      flagEl.style.fontSize = Math.round(Math.min(64, Math.max(28, (boardEl.clientWidth / b.cols) * 0.85))) + "px";
+      flagEl.classList.toggle("bn-flag--go", !!go);
+      flagEl.hidden = false;
+    } else if (kind === "chug" && trainEl) {
+      trainEl.classList.add("bn-train--off");
+    } else if (kind === "wave" && snowEl) {
+      snowEl.classList.add("bn-snow--wave");
+    }
+  }
+  function hideEnding() {
+    if (flagEl) { flagEl.hidden = true; flagEl.classList.remove("bn-flag--go"); }
+    if (trainEl) trainEl.classList.remove("bn-train--off");
+    if (snowEl) snowEl.classList.remove("bn-snow--wave");
+  }
   // The line a box says when someone gets home ("home") or everyone is ("end")
   function endLine(kind) {
     const g = game.board.game;

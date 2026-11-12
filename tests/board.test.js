@@ -1785,6 +1785,67 @@ test("every finished game earns its box a 🏆 on the shelf, counted — and a f
   assert.equal((await won()).rainbow, "🏆 1", "his first Rainbow Trail game: 🏆 1");
 });
 
+test("§18 E: a race ENDS ON THE BOARD (a 🚩 planted on the last square, before the party), and the party is a HIGH FIVE", async () => {
+  // Rainbow Trail, Josh one card from home, against a friend in the iPad
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  const s = L.create({ board: "rainbow", seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 3, first: 0 });
+  s.seats[1].pos = 36; s.seats[1].home = true; s.order = [1]; s.seats[0].pos = 35; s.mover = 0;
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("rainbow", x), s), "fixture: one card from home");
+  await page.locator("#screen-board-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  assert.ok(await page.locator(".bn-flag").isHidden(), "no flag while the race is on");
+  await page.locator(".bn-pad--0").click();
+  // the flag comes FIRST: the board shows it is won while the party waits
+  await page.locator(".bn-flag").waitFor({ state: "visible", timeout: 8000 });
+  assert.ok(await page.locator(".bn-party").isHidden(), "the flag is planted before the party covers the board");
+  await page.waitForTimeout(800);   // the plant animation settles
+  const f = await page.evaluate(() => {
+    const fl = document.querySelector(".bn-flag").getBoundingClientRect(), c = document.querySelector('.bn-cell[data-n="36"]').getBoundingClientRect();
+    return { mid: (fl.left + fl.right) / 2, foot: fl.bottom, cl: c.left, cr: c.right, ct: c.top, cb: c.bottom, text: document.querySelector(".bn-flag").textContent };
+  });
+  assert.equal(f.text, "🚩");
+  assert.ok(f.mid > f.cl - 12 && f.mid < f.cr + 12 && f.foot > f.ct && f.foot < f.cb + 8, "the flag stands on the last square, 36");
+  await page.locator(".bn-party").waitFor({ state: "visible", timeout: 8000 });
+  assert.ok(await page.locator(".bn-flag").isVisible(), "…and stays planted under the party");
+  // the faces are the high five: kid-sized buttons
+  const fives = page.locator(".bn-party .bn-five");
+  assert.equal(await fives.count(), 2, "one high-five button for each player");
+  for (let i = 0; i < 2; i++) {
+    const r = await fives.nth(i).boundingBox();
+    assert.ok(r.width >= 75 && r.height >= 75, `high five ${i} is ${Math.round(r.width)}x${Math.round(r.height)}, under the 75px kid floor`);
+  }
+  assert.match(await fives.nth(0).getAttribute("aria-label"), /High five, Josh/);
+  await page.waitForTimeout(400);   // the echo guard: a party that has just appeared
+  // the computer's face does nothing: the high five is his to start
+  await fives.nth(1).click();
+  await page.waitForTimeout(700);
+  assert.equal(await page.locator(".bn-five__hand:not([hidden])").count(), 0, "tapping the friend in the iPad raises no hand");
+  await fives.nth(0).click();
+  assert.equal(await fives.nth(0).getAttribute("aria-pressed"), "true", "his hand goes up at once");
+  await page.locator(".bn-party__clap").waitFor({ state: "visible", timeout: 3000 });
+  assert.equal(await page.locator(".bn-five__hand:not([hidden])").count(), 2, "…and River's goes up after it: a clap");
+  assert.equal(await fives.nth(1).getAttribute("aria-pressed"), "true");
+  // two people: each taps their own, and only both up is a clap
+  const t = L.create({ board: "rainbow", seats: [{ who: "josh" }, { who: "dad" }], seed: 3, first: 0 });
+  t.seats.forEach((x) => { x.pos = 36; x.home = true; }); t.phase = "done"; t.order = [0, 1];
+  assert.ok(await page.evaluate((x) => window.__BOARD.load("rainbow", x), t), "fixture: a finished game opens on its party");
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.ok(await page.locator(".bn-flag").isVisible(), "a finished game reopens with its flag planted");
+  assert.equal(await page.locator(".bn-five__hand:not([hidden])").count(), 0, "a new party starts with no hand up");
+  await page.waitForTimeout(400);
+  await fives.nth(1).click();
+  await page.waitForTimeout(700);
+  assert.equal(await page.locator(".bn-five__hand:not([hidden])").count(), 1, "Dad's hand alone");
+  assert.ok(await page.locator(".bn-party__clap").isHidden(), "one hand is not a clap");
+  await fives.nth(0).click();
+  await page.locator(".bn-party__clap").waitFor({ state: "visible", timeout: 3000 });
+  assert.equal(await page.locator(".bn-five__hand:not([hidden])").count(), 2, "both hands: a clap");
+  // 🔁 starts a fresh game whose party will start with no hands up
+  await page.locator(".bn-again").click();
+  await page.waitForTimeout(500);
+  assert.ok(await page.locator(".bn-flag").isHidden(), "a new game takes the flag down");
+});
+
 test("🌈 a whole Rainbow Trail against the computer: one tap, one card, every move forward to its colour, one party", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await quick();
@@ -2888,6 +2949,8 @@ test("🚂 a whole Pattern Train against the computer: the engine and five cars 
   assert.equal(end.seats[0].stars + end.seats[1].stars, 8, "eight trains, eight stars");
   assert.ok(cpuTried, "fixture: the computer's turn ran");
   await page.locator(".bn-party").waitFor({ state: "visible" });
+  // §18 E: the finished train chugs off (its cars leave the rails)
+  assert.ok(await page.locator(".bn-train").evaluate((t) => t.classList.contains("bn-train--off") && getComputedStyle(t.querySelector(".bn-car, .bn-train__row > *")).animationName === "bnChug"), "the finished train chugs off before the party");
   assert.equal((await page.evaluate(() => window.__BOARD.save())).done.train, 1, "a finished Pattern Train counts once");
   } finally { await slow(); }
 });
@@ -3399,6 +3462,8 @@ test("⛄ a whole Snowman Build against the computer: two snowmen side by side, 
   const parts = await page.evaluate(() => [...document.querySelectorAll(".bn-snow .bn-snowman")].map((b) => b.querySelectorAll("svg g").length));
   assert.deepEqual(parts, [5, 5], "five parts on each big ball");
   await page.locator(".bn-party").waitFor({ state: "visible" });
+  // §18 E: the finished snowmen wave
+  assert.equal(await page.locator(".bn-snow svg").first().evaluate((g) => g.closest(".bn-snow").classList.contains("bn-snow--wave") && getComputedStyle(g).animationName), "bnWave", "the two snowmen wave at the end");
   assert.equal((await page.evaluate(() => window.__BOARD.save())).done.snowman, 1, "a finished Snowman Build counts once");
   } finally { await slow(); }
 });
