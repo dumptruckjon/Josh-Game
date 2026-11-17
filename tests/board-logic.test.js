@@ -3077,7 +3077,8 @@ test("💡 A CLEVER MOVE IS NAMED (smart) and a missed one too (oops): only by t
           const k = ev[0].k;
           if (before.phase === "second" && before.cards[k] !== "star") {
             const a = before.open[0];
-            const mate = before.cards.findIndex((c, j) => j !== a && !before.gone[j] && c === before.cards[a]);
+            // (its PARTNER: on 🧩 Go Together that is a different picture)
+            const mate = before.cards.findIndex((c, j) => j !== a && !before.gone[j] && L.pairKey(c) === L.pairKey(before.cards[a]));
             const known = pairsSeen.has(mate);
             assert.equal(words.length, known ? 1 : 0, "pairs: remembering is named only when the partner had been turned before");
             if (known) assert.equal(words[0].type, k === mate ? "smart" : "oops");
