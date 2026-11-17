@@ -356,7 +356,7 @@
           '<div class="bn-train" hidden><div class="bn-train__row" role="img"></div><div class="bn-train__pick" role="group" aria-label="Which car comes next?"></div></div>' +
           // 🔼 Higher or Lower: the card to beat beside the deck, over the two
           // guesses (the buttons)
-          '<div class="bn-hilo" hidden><div class="bn-hilo__table"><span class="bn-hilo__top" role="img"></span><span class="bn-hilo__deck" aria-hidden="true"></span></div><div class="bn-hilo__guess" role="group" aria-label="Bigger or smaller?"></div></div>' +
+          '<div class="bn-hilo" hidden><div class="bn-hilo__table"><span class="bn-hilo__top" role="img"></span><span class="bn-hilo__deck" aria-hidden="true"></span></div><div class="bn-hilo__line" role="img"></div><div class="bn-hilo__guess" role="group" aria-label="Bigger or smaller?"></div></div>' +
           // 🍯 Honey Ten: the goal (what makes ten with the held flower) over
           // the meadow of nine flowers (the buttons)
           '<div class="bn-ten" hidden><div class="bn-ten__goal" role="group"></div><div class="bn-ten__grid" role="group" aria-label="The flowers"></div></div>' +
@@ -1008,8 +1008,8 @@
   }
   // 🔼 the card to beat and the deck over the two guesses
   function layoutHilo(w, h) {
-    const GAP = 16, row = Math.max(80, Math.min(110, Math.floor(h * 0.24)));
-    const card = Math.max(80, Math.min(170, Math.floor((w - GAP - 16) / 2.6), Math.floor((h - row - GAP - 16) / 1.4)));
+    const GAP = 16, row = Math.max(80, Math.min(110, Math.floor(h * 0.24))), LINE = 44;
+    const card = Math.max(80, Math.min(170, Math.floor((w - GAP - 16) / 2.6), Math.floor((h - row - LINE - 2 * GAP - 16) / 1.4)));
     hiloEl.style.setProperty("--hilo-card", card + "px");
     hiloEl.style.setProperty("--hilo-row", row + "px");
     boardEl.style.width = w + "px";
@@ -1034,6 +1034,23 @@
     // where it is an ANSWER — 🕵️ "Is it red?" "No!")
     top.innerHTML = hiloCardHTML(v.top, v.said ? "bn-hlc--new" : "") + (v.said && !v.said.wait ? '<span class="bn-hilo__ans' + (v.said.same ? " bn-hilo__ans--same" : "") + '" aria-hidden="true">' + (v.said.right ? "✅" : v.said.same ? "=" : "😮") + "</span>" : "");
     top.setAttribute("aria-label", "The card to beat: " + v.top);
+    // §18 F: the number line of the deck — every number 1 to 10, its two
+    // cards a dot each: filled while it can still come, hollow once turned.
+    // (The card just turned counts as gone only once it is SHOWN: the engine
+    // has it before the flip does.) More filled dots above the card than
+    // below it is the guess "bigger" — the skill, now something he can see.
+    const left = st.deck.slice();
+    if (v.top !== st.top) left.push(st.top);
+    let line = "";
+    for (let n = 1; n <= 10; n++) {
+      const k = left.filter((x) => x === n).length;
+      line += '<span class="bn-hln' + (n === v.top ? " bn-hln--top" : n > v.top ? " bn-hln--up" : "") + '"><span class="bn-hln__n">' + n + '</span><span class="bn-hln__dots">' +
+        '<span class="bn-hln__dot' + (k >= 1 ? " bn-hln__dot--in" : "") + '"></span><span class="bn-hln__dot' + (k >= 2 ? " bn-hln__dot--in" : "") + '"></span></span></span>';
+    }
+    const lineEl = hiloEl.querySelector(".bn-hilo__line");
+    lineEl.innerHTML = line;
+    const bigger = left.filter((x) => x > v.top).length, smaller = left.filter((x) => x < v.top).length;
+    lineEl.setAttribute("aria-label", "Cards still to come: " + bigger + " bigger than " + v.top + ", " + smaller + " smaller");
     hiloEl.querySelector(".bn-hilo__deck").innerHTML = '<span class="bn-hlc bn-hlc--back"><span class="bn-hlc__back">❔</span><span class="bn-hlc__left">' + (game.board.flips - st.flips) + "</span></span>";
     const best = mine && game.teach ? L.hiloBest(st) : null;
     let row = "";
@@ -1173,7 +1190,13 @@
   // What the hands SHOW (`game.fv`): a card is still being handed over after
   // the engine has made the pair
   function fishView() { const st = game.st; return { hands: st.hands.map((h) => h.slice()), q: st.phase === "answer" ? st.want : -1, asker: st.turn, glow: [] }; }
-  const fishSay = (q) => DATA.FISH[q].say;
+  // 🎤 Rhyme Fish deals its own twenty cards; everything else reads FISH
+  const fishCard = (q) => (game && game.board.rhyme ? DATA.RHYMES : DATA.FISH)[q];
+  const fishSay = (q) => fishCard(q).say;
+  // what the friend should give: the same picture, or (rhymes) its rhyme
+  const fishGiveLine = (st) => (game.board.rhyme
+    ? fill(L.fishAnswer(st) >= 0 ? SAY.rhymeGive : SAY.rhymeNone, { w: fishSay(st.want) })
+    : fill(L.fishAnswer(st) >= 0 ? SAY.fishGive : SAY.fishNone, { w: fishSay(st.want) }));
   // whose hand is the BIG one: against the computer, always his (the
   // person's); two people, the one who must act now (asking, or answering)
   function fishBig(st) {
@@ -1188,7 +1211,7 @@
     const mine = st.phase !== "done" && !game.busy && acting === big && !st.seats[big].cpu;
     const asking = mine && st.phase === "ask", answering = mine && st.phase === "answer";
     // the small hand: face up, each picture big enough to SEE a match
-    const sm = v.hands[small].map((q) => '<span class="bn-fishc bn-fishc--small">' + DATA.FISH[q].pic + "</span>").join("");
+    const sm = v.hands[small].map((q) => '<span class="bn-fishc bn-fishc--small">' + fishCard(q).pic + "</span>").join("");
     const other = fishEl.querySelector(".bn-fish__other");
     // SHORT is decided from what is MEASURED, not from a fixed height: the
     // other hand's strip wraps on a narrow phone (a 360px one put his cards
@@ -1202,7 +1225,7 @@
     other.innerHTML = '<span class="bn-fish__face" aria-hidden="true">' + R.faceHTML(seatPerson(small)) + "</span>" + sm;
     const short = other.offsetHeight + 12 + 56 + 12 + handNeed > fh;
     fishEl.dataset.short = short ? "1" : "0";
-    const bubble = v.q >= 0 ? '<span class="bn-fish__bubble" role="img" aria-label="' + nameOf(v.asker) + " asks: the " + fishSay(v.q) + '?"><span class="bn-fish__face" aria-hidden="true">' + R.faceHTML(seatPerson(v.asker)) + '</span><span class="bn-fish__q">' + DATA.FISH[v.q].pic + '</span><span class="bn-fish__qm">?</span></span>' : "";
+    const bubble = v.q >= 0 ? '<span class="bn-fish__bubble" role="img" aria-label="' + nameOf(v.asker) + " asks: " + (game.board.rhyme ? "something that rhymes with " : "the ") + fishSay(v.q) + '?"><span class="bn-fish__face" aria-hidden="true">' + R.faceHTML(seatPerson(v.asker)) + '</span><span class="bn-fish__q">' + fishCard(v.q).pic + '</span><span class="bn-fish__qm">?</span></span>' : "";
     other.innerHTML = short && bubble ? bubble : '<span class="bn-fish__face" aria-hidden="true">' + R.faceHTML(seatPerson(small)) + "</span>" + sm;
     other.setAttribute("aria-label", short && bubble ? nameOf(v.asker) + " asks: " + fishSay(v.q) + "?" : nameOf(small) + "'s cards: " + (v.hands[small].map(fishSay).join(", ") || "none"));
     // the pond: "Go fish!" is a button only while he answers a question he
@@ -1228,8 +1251,8 @@
     let cards = "";
     hand.forEach((q, k) => {
       const label = (asking ? "Ask for the " : answering ? "Give the " : "") + fishSay(q);
-      if (mine) cards += '<button class="tap bn-fishc' + (glow.indexOf(k) >= 0 ? " bn-fishc--hint" : "") + '" type="button" data-k="' + k + '" aria-label="' + label + '">' + DATA.FISH[q].pic + "</button>";
-      else cards += '<span class="bn-fishc bn-fishc--still" role="img" aria-label="' + fishSay(q) + '">' + DATA.FISH[q].pic + "</span>";
+      if (mine) cards += '<button class="tap bn-fishc' + (glow.indexOf(k) >= 0 ? " bn-fishc--hint" : "") + '" type="button" data-k="' + k + '" aria-label="' + label + '">' + fishCard(q).pic + "</button>";
+      else cards += '<span class="bn-fishc bn-fishc--still" role="img" aria-label="' + fishSay(q) + '">' + fishCard(q).pic + "</span>";
     });
     if (answering) cards += '<button class="tap bn-fishc bn-fishgo' + ((st.misses >= 2 || game.teach) && L.fishAnswer(st) < 0 ? " bn-fishgo--hint" : "") + '" type="button" aria-label="Go fish!">🎣<span class="bn-fishgo__n">' + fishLeft + "</span></button>";
     const handEl = fishEl.querySelector(".bn-fish__hand");
@@ -1262,7 +1285,7 @@
       paintFish();
       const again = k >= 0 ? fishEl.querySelector('.bn-fish__hand [data-k="' + k + '"]') : fishEl.querySelector("button.bn-fishgo");
       if (again) wiggle(again);
-      sayPlay(L.fishAnswer(st) >= 0 ? fill(SAY.fishGive, { w: fishSay(st.want) }) : fill(SAY.fishNone, { w: fishSay(st.want) }));
+      sayPlay(fishGiveLine(st));
       persistGame();
       return;
     }
@@ -1856,6 +1879,17 @@
   function grabView() { const st = game.st; return { paint: st.paint.slice(), owner: st.owner.slice(), fresh: [] }; }
   // The grid as one picture: each square its colour and its white shape; each
   // patch outlined in its player's colour, with their face on its corner
+  // §18 F: the finished grid REVEALS A PICTURE ("Every square is grabbed!
+  // What a picture!"): a 6x7 pixel picture in white over the coloured squares,
+  // the rest dimmed. Rows top to bottom; which one, from the finished grid.
+  const GRAB_PICS = [
+    { say: "a heart", rows: ["XX..XX", "XXXXXX", "XXXXXX", "XXXXXX", ".XXXX.", "..XX..", "......"] },
+    { say: "a house", rows: ["..XX..", ".XXXX.", "XXXXXX", ".X..X.", ".X..X.", ".XXXX.", "......"] },
+    { say: "a tree", rows: ["..XX..", ".XXXX.", "XXXXXX", ".XXXX.", "..XX..", "..XX..", "..XX.."] },
+    { say: "a rocket", rows: ["..XX..", ".XXXX.", ".XXXX.", ".XXXX.", ".XXXX.", "XXXXXX", "X.XX.X"] },
+    { say: "a smiley face", rows: ["......", ".X..X.", ".X..X.", "......", "X....X", ".XXXX.", "......"] },
+  ];
+  function grabPic(paint) { let h = 0; for (const c of paint) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % GRAB_PICS.length; }
   function grabSVG(v) {
     const b = game.board, C = b.cols, Rw = b.rows, U = 100, W = C * U, H = Rw * U;
     let sq = "", edge = "", pulse = "";
@@ -1871,7 +1905,17 @@
       const sides = [[k % C > 0 ? k - 1 : -1, x, y, x, y + U], [k % C < C - 1 ? k + 1 : -1, x + U, y, x + U, y + U], [k + C, x, y, x + U, y], [k - C, x, y + U, x + U, y + U]];
       for (const [m, x1, y1, x2, y2] of sides) if (!same(m)) edge += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + stroke + '" stroke-width="14" stroke-linecap="round"/>';
     }
-    return '<svg class="bn-grab__svg" viewBox="-8 -8 ' + (W + 16) + " " + (H + 16) + '" aria-hidden="true" focusable="false">' + sq + pulse + '<g stroke-opacity="1">' + edge + "</g></svg>";
+    let pic = "";
+    if (v.reveal != null && C === 6 && Rw === 7) {
+      const rows = GRAB_PICS[v.reveal].rows;
+      for (let k = 0; k < v.paint.length; k++) {
+        const x = (k % C) * U, y = (Rw - 1 - Math.floor(k / C)) * U, on = rows[Rw - 1 - Math.floor(k / C)][k % C] === "X";
+        pic += on ? '<rect x="' + (x + 3) + '" y="' + (y + 3) + '" width="94" height="94" rx="16" fill="#ffffff" stroke="#2b2b3a" stroke-width="6"/>'
+          : '<rect x="' + (x + 3) + '" y="' + (y + 3) + '" width="94" height="94" rx="16" fill="#1d1d3b" fill-opacity="0.45"/>';
+      }
+      pic = '<g class="bn-grab__picture">' + pic + "</g>";
+    }
+    return '<svg class="bn-grab__svg" viewBox="-8 -8 ' + (W + 16) + " " + (H + 16) + '" aria-hidden="true" focusable="false">' + sq + pulse + '<g stroke-opacity="1">' + edge + "</g>" + pic + "</svg>";
   }
   function paintGrab() {
     if (!game || game.board.game !== "grab" || !game.gbv) return;
@@ -1881,7 +1925,7 @@
     const grid = grabEl.querySelector(".bn-grab__grid");
     // each player's face sits on their corner (seat 0 the bottom left)
     grid.innerHTML = grabSVG(v) + [0, 1].map((j) => '<span class="bn-grab__who bn-grab__who--' + j + '" style="border-color:' + seatPerson(j).colour + '" aria-hidden="true">' + R.faceHTML(seatPerson(j)) + "</span>").join("");
-    grid.setAttribute("aria-label", boardEl.getAttribute("aria-label") || "The grid");
+    grid.setAttribute("aria-label", v.reveal != null ? "The grid shows " + GRAB_PICS[v.reveal].say + "!" : boardEl.getAttribute("aria-label") || "The grid");
     // the three colours: never the mover's own, never the friend's; his first
     // game lights the one that grabs the most
     const opts = st.phase === "pick" ? L.grabOptions(st) : [];
@@ -2022,13 +2066,17 @@
     const mine = st.phase === "drop" && !game.busy && !st.seats[turn].cpu;
     // his first game: the column that makes his line (or stops his friend's)
     const best = mine && game.teach ? L.linesBest(st) : [];
+    // §18 F: two in a row SHIMMER when their third square can be filled right
+    // now — his chance or his friend's threat. Only the two counters shimmer,
+    // never the gap: seeing it is the help, finding where to drop is his.
+    const two = st.phase === "drop" ? linesTwos(v.grid) : [];
     let html = "";
     for (let c = 0; c < b.cols; c++) {
       let slots = "";
       for (let r = b.rows - 1; r >= 0; r--) {
         const k = r * b.cols + c, g = v.grid[k];
         if (g < 0) { slots += '<span class="bn-slot"></span>'; continue; }
-        slots += '<span class="bn-slot bn-slot--on' + (v.lines.indexOf(k) >= 0 ? " bn-slot--line" : "") + (k === v.fresh ? " bn-slot--fresh" : "") + '" style="border-color:' + seatPerson(g).colour + '">' + R.faceHTML(seatPerson(g)) + "</span>";
+        slots += '<span class="bn-slot bn-slot--on' + (v.lines.indexOf(k) >= 0 ? " bn-slot--line" : two.indexOf(k) >= 0 ? " bn-slot--two" : "") + (k === v.fresh ? " bn-slot--fresh" : "") + '" style="border-color:' + seatPerson(g).colour + '">' + R.faceHTML(seatPerson(g)) + "</span>";
       }
       const full = L.dropRow(st, c) < 0;
       const filled = v.grid.filter((x, k) => k % b.cols === c && x >= 0).length;
@@ -2037,6 +2085,20 @@
       else html += '<span class="bn-col bn-col--still' + (full ? " bn-col--full" : "") + '" role="img" aria-label="' + label + '">' + slots + "</span>";
     }
     linesEl.innerHTML = html;
+  }
+  // the counters of every line holding two of one player's and an empty third
+  // square that a counter dropped now would fill (its square below is taken)
+  function linesTwos(grid) {
+    const b = game.board, out = [];
+    for (const ln of L.linesOf(b)) {
+      const gap = ln.filter((k) => grid[k] < 0);
+      if (gap.length !== 1) continue;
+      const g = gap[0], row = Math.floor(g / b.cols), mine = ln.filter((k) => k !== g);
+      if (grid[mine[0]] < 0 || grid[mine[0]] !== grid[mine[1]]) continue;
+      if (row > 0 && grid[g - b.cols] < 0) continue;   // not yet: nothing under it
+      for (const k of mine) if (out.indexOf(k) < 0) out.push(k);
+    }
+    return out;
   }
   function tapColumn(c, btn) {
     if (!game || game.board.game !== "lines" || game.busy || !playVisible()) return;
@@ -2417,6 +2479,10 @@
     const mine = st.phase === "take" && !game.busy && !st.seats[turn].cpu;
     const jar = nimEl.querySelector(".bn-jar");
     let html = '<span class="bn-jar__n" aria-hidden="true">' + (v.cookies - v.going) + "</span>";
+    // §18 F: a shelf under every row of four, so a FULL top row can be seen —
+    // leaving full rows is the whole trick (take what sticks out above them)
+    const shown = v.cookies - v.going;
+    for (let r = 0; r * 4 < Math.max(shown, 1); r++) html += '<span class="bn-jar__shelf' + (shown >= (r + 1) * 4 ? " bn-jar__shelf--full" : "") + '" style="top:' + (cookieAt(r * 4).y + 9) + '%" aria-hidden="true"></span>';
     for (let k = 0; k < v.cookies; k++) {
       const p = cookieAt(k), gold = k === 0;
       const going = k >= v.cookies - v.going || (gold && v.gold);
@@ -3186,7 +3252,8 @@
         // 🧺 the basket to tap; then the food in hand, big. While it is in a
         // human's hand BOTH pads are answers ("whose is it?"), so both light.
         const giving = st.phase === "give" && game.showTurn === st.turn && !st.seats[st.turn].cpu;
-        if (active && game.foodShown) act.innerHTML = '<span class="bn-card bn-card--food">' + (DATA.food(game.foodShown) || {}).pic + "</span>";
+        // (🔦 Shadow Picnic: the food in hand is its SHADOW until it is given)
+        if (active && game.foodShown) act.innerHTML = '<span class="bn-card bn-card--food' + (game.board.clues ? " bn-card--shadow" : "") + '">' + (DATA.food(game.foodShown) || {}).pic + "</span>";
         // …and while he asks "whose is it?", the OTHER pad is that friend's
         // BLANKET (its gingham, in their colour), never the basket: a basket
         // there read as "tap the basket again" on the very tap that means
@@ -3383,7 +3450,7 @@
   function introKey() { return game && game.board.game === "hen" ? "hen" : "dice"; }
   // a Honey line, for the board's own number (🍯 ten, 🐝 twenty)
   function honeyLine(k) { return game && game.board.target === 20 ? SAY[k.replace("honey", "honey20")] : SAY[k]; }
-  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" || g === "hen" ? SAY.spinFirst : g === "lotto" ? SAY.basketFirst : g === "pairs" ? SAY.pairsFirst : g === "doors" ? SAY.doorsFirst : g === "bingo" ? SAY.bingoFirst : g === "snow" ? SAY.snowFirst : g === "fish" ? SAY.fishFirst : g === "ten" ? honeyLine("honeyFirst") : g === "hilo" ? SAY.hiloFirst : g === "train" ? SAY.trainFirst : g === "acorns" ? SAY.acornsFirst : g === "dominoes" ? SAY.domFirst : g === "dig" ? SAY.digFirst : g === "nim" ? SAY.nimFirst : g === "match3" ? (game.board.run ? SAY.m3RunFirst : SAY.m3First) : g === "maze" ? SAY.mazeFirst : g === "hide" ? SAY.hideFirst : g === "cmatch" ? SAY.cmFirst : g === "lines" ? SAY.linesFirst : g === "top" ? SAY.topLead : g === "grab" ? SAY.grabFirst : SAY.flipFirst; }
+  function firstLine() { const g = game.board.game; return g === "dice" ? SAY.rollFirst : g === "spin" || g === "hen" ? SAY.spinFirst : g === "lotto" ? SAY.basketFirst : g === "pairs" ? SAY.pairsFirst : g === "doors" ? SAY.doorsFirst : g === "bingo" ? SAY.bingoFirst : g === "snow" ? SAY.snowFirst : g === "fish" ? (game.board.rhyme ? SAY.rhymeFirst : SAY.fishFirst) : g === "ten" ? honeyLine("honeyFirst") : g === "hilo" ? SAY.hiloFirst : g === "train" ? SAY.trainFirst : g === "acorns" ? SAY.acornsFirst : g === "dominoes" ? SAY.domFirst : g === "dig" ? SAY.digFirst : g === "nim" ? SAY.nimFirst : g === "match3" ? (game.board.run ? SAY.m3RunFirst : SAY.m3First) : g === "maze" ? SAY.mazeFirst : g === "hide" ? SAY.hideFirst : g === "cmatch" ? SAY.cmFirst : g === "lines" ? SAY.linesFirst : g === "top" ? SAY.topLead : g === "grab" ? SAY.grabFirst : SAY.flipFirst; }
 
   function padTap(i) {
     if (!game || !playVisible()) return;
@@ -3405,7 +3472,7 @@
       // (mid-animation, or before the ask is on screen: a quiet nothing —
       // never the wiggle, because the move IS his)
       if (game.busy || shown !== st.turn) return;
-      sayPlay(L.fishAnswer(st) >= 0 ? fill(SAY.fishGive, { w: fishSay(st.want) }) : fill(SAY.fishNone, { w: fishSay(st.want) }));
+      sayPlay(fishGiveLine(st));
       showHand(i); later(hideHand, 2600);
       return;
     }
@@ -3438,7 +3505,7 @@
     }
     // 🚪 rolled: the doors are the buttons now
     if (game.board.game === "doors" && st.phase === "shut") { sayPlay(doorsPickLine()); return; }
-    if (game.board.game === "fish") { sayPlay(SAY.fishFirst); showHand(i); later(hideHand, 2600); return; }
+    if (game.board.game === "fish") { sayPlay(game.board.rhyme ? SAY.rhymeFirst : SAY.fishFirst); showHand(i); later(hideHand, 2600); return; }
     if (game.board.game === "ten") { sayPlay(honeyLine("honeyFirst")); showHand(i); later(hideHand, 2600); return; }
     if (game.board.game === "hilo") { sayPlay(SAY.hiloFirst); showHand(i); later(hideHand, 2600); return; }
     if (game.board.game === "train") { sayPlay(SAY.trainFirst); showHand(i); later(hideHand, 2600); return; }
@@ -3599,7 +3666,8 @@
   }
   // ---- 🧺 Picnic Lotto: take a food, then find whose blanket it goes on -------
   const foodSay = (id) => { const f = DATA.food(id); return f ? f.say : ""; };
-  function whoseLine() { return cap(fill(SAY.whose, { f: foodSay(game.st.food) })); }
+  const foodClue = (id) => { const f = DATA.food(id); return f ? f.clue : ""; };
+  function whoseLine() { return game.board.clues ? fill(SAY.whoseClue, { c: foodClue(game.st.food) }) : cap(fill(SAY.whose, { f: foodSay(game.st.food) })); }
   function takeFood() {
     const ev = L.takeFood(game.st);
     if (!ev.length) return;
@@ -3615,7 +3683,7 @@
     if (st.seats[st.turn].cpu) {
       // the computer finds it itself, at a pace he can follow: a worked
       // example of looking at both blankets
-      sayPlay(cap(foodSay(ev[0].food)) + "!");
+      sayPlay(game.board.clues ? foodClue(ev[0].food) : cap(foodSay(ev[0].food)) + "!");
       later(() => { game.busy = false; giveTo(L.ownerOf(game.st, game.st.food)); }, T.cpuThink);
       return;
     }
@@ -3628,7 +3696,7 @@
     if (ev[0].type === "miss") {
       // not there: a kind wiggle, and after two the food's own spot glows
       wiggle(pads[i]);
-      sayPlay(fill(SAY.lookAgain, { f: foodSay(st.food) }));
+      sayPlay(game.board.clues ? fill(SAY.lookClue, { c: foodClue(st.food) }) : fill(SAY.lookAgain, { f: foodSay(st.food) }));
       paintFoods();
       persistGame();
       return;
@@ -3870,17 +3938,18 @@
         at(T.card, () => { game.tv2 = tenView(); SFX.whoosh(); paintTen(); });
       } else if (e.type === "fishAsk") {
         // 🐟 the question: the asker's face and the picture
-        at(0, () => { game.fv.q = e.q; game.fv.asker = e.seat; paintFish(); SFX.tick(); sayPlay(fill(SAY.fishAsk, { w: fishSay(e.q) })); });
+        at(0, () => { game.fv.q = e.q; game.fv.asker = e.seat; paintFish(); SFX.tick(); sayPlay(fill(game.board.rhyme ? SAY.rhymeAsk : SAY.fishAsk, { w: fishSay(e.q) })); });
         at(T.card, () => {});
       } else if (e.type === "fishGive") {
         at(0, () => {
           const v = game.fv;
-          v.hands[e.from] = v.hands[e.from].filter((x) => x !== e.q);
+          const m = e.mate == null ? e.q : e.mate;
+          v.hands[e.from] = v.hands[e.from].filter((x) => x !== m);
           v.hands[e.seat] = v.hands[e.seat].filter((x) => x !== e.q);
           v.q = -1;
           paintFish();
           SFX.boost();
-          sayPlay(fill(SAY.fishYes, { n: nameOf(e.seat) }));
+          sayPlay(game.board.rhyme ? fill(SAY.rhymePair, { w: cap(fishSay(e.q)), m: fishSay(m), n: nameOf(e.seat) }) : fill(SAY.fishYes, { n: nameOf(e.seat) }));
           cheer(e.seat, true);
         });
         at(T.ride, () => { landStar(e.seat); paintBoardLabel(); });
@@ -3889,7 +3958,12 @@
         at(T.card, () => {
           const v = game.fv;
           if (e.card < 0) { sayPlay(SAY.fishEmpty); return; }
-          if (e.pair) { v.hands[e.seat] = v.hands[e.seat].filter((x) => x !== e.card); SFX.boost(); sayPlay(fill(SAY.fishLucky, { w: fishSay(e.card), n: nameOf(e.seat) })); cheer(e.seat, true); }
+          if (e.pair) {
+            const m = e.mate == null ? e.card : e.mate;
+            v.hands[e.seat] = v.hands[e.seat].filter((x) => x !== e.card && x !== m); SFX.boost();
+            sayPlay(game.board.rhyme ? fill(SAY.rhymePair, { w: cap(fishSay(m)), m: fishSay(e.card), n: nameOf(e.seat) }) : fill(SAY.fishLucky, { w: fishSay(e.card), n: nameOf(e.seat) }));
+            cheer(e.seat, true);
+          }
           else { v.hands[e.seat] = v.hands[e.seat].concat([e.card]); SFX.plop(e.card); sayPlay(fill(SAY.fishCatch, { w: fishSay(e.card) })); }
           paintFish();
         });
@@ -4580,7 +4654,7 @@
           const st = game.st;
           if (st.phase === "answer") {
             if (st.seats[1 - st.turn].cpu) later(cpuFish, T.cpuThink);
-            else sayPlay(L.fishAnswer(st) >= 0 ? fill(SAY.fishGive, { w: fishSay(st.want) }) : fill(SAY.fishNone, { w: fishSay(st.want) }));
+            else sayPlay(fishGiveLine(st));
           } else if (st.phase === "ask" && st.seats[st.turn].cpu) later(cpuFish, T.cpuThink);
         });
       }
@@ -4759,7 +4833,7 @@
   // the full hen house, the full blankets, a cleared board.)
   function endingKind() {
     const g = game && game.board.game;
-    return g === "dice" || g === "cards" ? "flag" : g === "train" ? "chug" : g === "snow" ? "wave" : "";
+    return g === "dice" || g === "cards" ? "flag" : g === "train" ? "chug" : g === "snow" ? "wave" : g === "grab" ? "picture" : "";
   }
   function showEnding(go) {
     const kind = endingKind();
@@ -4774,6 +4848,10 @@
       trainEl.classList.add("bn-train--off");
     } else if (kind === "wave" && snowEl) {
       snowEl.classList.add("bn-snow--wave");
+    } else if (kind === "picture" && game.gbv) {
+      game.gbv.reveal = grabPic(game.st.paint);
+      game.gbv.fresh = [];
+      paintGrab();
     }
   }
   function hideEnding() {
@@ -5057,7 +5135,7 @@
         show(play);
         if (pending) startPending();
         else if (game && game.st.phase !== "done") { layout(); paintAll(); startTurn(); }
-        else if (game) { layout(); paintAll(); showParty(); }
+        else if (game) { layout(); paintAll(); showEnding(false); showParty(); }
         else {
           // a deep link: carry on the last box's game, else the shelf
           const box = save.last && save.games[save.last.box] ? save.last.box : Object.keys(save.games)[0];

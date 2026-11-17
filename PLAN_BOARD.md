@@ -873,3 +873,30 @@ grows with him and never shows a padlock.
 
 **E is done.** Still to build: **F** the remaining per-game ideas.
 
+**F. Per-game depth (first batch BUILT).** Each makes the thinking in a game
+something he can SEE or HEAR:
+- **🎤 Rhyme Fish** (Go Fish's level two, on the shelf after two Go Fish
+  games): twenty different pictures, and a pair is two that RHYME (cat and
+  hat, moon and spoon). He asks for "one that rhymes with cat"; the friend
+  gives the hat; both words are said as the pair is made. The engine's whole
+  rule is that card x rhymes with card x ^ 1 (`fishMate`), so plain Go Fish is
+  untouched (its partner is itself). Every rhyme is restated in the test, and
+  each picture rhymes with ONE card only. Hearing the rhyme makes 59% of the
+  pairs, asking for any card 41% (measured over 1500 games).
+- **🔦 Shadow Picnic** (Picnic Lotto's level two): the food in hand is a black
+  SHADOW, and a spoken clue describes it ("It's yellow, and it has holes!"),
+  so he matches a shape to a picture and listens for the clue.
+- **🔼 Higher or Lower's number line:** 1 to 10 under the card, two dots each,
+  filled while that card can still come. More filled dots above the card than
+  below it IS the guess "bigger".
+- **🔴 Line Up's shimmer:** two in a row shimmer when their third square can
+  be filled right now (his chance or his friend's threat); never the gap
+  itself, and never when the third square is in the air or taken.
+- **🍪 Cookie Jar's shelves:** a shelf under every row of four, solid when the
+  row is full, so "leave full rows" is something he can see.
+- **🎨 Colour Grab's picture:** the finished grid reveals a picture (a heart,
+  a house, a tree, a rocket or a smiley face), named for a screen reader.
+
+Still to build in F: Peek-a-Pair pairs that GO TOGETHER, and a role swap in
+Who's Hiding (he hides, the friend asks).
+

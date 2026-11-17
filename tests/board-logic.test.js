@@ -2271,6 +2271,88 @@ test("🐟 GO FISH: ten pictures twice; five cards each, never a pair in a hand;
   assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
 });
 
+test("🎤 RHYME FISH: twenty different pictures, a pair is two that RHYME (card x and x^1); no hand dealt a rhyme pair; the friend gives the RHYME, not the same card; a catch that rhymes with a card held is a pair; every rhyme made, one party; asking for one whose rhyme the friend holds is the skill; broken saves are refused", () => {
+  const b = DATA.board("rhymefish");
+  assert.ok(b.rhyme && b.game === "fish");
+  const box = DATA.BOXES.find((x) => x.id === "rhymefish");
+  assert.deepEqual(box.unlockAfter, { box: "gofish", games: 2 }, "Go Fish's level two");
+  const R = DATA.RHYMES, SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  assert.equal(R.length, L.FISH_N * 2, "twenty cards");
+  assert.equal(new Set(R.map((r) => r.pic)).size, R.length, "twenty different pictures");
+  // the rhymes (restated: the ending sound after the last vowel)
+  const RIME = { cat: "at", hat: "at", dog: "og", log: "og", bee: "ee", tree: "ee", star: "ar", car: "ar", cake: "ake", snake: "ake", bear: "air", chair: "air", moon: "oon", spoon: "oon", fox: "ox", box: "ox", goat: "oat", boat: "oat", mouse: "ouse", house: "ouse" };
+  for (let x = 0; x < R.length; x++) {
+    assert.ok(RIME[R[x].say], `${R[x].say} has a restated rime`);
+    assert.equal(RIME[R[x].say], RIME[R[x ^ 1].say], `${R[x].say} rhymes with ${R[x ^ 1].say}`);
+    for (let y = 0; y < R.length; y++) if (y !== x && y !== (x ^ 1)) assert.notEqual(RIME[R[x].say], RIME[R[y].say], `${R[x].say} must rhyme with ONE card only (not ${R[y].say})`);
+  }
+  const fishPics = new Set(DATA.FISH.map((f) => f.pic));
+  assert.ok(R.every((r) => !fishPics.has(r.pic)), "no Go Fish picture in the rhyme deck");
+  const rhymePair = (h) => h.some((x) => h.indexOf(x ^ 1) >= 0);
+  for (let seed = 1; seed <= 300; seed++) {
+    const st = L.create({ board: "rhymefish", seats: SEATS, seed, first: seed % 2 });
+    const all = st.pond.concat(st.hands[0], st.hands[1]).sort((a, c) => a - c);
+    assert.deepEqual(all, Array.from({ length: 20 }, (x, k) => k), `seed ${seed}: every card once`);
+    assert.ok(st.hands.every((h) => h.length === b.hand && !rhymePair(h)), `seed ${seed}: five cards each, no rhyme pair`);
+    let guard = 0;
+    while (st.phase !== "done" && guard++ < 200) {
+      const i = st.turn, o = 1 - i;
+      const k = (seed + guard) % st.hands[i].length, q = st.hands[i][k];
+      assert.equal(L.fishMate(st, q), q ^ 1);
+      assert.equal(L.askFish(st, k)[0].type, "fishAsk");
+      const has = st.hands[o].indexOf(q ^ 1) >= 0, same = st.hands[o].indexOf(q) >= 0, before = st.seats[i].stars;
+      assert.equal(same, false, "the friend never holds the SAME card (each card once)");
+      if (has) assert.equal(L.answerFish(st, -1)[0].type, "fishMiss", "Go fish while holding the rhyme is a miss");
+      const ev = L.answerFish(st, L.fishAnswer(st));
+      if (has) {
+        assert.equal(ev[0].type, "fishGive");
+        assert.equal(ev[0].mate, q ^ 1, "the friend gives the rhyme");
+        assert.equal(st.seats[i].stars, before + 1);
+        assert.ok(st.pairs[i].indexOf(Math.min(q, q ^ 1)) >= 0, "the pair is kept as its even card");
+        for (const h of st.hands) assert.ok(h.indexOf(q) < 0 && h.indexOf(q ^ 1) < 0, "both rhymes leave the hands");
+      } else {
+        assert.equal(ev[0].type, "fishGo");
+        if (ev[0].pair) assert.equal(ev[0].mate, ev[0].card ^ 1, "a catch is a pair with its rhyme");
+      }
+      for (const h of st.hands) assert.ok(!rhymePair(h), "never a rhyme pair left in a hand");
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ends`);
+    assert.equal(st.pairs[0].length + st.pairs[1].length, 10, "ten rhymes made");
+  }
+  // the skill: ask for a card whose rhyme the friend holds
+  const share = (sharp) => {
+    let me = 0, them = 0;
+    for (let seed = 1; seed <= 1500; seed++) {
+      const g = L.create({ board: "rhymefish", seats: SEATS, seed, first: seed % 2 });
+      let guard = 0;
+      while (g.phase !== "done" && guard++ < 300) {
+        if (g.turn !== 0) { L.autoTurn(g); continue; }
+        if (g.phase === "ask") { const best = L.fishBest(g); L.askFish(g, sharp && best.length ? best[0] : (seed * 7 + guard) % g.hands[0].length); }
+        if (g.phase === "answer") L.answerFish(g, L.fishAnswer(g));
+      }
+      me += g.seats[0].stars; them += g.seats[1].stars;
+    }
+    return me / (me + them);
+  };
+  const sharp = share(true), plain = share(false);
+  assert.ok(sharp >= 0.56 && sharp - plain >= 0.1, `hearing the rhyme makes ${(sharp * 100).toFixed(0)}% of the pairs, any card ${(plain * 100).toFixed(0)}%`);
+  // broken saves
+  const g = L.snapshot(L.create({ board: "rhymefish", seats: SEATS, seed: 9, first: 0 }));
+  const x = g.hands[0][0];
+  const bad = [
+    ["a card twice", { ...g, pond: g.pond.slice(1).concat([x]) }],
+    ["a card missing", { ...g, pond: g.pond.slice(1) }],
+    ["a card past the deck", { ...g, pond: g.pond.slice(1).concat([20]) }],
+    ["a rhyme pair left in a hand", { ...g, hands: [g.hands[0].concat([x ^ 1]), g.hands[1].filter((y) => y !== (x ^ 1))], pond: g.pond.filter((y) => y !== (x ^ 1)) }],
+    ["a pair kept as its ODD card", (() => { const p = g.pond.find((y) => y % 2 === 0 && g.pond.indexOf(y + 1) >= 0); return p == null ? null : { ...g, pairs: [[p + 1], []], pond: g.pond.filter((y) => y !== p && y !== p + 1), seats: g.seats.map((s, k) => (k === 0 ? { ...s, stars: 1, pos: 1 } : s)) }; })()],
+  ];
+  for (const [what, snap] of bad) { assert.ok(snap, `fixture: ${what}`); assert.equal(L.restore(snap), null, `refused: ${what}`); }
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+  // and plain Go Fish is untouched: same card is the pair
+  const gf = L.create({ board: "gofish", seats: SEATS, seed: 3, first: 0 });
+  assert.equal(L.fishMate(gf, 4), 4);
+});
+
 test("⛄ SNOWMAN BUILD: each snowman starts as its big ball; a picture die of five parts and ❄️ magic snow (the next part that can go on); a part goes on only after the part it needs (the head after the tummy; the hat, nose and scarf after the head); a part it has, or not yet, and the turn passes; a whole snowman is a ⭐ and its builder then helps; broken saves are refused", () => {
   const b = DATA.board("snowman");
   const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];

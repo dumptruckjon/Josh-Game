@@ -972,12 +972,19 @@
   // asking for any 44%.) Every pair made: one party.
   const FISH_N = 10;
   // a hand with no pair in it (the deal is redone until neither has one)
-  const fishHasPair = (h) => new Set(h).size !== h.length;
+  // 🎤 Rhyme Fish (a board with `rhyme: true`): twenty DIFFERENT cards, a
+  // pair being two that RHYME (cat and hat). Card x's partner is x ^ 1 (the
+  // data lists rhymes side by side); a pair made is kept as the even one.
+  // Plain Go Fish: ten pictures twice, a card's partner is itself.
+  const fishRhymes = (st) => !!DATA.board(st.board).rhyme;
+  const fishMate = (st, x) => (fishRhymes(st) ? x ^ 1 : x);
+  const fishHasPair = (h, rhyme) => (rhyme ? h.some((x) => h.indexOf(x ^ 1) >= 0) : new Set(h).size !== h.length);
   function fishDeal(st, s, board) {
     let deck;
+    const r = !!board.rhyme;
     for (let g = 0; g < 50; g++) {
-      deck = shuffle(s, Array.from({ length: FISH_N * 2 }, (x, k) => k % FISH_N));
-      if (!fishHasPair(deck.slice(0, board.hand)) && !fishHasPair(deck.slice(board.hand, 2 * board.hand))) break;
+      deck = shuffle(s, Array.from({ length: FISH_N * 2 }, (x, k) => (r ? k : k % FISH_N)));
+      if (!fishHasPair(deck.slice(0, board.hand), r) && !fishHasPair(deck.slice(board.hand, 2 * board.hand), r)) break;
     }
     st.hands = [deck.splice(0, board.hand), deck.splice(0, board.hand)];
     st.pond = deck;
@@ -988,8 +995,9 @@
   const fishPairs = (st) => st.pairs[0].length + st.pairs[1].length;
   // a pair made: both cards off the hand onto the pile, a ⭐
   function fishPair(st, i, q) {
-    st.hands[i] = st.hands[i].filter((x) => x !== q);
-    st.pairs[i].push(q);
+    const m = fishMate(st, q);
+    st.hands[i] = st.hands[i].filter((x) => x !== q && x !== m);
+    st.pairs[i].push(Math.min(q, m));
     st.seats[i].stars += 1; st.seats[i].pos += 1;
   }
   function fishOver(st, ev) {
@@ -1029,14 +1037,14 @@
   // a friend who has it gives it).
   function answerFish(st, k) {
     if (st.game !== "fish" || st.phase !== "answer") return [];
-    const i = st.turn, o = other(i), q = st.want, has = st.hands[o].indexOf(q) >= 0;
-    if (has ? st.hands[o][k] !== q : k !== -1) { st.misses += 1; return [{ type: "fishMiss", seat: o, k, misses: st.misses }]; }
+    const i = st.turn, o = other(i), q = st.want, m = fishMate(st, q), has = st.hands[o].indexOf(m) >= 0;
+    if (has ? st.hands[o][k] !== m : k !== -1) { st.misses += 1; return [{ type: "fishMiss", seat: o, k, misses: st.misses }]; }
     const ev = [];
     st.want = -1; st.misses = 0;
     if (has) {
-      st.hands[o].splice(st.hands[o].indexOf(q), 1);
+      st.hands[o].splice(st.hands[o].indexOf(m), 1);
       fishPair(st, i, q);
-      ev.push({ type: "fishGive", seat: i, from: o, q });
+      ev.push({ type: "fishGive", seat: i, from: o, q, mate: m });
       if (fishOver(st, ev)) return ev;
       fishRefill(st, o, ev);
       fishRefill(st, i, ev);
@@ -1047,9 +1055,9 @@
     // go fish
     if (st.pond.length) {
       const c = st.pond.pop();
-      const pair = st.hands[i].indexOf(c) >= 0;
+      const pair = st.hands[i].indexOf(fishMate(st, c)) >= 0;
       st.hands[i].push(c);
-      ev.push({ type: "fishGo", seat: i, card: c, pair });
+      ev.push({ type: "fishGo", seat: i, card: c, pair, mate: fishMate(st, c) });
       if (pair) {
         fishPair(st, i, c);
         if (fishOver(st, ev)) return ev;
@@ -1059,7 +1067,7 @@
     return ev;
   }
   // the cards the mover could ask for that the friend has
-  function fishBest(st) { const o = other(st.turn); return st.hands[st.turn].map((x, k) => k).filter((k) => st.hands[o].indexOf(st.hands[st.turn][k]) >= 0); }
+  function fishBest(st) { const o = other(st.turn); return st.hands[st.turn].map((x, k) => k).filter((k) => st.hands[o].indexOf(fishMate(st, st.hands[st.turn][k])) >= 0); }
   // the computer sees a picture they both have only `FISH_SHARP` of the time
   const FISH_SHARP = 0.5;
   function fishChoice(st) {
@@ -1067,7 +1075,7 @@
     return best.length && next(s) < sharpOf(st, FISH_SHARP) ? best[0] : Math.floor(next(s) * st.hands[st.turn].length);
   }
   // the right answer to the question asked
-  const fishAnswer = (st) => st.hands[other(st.turn)].indexOf(st.want);
+  const fishAnswer = (st) => st.hands[other(st.turn)].indexOf(fishMate(st, st.want));
 
   // ---- ⛄ Snowman Build --------------------------------------------------------------
   // Each snowman starts as its big ball (part 1) in the snow. A picture die:
@@ -2628,12 +2636,15 @@
         // answering, the picture asked for is in the asker's hand
         const Hd = snap.hands, Pr = snap.pairs, Pd = snap.pond;
         if (!Array.isArray(Hd) || Hd.length !== 2 || !Hd.every(Array.isArray) || !Array.isArray(Pr) || Pr.length !== 2 || !Pr.every(Array.isArray) || !Array.isArray(Pd)) return null;
-        const count = new Array(FISH_N).fill(0), pic = (x) => int(x) && x >= 0 && x < FISH_N;
+        // (a rhyme deck: every card ONCE, a pair kept as its even card)
+        const R = !!board.rhyme, NC = R ? FISH_N * 2 : FISH_N;
+        const count = new Array(NC).fill(0), pic = (x) => int(x) && x >= 0 && x < NC;
         for (const x of Pd.concat(Hd[0], Hd[1])) { if (!pic(x)) return null; count[x] += 1; }
-        for (const x of Pr[0].concat(Pr[1])) { if (!pic(x)) return null; count[x] += 2; }
-        if (count.some((c) => c !== 2)) return null;
+        // (an odd pair needs no check of its own: it counts the wrong two cards)
+        for (const x of Pr[0].concat(Pr[1])) { if (!pic(x)) return null; if (R) { count[x] += 1; count[x + 1] += 1; } else count[x] += 2; }
+        if (count.some((c) => c !== (R ? 1 : 2))) return null;
         for (const j of [0, 1]) {
-          if (fishHasPair(Hd[j])) return null;
+          if (fishHasPair(Hd[j], R)) return null;
           if (snap.seats[j].stars !== Pr[j].length || snap.seats[j].pos !== Pr[j].length) return null;
         }
         if ((snap.phase === "done") !== (Pr[0].length + Pr[1].length === FISH_N)) return null;
@@ -2949,7 +2960,7 @@
   }
 
   const BoardLogic = {
-    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, twoDoorDice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, takeCookies, nimTakes, nimBest, nimChoice, NIM_SHARP, dropLine, dropRow, linesOf, linesOpen, linesMade, linesBest, linesChoice, LINES_SHARP, playCard, topBest, topChoice, TOP_SHARP, grabColour, grabCells, grabOptions, grabGain, grabBest, grabChoice, GRAB_SHARP, chooseDie, dieTarget, dieBest, dieChoice, DIE_SHARP, callLanding, callTarget, callChoice, CALL_SHARP, pickTwoCard, cardMove, cardChoice, CARD_SHARP, moveMouse, mazePath, mazeSteps, MAZE_TURNS, mazeDist, mazeBest, mazeChoice, MAZE_SHARP, MAZE_WORDS, askHide, hideYes, hideSplit, hideBest, hideChoice, hideTraits, HIDE_SHARP, pickCar, trainChoice, trainPats, trainShown, TRAIN_SHOWN, TRAIN_SHARP, TRAIN_PATTERNS, hiloGuess, hiloBest, hiloChoice, HILO_SHARP, tenPick, tenPairs, tenChoice, tenTarget, tenCards, TEN_SHARP, askFish, answerFish, fishBest, fishChoice, fishAnswer, FISH_SHARP, FISH_N, buildSnow, SNOW_NEEDS, SNOW_MAGIC, snowWhich, coverBingo, bingoSpots, bingoBest, BINGO_LINES, playMatch, flipMatch, cmFits, cmColour, cmNumber, cmPlayable, cmChoice, rollMatch, holdDie, m3Score, m3Keep, m3Made, m3Choice, M3_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
+    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, twoDoorDice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, takeCookies, nimTakes, nimBest, nimChoice, NIM_SHARP, dropLine, dropRow, linesOf, linesOpen, linesMade, linesBest, linesChoice, LINES_SHARP, playCard, topBest, topChoice, TOP_SHARP, grabColour, grabCells, grabOptions, grabGain, grabBest, grabChoice, GRAB_SHARP, chooseDie, dieTarget, dieBest, dieChoice, DIE_SHARP, callLanding, callTarget, callChoice, CALL_SHARP, pickTwoCard, cardMove, cardChoice, CARD_SHARP, moveMouse, mazePath, mazeSteps, MAZE_TURNS, mazeDist, mazeBest, mazeChoice, MAZE_SHARP, MAZE_WORDS, askHide, hideYes, hideSplit, hideBest, hideChoice, hideTraits, HIDE_SHARP, pickCar, trainChoice, trainPats, trainShown, TRAIN_SHOWN, TRAIN_SHARP, TRAIN_PATTERNS, hiloGuess, hiloBest, hiloChoice, HILO_SHARP, tenPick, tenPairs, tenChoice, tenTarget, tenCards, TEN_SHARP, askFish, answerFish, fishMate, fishBest, fishChoice, fishAnswer, FISH_SHARP, FISH_N, buildSnow, SNOW_NEEDS, SNOW_MAGIC, snowWhich, coverBingo, bingoSpots, bingoBest, BINGO_LINES, playMatch, flipMatch, cmFits, cmColour, cmNumber, cmPlayable, cmChoice, rollMatch, holdDie, m3Score, m3Keep, m3Made, m3Choice, M3_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
     cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN, sharpOf, SHARP_MIN, SHARP_MAX, levelled, labelOf,
   };
   global.BoardLogic = BoardLogic;

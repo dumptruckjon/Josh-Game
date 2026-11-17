@@ -64,22 +64,22 @@
   // two reds that look alike, never two round fruits side by side in his
   // eye): every blanket is six of them, and the two blankets never share one.
   const FOODS = [
-    { id: "banana", pic: "🍌", say: "a banana" },
-    { id: "strawberry", pic: "🍓", say: "a strawberry" },
-    { id: "grapes", pic: "🍇", say: "some grapes" },
-    { id: "watermelon", pic: "🍉", say: "a watermelon" },
-    { id: "pizza", pic: "🍕", say: "a pizza" },
-    { id: "cheese", pic: "🧀", say: "some cheese" },
-    { id: "carrot", pic: "🥕", say: "a carrot" },
-    { id: "cookie", pic: "🍪", say: "a cookie" },
-    { id: "cupcake", pic: "🧁", say: "a cupcake" },
-    { id: "donut", pic: "🍩", say: "a donut" },
-    { id: "pretzel", pic: "🥨", say: "a pretzel" },
-    { id: "corn", pic: "🌽", say: "some corn" },
-    { id: "icecream", pic: "🍦", say: "an ice cream" },
-    { id: "sandwich", pic: "🥪", say: "a sandwich" },
-    { id: "broccoli", pic: "🥦", say: "some broccoli" },
-    { id: "cherries", pic: "🍒", say: "some cherries" },
+    { id: "banana", pic: "🍌", say: "a banana" , clue: "It's yellow, and you peel it!" },
+    { id: "strawberry", pic: "🍓", say: "a strawberry" , clue: "It's red, with little seeds on the outside!" },
+    { id: "grapes", pic: "🍇", say: "some grapes" , clue: "Lots of little purple balls on a stem!" },
+    { id: "watermelon", pic: "🍉", say: "a watermelon" , clue: "It's green outside and red inside!" },
+    { id: "pizza", pic: "🍕", say: "a pizza" , clue: "A hot slice with cheese on top!" },
+    { id: "cheese", pic: "🧀", say: "some cheese" , clue: "It's yellow, and it has holes!" },
+    { id: "carrot", pic: "🥕", say: "a carrot" , clue: "It's orange, and bunnies love it!" },
+    { id: "cookie", pic: "🍪", say: "a cookie" , clue: "It's round, with chocolate chips!" },
+    { id: "cupcake", pic: "🧁", say: "a cupcake" , clue: "A little cake with frosting on top!" },
+    { id: "donut", pic: "🍩", say: "a donut" , clue: "It's round, with a hole in the middle!" },
+    { id: "pretzel", pic: "🥨", say: "a pretzel" , clue: "It's twisty and salty!" },
+    { id: "corn", pic: "🌽", say: "some corn" , clue: "It's yellow, and it grows on a cob!" },
+    { id: "icecream", pic: "🍦", say: "an ice cream" , clue: "It's cold, and it sits in a cone!" },
+    { id: "sandwich", pic: "🥪", say: "a sandwich" , clue: "Bread on the top and on the bottom!" },
+    { id: "broccoli", pic: "🥦", say: "some broccoli" , clue: "It's green, like a little tree!" },
+    { id: "cherries", pic: "🍒", say: "some cherries" , clue: "Two little red balls on stems!" },
   ];
 
   // ---- 👀 Twin Spot's pictures --------------------------------------------
@@ -271,6 +271,14 @@
       // blankets side by side, each two across and three down, over the two
       // pads that own them.
       id: "lotto", box: "lotto", game: "lotto", name: "Picnic Lotto", coop: true,
+      cols: 4.4, rows: 3.3, size: 6, spots: 6,
+      lines: { home: "{n}'s blanket is full!", end: "Both blankets are full! Picnic time!" },
+    },
+    // §18 F: Picnic Lotto's level two — the food comes out of the basket as a
+    // SHADOW (with a riddle, when the sound is on) and is seen only once it is
+    // on its blanket: matching a shape to a picture, and listening for clues
+    {
+      id: "lotto2", box: "lotto2", game: "lotto", name: "Shadow Picnic", coop: true, clues: true,
       cols: 4.4, rows: 3.3, size: 6, spots: 6,
       lines: { home: "{n}'s blanket is full!", end: "Both blankets are full! Picnic time!" },
     },
@@ -544,6 +552,16 @@
       lines: { home: "", end: "Every pair is made! What a catch!" },
     },
     {
+      // 🎤 Rhyme Fish (Go Fish's level two, and his rhyming edge): twenty
+      // DIFFERENT pictures, and a pair is two that RHYME — cat and hat, moon
+      // and spoon. Tap a card to ask for the one that rhymes with it. Every
+      // rhyme is said as a pair is made ("Cat, hat!"), so the sound is the
+      // lesson; with the sound off the two pictures sit side by side.
+      id: "rhymefish", box: "rhymefish", game: "fish", name: "Rhyme Fish", coop: true, rhyme: true,
+      cols: 3, rows: 3, hand: 5, size: 10,
+      lines: { home: "", end: "Every rhyme is made! What a catch!" },
+    },
+    {
       // 🍯 Honey Ten (making ten, for a four-year-old: a game of NUMBER BONDS
       // he can SEE). Eighteen flowers, 1 to 9 twice, nine in the meadow, each
       // a ten-frame of dots. Tap a flower — its ten-frame shows how many more
@@ -632,6 +650,7 @@
     // the THINKING games (`kind: "think"`) stand on their own shelf: games of
     // finding, remembering and choosing, not only of luck
     { id: "lotto", board: "lotto", name: "Picnic Lotto", pic: "🧺", colour: "#2f9e6e", kind: "think" },
+    { id: "lotto2", board: "lotto2", name: "Shadow Picnic", pic: "🔦", colour: "#1f6f50", kind: "think", unlockAfter: { box: "lotto", games: 2 } },
     { id: "spot", board: "spot", name: "Twin Spot", pic: "👀", colour: "#7c3aed", kind: "think" },
     { id: "pairs", board: "pairs", name: "Peek-a-Pair", pic: "🧠", colour: "#db2777", kind: "think" },
     // (drawn: 🚪 is the shelf bar's way OUT, so it cannot also be a box)
@@ -664,6 +683,7 @@
     { id: "honeyten", board: "honeyten", name: "Honey Ten", pic: "🍯", colour: "#b45309", kind: "think" },
     { id: "honey20", board: "honey20", name: "Honey Twenty", pic: "🐝", colour: "#92400e", kind: "think", unlockAfter: { box: "honeyten", games: 2 } },
     { id: "gofish", board: "gofish", name: "Go Fish", pic: "🐟", colour: "#0369a1", kind: "think" },
+    { id: "rhymefish", board: "rhymefish", name: "Rhyme Fish", pic: "🎤", colour: "#7c2d92", kind: "think", unlockAfter: { box: "gofish", games: 2 } },
     { id: "colourmatch", board: "colourmatch", name: "Colour Match", pic: "🎴", colour: "#7e22ce", kind: "think" },
   ];
 
@@ -740,6 +760,9 @@
     whoseFirst: "Tap the friend whose blanket has it!",
     giveMine: "{f} for {n}!",
     lookAgain: "Look again! Where is {f}?",
+    // 🔦 Shadow Picnic: a riddle, and the shadow, instead of the food's name
+    whoseClue: "{c} Whose is it?",
+    lookClue: "Look again! {c}",
     endLotto: "Both blankets are full! Picnic time!",
     flipFirst2: "Tap to flip a card!",
     findTwin: "Find the picture on BOTH cards!",
@@ -849,6 +872,11 @@
     fishGive: "Find the {w} in your hand!",
     fishNone: "No {w}? Tap Go fish!",
     fishEmpty: "The pond is empty!",
+    rhymeFirst: "Tap a card to ask for one that rhymes with it!",
+    rhymeAsk: "Do you have one that rhymes with {w}?",
+    rhymePair: "{w} and {m}! A rhyme for {n}!",
+    rhymeGive: "What rhymes with {w}? Find it in your hand!",
+    rhymeNone: "Nothing rhymes with {w}? Tap Go fish!",
     snowFirst: "Roll the snowman die!",
     snowMagic: "Magic snow! The {w}! Tap the snowman to put it on!",
     snowBuild: "{w}! Tap the snowman to put it on!",
@@ -931,7 +959,22 @@
     { id: "truck", say: "a dump truck" },
     { id: "buddy", say: "your buddy" },
   ];
-  const BoardData = { FISH, SNOW_PARTS, HIDERS, JOSH, FRIENDS, PEOPLE, COLOURS, ANIMALS, FOODS, SPOTS, PAIRS, BOARDS, BOXES, SAY, TOKENS, zhNum };
+  // 🎤 Rhyme Fish's twenty cards, RHYMES SIDE BY SIDE: card x rhymes with
+  // card x ^ 1 (the engine's whole rule). Each pair rhymes in an American
+  // voice; none is a picture Go Fish uses, so the two decks never blur.
+  const RHYMES = [
+    { pic: "🐱", say: "cat" }, { pic: "🎩", say: "hat" },
+    { pic: "🐶", say: "dog" }, { pic: "🪵", say: "log" },
+    { pic: "🐝", say: "bee" }, { pic: "🌳", say: "tree" },
+    { pic: "⭐", say: "star" }, { pic: "🚗", say: "car" },
+    { pic: "🎂", say: "cake" }, { pic: "🐍", say: "snake" },
+    { pic: "🐻", say: "bear" }, { pic: "🪑", say: "chair" },
+    { pic: "🌙", say: "moon" }, { pic: "🥄", say: "spoon" },
+    { pic: "🦊", say: "fox" }, { pic: "📦", say: "box" },
+    { pic: "🐐", say: "goat" }, { pic: "⛵", say: "boat" },
+    { pic: "🐭", say: "mouse" }, { pic: "🏠", say: "house" },
+  ];
+  const BoardData = { RHYMES, FISH, SNOW_PARTS, HIDERS, JOSH, FRIENDS, PEOPLE, COLOURS, ANIMALS, FOODS, SPOTS, PAIRS, BOARDS, BOXES, SAY, TOKENS, zhNum };
   BoardData.spot = (k) => SPOTS[k] || null;
   BoardData.pairPic = (id) => PAIRS.find((p) => p.id === id) || null;
   BoardData.food = (id) => FOODS.find((f) => f.id === id) || null;

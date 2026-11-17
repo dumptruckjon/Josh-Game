@@ -3406,6 +3406,9 @@ button.bn-sand { cursor: pointer; min-height: 75px; }
 .bn-grab__grid { position: relative; width: var(--grab-w, 300px); height: var(--grab-h, 350px); }
 .bn-grab__svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .bn-grab__fresh { fill: #ffffff; fill-opacity: 0.55; animation: bnGrabPulse 0.6s ease-out forwards; }
+/* §18 F: the finished grid's picture fades in */
+.bn-grab__picture { animation: bnGrabPic 0.8s ease-out both; }
+@keyframes bnGrabPic { from { opacity: 0; } to { opacity: 1; } }
 @keyframes bnGrabPulse { to { fill-opacity: 0; } }
 .bn-grab__who {
   position: absolute; z-index: 1; width: 36px; height: 36px;
@@ -3491,6 +3494,10 @@ button.bn-col { cursor: pointer; }
 .bn-slot > svg, .bn-slot > .bn-emoji { display: block; width: 100%; height: 100%; }
 .bn-slot--line { box-shadow: 0 0 0 4px #ffd24d, 0 0 0 7px #7a5200; }
 .bn-slot--fresh { animation: bnSlotDrop 0.3s ease-in; }
+/* §18 F: two in a row with the third square open NOW — a ring that pulses
+   (a shape: under reduced motion it stays a ring) */
+.bn-slot--two { box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px #2b2b3a; animation: bnTwo 0.9s ease-in-out infinite alternate; }
+@keyframes bnTwo { from { box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px #2b2b3a; } to { box-shadow: 0 0 0 5px #ffd24d, 0 0 0 8px #2b2b3a; } }
 @keyframes bnSlotDrop { from { transform: translateY(-260%); } to { transform: translateY(0); } }
 .bn-slot--mini { width: 100%; height: 100%; }
 /* 🍪 Cookie Jar: the glass jar (its count on the lid, the golden cookie at
@@ -3518,6 +3525,10 @@ button.bn-col { cursor: pointer; }
   position: absolute; transform: translate(-50%, -50%);
   width: 1.25em; height: 1.25em; display: grid; place-items: center; line-height: 1;
 }
+/* §18 F: a shelf under each row of four cookies; a full row's shelf is solid,
+   the row still filling a dashed one (a shape, not a hue alone) */
+.bn-jar__shelf { position: absolute; left: 3%; right: 3%; height: 0; border-top: 3px dashed #7fb3d5; pointer-events: none; }
+.bn-jar__shelf--full { border-top: 4px solid #5b8fb3; }
 .bn-cookie--gold { border-radius: 50%; background: radial-gradient(circle, #fff3b0, #ffd24d 70%); box-shadow: 0 0 0 4px #ffd24d, 0 0 0 7px #7a5200; }
 .bn-cookie--go { animation: bnCookieGo 0.5s ease-in forwards; }
 @keyframes bnCookieGo { to { transform: translate(-50%, -160%) scale(1.3); opacity: 0; } }
@@ -3609,9 +3620,20 @@ button.bn-carb { cursor: pointer; }
    the deck, over two big guesses (⬆️ bigger, ⬇️ smaller) */
 .bn-hilo {
   position: absolute; left: 0; top: 0; right: 0; bottom: 6px;
-  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: minmax(0, 1fr) var(--hilo-row, 96px);
+  display: grid; grid-template-columns: minmax(0, 100%); grid-template-rows: minmax(0, 1fr) 44px var(--hilo-row, 96px);
   row-gap: 16px; justify-items: center; align-items: center;
 }
+/* §18 F: the number line of the deck (a picture, not buttons): 1 to 10, two
+   dots each — filled while that card can still come, hollow once turned; the
+   card to beat ringed, the numbers above it on a warmer ground */
+.bn-hilo__line { width: 100%; max-width: 480px; display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); column-gap: 3px; }
+.bn-hln { display: grid; justify-items: center; row-gap: 2px; padding: 2px 0 3px; border-radius: 8px; background: #eef2ff; }
+.bn-hln--up { background: #fff1d6; }
+.bn-hln--top { box-shadow: 0 0 0 3px #2b2b3a; background: #ffffff; }
+.bn-hln__n { font-size: 0.85rem; font-weight: 900; color: #1d1d3b; line-height: 1.1; }
+.bn-hln__dots { display: grid; grid-template-columns: repeat(2, 7px); column-gap: 2px; }
+.bn-hln__dot { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid #2b2b3a; box-sizing: border-box; background: transparent; }
+.bn-hln__dot--in { background: #2b2b3a; }
 .bn-hilo__table { display: grid; grid-template-columns: auto auto; column-gap: 24px; align-items: center; }
 .bn-hilo__top { position: relative; display: grid; }
 .bn-hlc {
@@ -4326,6 +4348,9 @@ button.bn-pickd { cursor: pointer; }
 @keyframes bnLand { 0% { transform: translate(-50%, -50%) scale(0.4); } 70% { transform: translate(-50%, -50%) scale(1.2); } 100% { transform: translate(-50%, -50%) scale(1); } }
 @keyframes bnGlow { from { box-shadow: 0 0 0 5px #ffd24d, 0 0 0 9px #7a5200; } to { box-shadow: 0 0 0 8px #ffd24d, 0 0 0 12px #7a5200; } }
 .bn-card--basket { border-style: dashed; font-size: 2.6rem; }
+/* 🔦 Shadow Picnic: the food in hand as a SHADOW (one element, not a bulk
+   filter) — matched to its picture on a blanket */
+.bn-card--shadow { filter: brightness(0); opacity: 0.85; }
 /* 🧺 "whose is it?": the friend's pad shows their blanket, the picnic's own
    gingham (the tint and border of their blanket on the board) */
 .bn-card--blanket {
@@ -4498,8 +4523,10 @@ button.bn-pickd { cursor: pointer; }
   .bn-hider { transition: none; }
   .bn-m3d--held { transform: none; }
   .bn-slot--fresh { animation: none; }
+  .bn-slot--two { animation: none; }
   .bn-tc--fresh { animation: none; }
   .bn-grab__fresh { animation: none; fill-opacity: 0; }
+  .bn-grab__picture { animation: none; }
   .bn-hand { animation: none; }
   .bn-party__face { animation: none; }
   .bn-party__clap { animation: none; }

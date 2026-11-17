@@ -82,7 +82,10 @@ Until the owner says otherwise:
   Josh plays as on a race board (himself, a race car, a dump truck, his
   buddy), a grown-up switch that counts in 中文, a table mode for the iPad
   lying flat, and endings on the board (a 🚩, the train chugging off, the
-  snowmen waving) with a high five at the party. Part F is the owner's
+  snowmen waving) with a high five at the party. Part F's first batch too —
+  🎤 Rhyme Fish (a pair is two that rhyme), 🔦 Shadow Picnic (a shadow and a
+  spoken clue), Higher or Lower's number line, Line Up's shimmer, the cookie
+  shelves and Colour Grab's hidden picture. The rest of F is the owner's
   standing pick still to build, shipping as it goes.
 - **Word Cards** (`wordcards.html`: the English deck, 中文, 写字, 配对,
   👂 Hear it, find it and 新字) **and 🕳️ Gobble Hole** (the owner's pick of

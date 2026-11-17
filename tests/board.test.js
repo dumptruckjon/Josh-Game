@@ -3672,6 +3672,153 @@ test("🐟 a whole Go Fish against the computer: both hands face up (his big, th
   } finally { await slow(); }
 });
 
+test("🎤 a whole Rhyme Fish against the computer: the cards are the rhyme deck (never Go Fish's pictures); he asks for the one that RHYMES, the computer gives the rhyme (both said: \"Cat and hat!\"), and when the computer asks him it asks for a rhyme; the giving card glows after two misses; ten rhymes and one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await page.evaluate(() => {
+    window.__said = [];
+    window.__realAudio = { isMuted: window.JoshAudio.isMuted, say: window.JoshAudio.say, tone: window.JoshAudio.tone };
+    window.JoshAudio.isMuted = () => false;
+    window.JoshAudio.say = (t) => { window.__said.push(String(t)); };
+    window.JoshAudio.tone = () => {};
+  });
+  await quick();
+  try {
+    await startGame("rhymefish", "river", true, 5, 0);
+    const R = await page.evaluate(() => window.BoardData.RHYMES);
+    const handPics = () => page.evaluate(() => [...document.querySelectorAll(".bn-fish__hand .bn-fishc:not(.bn-fishgo)")].map((b) => b.textContent));
+    const s0 = await st();
+    assert.deepEqual(await handPics(), s0.hands[0].map((x) => R[x].pic), "his hand shows the rhyme deck's pictures");
+    let asked = false, gaveLine = false, cpuAsked = false, fibbed = false;
+    for (let guard = 0; guard < 160; guard++) {
+      await page.waitForFunction(() => { const st = window.__BOARD.state(); return st.phase === "done" || (!window.__BOARD.busy() && ((st.phase === "ask" && st.turn === 0) || (st.phase === "answer" && st.turn === 1))); }, null, { timeout: 15000 });
+      const s = await st();
+      if (s.phase === "done") break;
+      if (s.phase === "ask") {
+        const b = await page.evaluate(() => window.BoardLogic.fishBest(window.__BOARD.state()));
+        const k = b.length ? b[0] : 0, q = s.hands[0][k];
+        await page.evaluate(() => { window.__said = []; });
+        await page.locator('.bn-fish__hand button.bn-fishc[data-k="' + k + '"]').click();
+        await page.waitForFunction((r) => window.__BOARD.state().rolls > r, s.rolls, { timeout: 5000 });
+        await page.waitForFunction(() => !window.__BOARD.busy() || window.__BOARD.state().phase === "done", null, { timeout: 8000 });
+        const said = await page.evaluate(() => window.__said);
+        assert.ok(said.some((l) => l.indexOf("rhymes with " + R[q].say) >= 0), `the question asks for a rhyme: ${JSON.stringify(said)}`);
+        asked = true;
+        if (b.length) {
+          const pair = said.find((l) => / and .*! A rhyme for /.test(l));
+          assert.ok(pair && pair.toLowerCase().indexOf(R[q].say) >= 0 && pair.indexOf(R[q ^ 1].say) >= 0, `a rhyme made says BOTH words: ${JSON.stringify(said)}`);
+          gaveLine = true;
+        }
+        continue;
+      }
+      cpuAsked = true;
+      const ans = await page.evaluate(() => window.BoardLogic.fishAnswer(window.__BOARD.state()));
+      assert.equal(await page.locator(".bn-fish__q").first().textContent(), R[s.want].pic, "the question shows the picture to rhyme with");
+      if (!fibbed && ans >= 0) {
+        fibbed = true;
+        for (let t = 0; t < 2; t++) { await page.locator(".bn-fish__hand button.bn-fishgo").click(); await page.waitForTimeout(350); }
+        const glow = await page.evaluate(() => [...document.querySelectorAll(".bn-fish__hand button.bn-fishc")].map((b, k) => (b.classList.contains("bn-fishc--hint") ? Number(b.dataset.k) : -1)).filter((k) => k >= 0));
+        assert.deepEqual(glow, [ans], "after two, the RHYME glows (not the same picture, which he does not have)");
+        assert.equal((await st()).hands[0][ans], s.want ^ 1, "the card to give is the rhyme");
+      }
+      if (ans >= 0) await page.locator('.bn-fish__hand button.bn-fishc[data-k="' + ans + '"]').click();
+      else await page.locator(".bn-fish__hand button.bn-fishgo").click();
+      await page.waitForFunction(() => window.__BOARD.state().phase !== "answer", null, { timeout: 5000 });
+    }
+    const end = await st();
+    assert.equal(end.phase, "done", "the game ends");
+    assert.equal(end.seats[0].stars + end.seats[1].stars, 10, "ten rhymes");
+    assert.ok(asked && gaveLine && cpuAsked && fibbed, `fixture: every branch was reached (${asked} ${gaveLine} ${cpuAsked} ${fibbed})`);
+    await page.locator(".bn-party").waitFor({ state: "visible" });
+    assert.equal((await page.evaluate(() => window.__BOARD.save())).done.rhymefish, 1, "a finished Rhyme Fish counts once");
+  } finally {
+    await page.evaluate(() => { Object.assign(window.JoshAudio, window.__realAudio); });
+    await slow();
+  }
+});
+
+test("§18 F: the boards show the thinking — Higher or Lower's number line (a filled dot per card still to come), Line Up's two-in-a-row shimmer (only when the third square can be filled NOW), Cookie Jar's shelves under every row of four, Colour Grab's finished grid reveals a picture, Shadow Picnic's food in hand is a shadow with a spoken clue", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  // 🔼 the number line
+  // (mid-game, so some numbers have already come out: a fresh deck shows
+  // two dots nearly everywhere and could not tell a line from a pattern)
+  const mid = await page.evaluate((S) => { const L = window.BoardLogic, st = L.create({ board: "hilo", seats: S, seed: 4, first: 0 }); for (let k = 0; k < 6; k++) L.autoTurn(st); return L.snapshot(st); }, SEATS);
+  await page.evaluate((x) => window.__BOARD.load("hilo", x), mid);
+  await page.waitForTimeout(500);
+  const h = await page.evaluate(() => {
+    const st = window.__BOARD.state(), line = document.querySelector(".bn-hilo__line");
+    const marks = [...line.querySelectorAll(".bn-hln")].map((m) => ({ n: Number(m.querySelector(".bn-hln__n").textContent), in: m.querySelectorAll(".bn-hln__dot--in").length }));
+    const r = line.getBoundingClientRect();
+    return { deck: st.deck, top: st.top, marks, label: line.getAttribute("aria-label"), w: r.width, sw: line.scrollWidth, cw: line.clientWidth };
+  });
+  assert.deepEqual(h.marks.map((m) => m.n), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "one mark per number");
+  for (const m of h.marks) assert.equal(m.in, h.deck.filter((x) => x === m.n).length, `${m.n}: a filled dot for each card still to come`);
+  assert.ok(h.marks.some((m) => m.in < 2 && m.n !== h.top), "fixture: some number has already come out");
+  const up = h.deck.filter((x) => x > h.top).length, down = h.deck.filter((x) => x < h.top).length;
+  assert.ok(h.label.indexOf(up + " bigger") >= 0 && h.label.indexOf(down + " smaller") >= 0, `the line says it in words: ${h.label}`);
+  assert.ok(h.sw <= h.cw + 1, "the line fits its row");
+  // 🔴 the shimmer: build two of his in the bottom row with the third square free
+  const two = await page.evaluate((S) => {
+    const L = window.BoardLogic, st = L.create({ board: "lineup", seats: S, seed: 3, first: 0 });
+    L.dropLine(st, 0); L.dropLine(st, 0); L.dropLine(st, 1);
+    return L.snapshot(st);
+  }, SEATS);
+  await page.evaluate((x) => window.__BOARD.load("lineup", x), two);
+  await page.waitForTimeout(500);
+  const sh = await page.evaluate(() => ({ two: document.querySelectorAll(".bn-slot--two").length, grid: window.__BOARD.state().grid }));
+  assert.equal(sh.two, 2, `his two in a row shimmer (grid ${JSON.stringify(sh.grid)})`);
+  // …and not once the third is filled
+  const blocked = await page.evaluate((S) => {
+    const L = window.BoardLogic, st = L.create({ board: "lineup", seats: S, seed: 3, first: 0 });
+    L.dropLine(st, 0); L.dropLine(st, 0); L.dropLine(st, 1); L.dropLine(st, 2);
+    return L.snapshot(st);
+  }, SEATS);
+  await page.evaluate((x) => window.__BOARD.load("lineup", x), blocked);
+  await page.waitForTimeout(500);
+  assert.equal(await page.evaluate(() => document.querySelectorAll(".bn-slot--two").length), 0, "a blocked line does not shimmer");
+  // …nor one whose third square has nothing under it yet (a counter dropped
+  // there now would fall below it): his diagonal, bottom left to middle
+  const hanging = await page.evaluate((S) => {
+    const L = window.BoardLogic, st = L.create({ board: "lineup", seats: S, seed: 3, first: 0 });
+    L.dropLine(st, 0); L.dropLine(st, 1); L.dropLine(st, 1);
+    return L.snapshot(st);
+  }, SEATS);
+  await page.evaluate((x) => window.__BOARD.load("lineup", x), hanging);
+  await page.waitForTimeout(500);
+  assert.equal(await page.evaluate(() => document.querySelectorAll(".bn-slot--two").length), 0, "a line whose gap is in the air does not shimmer");
+  // 🍪 shelves
+  await startGame("cookies", "river", true, 2, 0);
+  const jar = await page.evaluate(() => ({ n: window.__BOARD.state().cookies, shelves: document.querySelectorAll(".bn-jar__shelf").length, full: document.querySelectorAll(".bn-jar__shelf--full").length }));
+  assert.equal(jar.shelves, Math.ceil(jar.n / 4), `a shelf under each row of four (${jar.n} cookies)`);
+  assert.equal(jar.full, Math.floor(jar.n / 4), "a full row's shelf is drawn solid");
+  // 🎨 a finished grid shows a picture
+  const done = await page.evaluate((S) => {
+    const L = window.BoardLogic, st = L.create({ board: "grab", seats: S, seed: 6, first: 0 });
+    for (let g = 0; g < 400 && st.phase !== "done"; g++) L.autoTurn(st);
+    return L.snapshot(st);
+  }, SEATS);
+  assert.equal(done.phase, "done", "fixture: the grid is finished");
+  await page.evaluate((x) => window.__BOARD.load("grab", x), done);
+  await page.waitForTimeout(600);
+  const pic = await page.evaluate(() => { const g = document.querySelector(".bn-grab__picture"); return { on: g ? g.querySelectorAll('rect[fill="#ffffff"]').length : 0, label: (document.querySelector(".bn-grab__grid") || { getAttribute: () => "" }).getAttribute("aria-label") || "" }; });
+  assert.ok(pic.on >= 10, `the picture is drawn (${pic.on} squares lit)`);
+  assert.match(pic.label, /shows a/, `and named: ${pic.label}`);
+  // 🔦 Shadow Picnic
+  await page.evaluate(() => { window.__said = []; window.__realAudio = { isMuted: window.JoshAudio.isMuted, say: window.JoshAudio.say }; window.JoshAudio.isMuted = () => false; window.JoshAudio.say = (t) => { window.__said.push(String(t)); }; });
+  try {
+    await page.evaluate(() => window.__BOARD.reset({ introSeen: true, done: { lotto: 2 } }));
+    await startGame("lotto2", "river", true, 7, 0);
+    await untilTap(0);
+    await page.locator(".bn-pad--0").click();
+    await page.waitForFunction(() => window.__BOARD.state().phase === "give" && !window.__BOARD.busy(), null, { timeout: 8000 });
+    const sp = await page.evaluate(() => { const c = document.querySelector(".bn-card--food"); const f = window.BoardData.FOODS.find((x) => x.id === window.__BOARD.state().food); return { shadow: !!c && c.classList.contains("bn-card--shadow") && getComputedStyle(c).filter.indexOf("brightness(0)") >= 0, clue: f.clue, said: window.__said }; });
+    assert.ok(sp.shadow, "the food in hand is a SHADOW");
+    assert.ok(sp.said.some((l) => l.indexOf(sp.clue) >= 0), `its clue is said: ${JSON.stringify(sp.said)}`);
+    const foods = await page.evaluate(() => window.BoardData.FOODS);
+    assert.equal(new Set(foods.map((f) => f.clue)).size, foods.length, "every food its own clue");
+  } finally { await page.evaluate(() => { Object.assign(window.JoshAudio, window.__realAudio); }); }
+});
+
 test("⛄ a whole Snowman Build against the computer: two snowmen side by side, each its big ball to begin with; he rolls the picture die on his pad and taps HIS snowman to put the part on (a doubled tap builds once); a part that cannot go on yet is said and the turn passes; the computer's snowman is not his to tap; two whole snowmen and one party", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await quick();
