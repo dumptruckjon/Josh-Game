@@ -311,6 +311,15 @@
       lines: { home: "", end: "Every pair is found! What a memory!" },
     },
     {
+      // 🧩 Go Together (Peek-a-Pair's level two): a pair is two DIFFERENT
+      // pictures that go together — a sock and a shoe, a key and a lock — so
+      // he must remember two pictures AND know what belongs with what. The
+      // same nine cards, two boards, ⭐ and computer as Peek-a-Pair.
+      id: "together", box: "together", game: "pairs", name: "Go Together", coop: true, together: true,
+      cols: 3, rows: 3, size: 9, boards: 2, pairsPer: 4,
+      lines: { home: "", end: "Everything is back together! What a memory!" },
+    },
+    {
       // 🚪 Shut the Doors (shut-the-box, for a four-year-old: a game of
       // NUMBER BONDS). Each player has six doors, 1 to 6. Roll the die, then
       // shut the door with that number — or TWO doors that make it (5 is 4
@@ -653,6 +662,7 @@
     { id: "lotto2", board: "lotto2", name: "Shadow Picnic", pic: "🔦", colour: "#1f6f50", kind: "think", unlockAfter: { box: "lotto", games: 2 } },
     { id: "spot", board: "spot", name: "Twin Spot", pic: "👀", colour: "#7c3aed", kind: "think" },
     { id: "pairs", board: "pairs", name: "Peek-a-Pair", pic: "🧠", colour: "#db2777", kind: "think" },
+    { id: "together", board: "together", name: "Go Together", pic: "🧩", colour: "#9d174d", kind: "think", unlockAfter: { box: "pairs", games: 2 } },
     // (drawn: 🚪 is the shelf bar's way OUT, so it cannot also be a box)
     { id: "doors", board: "doors", name: "Shut the Doors", pic: "", art: "doors", colour: "#b45309", kind: "think" },
     { id: "doors9", board: "doors9", name: "Doors to Nine", pic: "", art: "doors9", colour: "#92400e", kind: "think", unlockAfter: { box: "doors", games: 2 } },
@@ -780,6 +790,7 @@
     doorsNo: "No door makes {d}. Roll again!",
     doorsMiss: "That does not make {d}. Try another!",
     pairYes: "Two {p}! A pair! Go again!",
+    togetherYes: "{p}! They go together! Go again!",
     pairNo: "Not a pair. Remember where they are!",
     pairStar: "A star! Go again!",
     pairsNew: "A new board!",
@@ -974,9 +985,30 @@
     { pic: "🐐", say: "goat" }, { pic: "⛵", say: "boat" },
     { pic: "🐭", say: "mouse" }, { pic: "🏠", say: "house" },
   ];
-  const BoardData = { RHYMES, FISH, SNOW_PARTS, HIDERS, JOSH, FRIENDS, PEOPLE, COLOURS, ANIMALS, FOODS, SPOTS, PAIRS, BOARDS, BOXES, SAY, TOKENS, zhNum };
+  // 🧩 Go Together's pairs: a thing and the ONE thing it goes with. Each
+  // partner belongs to exactly one thing on this list (a test restates them),
+  // and no picture is used twice, so a board can only pair one way.
+  const TOGETHER = [
+    { id: "sock", pic: "🧦", say: "sock", mate: { pic: "👟", say: "shoe" }, both: "A sock and a shoe" },
+    { id: "key", pic: "🔑", say: "key", mate: { pic: "🔒", say: "lock" }, both: "A key and a lock" },
+    { id: "bee", pic: "🐝", say: "bee", mate: { pic: "🌼", say: "flower" }, both: "A bee and a flower" },
+    { id: "cookie", pic: "🍪", say: "cookie", mate: { pic: "🥛", say: "milk" }, both: "Cookies and milk" },
+    { id: "dog", pic: "🐶", say: "dog", mate: { pic: "🦴", say: "bone" }, both: "A dog and a bone" },
+    { id: "brush", pic: "🪥", say: "toothbrush", mate: { pic: "🦷", say: "tooth" }, both: "A toothbrush and a tooth" },
+    { id: "monkey", pic: "🐵", say: "monkey", mate: { pic: "🍌", say: "banana" }, both: "A monkey and a banana" },
+    { id: "pencil", pic: "✏️", say: "pencil", mate: { pic: "📄", say: "paper" }, both: "A pencil and paper" },
+    { id: "ball", pic: "⚽", say: "ball", mate: { pic: "🥅", say: "goal" }, both: "A ball and a goal" },
+    { id: "rain", pic: "🌧️", say: "rain", mate: { pic: "☂️", say: "umbrella" }, both: "Rain and an umbrella" },
+  ];
+  const BoardData = { TOGETHER, RHYMES, FISH, SNOW_PARTS, HIDERS, JOSH, FRIENDS, PEOPLE, COLOURS, ANIMALS, FOODS, SPOTS, PAIRS, BOARDS, BOXES, SAY, TOKENS, zhNum };
   BoardData.spot = (k) => SPOTS[k] || null;
-  BoardData.pairPic = (id) => PAIRS.find((p) => p.id === id) || null;
+  // a Peek-a-Pair card's picture; a Go Together card "x/1" is x's partner
+  BoardData.pairPic = (id) => {
+    const p = PAIRS.find((x) => x.id === id);
+    if (p) return p;
+    const key = String(id).replace(/\/1$/, ""), t = TOGETHER.find((x) => x.id === key);
+    return !t ? null : key === id ? t : { id, pic: t.mate.pic, say: t.mate.say };
+  };
   BoardData.food = (id) => FOODS.find((f) => f.id === id) || null;
   BoardData.animal = (id) => ANIMALS.find((a) => a.id === id) || null;
   BoardData.board = (id) => BOARDS.find((b) => b.id === id) || null;

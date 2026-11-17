@@ -281,7 +281,7 @@
     // 🧠 the pictures for every board of the game (four pairs a board, never
     // a picture twice in one game), the first board dealt face down
     if (board.game === "pairs") {
-      st.pics = shuffle(seats[0], DATA.PAIRS.map((p) => p.id)).slice(0, board.boards * board.pairsPer);
+      st.pics = shuffle(seats[0], (board.together ? DATA.TOGETHER : DATA.PAIRS).map((p) => p.id)).slice(0, board.boards * board.pairsPer);
       st.boardNo = 0;
       st.open = [];
       dealPairs(st, board);
@@ -2233,9 +2233,15 @@
   // A board: its four pictures twice and one ⭐, shuffled; nothing gone,
   // nothing open, nothing seen yet (`seen` is what the computer may remember)
   const STAR = "star";
+  // 🧩 Go Together (a board with `together: true`): a pair is two DIFFERENT
+  // pictures that go together — the first card is the thing's id ("sock"),
+  // its partner the id with "/1" ("sock/1", the shoe). `pairKey` is what two
+  // cards must share to be a pair; on plain Peek-a-Pair a card is its own key.
+  const pairKey = (c) => String(c).replace(/\/1$/, "");
+  const pairDeck = (ids, board) => ids.concat(board.together ? ids.map((i) => i + "/1") : ids, [STAR]);
   function dealPairs(st, board) {
     const ids = st.pics.slice(st.boardNo * board.pairsPer, (st.boardNo + 1) * board.pairsPer);
-    st.cards = shuffle(st.seats[0], ids.concat(ids, [STAR]));
+    st.cards = shuffle(st.seats[0], pairDeck(ids, board));
     st.gone = st.cards.map(() => false);
     st.seen = st.cards.map(() => false);
     st.open = [];
@@ -2253,7 +2259,7 @@
     let sm = null;
     if (st.phase === "second") {
       const a0 = st.open[0];
-      const mate = st.cards.findIndex((c, j) => j !== a0 && !st.gone[j] && c === st.cards[a0] && st.seen[j]);
+      const mate = st.cards.findIndex((c, j) => j !== a0 && !st.gone[j] && pairKey(c) === pairKey(st.cards[a0]) && st.seen[j]);
       sm = judged(st.turn, "recall", k === mate, mate >= 0);
     }
     st.rolls += 1;
@@ -2271,7 +2277,7 @@
       const a = st.open[0];
       st.open = [];
       st.phase = "flip";
-      if (st.cards[a] !== pic) {
+      if (pairKey(st.cards[a]) !== pairKey(pic)) {
         ev.push({ type: "nopair", seat: st.turn, a, b: k });
         if (sm) ev.push(sm);
         endTurn(st, ev);
@@ -2280,7 +2286,7 @@
       st.gone[a] = st.gone[k] = true;
       s.pos += 1;
       s.stars += 1;
-      ev.push({ type: "pair", seat: st.turn, a, b: k, pic, count: s.pos });
+      ev.push({ type: "pair", seat: st.turn, a, b: k, pic: pairKey(pic), count: s.pos });
       if (sm) ev.push(sm);
     }
     if (st.gone.every(Boolean)) {
@@ -2306,14 +2312,14 @@
     if (!down.length) return -1;
     const known = (k) => st.seen[k] && next(s) < sharpOf(st, PAIR_RECALL);
     if (st.phase === "second") {
-      const want = st.cards[st.open[0]];
-      const mate = down.find((k) => st.cards[k] === want && st.seen[k]);
+      const want = pairKey(st.cards[st.open[0]]);
+      const mate = down.find((k) => pairKey(st.cards[k]) === want && st.seen[k]);
       if (mate != null && known(mate)) return mate;
     } else {
       for (const k of down) {
         const c = st.cards[k];
         if (c === STAR || !st.seen[k]) continue;
-        const mate = down.find((j) => j !== k && st.cards[j] === c && st.seen[j]);
+        const mate = down.find((j) => j !== k && pairKey(st.cards[j]) === pairKey(c) && st.seen[j]);
         if (mate != null && known(k)) return k;
       }
     }
@@ -2872,17 +2878,17 @@
         // the one card of an unfinished turn is up; and the piles are exactly
         // the pairs and stars found
         const per = board.pairsPer, P = snap.pics;
-        if (!Array.isArray(P) || P.length !== board.boards * per || new Set(P).size !== P.length || P.some((id) => !DATA.pairPic(id))) return null;
+        if (!Array.isArray(P) || P.length !== board.boards * per || new Set(P).size !== P.length || P.some((id) => typeof id !== "string" || id.indexOf("/") >= 0 || !(board.together ? DATA.TOGETHER : DATA.PAIRS).some((p) => p.id === id))) return null;
         if (!int(snap.boardNo) || snap.boardNo < 0 || snap.boardNo >= board.boards) return null;
         const C = snap.cards, G = snap.gone, S = snap.seen, O = snap.open;
         if (!Array.isArray(C) || C.length !== per * 2 + 1 || !Array.isArray(G) || G.length !== C.length || !Array.isArray(S) || S.length !== C.length || !Array.isArray(O)) return null;
         if (G.some((g) => typeof g !== "boolean") || S.some((g) => typeof g !== "boolean")) return null;
         const mine = P.slice(snap.boardNo * per, (snap.boardNo + 1) * per);
-        const want = mine.concat(mine, [STAR]).sort(), got = C.slice().sort();
+        const want = pairDeck(mine, board).sort(), got = C.slice().sort();
         if (want.some((id, k) => got[k] !== id)) return null;
         let pairsGone = 0;
         for (const id of mine) {
-          const ks = C.map((c, k) => k).filter((k) => C[k] === id);
+          const ks = C.map((c, k) => k).filter((k) => pairKey(C[k]) === id);
           if (G[ks[0]] !== G[ks[1]]) return null;
           if (G[ks[0]]) pairsGone += 1;
         }
@@ -2960,7 +2966,7 @@
   }
 
   const BoardLogic = {
-    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, twoDoorDice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, takeCookies, nimTakes, nimBest, nimChoice, NIM_SHARP, dropLine, dropRow, linesOf, linesOpen, linesMade, linesBest, linesChoice, LINES_SHARP, playCard, topBest, topChoice, TOP_SHARP, grabColour, grabCells, grabOptions, grabGain, grabBest, grabChoice, GRAB_SHARP, chooseDie, dieTarget, dieBest, dieChoice, DIE_SHARP, callLanding, callTarget, callChoice, CALL_SHARP, pickTwoCard, cardMove, cardChoice, CARD_SHARP, moveMouse, mazePath, mazeSteps, MAZE_TURNS, mazeDist, mazeBest, mazeChoice, MAZE_SHARP, MAZE_WORDS, askHide, hideYes, hideSplit, hideBest, hideChoice, hideTraits, HIDE_SHARP, pickCar, trainChoice, trainPats, trainShown, TRAIN_SHOWN, TRAIN_SHARP, TRAIN_PATTERNS, hiloGuess, hiloBest, hiloChoice, HILO_SHARP, tenPick, tenPairs, tenChoice, tenTarget, tenCards, TEN_SHARP, askFish, answerFish, fishMate, fishBest, fishChoice, fishAnswer, FISH_SHARP, FISH_N, buildSnow, SNOW_NEEDS, SNOW_MAGIC, snowWhich, coverBingo, bingoSpots, bingoBest, BINGO_LINES, playMatch, flipMatch, cmFits, cmColour, cmNumber, cmPlayable, cmChoice, rollMatch, holdDie, m3Score, m3Keep, m3Made, m3Choice, M3_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
+    create, roll, hop, drawCard, spin, pick, spinHen, henHop, takeFood, giveFood, ownerOf, flipSpot, findSpot, twinOf, peekPair, pairChoice, pairKey, PAIR_RECALL, STAR, shutDoor, doorWays, doorChoice, twoDoorDice, digAt, digChoice, digMaybe, digDir, DIG_SHARP, takeCookies, nimTakes, nimBest, nimChoice, NIM_SHARP, dropLine, dropRow, linesOf, linesOpen, linesMade, linesBest, linesChoice, LINES_SHARP, playCard, topBest, topChoice, TOP_SHARP, grabColour, grabCells, grabOptions, grabGain, grabBest, grabChoice, GRAB_SHARP, chooseDie, dieTarget, dieBest, dieChoice, DIE_SHARP, callLanding, callTarget, callChoice, CALL_SHARP, pickTwoCard, cardMove, cardChoice, CARD_SHARP, moveMouse, mazePath, mazeSteps, MAZE_TURNS, mazeDist, mazeBest, mazeChoice, MAZE_SHARP, MAZE_WORDS, askHide, hideYes, hideSplit, hideBest, hideChoice, hideTraits, HIDE_SHARP, pickCar, trainChoice, trainPats, trainShown, TRAIN_SHOWN, TRAIN_SHARP, TRAIN_PATTERNS, hiloGuess, hiloBest, hiloChoice, HILO_SHARP, tenPick, tenPairs, tenChoice, tenTarget, tenCards, TEN_SHARP, askFish, answerFish, fishMate, fishBest, fishChoice, fishAnswer, FISH_SHARP, FISH_N, buildSnow, SNOW_NEEDS, SNOW_MAGIC, snowWhich, coverBingo, bingoSpots, bingoBest, BINGO_LINES, playMatch, flipMatch, cmFits, cmColour, cmNumber, cmPlayable, cmChoice, rollMatch, holdDie, m3Score, m3Keep, m3Made, m3Choice, M3_SHARP, layTile, drawTile, domSides, domChoice, domSet, domChoosy, domEndsAfter, sowPot, acornAgains, acornChoice, ACORN_SHARP, ACORN_NEST: nestOf, autoTurn, snapshot, restore, animalAt, nextAnimal, FOX,
     cellOf, jumpAt, colourAt, landmarkAt, nextOf, moverFor, startOf, facesOf, tapsOf, COMET_CAP, BACK_CAP, TEN, sharpOf, SHARP_MIN, SHARP_MAX, levelled, labelOf,
   };
   global.BoardLogic = BoardLogic;

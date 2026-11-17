@@ -228,6 +228,42 @@ test("the front door: five giant world tiles, all ABOVE THE FOLD, marks equally 
   }
 });
 
+test("🎲 Game Night: the 🌙 Tonight tile keeps everything inside itself with its WIDEST night (three drawn pictures, not emoji), in the page's font AND in CI's wider DejaVu Sans", async () => {
+  // Tonight is picked by the DATE, so a fixed run sees one night: the test
+  // builds the widest one itself (each box picture's real width, the three
+  // widest), or a law about its fit passes or fails with the calendar
+  try {
+    for (const [w, h] of [[320, 568], [360, 640], [390, 844], [320, 480]]) {
+      await page.setViewportSize({ width: w, height: h });
+      await page.evaluate(() => { const done = {}; for (const b of window.BoardData.BOXES) if (b.unlockAfter) done[b.unlockAfter.box] = 2; window.__BOARD.reset({ introSeen: true, done }); });
+      await page.reload({ waitUntil: "load" });
+      await showScreen(page, "#board-home", "#screen-board-home");
+      for (const font of [null, "DejaVu Sans"]) {
+        const r = await page.evaluate((f) => {
+          let tag = document.getElementById("__font");
+          if (!tag) { tag = document.createElement("style"); tag.id = "__font"; document.head.appendChild(tag); }
+          tag.textContent = f ? '#screen-board-home *{font-family:"' + f + '" !important}' : "";
+          const t = document.querySelector(".bn-tonight"), pics = t.querySelector(".bn-tonight__pics");
+          // the widest three box pictures, measured as the tile draws them
+          const all = [...document.querySelectorAll(".bn-box__pic")].map((p) => p.innerHTML);
+          const probe = document.createElement("span"); probe.className = "bn-tonight__pic"; pics.appendChild(probe);
+          const wide = all.map((html) => { probe.innerHTML = html; return [probe.getBoundingClientRect().width, html]; }).sort((a, b) => b[0] - a[0]);
+          probe.remove();
+          pics.innerHTML = wide.slice(0, 3).map((x) => '<span class="bn-tonight__pic">' + x[1] + "</span>").join("");
+          const tb = t.getBoundingClientRect(), out = [];
+          for (const el of t.querySelectorAll("*")) { const b = el.getBoundingClientRect(); if (b.width && (b.right > tb.right + 0.5 || b.left < tb.left - 0.5)) out.push(el.className.baseVal == null ? el.className : "svg"); }
+          return { out, sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, widest: Math.round(wide[0][0]) };
+        }, font);
+        assert.deepEqual(r.out, [], `${w}x${h} ${font || "page font"}: inside the Tonight tile (widest picture ${r.widest}px)`);
+        assert.ok(r.sw <= r.cw, `${w}x${h} ${font || "page font"}: the shelf does not scroll sideways (${r.sw} > ${r.cw})`);
+      }
+    }
+  } finally {
+    await page.evaluate(() => { const t = document.getElementById("__font"); if (t) t.remove(); });
+    await page.setViewportSize({ width: 390, height: 844 });
+  }
+});
+
 test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, every tap big and apart, and play never scrolls", async () => {
   // Kid laws fully ON. The board is sized FROM the space between the bar and
   // the pads, so the play screen must never scroll in portrait, and a phone on

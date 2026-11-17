@@ -85,8 +85,9 @@ Until the owner says otherwise:
   snowmen waving) with a high five at the party. Part F's first batch too —
   🎤 Rhyme Fish (a pair is two that rhyme), 🔦 Shadow Picnic (a shadow and a
   spoken clue), Higher or Lower's number line, Line Up's shimmer, the cookie
-  shelves and Colour Grab's hidden picture. The rest of F is the owner's
-  standing pick still to build, shipping as it goes.
+  shelves, Colour Grab's hidden picture and 🧩 Go Together (a pair is two
+  things that go together). F is done, and with it the whole programme; the
+  role swap and iPad-only boards were considered and declined (PLAN_BOARD §18).
 - **Word Cards** (`wordcards.html`: the English deck, 中文, 写字, 配对,
   👂 Hear it, find it and 新字) **and 🕳️ Gobble Hole** (the owner's pick of
   2026-09-30: "a hole eating game like hole.io, Donut County or Hole em All",

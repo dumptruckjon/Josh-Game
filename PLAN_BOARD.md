@@ -1,6 +1,6 @@
 # 🎲 Game Night — board games for Josh (and a friend)
 
-**Status: BATCHES 1-6 BUILT, audited five times (§17 is the fifth); §18 is the improvement programme, in progress (part A built)** (batches 1-2
+**Status: BATCHES 1-6 BUILT, audited five times (§17 is the fifth); §18, the improvement programme, is BUILT (parts A-F)** (batches 1-2
 audited twice; §11 is batch 3: 💯 Hundred Hop, 🐔 Hen House, 🧺 Picnic Lotto,
 and 👀 Twin Spot, the owner's Spot It ask; §12 is batch 4, games of SKILL:
 🧠 Peek-a-Pair, 🚪 Shut the Doors, 🌰 Acorn Pots, 🁢 Dot Dominoes and
@@ -873,7 +873,7 @@ grows with him and never shows a padlock.
 
 **E is done.** Still to build: **F** the remaining per-game ideas.
 
-**F. Per-game depth (first batch BUILT).** Each makes the thinking in a game
+**F. Per-game depth (BUILT).** Each makes the thinking in a game
 something he can SEE or HEAR:
 - **🎤 Rhyme Fish** (Go Fish's level two, on the shelf after two Go Fish
   games): twenty different pictures, and a pair is two that RHYME (cat and
@@ -897,6 +897,22 @@ something he can SEE or HEAR:
 - **🎨 Colour Grab's picture:** the finished grid reveals a picture (a heart,
   a house, a tree, a rocket or a smiley face), named for a screen reader.
 
-Still to build in F: Peek-a-Pair pairs that GO TOGETHER, and a role swap in
-Who's Hiding (he hides, the friend asks).
+- **🧩 Go Together** (Peek-a-Pair's level two): a pair is two DIFFERENT
+  pictures that go together — a sock and a shoe, a key and a lock, a bee and
+  a flower. He remembers two pictures AND knows what belongs with what. A
+  partner card is its thing's id with "/1" (`pairKey`), so plain Peek-a-Pair
+  deals exactly as before; ten things, each with ONE partner, no picture
+  twice, restated in the test.
+
+**Considered and NOT built (recorded so nobody re-opens them):**
+- **A role swap in Who's Hiding** (he hides, the friend asks). On one iPad a
+  secret hider needs the other player not to look, which two four-year-olds
+  will not do; against the computer his half would be answering yes or no
+  about his own pick, which has no choice in it. The asking half (the
+  thinking) is already his on every turn.
+- **Bigger boards on an iPad only** (a six-picture Twin Spot, a 4x4 Treasure
+  Dig). A board is one shape for everyone (§8): a game whose rules change
+  with the screen would play differently at a friend's house.
+
+**F is done, and so is §18.**
 

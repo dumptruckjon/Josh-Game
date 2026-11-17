@@ -4437,11 +4437,14 @@ button.bn-pickd { cursor: pointer; }
 /* A short phone: the pads and the doors give way a little, the board keeps
    what is left (still 75px+ targets, still 16px apart). */
 @media (max-height: 700px) {
-  /* 🌙 the Tonight tile on one line: the moon, the three pictures, the word */
-  .bn-tonight { min-height: 76px; grid-template-columns: auto auto minmax(0, 1fr); grid-template-rows: auto; padding: 6px 14px; }
+  /* 🌙 the Tonight tile on one line: the moon and the three pictures. The
+     word gives way here: next to three pictures it spilled out of its track
+     (by 20px at 320 wide), and a night of domino or door drawings pushed it
+     past the screen on CI's wider font. The tile's name still says it. */
+  .bn-tonight { min-height: 76px; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto; padding: 6px 14px; }
   .bn-tonight__moon { grid-row: auto; font-size: 2.2rem; }
   .bn-tonight__pics { display: grid; font-size: 1.9rem; column-gap: 8px; }
-  .bn-tonight__label { font-size: 0.95rem; text-align: right; }
+  .bn-tonight__label { display: none; }
   .bn-box { min-height: 96px; }
   .bn-box__pic { font-size: 2.8rem; }
   /* a full shelf (eight boxes, four rows) on a short phone: each box a

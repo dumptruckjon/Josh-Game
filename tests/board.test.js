@@ -3819,6 +3819,62 @@ test("§18 F: the boards show the thinking — Higher or Lower's number line (a 
   } finally { await page.evaluate(() => { Object.assign(window.JoshAudio, window.__realAudio); }); }
 });
 
+test("🧩 a whole Go Together against the computer: a thing and ITS partner are a pair (a sock and a shoe — two different pictures, both named aloud), a thing and someone else's partner turn back over, eight pairs and one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await page.evaluate(() => {
+    window.__said = [];
+    window.__realAudio = { isMuted: window.JoshAudio.isMuted, say: window.JoshAudio.say, tone: window.JoshAudio.tone };
+    window.JoshAudio.isMuted = () => false;
+    window.JoshAudio.say = (t) => { window.__said.push(String(t)); };
+    window.JoshAudio.tone = () => {};
+  });
+  await quick();
+  try {
+    await startGame("together", "river", true, 4, 0);
+    const T = await page.evaluate(() => window.BoardData.TOGETHER);
+    const key = (c) => String(c).replace(/\/1$/, "");
+    let paired = 0, missed = false;
+    for (let guard = 0; guard < 120; guard++) {
+      await page.waitForFunction(() => { const st = window.__BOARD.state(); return st.phase === "done" || (st.turn === 0 && st.phase === "flip" && !window.__BOARD.busy()); }, null, { timeout: 15000 });
+      const s = await st();
+      if (s.phase === "done") break;
+      const live = s.cards.map((c, k) => k).filter((k) => !s.gone[k]);
+      const a = live.find((k) => /\/1$/.test(s.cards[k]) === false && s.cards[k] !== "star");
+      if (a == null) { await page.locator('.bn-pairs button.bn-pc[data-k="' + live[0] + '"]').click(); continue; }
+      // once: the thing and SOMEONE ELSE's partner turn back over
+      const wrong = live.find((k) => /\/1$/.test(s.cards[k]) && key(s.cards[k]) !== s.cards[a]);
+      const right = live.find((k) => s.cards[k] === s.cards[a] + "/1");
+      const b = !missed && wrong != null ? wrong : right;
+      await page.evaluate(() => { window.__said = []; });
+      await page.locator('.bn-pairs button.bn-pc[data-k="' + a + '"]').click();
+      await page.waitForFunction(() => window.__BOARD.state().phase === "second" && !window.__BOARD.busy(), null, { timeout: 5000 });
+      const upPics = await page.evaluate((k) => document.querySelector('.bn-pairs [data-k="' + k + '"]').textContent, a);
+      const t = T.find((x) => x.id === s.cards[a]);
+      assert.equal(upPics, t.pic, "the card turned over shows its picture");
+      await page.locator('.bn-pairs button.bn-pc[data-k="' + b + '"]').click();
+      await page.waitForFunction((r) => window.__BOARD.state().rolls >= r + 2, s.rolls, { timeout: 5000 });
+      if (b === right) {
+        await page.waitForFunction(() => window.__said.some((l) => /go together/.test(l)), null, { timeout: 5000 });
+        const said = await page.evaluate(() => window.__said);
+        assert.ok(said.some((l) => l.indexOf(t.both) >= 0), `the pair names BOTH: ${JSON.stringify(said)}`);
+        paired++;
+      } else {
+        missed = true;
+        await page.waitForFunction(() => window.__said.some((l) => /Not a pair/.test(l)), null, { timeout: 5000 });
+        assert.equal((await st()).seats[0].pos, s.seats[0].pos, "someone else's partner is not a pair");
+      }
+    }
+    const end = await st();
+    assert.equal(end.phase, "done", "the game ends");
+    assert.equal(end.seats[0].pos + end.seats[1].pos, 8, "eight pairs");
+    assert.ok(paired >= 1 && missed, `fixture: both branches reached (${paired} ${missed})`);
+    await page.locator(".bn-party").waitFor({ state: "visible" });
+  } finally {
+    await page.evaluate(() => { Object.assign(window.JoshAudio, window.__realAudio); });
+    await slow();
+  }
+});
+
 test("⛄ a whole Snowman Build against the computer: two snowmen side by side, each its big ball to begin with; he rolls the picture die on his pad and taps HIS snowman to put the part on (a doubled tap builds once); a part that cannot go on yet is said and the turn passes; the computer's snowman is not his to tap; two whole snowmen and one party", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await quick();
@@ -4727,7 +4783,9 @@ test("🎲 EVERY board says what it shows: no button and no picture on any box's
 test("a computer turn that comes back HALF DONE carries on, on EVERY box", async () => {
   const D = require("../scripts/board-data.js");
   // a computer's turn where the NEXT move is his (the friend asked; he answers)
-  const HIS = { gofish: ["answer"] };
+  // (derived from the GAME, not a box list: 🎤 Rhyme Fish is the same shape,
+  // and a named list of one box went stale the day it shipped)
+  const HIS = Object.fromEntries(D.BOXES.filter((b) => D.board(b.board).game === "fish").map((b) => [b.id, ["answer"]]));
   const ACTS = ["roll", "hop", "drawCard", "spin", "pick", "spinHen", "henHop", "takeFood", "giveFood", "flipSpot", "findSpot", "peekPair", "shutDoor", "digAt", "takeCookies", "dropLine", "playCard", "grabColour", "chooseDie", "moveMouse", "askHide", "pickCar", "hiloGuess", "tenPick", "askFish", "answerFish", "buildSnow", "coverBingo", "playMatch", "flipMatch", "rollMatch", "holdDie", "layTile", "drawTile", "sowPot"];
   let r = 99;
   const rnd = () => { r = (r * 1103515245 + 12345) % 2147483648; return r / 2147483648; };

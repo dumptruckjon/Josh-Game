@@ -2271,6 +2271,55 @@ test("🐟 GO FISH: ten pictures twice; five cards each, never a pair in a hand;
   assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
 });
 
+test("🧩 GO TOGETHER: Peek-a-Pair's level two — a pair is two DIFFERENT pictures that go together (sock and shoe), each thing with exactly one partner; a board deals four things AND their partners and a ⭐; only a thing and ITS partner are a pair; every game ends at eight pairs; plain Peek-a-Pair is untouched; broken saves are refused", () => {
+  const b = DATA.board("together");
+  assert.ok(b.together && b.game === "pairs");
+  assert.deepEqual(DATA.BOXES.find((x) => x.id === "together").unlockAfter, { box: "pairs", games: 2 });
+  const T = DATA.TOGETHER;
+  // restated: what each thing goes with
+  const GOES = { sock: "shoe", key: "lock", bee: "flower", cookie: "milk", dog: "bone", brush: "tooth", monkey: "banana", pencil: "paper", ball: "goal", rain: "umbrella" };
+  assert.deepEqual(T.map((t) => t.id).sort(), Object.keys(GOES).sort());
+  for (const t of T) {
+    assert.equal(t.mate.say, GOES[t.id], `${t.say} goes with ${GOES[t.id]}`);
+    assert.equal(DATA.pairPic(t.id + "/1").pic, t.mate.pic);
+    assert.ok(t.both.toLowerCase().indexOf(t.say) >= 0 && t.both.indexOf(t.mate.say) >= 0, `${t.both} names both`);
+  }
+  const pics = T.flatMap((t) => [t.pic, t.mate.pic]);
+  assert.equal(new Set(pics).size, pics.length, "no picture used twice");
+  assert.ok(T.length >= b.boards * b.pairsPer, "enough things for every board");
+  const SEATS = [{ who: "josh" }, { who: "river", cpu: true }];
+  for (let seed = 1; seed <= 300; seed++) {
+    const st = L.create({ board: "together", seats: SEATS, seed, first: seed % 2 });
+    const keys = st.cards.filter((c) => c !== L.STAR).map(L.pairKey);
+    assert.equal(st.cards.filter((c) => /\/1$/.test(c)).length, b.pairsPer, "four partners on a board");
+    for (const k of new Set(keys)) assert.equal(keys.filter((x) => x === k).length, 2, "each thing once and its partner once");
+    let guard = 0;
+    while (st.phase !== "done" && guard++ < 400) {
+      if (st.phase === "second") {
+        const a = st.cards[st.open[0]], before = st.seats[st.turn].pos;
+        const k = L.pairChoice(st), c = st.cards[k];
+        const ev = L.peekPair(st, k);
+        if (c !== L.STAR) assert.equal(ev.some((e) => e.type === "pair"), L.pairKey(a) === L.pairKey(c), "a pair only when they go together");
+        if (ev.some((e) => e.type === "pair")) assert.equal(st.seats[ev[0].seat].pos, before + 1);
+      } else L.peekPair(st, L.pairChoice(st));
+    }
+    assert.equal(st.phase, "done", `seed ${seed} ends`);
+    assert.equal(st.seats[0].pos + st.seats[1].pos, b.boards * b.pairsPer, "eight pairs");
+  }
+  const plain = L.create({ board: "pairs", seats: SEATS, seed: 2, first: 0 });
+  assert.ok(plain.cards.every((c) => !/\//.test(c)), "plain Peek-a-Pair deals no partners");
+  const g = L.snapshot(L.create({ board: "together", seats: SEATS, seed: 9, first: 0 }));
+  const first = g.cards.find((c) => c !== L.STAR && !/\/1$/.test(c));
+  const bad = [
+    ["a thing twice and no partner", { ...g, cards: g.cards.map((c) => (c === first + "/1" ? first : c)) }],
+    // (the cards follow, so only the picture POOL can refuse it)
+    ["a plain picture on a together board", { ...g, pics: g.pics.map((p) => (p === first ? "duck" : p)), cards: g.cards.map((c) => (c === first ? "duck" : c === first + "/1" ? "duck/1" : c)) }],
+    ["a partner id among the pictures", { ...g, pics: g.pics.map((p, k) => (k === 0 ? p + "/1" : p)) }],
+  ];
+  for (const [what, snap] of bad) assert.equal(L.restore(snap), null, `refused: ${what}`);
+  assert.ok(L.restore(g), "the real state restores (or the refusals prove nothing)");
+});
+
 test("🎤 RHYME FISH: twenty different pictures, a pair is two that RHYME (card x and x^1); no hand dealt a rhyme pair; the friend gives the RHYME, not the same card; a catch that rhymes with a card held is a pair; every rhyme made, one party; asking for one whose rhyme the friend holds is the skill; broken saves are refused", () => {
   const b = DATA.board("rhymefish");
   assert.ok(b.rhyme && b.game === "fish");

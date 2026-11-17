@@ -4364,7 +4364,7 @@
           game.pv.glow.push(e.a, e.b);
           paintPairs();
           SFX.home();
-          sayPlay(fill(SAY.pairYes, { p: (DATA.pairPic(e.pic) || {}).two || "" }));
+          sayPlay(game.board.together ? fill(SAY.togetherYes, { p: (DATA.pairPic(e.pic) || {}).both || "" }) : fill(SAY.pairYes, { p: (DATA.pairPic(e.pic) || {}).two || "" }));
           cheer(e.seat, true);
         });
         at(T.ride, () => {
