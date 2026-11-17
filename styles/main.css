@@ -4415,7 +4415,7 @@ button.bn-pickd { cursor: pointer; }
   /* 🌙 the Tonight tile on one line: the moon, the three pictures, the word */
   .bn-tonight { min-height: 76px; grid-template-columns: auto auto minmax(0, 1fr); grid-template-rows: auto; padding: 6px 14px; }
   .bn-tonight__moon { grid-row: auto; font-size: 2.2rem; }
-  .bn-tonight__pics { font-size: 1.9rem; column-gap: 8px; }
+  .bn-tonight__pics { display: grid; font-size: 1.9rem; column-gap: 8px; }
   .bn-tonight__label { font-size: 0.95rem; text-align: right; }
   .bn-box { min-height: 96px; }
   .bn-box__pic { font-size: 2.8rem; }
