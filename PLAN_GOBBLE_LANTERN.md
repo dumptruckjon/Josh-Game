@@ -1,10 +1,11 @@
 # 🏮 Gobble Hole — Lantern Land: twelve Chinese places
 
-**Status: PARTLY BUILT (batch A).** Batch A — Lantern Land and its first six
+**Status: BUILT (batches A and B).** Batch A — Lantern Land and its first six
 places (New Year Street, Dumpling House, Hutong House, Panda Forest, Tea Hills,
 Water Town) with all the speech plumbing — shipped 2026-10-21; §12 says what it
-built and where it differs from this plan. Batch B (places 7-12) is designed
-here and not built. Planned 2026-10-15 as six places and grown to
+built. Batch B — Moon Garden, Monkey Mountain, Writing Desk, Ice City, Kung Fu
+School and the Great Wall — shipped 2026-11-18; §13 says what it built and where
+it differs from this plan. Planned 2026-10-15 as six places and grown to
 twelve on 2026-10-20. The owner asked for a new Gobble Hole world of six places,
 "all varying Chinese themed", as a plan only, because there were not yet enough
 tokens to build it. They then said it could go beyond six ("perhaps to 10 or
@@ -1048,4 +1049,43 @@ law, the fuzzer or a screenshot, and each now pinned):
 - **One review lens ran.** The seven-lens review died at the session limit with
   only its Chinese lens done; its findings are the three above and the
   neutral-tone pinyin of 上面/下面 (shàng mian, xià mian).
+
+## 13. What batch B built (2026-11-18)
+
+Places 7-12, as designed, so Lantern Land is a full land of twelve. The owner's
+go: "you can do lantern land batch b". What differs from §2, each found by a law,
+the fuzzer or a screenshot, and each now pinned:
+
+- **The Moon Garden counts in CHINESE.** Each lantern says the next number in a
+  zh-CN voice (一 … 十, `SAY.zhNum`, which a test holds equal to his first ten
+  中文 cards), and the tenth says 十 and then "Ten lanterns!" in English. No
+  measure word, so nothing here can disagree with 华丽's 量词 game. Its round
+  gates (月亮门) are portals with a tiled roof, because a bare circle read as an
+  eye.
+- **Monkey Mountain's cloud jumps are their own kind.** A fly portal's look now
+  decides what it is CALLED (`HoleLogic.flyKind`: web → swing, cloud → cloud,
+  anything else → launch), so a cloud is introduced as "A magic cloud!" and
+  never as a cannon, and he rides a little golden cloud across. The hidden glade
+  became its own island: a portal end he could walk back to was a sleeping end
+  he stood on for ever.
+- **The Ice City's wall is a straight line, not a ring.** The gate law only
+  recognises a gate in a gap, so a ring of ice was never a gate; 24 blocks of
+  ice across the whole city are a wall until he is big enough, then food. A test
+  pushes him north at the middle and at both edges.
+- **The Kung Fu School's petals moved out** (distance 0.28): closer in, the
+  outline left a scrap under area 6. Its button moved off a brick chain (the
+  layout law found it squeezed), and the centre stake ring shrank, away from the
+  starters.
+- **The Great Wall is 560 units wide, path 120.** Narrower, the vortex left only
+  53% of things standing at the win, against a 60% law. Its doors moved to T4 and
+  its walls tightened so the doors seal their gap. Each beacon stands beside its
+  own button, so the fire he lights is on screen when he presses it (the first
+  placement was 34 units away, off a small Gobble's screen, and a browser test
+  that reads which beacons were drawn lit found it).
+- **Two places needed a taste** (the tastes law): 🍯 in the monkeys' glade and
+  🔔 on the desk.
+
+Measured at ship: the bot wins all six in 27-57s (mean 43s), every grow at x2.0
+or better; the stuck-spot fuzzer at 3 seeds × 120s checked 1067 spots with 0
+stuck; every PRINT pinned.
 

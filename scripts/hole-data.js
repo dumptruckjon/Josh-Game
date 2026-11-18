@@ -185,6 +185,19 @@
     const t = (a * Math.PI) / 180;
     return [[r3(cx + Math.cos(t) * r0), r3(cy + Math.sin(t) * r0)], [r3(cx + Math.cos(t) * r1), r3(cy + Math.sin(t) * r1)]];
   }
+  // A MOON GATE (Lantern Land): a round doorway through a wall that runs out
+  // from (cx, cy) at angle a (degrees, as arcPts), r along it — a two-way
+  // portal whose ends stand off either side of the wall.
+  function moonGate(cx, cy, r, a, off) {
+    const t = (a * Math.PI) / 180, px = cx + Math.cos(t) * r, py = cy + Math.sin(t) * r, nx = -Math.sin(t), ny = Math.cos(t);
+    return { a: [r3(px + nx * off), r3(py + ny * off)], b: [r3(px - nx * off), r3(py - ny * off)], look: "moongate" };
+  }
+  // A point d out from (cx, cy) at angle a (degrees), its height scaled by k
+  // (W / H, so a ring of them is round as seen in a world that is not square).
+  function petalAt(cx, cy, d, k, a) {
+    const t = (a * Math.PI) / 180;
+    return [r3(cx + Math.cos(t) * d), r3(cy + Math.sin(t) * d * k)];
+  }
   // The tier sizes every place shares (the derived ladder: tier L+2 is always
   // too big at level L — the tier law, tested).
   const T1 = [3.1, 3.6], T2 = [4.8, 5.4], T3 = [7.0, 7.8], T4 = [10.0, 11.0], T5 = [14.0, 15.0];
@@ -3010,6 +3023,339 @@
       ],
       finale: { e: "🛶", r: 20, at: [0.72, 0.22], say: "the dragon boat", zh: "龙舟", deco: "dragon" },
     },
+    // ---- 🏮 Lantern Land, batch B (PLAN_GOBBLE_LANTERN.md §2.7-§2.12) ----
+    {
+      // MOON GARDEN (中秋): the island is a FULL MOON. A round pond in the
+      // middle, four courts round it walled off from each other and joined by
+      // MOON GATES (round doorways that work as portals), and a zigzag bridge
+      // (九曲桥) from the far side out to the round terrace in the pond, where
+      // the moon itself waits (猴子捞月: the monkeys could not fish it out of
+      // the water; Gobble can). It is NIGHT — only the ground round him is
+      // lit, lanterns and candles glow — and he COUNTS the ten lanterns in
+      // Chinese, 一 to 十.
+      id: "moongarden", name: "Moon Garden", door: "🌕", color: "#e0a526",
+      ground: "lawn", hole: "gobble",
+      wear: ["rabbit", "#ffffff", "#ffb3c7"], air: ["skylanterns"],
+      backdrop: ["#1d2147", "#0d0f26"],
+      dark: true,
+      world: [520, 520],
+      start: [0.5, 0.92], starters: 3,
+      // 茉莉花, the Qing-era melody as John Barrow wrote it down in 1804
+      tune: [659.25, 659.25, 783.99, 880, 1046.5, 1046.5, 880, 783.99],
+      greet: { en: "Happy Moon Festival!", zh: "中秋快乐" },
+      word: { e: "🥮", en: "Mooncakes!", zh: "月饼" },
+      count: { e: "🏮", by: 1, say: "lanterns", lang: "zh" },
+      land: [{ oval: [0.5, 0.5, 0.47, 0.47] }],
+      blocks: [
+        { oval: [0.5, 0.5, 0.19, 0.19], look: "water", not: { oval: [0.5, 0.5, 0.075, 0.075] } },
+        // the four court walls, from inside the pond out past the rim
+        { path: spokePts(0.5, 0.5, 0.15, 0.52, 45), w: 5, look: "wall" },
+        { path: spokePts(0.5, 0.5, 0.15, 0.52, 135), w: 5, look: "wall" },
+        { path: spokePts(0.5, 0.5, 0.15, 0.52, 225), w: 5, look: "wall" },
+        { path: spokePts(0.5, 0.5, 0.15, 0.52, 315), w: 5, look: "wall" },
+      ],
+      // the moon gates: one through each wall
+      portals: [45, 135, 225, 315].map((a) => moonGate(0.5, 0.5, 0.33, a, 0.045)),
+      bridges: [{ path: [[0.5, 0.29], [0.455, 0.335], [0.545, 0.38], [0.5, 0.425]], w: 12, look: "stone" }],
+      zones: {
+        north: [[0.36, 0.06, 0.64, 0.27]],
+        south: [[0.36, 0.73, 0.64, 0.94]],
+        east: [[0.73, 0.36, 0.94, 0.64]],
+        west: [[0.06, 0.36, 0.27, 0.64]],
+      },
+      trails: [{ e: "🍃", to: [0.4, 0.86] }, { e: "🍃", to: [0.6, 0.86] }],
+      decals: [
+        { k: "path", w: 7, pts: [[0.5, 0.98], [0.5, 0.8]] },
+        { k: "flowers", x: 0.22, y: 0.7, r: 0.06 },
+        { k: "flowers", x: 0.78, y: 0.3, r: 0.06 },
+      ],
+      signs: [
+        { ch: "月", word: "月亮", en: "moon", x: 0.5, y: 0.24 },
+        { ch: "星", word: "星星", en: "star", x: 0.84, y: 0.5 },
+        { ch: "鱼", word: "金鱼", en: "fish", x: 0.24, y: 0.5 },
+      ],
+      tiers: [
+        { r: T1, items: [["🌼", 52, null, 4], ["🍇", 28], ["🍃", 28], ["🌰", 20]] },
+        { r: T2, items: [["🥮", 30], ["🏮", 10, { glow: true }], ["🍐", 18], ["🍎", 16], ["🍵", 16, "north"]] },
+        { r: T3, items: [["🕯️", 12, { glow: true }], ["🧺", 12, "east"], ["📜", 10, "west"], ["🌂", 10, "south"]] },
+        { r: T4, items: [["🪨", 10], ["🌳", 10], ["🪴", 8]] },
+        { r: T5, items: [["🌲", 6], ["🏠", 3], ["🏡", 3], ["⛲", 2]] },
+      ],
+      finale: { e: "🌕", r: 20, at: [0.5, 0.5], say: "the big round moon", zh: "月亮" },
+    },
+    {
+      // MONKEY MOUNTAIN (花果山, Flower-Fruit Mountain, the monkeys' home in
+      // Journey to the West — written in the 1500s; its hero is never drawn
+      // or named). A tall mountain with a waterfall pool halfway up, monkeys
+      // sitting on the rocky crags (scenery: never eaten), CLOUD JUMPS (the
+      // story's somersault cloud) out to two floating islands and back, the
+      // WATER-CURTAIN CAVE (水帘洞) behind the waterfall up to a hidden glade
+      // by the peak, and fruit trees that SHAKE down pears. The magic peach
+      // waits at the top.
+      id: "monkeys", name: "Monkey Mountain", door: "🍑", color: "#e8743a",
+      ground: "grass", hole: "gobble",
+      wear: ["circlet", "#ffc83d"], air: ["petals", "#ffb7d0"],
+      backdrop: ["#dff3ff", "#a9dcf5"],
+      world: [460, 700],
+      start: [0.5, 0.93], starters: 3,
+      tune: [392, 523.25, 587.33, 783.99, 659.25, 587.33, 523.25, 392],
+      word: { e: "🍌", en: "Bananas!", zh: "香蕉" },
+      land: [
+        { poly: [[0.04, 0.97], [0.96, 0.97], [0.78, 0.5], [0.6, 0.13], [0.5, 0.06], [0.4, 0.13], [0.22, 0.5]] },
+        { circle: [0.5, 0.11, 0.14] },
+        // the two cloud islands
+        { oval: [0.1, 0.36, 0.08, 0.055] },
+        { oval: [0.9, 0.3, 0.08, 0.055] },
+        // the hidden glade by the peak, reached only through the cave
+        { oval: [0.8, 0.14, 0.08, 0.05] },
+      ],
+      blocks: [
+        // the waterfall's pool
+        { oval: [0.5, 0.5, 0.1, 0.045], look: "water" },
+        // the crags the monkeys sit on
+        { circle: [0.27, 0.74, 0.045], look: "crag" },
+        { circle: [0.72, 0.66, 0.045], look: "crag" },
+        { circle: [0.4, 0.3, 0.04], look: "crag" },
+      ],
+      portals: [
+        // cloud jumps out to each island, and back
+        { a: [0.33, 0.47], b: [0.08, 0.38], oneway: true, fly: true, look: "cloud" },
+        { a: [0.12, 0.335], b: [0.36, 0.4], oneway: true, fly: true, look: "cloud" },
+        { a: [0.67, 0.41], b: [0.92, 0.32], oneway: true, fly: true, look: "cloud" },
+        { a: [0.88, 0.275], b: [0.64, 0.35], oneway: true, fly: true, look: "cloud" },
+        // the water-curtain cave: behind the waterfall, out in a glade by the peak
+        { a: [0.4, 0.45], b: [0.8, 0.14], look: "waterfall" },
+      ],
+      zones: {
+        foot: { band: [0, 0.34] },
+        slope: { band: [0.32, 0.68] },
+        peak: { band: [0.66, 1] },
+        isles: [{ oval: [0.1, 0.36, 0.07, 0.045] }, { oval: [0.9, 0.3, 0.07, 0.045] }],
+        glade: [{ oval: [0.8, 0.14, 0.07, 0.04] }],
+      },
+      trails: [{ e: "🍒", to: [0.38, 0.9] }, { e: "🍒", to: [0.62, 0.9] }],
+      decals: [
+        { k: "path", w: 8, pts: [[0.5, 1.0], [0.42, 0.82], [0.58, 0.66], [0.5, 0.56]] },
+        { k: "flowers", x: 0.22, y: 0.88, r: 0.06 },
+        { k: "flowers", x: 0.78, y: 0.86, r: 0.06 },
+      ],
+      signs: [
+        { ch: "花", word: "花朵", en: "flower", x: 0.28, y: 0.9 },
+        { ch: "果", word: "水果", en: "fruit", x: 0.66, y: 0.78 },
+        { ch: "飞", word: "飞机", en: "fly", x: 0.38, y: 0.52 },
+      ],
+      tiers: [
+        { r: T1, items: [["🍒", 52], ["🍇", 40, null, 4], ["🌸", 40, "foot"]] },
+        { r: T2, items: [["🍌", 36, null, 3], ["🍐", 20], ["🍊", 20, "slope"], ["🍯", 8, "glade"]] },
+        { r: T3, items: [["🥭", 14, "peak"], ["🍈", 5, "isles"], ["🍈", 7], ["🥥", 5, "isles"], ["🥥", 7]] },
+        { r: T4, items: [["🌳", 10, { shake: [["🍐", 2, 2]] }], ["🍉", 8], ["🍍", 8]] },
+        { r: T5, items: [["🪨", 6], ["🌲", 5], ["🌴", 4]] },
+      ],
+      finale: { e: "🍑", r: 20, at: [0.5, 0.09], say: "the magic peach", zh: "仙桃" },
+    },
+    {
+      // WRITING DESK (书桌): the island is a hanging SCROLL of rice paper,
+      // and on it, written in black ink, a giant 大 — its three strokes are
+      // walls he walks round (the opening look shows the whole character
+      // first). School bags POP into pencils and rulers, pencils ROLL away
+      // from him the way they roll off a desk, and the giant brush lies at
+      // the top of the scroll, where the brush lifts.
+      id: "desk", name: "Writing Desk", door: "🖌️", color: "#2b2b33",
+      ground: "ricepaper", hole: "gobble",
+      wear: ["cap", "#2b2b33", "#d62828"], air: ["motes"],
+      backdrop: ["#f3e3c6", "#d9bf94"],
+      world: [440, 700],
+      start: [0.5, 0.91], starters: 3,
+      tune: [523.25, 587.33, 659.25, 783.99, 659.25, 587.33, 523.25, 440],
+      word: { e: "📚", en: "Books!", zh: "书" },
+      land: [{ rect: [0.06, 0.05, 0.94, 0.95], round: 6 }],
+      blocks: [
+        // 大, stroke by stroke: 一, then 丿 from the top down to the left,
+        // then 乀 down to the right
+        { path: [[0.16, 0.36], [0.84, 0.36]], w: 20, look: "ink" },
+        { path: [[0.5, 0.12], [0.5, 0.3], [0.45, 0.48], [0.34, 0.65], [0.18, 0.8]], w: 20, look: "ink" },
+        { path: [[0.52, 0.42], [0.62, 0.57], [0.72, 0.68], [0.82, 0.77]], w: 20, look: "ink" },
+      ],
+      zones: {
+        top: { band: [0.66, 1] },
+        mid: { band: [0.33, 0.68] },
+        low: { band: [0, 0.35] },
+      },
+      trails: [{ e: "📎", to: [0.36, 0.88] }, { e: "📎", to: [0.64, 0.88] }],
+      decals: [
+        { k: "roller", x0: 0.03, x1: 0.97, y: 0.05 },
+        { k: "roller", x0: 0.03, x1: 0.97, y: 0.95 },
+      ],
+      signs: [
+        { ch: "写", word: "写字", en: "write", x: 0.28, y: 0.2 },
+        { ch: "字", word: "汉字", en: "character", x: 0.58, y: 0.86 },
+        { ch: "画", word: "画画", en: "draw", x: 0.14, y: 0.56 },
+      ],
+      tiers: [
+        { r: T1, items: [["📎", 46], ["🖍️", 36, null, 4], ["📌", 34], ["🔖", 30], ["🔔", 16]] },
+        { r: T2, items: [["✏️", 14, { run: true }], ["📏", 16], ["📒", 16], ["🧽", 14, "low"], ["📐", 14]] },
+        { r: T3, items: [["📚", 14], ["🎒", 8, { pop: [["✏️", 2, 2], ["📏", 1, 2], ["📒", 1, 2]] }], ["📜", 10], ["💡", 8, "mid"]] },
+        { r: T4, items: [["🖼️", 8, "top"], ["🗂️", 8], ["🏮", 8]] },
+        { r: T5, items: [["🌏", 3], ["🖥️", 3], ["🪑", 4], ["🗄️", 3], ["🕰️", 2]] },
+      ],
+      finale: { e: "🖌️", r: 20, at: [0.76, 0.16], say: "the giant brush", zh: "大毛笔" },
+    },
+    {
+      // ICE CITY (冰城, Harbin): a frozen river (the 松花江) across the
+      // middle he SLIDES on, snowy banks either side, and at the top the
+      // castle yard, walled with ICE BLOCKS he eats straight through once he
+      // is big enough. Long ice SLIDES run down from the castle towers to the
+      // river, as the real festival's do. The giant snowflake is in the yard.
+      id: "icecity", name: "Ice City", door: "🧊", color: "#5fb8e8",
+      ground: "snow", hole: "gobble",
+      wear: ["earflap", "#8a5a3a", "#f2e6d8"], air: ["snow"],
+      backdrop: ["#e6f3ff", "#b9d8f5"],
+      world: [440, 620],
+      start: [0.5, 0.93], starters: 3,
+      tune: [783.99, 659.25, 587.33, 523.25, 587.33, 659.25, 783.99, 880],
+      word: { e: "🧊", en: "Ice!", zh: "冰" },
+      land: [{ rect: [0.03, 0.03, 0.97, 0.97], round: 18 }],
+      slide: ["river"],
+      flows: [
+        { pts: [[0.2, 0.34], [0.2, 0.47]], w: 16, v: 34, look: "slide" },
+        { pts: [[0.8, 0.34], [0.8, 0.47]], w: 16, v: 34, look: "slide" },
+      ],
+      zones: {
+        river: [[0.03, 0.47, 0.97, 0.58]],
+        yard: [[0.06, 0.05, 0.94, 0.26]],
+        banks: [[0.06, 0.62, 0.94, 0.9]],
+      },
+      trails: [{ e: "🌰", to: [0.36, 0.88] }, { e: "🌰", to: [0.64, 0.88] }],
+      decals: [
+        { k: "frozenriver", y0: 0.47, y1: 0.58 },
+        { k: "drift", x: 0.14, y: 0.8, r: 0.07 },
+        { k: "drift", x: 0.86, y: 0.76, r: 0.07 },
+      ],
+      signs: [
+        { ch: "雪", word: "下雪", en: "snow", x: 0.24, y: 0.72 },
+        { ch: "冬", word: "冬天", en: "winter", x: 0.76, y: 0.66 },
+        { ch: "冷", word: "好冷", en: "cold", x: 0.5, y: 0.42 },
+      ],
+      tiers: [
+        { r: T1, items: [["🌰", 58], ["🍬", 46, null, 2], ["🥟", 34]] },
+        { r: T2, items: [["🍐", 18], ["🍦", 20], ["🧤", 14], ["🧣", 14], ["🏮", 14, "yard"]] },
+        { r: T3, items: [["⛸️", 12, "river"], ["🛷", 12], ["☃️", 10, "banks"], ["🎿", 10]] },
+        { r: T4, items: [["🧊", 24, { at: { line: [[0.045, 0.3], [0.955, 0.3]] }, solid: true }], ["🌲", 8, "banks"]] },
+        { r: T5, items: [["🎡", 2], ["🏰", 3, "banks"], ["🏠", 3, "banks"], ["🛖", 3], ["🏡", 3]] },
+      ],
+      finale: { e: "❄️", r: 20, at: [0.5, 0.17], say: "the giant snowflake", zh: "大雪花" },
+    },
+    {
+      // KUNG FU SCHOOL (武馆): the island is a PLUM BLOSSOM (梅花) — five
+      // round training yards round a round centre, named for the plum-blossom
+      // stakes students balance on. Wooden stakes stand in RINGS, practice
+      // pads BOING him back until he is big enough to eat them, a row of
+      // bricks TOPPLES one after another when he gulps the first (a brick-
+      // breaking chop, and nobody is hit), and a BUTTON by the gong opens the
+      // bell tower's gate. The great bell is inside.
+      id: "kungfu", name: "Kung Fu School", door: "🥋", color: "#c2272d",
+      ground: "stone", hole: "gobble",
+      wear: ["headband", "#d62828"], air: ["dust"],
+      backdrop: ["#fbe9d2", "#e9c79a"],
+      world: [520, 540],
+      start: [0.5, 0.66], starters: 3,
+      tune: [293.66, 392, 440, 392, 587.33, 523.25, 440, 392],
+      word: { e: "🧱", en: "Bricks!", zh: "砖" },
+      land: [
+        { oval: [0.5, 0.55, 0.17, 0.157] },
+        ...[270, 342, 54, 126, 198].map((a) => ({ oval: petalAt(0.5, 0.55, 0.28, 520 / 540, a).concat([0.15, 0.144]) })),
+      ],
+      blocks: [
+        // the bell tower's gate, shut but for its door
+        { path: [[0.36, 0.404], [0.486, 0.404]], w: 5, look: "wall" },
+        { path: [[0.514, 0.404], [0.64, 0.404]], w: 5, look: "wall" },
+      ],
+      zones: {
+        tower: [{ oval: [0.5, 0.28, 0.12, 0.11] }],
+        centre: [{ oval: [0.5, 0.55, 0.14, 0.13] }],
+      },
+      trails: [{ e: "🍚", to: [0.38, 0.62] }, { e: "🍚", to: [0.62, 0.62] }],
+      decals: [
+        { k: "rug", x: 0.5, y: 0.55, r: 0.1, pal: 1 },
+      ],
+      signs: [
+        { ch: "手", word: "小手", en: "hand", x: 0.32, y: 0.84 },
+        { ch: "跳", word: "跳舞", en: "jump", x: 0.16, y: 0.46 },
+        { ch: "快", word: "快慢", en: "fast", x: 0.68, y: 0.84 },
+      ],
+      tiers: [
+        { r: T1, items: [["🥢", 54], ["🍚", 42], ["🍵", 32], ["🥟", 32, null, 4]] },
+        { r: T2, items: [
+          ["🧱", 7, { at: { line: [[0.12, 0.42], [0.3, 0.5]] }, chain: true }],
+          ["🧱", 7, { at: { line: [[0.24, 0.72], [0.42, 0.84]] }, chain: true }],
+          ["🪵", 8, { at: { ring: petalAt(0.5, 0.55, 0.28, 520 / 540, 54).concat([0.075]) } }],
+          ["🪵", 8, { at: { ring: petalAt(0.5, 0.55, 0.28, 520 / 540, 342).concat([0.075]) } }],
+          ["🪵", 8, { at: { ring: [0.5, 0.52, 0.085] } }],
+          ["🥋", 14, "centre"], ["🎋", 12], ["🏮", 12, "tower"]] },
+        { r: T3, items: [["🎯", 10, { bounce: true }], ["🥁", 10], ["🏺", 10], ["🚪", 1, { at: { pts: [[0.5, 0.404]] }, lock: "tower" }]] },
+        { r: T4, items: [["🌲", 10], ["🪨", 8], ["🔴", 1, { press: "tower", at: { pts: [petalAt(0.5, 0.55, 0.28, 520 / 540, 342)] } }]] },
+        { r: T5, items: [["🏠", 6], ["🌳", 8], ["🛖", 4], ["🏡", 4]] },
+      ],
+      finale: { e: "🔔", r: 20, at: [0.5, 0.26], say: "the great bell", zh: "大钟" },
+    },
+    {
+      // THE GREAT WALL (长城) — GIANT (§17: six sizes, a giant finale). The
+      // island IS the wall: a zigzag climbing the whole world, a watchtower
+      // at every bend, and the great gate at the top. A BEACON BUTTON stands
+      // on each of the first three towers — press one and its beacon fire
+      // lights — and when all three are lit the gate's doors open. Kites RUN
+      // from him once he can eat them, and a toboggan run (Mutianyu has one)
+      // races down beside the lower wall. The giant drum is in the gate tower.
+      id: "greatwall", name: "The Great Wall", door: "🧱", color: "#9a7b5a",
+      ground: "wallbrick", hole: "gobble",
+      wear: ["general", "#8a6a3a", "#d62828"], air: ["clouds"],
+      backdrop: ["#e9f4ff", "#bcdcf2"],
+      world: [560, 960],
+      start: [0.5, 0.95], starters: 3,
+      tune: [261.63, 293.66, 392, 440, 523.25, 440, 392, 293.66],
+      word: { e: "🪁", en: "A kite!", zh: "风筝" },
+      land: [
+        { path: [[0.5, 0.98], [0.5, 0.88], [0.18, 0.76], [0.82, 0.58], [0.18, 0.4], [0.82, 0.24], [0.5, 0.17], [0.5, 0.06]], w: 120 },
+        // the watchtowers, one at each bend, and the gate tower
+        { circle: [0.18, 0.76, 0.14] }, { circle: [0.82, 0.58, 0.14] },
+        { circle: [0.18, 0.4, 0.14] }, { circle: [0.82, 0.24, 0.14] },
+        { circle: [0.5, 0.07, 0.15] },
+        // the toboggan run, down the outside of the lower wall
+        { path: [[0.84, 0.6], [0.9, 0.74], [0.82, 0.9], [0.58, 0.97]], w: 28 },
+      ],
+      blocks: [
+        // the great gate: walls across the last climb, shut but for its doors
+        { path: [[0.36, 0.135], [0.4612, 0.135]], w: 5, look: "wall" },
+        { path: [[0.5388, 0.135], [0.64, 0.135]], w: 5, look: "wall" },
+      ],
+      flows: [{ pts: [[0.86, 0.62], [0.9, 0.74], [0.82, 0.9], [0.6, 0.965]], w: 22, v: 30, look: "slide" }],
+      zones: {
+        low: { band: [0, 0.34] },
+        mid: { band: [0.32, 0.68] },
+        high: { band: [0.66, 1] },
+        towers: [{ circle: [0.18, 0.76, 0.09] }, { circle: [0.82, 0.58, 0.09] }, { circle: [0.18, 0.4, 0.09] }, { circle: [0.82, 0.24, 0.09] }],
+      },
+      trails: [{ e: "🌼", to: [0.44, 0.9] }, { e: "🌼", to: [0.56, 0.9] }],
+      decals: [
+        { k: "beacon", x: 0.18, y: 0.744, press: "gate", i: 0 },
+        { k: "beacon", x: 0.82, y: 0.5635, press: "gate", i: 1 },
+        { k: "beacon", x: 0.18, y: 0.383, press: "gate", i: 2 },
+      ],
+      signs: [
+        { ch: "长", word: "长城", en: "long", as: "常", x: 0.5, y: 0.86 },
+        { ch: "火", word: "大火", en: "fire", x: 0.24, y: 0.73 },
+        { ch: "门", word: "大门", en: "door", x: 0.62, y: 0.2 },
+      ],
+      tiers: [
+        { r: T1, items: [["🧱", 100, null, 4], ["🍂", 44], ["🌼", 44], ["🌰", 30]] },
+        { r: T2, items: [["🪁", 12, { run: true }], ["🚩", 26, "towers"], ["🏮", 16], ["🧺", 14], ["🍎", 18]] },
+        { r: T3, items: [["🛡️", 12], ["🪵", 14], ["🎒", 10]] },
+        { r: T4, items: [["🌲", 14], ["🪨", 14], ["🚪", 3, { at: { line: [[0.48, 0.135], [0.52, 0.135]] }, lock: "gate" }], ["🔴", 3, { press: "gate", at: { pts: [[0.18, 0.76], [0.82, 0.58], [0.18, 0.4]] } }]] },
+        { r: T5, items: [["🚌", 2, "low"], ["🏠", 4], ["🌳", 6]] },
+        { r: T6, items: [["⛰️", 6, "high"], ["🏔️", 6, "high"], ["🚠", 4, "mid"]] },
+      ],
+      finale: { e: "🥁", r: 28, at: [0.5, 0.07], say: "the giant drum", zh: "大鼓" },
+    },
   ];
 
   // What Gobble says (when sound is on — it is OFF by default, and the game
@@ -3053,12 +3399,19 @@
     hit: ["One!", "Two!", "Three!", "Four!", "Five!"],
     hitLast: "Surprise!",
     launch: "Blast off!",
-    // a web swing (§19)
+    // a web swing (§19), and a cloud jump (Lantern Land): a flight is said as
+    // what it looks like, never as a cannon (HoleLogic.FLY_MEET)
     swing: "Thwip! Swing!",
+    cloud: "Jump on the cloud!",
     flee: "Catch it!",
     power: { magnet: "Magnet! Super slurp!", zoom: "Zoom zoom!" },
     sprout: "It grew!",
     countLast: "{n}! That's all the {what}!",
+    // a Chinese count (Lantern Land, §2.7): his first ten 中文 cards, in
+    // order (a test reads them out of wordcards.html), said one a gulp; at
+    // the end "十!" and then this in English. Never more than ten.
+    zhNum: ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"],
+    countLastZh: "{N} {what}!",
     // the FIRST time he comes near each new thing, Gobble says what it is
     // (§17, the gentle walkthrough a new mechanic needs); a finger points at it
     meet: {
@@ -3070,8 +3423,11 @@
       sprout: "A little seed! Things grow when you come near!",
       launch: "A cannon! Roll in!",
       swing: "A web swing! Roll onto the web!",
+      cloud: "A magic cloud! Roll on and fly!",
       spin: "A spinning floor! Wheee!",
       count: "Let's count the {what}!",
+      // a place that counts in CHINESE (the Moon Garden)
+      countZh: "Let's count the {what} in Chinese!",
     },
     // number words for the counting lines (a voice reads "2" fine, but the
     // words keep every line written the way it is said)
@@ -3093,7 +3449,7 @@
   // place really holds (a test fails a dead entry), and no picture is in two.
   // A finale is never here: it has its own gulp.
   const TASTES = {
-    sweet: ["🍬", "🧁", "🍩", "🍪", "🥧", "🍯", "🍭", "🍫", "💝", "🍰", "🎂", "🍡", "🍮", "🥞", "🧇"],
+    sweet: ["🍬", "🧁", "🍩", "🍪", "🥧", "🍯", "🍭", "🍫", "💝", "🍰", "🎂", "🍡", "🍮", "🥞", "🧇", "🥮"],
     cold: ["🍦", "🍨", "🧊", "❄️", "🥤"],
     honk: ["🚗", "🚕", "🚙", "🚌", "🚐", "🛻", "🚛", "🚚", "🚜", "🛵", "🏍️", "🛺"],
     siren: ["🚓", "🚒", "🚑"],
@@ -3136,9 +3492,9 @@
     // §19: a web hero's night — rooftops and webs, a villain's lab, and Halloween
     { id: "hero", name: "Hero Night", pic: "🕸️", backdrop: ["#c4202e", "#24318f"], color: "#151a52",
       places: ["webcity", "web", "lab", "treats", "pumpkins", "haunted"] },
-    // PLAN_GOBBLE_LANTERN.md: six sides of China (batch A; six more to come)
+    // PLAN_GOBBLE_LANTERN.md: twelve sides of China (batch A, then batch B)
     { id: "lantern", name: "Lantern Land", pic: "🏮", backdrop: ["#fff0c2", "#ffc94d"], color: "#d62828",
-      places: ["newyear", "dumplings", "courtyard", "pandas", "teahills", "watertown"] },
+      places: ["newyear", "dumplings", "courtyard", "pandas", "teahills", "watertown", "moongarden", "monkeys", "desk", "icecity", "kungfu", "greatwall"] },
   ];
   // a place's land
   const landOf = (id) => LANDS.find((l) => l.places.includes(id)) || null;
@@ -3169,6 +3525,7 @@
     web: "19i8lez", lab: "1j0zqtu", treats: "gpi9te", pumpkins: "1k18zw",
     haunted: "m3fiyk",
     newyear: "1nsadmw", dumplings: "1qae29m", courtyard: "1qbcvyu", pandas: "jl9hx0", teahills: "hommkc", watertown: "1ypgtvk",
+    moongarden: "jd49o9", monkeys: "1ch89rn", desk: "313lrg", icecity: "iflah7", kungfu: "phk85d", greatwall: "178y9ou",
   };
 
   const HoleData = { RULES, SCENES, SAY, TASTES, tasteOf, LANDS, landOf, PRINTS };

@@ -1577,3 +1577,24 @@ hears it repainting at once and keeping the place it is playing. A second test
 puts the clock back three days in its own browser context. A guardrail fails any
 write to the save that skips `own.*`. Fourteen deliberate breaks, each red on
 its own clause.
+
+## 23. Lantern Land, batch B — six more Chinese places (owner, 2026-11-18)
+
+The owner's go: "you can do lantern land batch b". Places 7-12 of
+PLAN_GOBBLE_LANTERN.md, so the land holds twelve and the world 66 places:
+🌕 Moon Garden, 🍑 Monkey Mountain, 🖌️ Writing Desk, ❄️ Ice City, 🔔 Kung Fu
+School and 🥁 the Great Wall (a GIANT place). PLAN_GOBBLE_LANTERN.md §13 lists
+what differs from the design and why. New as data or plumbing:
+
+- **A Chinese count** (`count.lang: "zh"`): each lantern says 一, 二, 三 … in a
+  Chinese voice (`SAY.zhNum`, held equal to his first ten 中文 cards), and the
+  last says 十 and then the count in English.
+- **A fly portal is named by its look** (`HoleLogic.flyKind`): a cloud jump is
+  "a magic cloud", never "a cannon", and he rides a golden cloud across.
+- **Moon gates and a waterfall cave** (portal looks), **beacon** decals lit by
+  their own button, rollers, a frozen river, and new wear (rabbit ears, a
+  circlet, earflaps, a headband, a general's helmet).
+
+Measured at ship: the bot wins each in 27-57s (mean 43s), every grow at x2.0 or
+better; the fuzzer checked 1067 spots with 0 stuck.
+

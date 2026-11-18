@@ -2009,6 +2009,12 @@
     warp(st, R);
   }
 
+  // What a flight is introduced and announced as, by its look: a cannon is
+  // a "launch"; a web swing a "swing"; a cloud jump a "cloud". The ONE owner
+  // (the page's words and sounds, and the tests, read it).
+  const FLY_MEET = { web: "swing", cloud: "cloud" };
+  const flyKind = (look) => FLY_MEET[look] || "launch";
+
   // THE FIRST TIME (§17): a new kind of thing is introduced the first time
   // it is near — a word, and the thing hops — once a kind, once a visit. A
   // place-wide one (counting) once the opening look is done.
@@ -2027,11 +2033,11 @@
     add("hits", objs((o) => !!o.hits));
     add("power", objs((o) => !!o.power));
     add("sprout", objs((o) => o.box === "sprout"));
-    // a WEB SWING (§19) flies him just like a cannon, but it is a web, and
-    // says so: "a cannon!" pointing at a web would be a lie
-    const flies = (web) => R.G.ends.filter((e) => e.fly && e.live && (e.look === "web") === web).map((e) => ({ x: e.x, y: e.y }));
-    add("launch", flies(false));
-    add("swing", flies(true));
+    // a WEB SWING (§19) or a CLOUD JUMP (Lantern Land) flies him just like a
+    // cannon, but it is a web or a cloud, and says so: "a cannon!" pointing at
+    // a web would be a lie. Every fly look is introduced as itself (FLY_MEET).
+    const flies = (kind) => R.G.ends.filter((e) => e.fly && e.live && flyKind(e.look) === kind).map((e) => ({ x: e.x, y: e.y }));
+    for (const kind of ["launch", ...Object.values(FLY_MEET)]) add(kind, flies(kind));
     add("spin", R.G.flows.filter((f) => f.spin).map((f) => ({ x: f.spin.x, y: f.spin.y, r: f.spin.rg })));
     if (R.def.count) out.push({ kind: "count", wide: true, n: R.counts });
     return out;
@@ -2419,7 +2425,7 @@
   const HoleLogic = {
     DT, IDLE, FALL, GONE, HIDDEN,
     rng, hashStr, printOf, twistsOf, gdist, worldOf, sceneById, layout, levelsOf, zoomScale, viewSpan,
-    goldOf, countOf, GOLD_BANDS, itemOf, geomOf, outlineOf, progressOf, routeLine,
+    goldOf, countOf, GOLD_BANDS, itemOf, geomOf, outlineOf, progressOf, routeLine, FLY_MEET, flyKind,
     createGame, setTarget, step, nearestEdible, edible, wanted, nextOpener, openerDone, goalOf, botTarget, activeSolid,
     snapshot, restore, runCouldRestore, runMatches, hashState,
     // the shape machinery, for the tests that hold it to brute force

@@ -496,6 +496,83 @@
         c.lineWidth = Math.max(1, hw * 0.06); c.strokeStyle = shade(col || "#d9b26a", -0.35); c.stroke();
       },
     },
+    // ---- Lantern Land, batch B ----
+    rabbit: {
+      // the Jade Rabbit's long ears (玉兔, the Moon Festival's rabbit): two
+      // tall white ears, pink inside, leaning a little apart
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * 1.32,
+      draw(c, x, y, e, sp, col, col2) {
+        const hw = halfW(e, sp), by = y - base(e) + hw * 0.1, h = hw * 1.42;
+        for (const k of [-1, 1]) {
+          c.save(); c.translate(x + k * hw * 0.4, by); c.rotate(k * 0.18);
+          ellipse(c, 0, -h * 0.5, hw * 0.24, h * 0.5); fillLine(c, col || "#ffffff", e);
+          ellipse(c, 0, -h * 0.48, hw * 0.11, h * 0.36); c.fillStyle = col2 || "#ffb3c7"; c.fill();
+          c.restore();
+        }
+      },
+    },
+    circlet: {
+      // a thin gold headband with two little curls at its front: the most
+      // famous thing in Journey to the West (its hero is never drawn)
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * 0.42,
+      draw(c, x, y, e, sp, col) {
+        const hw = halfW(e, sp), by = y - base(e) + hw * 0.06, gold = col || "#ffc83d";
+        c.beginPath(); c.ellipse(x, by, hw * 0.95, hw * 0.24, 0, Math.PI * 0.95, Math.PI * 2.05);
+        c.lineWidth = Math.max(2, hw * 0.13) + wl(e); c.strokeStyle = OUTLINE; c.stroke();
+        c.lineWidth = Math.max(2, hw * 0.13); c.strokeStyle = gold; c.stroke();
+        for (const k of [-1, 1]) {
+          c.beginPath(); c.arc(x + k * hw * 0.16, by - hw * 0.27, hw * 0.08, 0, Math.PI * 2);
+          c.lineWidth = Math.max(1.2, hw * 0.06) + wl(e) * 0.6; c.strokeStyle = OUTLINE; c.stroke();
+          c.lineWidth = Math.max(1.2, hw * 0.06); c.strokeStyle = gold; c.stroke();
+        }
+      },
+    },
+    earflap: {
+      // the fur hat with ear flaps a Harbin child wears in winter: a brown
+      // crown, a cream fur brim and a fur flap down each side
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * 0.86,
+      draw(c, x, y, e, sp, col, col2) {
+        const hw = halfW(e, sp), by = y - base(e), fur = col2 || "#f2e6d8";
+        for (const k of [-1, 1]) { rrect(c, x + k * hw * 0.96 - hw * 0.22, by - hw * 0.22, hw * 0.44, hw * 0.8, hw * 0.18); fillLine(c, fur, e); }
+        dome(c, x, by - hw * 0.08, hw * 0.9, hw * 0.78); fillLine(c, col || "#8a5a3a", e);
+        rrect(c, x - hw, by - hw * 0.3, hw * 2, hw * 0.32, hw * 0.14); fillLine(c, fur, e);
+        c.fillStyle = "#d62828"; c.beginPath(); c.arc(x, by - hw * 0.5, hw * 0.12, 0, Math.PI * 2); c.fill();
+      },
+    },
+    headband: {
+      // a red kung fu headband, knotted at the side, its two tails flying
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * 0.24,
+      draw(c, x, y, e, sp, col) {
+        const hw = halfW(e, sp), by = y - base(e) + hw * 0.1, red = col || "#d62828";
+        for (const [dy, len] of [[-0.02, 0.62], [0.12, 0.5]]) {
+          c.beginPath(); c.moveTo(x + hw * 0.92, by - hw * 0.06);
+          c.quadraticCurveTo(x + hw * 1.25, by + hw * (dy - 0.1), x + hw * (0.92 + len), by + hw * (dy + 0.12));
+          c.lineTo(x + hw * (0.87 + len), by + hw * (dy + 0.24));
+          c.quadraticCurveTo(x + hw * 1.2, by + hw * (dy + 0.06), x + hw * 0.92, by + hw * 0.08);
+          c.closePath(); fillLine(c, shade(red, -0.1), e);
+        }
+        rrect(c, x - hw * 0.98, by - hw * 0.12, hw * 1.96, hw * 0.24, hw * 0.1); fillLine(c, red, e);
+        c.beginPath(); c.arc(x + hw * 0.92, by, hw * 0.12, 0, Math.PI * 2); fillLine(c, shade(red, -0.2), e);
+      },
+    },
+    general: {
+      // an ancient Chinese general's helmet: a dome with a spike on top, a
+      // red tassel falling from it (盔缨) and a deep brim band. Its headroom
+      // stays under the top hat's (the tallest), PLAN_GOBBLE_LANTERN §5.
+      slot: "top", up: (e, sp) => base(e) + halfW(e, sp) * 1.12,
+      draw(c, x, y, e, sp, col, col2) {
+        const hw = halfW(e, sp), by = y - base(e), ry = hw * 0.74, steel = col || "#8a6a3a", red = col2 || "#d62828";
+        const sx = x, sy = by - ry - hw * 0.26;
+        c.beginPath(); c.moveTo(sx, sy - hw * 0.04);
+        c.quadraticCurveTo(sx - hw * 0.5, sy + hw * 0.05, sx - hw * 0.62, sy + hw * 0.45);
+        c.quadraticCurveTo(sx - hw * 0.22, sy + hw * 0.3, sx, sy + hw * 0.18); c.closePath(); fillLine(c, red, e);
+        c.beginPath(); c.moveTo(x, by - ry + hw * 0.02); c.lineTo(sx, sy); c.lineWidth = Math.max(1.5, hw * 0.09); c.strokeStyle = OUTLINE; c.stroke();
+        dome(c, x, by, hw * 0.92, ry); fillLine(c, steel, e);
+        c.fillStyle = shade(steel, 0.35); c.fillRect(x - hw * 0.1, by - ry * 0.92, hw * 0.2, ry * 0.86);
+        c.beginPath(); c.moveTo(x - hw * 1.02, by + hw * 0.02); c.lineTo(x + hw * 1.02, by + hw * 0.02); c.lineTo(x + hw * 0.88, by - hw * 0.2); c.lineTo(x - hw * 0.88, by - hw * 0.2); c.closePath(); fillLine(c, shade(steel, -0.2), e);
+        c.beginPath(); c.arc(sx, sy, hw * 0.08, 0, Math.PI * 2); fillLine(c, "#ffd24d", e);
+      },
+    },
     balloon: {
       slot: "side", up: (e) => e * 2.25 + e * 1.2 + e * 0.12 + e * 0.12,
       draw(c, x, y, e, sp, col, col2, now) {
@@ -773,6 +850,17 @@
         c.beginPath(); c.ellipse(x - s * 0.35, y - s * 0.15, s * 0.15, s * 0.2, 0, 0, TAU); c.fill();
         c.beginPath(); c.ellipse(x + s * 0.35, y - s * 0.15, s * 0.15, s * 0.2, 0, 0, TAU); c.fill();
         c.beginPath(); c.ellipse(x, y + s * 0.28, s * 0.12, s * 0.16, 0, 0, TAU); c.fill();
+      } },
+    // a Moon Festival's sky lanterns (孔明灯) drifting up through the night:
+    // they GLOW, so they show in the Moon Garden's dark
+    skylanterns: { n: 1.6, size: 7, vx: 3, vy: -11, sway: 10, col: "#ffb347", glows: true,
+      draw(c, x, y, s, ph, t, col) {
+        const k = 0.75 + 0.25 * pulse(t, ph, 1.6);
+        c.globalAlpha = 0.28 * k; c.fillStyle = col; c.beginPath(); c.arc(x, y, s * 2.1, 0, TAU); c.fill();
+        c.globalAlpha = 0.95;
+        c.beginPath(); c.moveTo(x - s * 0.62, y - s * 0.8); c.lineTo(x + s * 0.62, y - s * 0.8); c.lineTo(x + s * 0.48, y + s * 0.75); c.lineTo(x - s * 0.48, y + s * 0.75); c.closePath();
+        c.fillStyle = "#ff8a2a"; c.fill(); c.strokeStyle = "rgba(120,40,10,0.6)"; c.lineWidth = 1; c.stroke();
+        c.fillStyle = "#ffe08a"; c.beginPath(); c.ellipse(x, y + s * 0.2, s * 0.26, s * 0.42, 0, 0, TAU); c.fill();
       } },
     bubbles: { n: 3, size: 8, vx: 0, vy: -20, sway: 12, col: "#ffffff",
       draw(c, x, y, s, ph, t, col) {
@@ -1548,6 +1636,38 @@
         if (d >= LOD.fine) blobs(c, T, Rk("tone"), 8, ["rgba(80,86,96,0.22)", "rgba(220,224,228,0.25)"], 1.5, 3.5);
       },
     },
+    ricepaper: {
+      // a scroll of rice paper, with the faint red 田字格 grid he writes in
+      // (the practice squares of his 写字 pad)
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#f6ecd4"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(205,70,60,0.42)"; c.lineWidth = 0.4;
+        c.beginPath();
+        for (let k = 0; k < T; k += 16) { c.moveTo(k, 0); c.lineTo(k, T); c.moveTo(0, k); c.lineTo(T, k); }
+        c.stroke();
+        if (d < LOD.small) return;
+        c.strokeStyle = "rgba(205,70,60,0.24)"; c.lineWidth = 0.3; c.setLineDash([1.2, 1.2]);
+        c.beginPath();
+        for (let k = 8; k < T; k += 16) { c.moveTo(k, 0); c.lineTo(k, T); c.moveTo(0, k); c.lineTo(T, k); }
+        c.stroke(); c.setLineDash([]);
+        if (d >= LOD.fine) blobs(c, T, Rk("fibre"), 6, ["rgba(200,180,140,0.18)"], 1.5, 4);
+      },
+    },
+    wallbrick: {
+      // the top of the Great Wall: big grey paving bricks, worn smooth
+      base(c, x0, y0, x1, y1) { c.fillStyle = "#b8b0a2"; c.fillRect(x0, y0, x1 - x0, y1 - y0); },
+      marks(c, T, Rk, d) {
+        c.strokeStyle = "rgba(96,88,76,0.55)"; c.lineWidth = 0.45;
+        c.beginPath();
+        for (let r = 0; r * 6 < T; r++) {
+          const y = r * 6, off = r % 2 ? 6 : 0;
+          c.moveTo(0, y); c.lineTo(T, y);
+          for (let x = off; x < T; x += 12) { c.moveTo(x, y); c.lineTo(x, y + 6); }
+        }
+        c.stroke();
+        if (d >= LOD.small) blobs(c, T, Rk("tone"), 8, ["rgba(90,82,70,0.18)", "rgba(240,234,222,0.25)"], 2, 4.5);
+      },
+    },
     oldwood: {
       // a haunted house's old floorboards: dark, worn, with nails and cracks
       base(c, x0, y0, x1, y1) {
@@ -2232,6 +2352,73 @@
         c.stroke();
       },
     },
+    // ---- Lantern Land, batch B ----
+    roller: {   // a hanging scroll's wooden roller, across the top or the foot of the scroll (x0..x1 across, at y)
+      box: (d, W, H) => [d.x0 * W - 4, d.y * H - 8, d.x1 * W + 4, d.y * H + 8],
+      draw(c, d, W, H) {
+        const x0 = d.x0 * W, x1 = d.x1 * W, y = d.y * H, r = 4.2;
+        c.fillStyle = "rgba(0,0,0,0.18)"; c.fillRect(x0, y - r * 0.2, x1 - x0, r * 1.6);
+        c.fillStyle = "#6b3b1e"; rrect(c, x0, y - r, x1 - x0, r * 2, r); c.fill();
+        c.fillStyle = "#9a5a2e"; rrect(c, x0 + 1.2, y - r * 0.7, x1 - x0 - 2.4, r * 0.8, r * 0.4); c.fill();
+        for (const x of [x0 - 1.6, x1 + 1.6]) { c.fillStyle = "#c9993a"; c.beginPath(); c.arc(x, y, r * 1.15, 0, Math.PI * 2); c.fill(); c.fillStyle = "#e9c46a"; c.beginPath(); c.arc(x - 0.6, y - 0.6, r * 0.5, 0, Math.PI * 2); c.fill(); }
+      },
+    },
+    frozenriver: {   // a frozen river right across the place (y0..y1 down): pale blue ice, banks of snow, shine and cracks
+      prep: (d, W, H, R) => {
+        const cracks = [];
+        for (let i = 0; i < 9; i++) cracks.push([R() * W, d.y0 * H + (0.2 + R() * 0.6) * (d.y1 - d.y0) * H, R() * Math.PI, 4 + R() * 8]);
+        return { cracks };
+      },
+      box: (d, W, H) => [0, d.y0 * H - 3, W, d.y1 * H + 3],
+      draw(c, d, W, H, p) {
+        const y0 = d.y0 * H, y1 = d.y1 * H;
+        c.fillStyle = "#9ccbeb"; c.fillRect(0, y0 - 1.2, W, y1 - y0 + 2.4);
+        c.fillStyle = "#cdeaf9"; c.fillRect(0, y0, W, y1 - y0);
+        c.strokeStyle = "rgba(255,255,255,0.95)"; c.lineWidth = 1.1; c.lineCap = "round";
+        c.beginPath();
+        for (let x = 12; x < W; x += 46) { c.moveTo(x, y0 + (y1 - y0) * 0.3); c.lineTo(x + 14, y0 + (y1 - y0) * 0.22); }
+        c.stroke();
+        c.strokeStyle = "rgba(110,160,205,0.6)"; c.lineWidth = 0.35;
+        c.beginPath();
+        for (const [x, y, a, l] of p.cracks) { c.moveTo(x, y); c.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l * SQ); }
+        c.stroke();
+      },
+    },
+    beacon: {   // a BEACON on a Great Wall tower: a brazier, lit once the button it stands for (`press`, the nearest of that name) is pressed
+      box: (d, W, H) => [d.x * W - 7, d.y * H - 18, d.x * W + 7, d.y * H + 4],
+      draw(c, d, W, H, p, st) {
+        const x = d.x * W, y = d.y * H;
+        let lit = false;
+        if (st) {
+          let best = null, bd = Infinity;
+          for (const o of st.objects) {
+            if (o.press !== d.press) continue;
+            const q = Math.hypot(o.x - x, o.y - y);
+            if (q < bd) { bd = q; best = o; }
+          }
+          lit = !!(best && best.pressed);
+        }
+        c.fillStyle = "rgba(0,0,0,0.22)"; ellipse(c, x + 0.8, y + 1.2, 5.2, 2.2); c.fill();
+        // a stone brazier: a squat bowl on a plinth
+        c.fillStyle = "#6f6a62"; c.fillRect(x - 3, y - 4, 6, 4);
+        c.fillStyle = "#4e4a44"; c.beginPath(); c.moveTo(x - 5, y - 7); c.lineTo(x + 5, y - 7); c.lineTo(x + 3.4, y - 3.6); c.lineTo(x - 3.4, y - 3.6); c.closePath(); c.fill();
+        c.fillStyle = "#2b2824"; ellipse(c, x, y - 7, 5, 1.4); c.fill();
+        if (lit) {
+          // the beacon fire: a big orange flame with a yellow heart
+          c.fillStyle = "rgba(255,150,40,0.3)"; c.beginPath(); c.arc(x, y - 11, 8, 0, Math.PI * 2); c.fill();
+          c.fillStyle = "#ff6a1a";
+          c.beginPath(); c.moveTo(x - 4.2, y - 7); c.quadraticCurveTo(x - 4.6, y - 13, x, y - 18); c.quadraticCurveTo(x + 4.6, y - 13, x + 4.2, y - 7); c.closePath(); c.fill();
+          c.fillStyle = "#ffd24d";
+          c.beginPath(); c.moveTo(x - 2.2, y - 7); c.quadraticCurveTo(x - 2.4, y - 11, x, y - 14); c.quadraticCurveTo(x + 2.4, y - 11, x + 2.2, y - 7); c.closePath(); c.fill();
+        } else {
+          // unlit: a heap of sticks waiting for its fire
+          c.strokeStyle = "#6b4220"; c.lineWidth = 0.9; c.lineCap = "round";
+          c.beginPath(); c.moveTo(x - 3, y - 7.5); c.lineTo(x + 2.6, y - 10.5); c.moveTo(x + 3, y - 7.5); c.lineTo(x - 2.6, y - 10.5); c.moveTo(x, y - 7); c.lineTo(x, y - 11); c.stroke();
+        }
+        // the frame records which it drew, so a test can see a beacon LIGHT
+        return lit ? "lit" : "unlit";
+      },
+    },
     runway: {   // a runway: asphalt, edge lines, a dashed centre line and the "piano keys"
       box: (d, W, H) => grow(rectOf(d, W, H), 1),
       draw(c, d, W, H) {
@@ -2524,6 +2711,8 @@
     street: { backdrop: "sky", edge: ["#8e877b", "#706a60"] },
     bamboo: { backdrop: "sky", edge: ["#6e5a34", "#544426"] },
     greybrick: { backdrop: "sky", edge: ["#6d7279", "#555a60"] },
+    ricepaper: { backdrop: "wall", edge: ["#c9b48a", "#a8926a"] },
+    wallbrick: { backdrop: "sky", edge: ["#7c7466", "#5f594e"] },
   };
 
   // ---- phase 4 (§14): the things Gobble walks ROUND, and what moves -------
@@ -2564,6 +2753,11 @@
     stall: { h: 3.4, side: "#c41f2a", top: "#f6e7c6", rim: "#ffd24d", deco: "awning", stripe: "#fff3df" },
     screen: { h: 4.8, side: "#7a1f22", top: "#c9993a", rim: "#f0cf72", deco: "folds" },
     bamboo: { h: 5.2, side: "#5a9a3a", top: "#7fc257", rim: "#a9dd72", deco: "stalks", pandas: true },
+    // batch B: wet black INK (the Writing Desk's giant 大, lying in the
+    // paper), and a rocky CRAG with a monkey sitting on top (Monkey
+    // Mountain: scenery, never eaten)
+    ink: { flat: true, bank: "#3b3a44", deep: "#121118", top: "#22212b", shine: "rgba(190,190,215,0.4)", foam: "rgba(20,20,28,0.85)" },
+    crag: { h: 3.8, side: "#7a6450", top: "#9e8668", rim: "#c7b08e", deco: null, monkeys: true },
   };
   // How each kind of bridge looks (it crosses water, lava or the void).
   const BRIDGE_LOOKS = {
@@ -2915,15 +3109,16 @@
       const v = viewRect(2);
       const x0 = Math.max(0, v.x0), y0 = Math.max(0, v.y0), x1 = Math.min(W, v.x1), y1 = Math.min(H, v.y1);
       let nd = 0;
-      const feat = { blocks: 0, bridges: 0, tracks: 0, flows: 0, portals: 0, locks: 0, keys: 0, flipped: 0, wires: 0, spin: 0, cannons: 0, signs: 0 };
+      const feat = { blocks: 0, bridges: 0, tracks: 0, flows: 0, portals: 0, locks: 0, keys: 0, flipped: 0, wires: 0, spin: 0, cannons: 0, signs: 0, lit: 0, unlit: 0 };
       if (x1 > x0 && y1 > y0) {
         drawGround(x0, y0, x1, y1);
         for (const dc of decals) {
           const b = dc.box;
           if (b[2] < v.x0 || b[0] > v.x1 || b[3] < v.y0 || b[1] > v.y1) continue;
           ctx.save();
-          dc.K.draw(ctx, dc.d, W, H, dc.p);
+          const drew = dc.K.draw(ctx, dc.d, W, H, dc.p, st);
           ctx.restore();
+          if (drew === "lit") feat.lit++; else if (drew === "unlit") feat.unlit++;
           nd++;
         }
         // what lies IN the ground: water and lava, then the rivers and belts
@@ -3254,6 +3449,28 @@
       // (Lantern Land): scenery, drawn in the block, so it stands where he can
       // never walk and is never something to eat (the alive law)
       if (K.pandas) for (const p of pandaSpots(rings)) drawPanda(p.x, p.y - h, p.s);
+      // …and a monkey sitting on each crag (Monkey Mountain), the same way
+      if (K.monkeys) for (const p of pandaSpots(rings)) drawMonkey(p.x, p.y - h, p.s);
+    }
+    // A sitting monkey, s units across the head: brown fur, a pale heart-
+    // shaped face, round ears, a curled tail, and a peach in its hands.
+    function drawMonkey(x, y, s) {
+      const fur = "#8a5a32", face = "#f1cfa0", ink = "#2a1a0e", T = Math.PI * 2;
+      ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.beginPath(); ctx.ellipse(x, y + s * 1.05, s, s * 0.3, 0, 0, T); ctx.fill();
+      ctx.strokeStyle = fur; ctx.lineWidth = s * 0.18; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(x + s * 0.6, y + s * 0.8); ctx.quadraticCurveTo(x + s * 1.4, y + s * 0.6, x + s * 1.1, y - s * 0.1); ctx.stroke(); ctx.lineCap = "butt";
+      ctx.fillStyle = fur; ctx.beginPath(); ctx.ellipse(x, y + s * 0.42, s * 0.78, s * 0.68, 0, 0, T); ctx.fill();
+      ctx.fillStyle = face; ctx.beginPath(); ctx.ellipse(x, y + s * 0.55, s * 0.42, s * 0.4, 0, 0, T); ctx.fill();
+      ctx.fillStyle = fur; ctx.beginPath(); ctx.arc(x - s * 0.55, y - s * 0.42, s * 0.22, 0, T); ctx.arc(x + s * 0.55, y - s * 0.42, s * 0.22, 0, T); ctx.fill();
+      ctx.fillStyle = face; ctx.beginPath(); ctx.arc(x - s * 0.55, y - s * 0.42, s * 0.11, 0, T); ctx.arc(x + s * 0.55, y - s * 0.42, s * 0.11, 0, T); ctx.fill();
+      ctx.fillStyle = fur; ctx.beginPath(); ctx.arc(x, y - s * 0.4, s * 0.52, 0, T); ctx.fill();
+      ctx.fillStyle = face; ctx.beginPath();
+      ctx.ellipse(x - s * 0.15, y - s * 0.42, s * 0.2, s * 0.24, 0, 0, T); ctx.ellipse(x + s * 0.15, y - s * 0.42, s * 0.2, s * 0.24, 0, 0, T); ctx.ellipse(x, y - s * 0.22, s * 0.3, s * 0.2, 0, 0, T);
+      ctx.fill();
+      ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(x - s * 0.15, y - s * 0.45, s * 0.07, 0, T); ctx.arc(x + s * 0.15, y - s * 0.45, s * 0.07, 0, T); ctx.fill();
+      ctx.strokeStyle = ink; ctx.lineWidth = s * 0.05; ctx.beginPath(); ctx.arc(x, y - s * 0.26, s * 0.1, 0.25, Math.PI - 0.25); ctx.stroke();
+      ctx.fillStyle = "#ffa98a"; ctx.beginPath(); ctx.arc(x, y + s * 0.28, s * 0.22, 0, T); ctx.fill();
+      ctx.fillStyle = "#6fb24a"; ctx.beginPath(); ctx.ellipse(x + s * 0.14, y + s * 0.08, s * 0.12, s * 0.06, -0.5, 0, T); ctx.fill();
     }
     // A sitting panda, s units across the head: white body, black arms and
     // legs, black ears and eye patches, a stalk of bamboo in its paws.
@@ -3519,6 +3736,7 @@
         if (E.fly) {
           // a web swing (§19) is a cannon's flight on a web
           if (E.look === "web") drawWebSwing(E, now);
+          else if (E.look === "cloud") drawCloudJump(E, now);
           else drawCannon(E, now);
           continue;
         }
@@ -3566,6 +3784,47 @@
             for (let k = 0; k < 5; k++) { ctx.fillStyle = BOOKS[(k + row * 2) % BOOKS.length]; ctx.fillRect(-R + R * 0.08 + k * R * 0.24, y0 + R * 0.08, R * 0.18, R * 0.42); }
           }
           ctx.strokeStyle = "#2a1a10"; ctx.lineWidth = 0.4; ctx.strokeRect(-R, -R, R * 2, R * 2);
+        } else if (E.look === "moongate") {
+          // a MOON GATE (月洞门): a round doorway through a garden wall, seen
+          // from above — grey tiles round a white plaster ring, and the
+          // moonlit night through the round hole
+          ctx.fillStyle = "rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.arc(0.8, 1.2, R, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#6f7480"; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#f4efe3"; ctx.beginPath(); ctx.arc(0, 0, R * 0.84, 0, Math.PI * 2); ctx.fill();
+          // the little tiled roof over the doorway, so it reads as a GATE in
+          // a wall (a plain ring with a dark middle read as an eye)
+          ctx.fillStyle = "#3f4450";
+          ctx.beginPath(); ctx.moveTo(-R * 1.18, -R * 0.62); ctx.quadraticCurveTo(0, -R * 1.5, R * 1.18, -R * 0.62); ctx.lineTo(R * 0.9, -R * 0.52); ctx.quadraticCurveTo(0, -R * 1.18, -R * 0.9, -R * 0.52); ctx.closePath(); ctx.fill();
+          ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 0.35;
+          ctx.beginPath();
+          for (let k = -4; k <= 4; k++) { const t = k / 5, x = t * R * 1.05, y = -R * (0.62 + 0.62 * (1 - t * t)); ctx.moveTo(x, y); ctx.lineTo(x * 0.85, y + R * 0.18); }
+          ctx.stroke();
+          ctx.fillStyle = "#1c2346"; ctx.beginPath(); ctx.arc(0, 0, R * 0.6, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#ffe9a6"; ctx.beginPath(); ctx.arc(R * 0.18, -R * 0.14, R * 0.17, 0, Math.PI * 2); ctx.fill();
+          const tw = rm ? 1 : 0.5 + 0.5 * Math.sin(now * 2.4 + E.pi);
+          ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.5 * tw).toFixed(2) + ")";
+          for (const [a, b] of [[-0.3, 0.25], [0.05, 0.36], [-0.12, -0.32]]) { ctx.beginPath(); ctx.arc(R * a, R * b, R * 0.05, 0, Math.PI * 2); ctx.fill(); }
+        } else if (E.look === "waterfall") {
+          // the WATER-CURTAIN CAVE (水帘洞): a dark cave mouth in a rock face,
+          // a curtain of water falling over it (its streaks run down, still
+          // under reduced motion)
+          ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.arc(0.8, 1.2, R, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#7a6450"; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#241b17"; ctx.beginPath(); ctx.arc(0, R * 0.12, R * 0.72, Math.PI, 0); ctx.lineTo(R * 0.72, R * 0.62); ctx.lineTo(-R * 0.72, R * 0.62); ctx.closePath(); ctx.fill();
+          ctx.save();
+          ctx.beginPath(); ctx.arc(0, R * 0.12, R * 0.72, Math.PI, 0); ctx.lineTo(R * 0.72, R * 0.62); ctx.lineTo(-R * 0.72, R * 0.62); ctx.closePath(); ctx.clip();
+          ctx.fillStyle = "rgba(120,200,255,0.55)"; ctx.fillRect(-R, -R, R * 2, R * 2);
+          const fall = rm ? 0 : (now * 14 + E.pi * 3) % 4;
+          ctx.strokeStyle = "rgba(235,248,255,0.95)"; ctx.lineWidth = 0.45; ctx.lineCap = "round";
+          ctx.beginPath();
+          for (let k = -5; k <= 5; k++) {
+            const x = k * R * 0.13;
+            for (let y = -R + fall - 4; y < R; y += 4) { ctx.moveTo(x, y); ctx.lineTo(x, y + 2.2); }
+          }
+          ctx.stroke();
+          ctx.restore();
+          ctx.fillStyle = "rgba(255,255,255,0.85)";
+          for (const k of [-0.5, 0, 0.5]) { ctx.beginPath(); ctx.arc(R * k, R * 0.66, R * 0.16, 0, Math.PI * 2); ctx.fill(); }
         } else if (E.look === "spring") {
           ctx.fillStyle = "rgba(0,0,0,0.18)"; ctx.beginPath(); ctx.arc(0.8, 1.2, R, 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = "#cf2c4b"; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
@@ -3688,6 +3947,38 @@
       ctx.beginPath(); ctx.moveTo(E.x, ay); ctx.lineTo(E.x + sway, E.y - R * 0.55); ctx.stroke();
       ctx.beginPath(); ctx.arc(E.x + sway, E.y - R * 0.38, R * 0.18, 0, TAU); ctx.stroke();
       ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(E.x, ay, R * 0.14, 0, TAU); ctx.fill();
+    }
+
+    // A CLOUD JUMP (Lantern Land, Monkey Mountain): the story's somersault
+    // cloud (筋斗云) — a puffy golden-edged cloud where he rolls on, and the
+    // flight's arc as drifting puffs to the cloud he lands on.
+    function cloudPad(x, y, r, a) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = "rgba(29,18,51,0.2)"; ellipse(ctx, 0.6, 1.4, r * 1.2, r * 0.5); ctx.fill();
+      const puffs = [[-0.62, 0.05, 0.48], [0, -0.12, 0.62], [0.62, 0.04, 0.5], [-0.25, 0.22, 0.45], [0.3, 0.22, 0.45]];
+      ctx.fillStyle = "#e9a93a";
+      ctx.beginPath(); for (const [dx, dy, k] of puffs) { ctx.moveTo(r * dx + r * k + 0.6, r * dy * SQ); ctx.ellipse(r * dx, r * dy * SQ, r * k + 0.6, (r * k + 0.6) * 0.78, 0, 0, TAU); } ctx.fill();
+      ctx.fillStyle = "#fffaf0";
+      ctx.beginPath(); for (const [dx, dy, k] of puffs) { ctx.moveTo(r * dx + r * k, r * dy * SQ); ctx.ellipse(r * dx, r * dy * SQ, r * k, r * k * 0.78, 0, 0, TAU); } ctx.fill();
+      ctx.fillStyle = "rgba(255,226,140,0.7)";
+      ctx.beginPath(); ctx.ellipse(r * 0.1, r * 0.08 * SQ, r * 0.5, r * 0.18, 0, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+    function drawCloudJump(E, now) {
+      const R = RULES.PORTAL_R * 1.3;
+      if (!E.live) { cloudPad(E.x, E.y, R * 0.75, 0.7); return; }
+      const T = E.to, d = L.gdist(E.x, E.y, T.x, T.y), lift = flyLift(d);
+      const off = reduceMotion() ? 0 : (now * 0.5) % 1;
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      for (let k = 0; k < 10; k++) {
+        const t = (k + off) / 10;
+        const x = E.x + (T.x - E.x) * t, y = E.y + (T.y - E.y) * t - Math.sin(Math.PI * t) * lift;
+        ctx.beginPath(); ctx.arc(x, y, 1.1, 0, TAU); ctx.arc(x + 1.2, y + 0.3, 0.8, 0, TAU); ctx.fill();
+      }
+      const bob = reduceMotion() ? 0 : Math.sin(now * 2 + E.pi) * 0.8;
+      cloudPad(E.x, E.y - 1.2 + bob, R, 1);
     }
 
     // DARK places (a cave): the screen is dark but for the light round Gobble
@@ -4146,6 +4437,19 @@
         ctx.lineWidth = Math.max(2, R * 0.08); ctx.strokeStyle = "#ffffff"; ctx.stroke();
         ctx.lineCap = "butt";
         lastNew.webline = 1;
+      }
+      // a CLOUD JUMP: he rides a little golden cloud the whole way across
+      if (st.fly && st.fly.look === "cloud") {
+        const cr = rx * 1.25;
+        ctx.fillStyle = "#e9a93a";
+        ctx.beginPath();
+        for (const [dx, k] of [[-0.6, 0.5], [0, 0.62], [0.6, 0.5]]) { ctx.moveTo(cx + cr * dx + cr * k + 2, cy + ry * 0.75); ctx.ellipse(cx + cr * dx, cy + ry * 0.75, cr * k + 2, (cr * k + 2) * 0.55, 0, 0, TAU); }
+        ctx.fill();
+        ctx.fillStyle = "#fffaf0";
+        ctx.beginPath();
+        for (const [dx, k] of [[-0.6, 0.5], [0, 0.62], [0.6, 0.5]]) { ctx.moveTo(cx + cr * dx + cr * k, cy + ry * 0.75); ctx.ellipse(cx + cr * dx, cy + ry * 0.75, cr * k, cr * k * 0.55, 0, 0, TAU); }
+        ctx.fill();
+        lastNew.cloudride = 1;
       }
       // ZOOMING (§17): speed lines behind him
       if (h.zoomT > 0 && (h.vx || h.vy)) {

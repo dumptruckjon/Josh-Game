@@ -78,16 +78,17 @@ function makeTop(st) {
 // ...or any level.
 function makeLevel(st, lv) { st.hole.level = lv; st.hole.R = st.hole.r = st.levels.R[lv]; st.hole.xp = st.levels.C[lv]; }
 
-test("the data: SIXTY places, five tiers each (six in a GIANT place) plus a finale, every door, picture, district, track and trail present", () => {
+test("the data: SIXTY-SIX places, five tiers each (six in a GIANT place) plus a finale, every door, picture, district, track and trail present", () => {
   // The owner doubled the places three times (2026-10-01: six became twelve;
   // 2026-10-06: twelve became twenty-four; 2026-10-08: twenty-four became
   // forty-eight), then asked for six more, a web hero's and Halloween's
   // (2026-10-14, §19: fifty-four), then Lantern Land's first six (2026-10-21,
-  // §21: sixty). A place quietly dropped from the data would leave a
+  // §21: sixty), then its second six (batch B: sixty-six). A place quietly
+  // dropped from the data would leave a
   // door-less hole in the journey ▶ walks through. (This floor and the test's
   // name stayed at fifty-four for a release after §21 shipped: a floor that is
   // not raised with the data tolerates exactly the drop it is here to catch.)
-  assert.ok(SCENES.length >= 60, "sixty places to eat (" + SCENES.length + ")");
+  assert.ok(SCENES.length >= 66, "sixty-six places to eat (" + SCENES.length + ")");
   const ids = new Set();
   for (const def of SCENES) {
     const where = def.id;
@@ -1631,6 +1632,36 @@ test("a SOLID thing is a wall while it is too big — he bumps it and cannot pas
   assert.ok(st.hole.x < gx - 10, "…and walked through the gap");
 });
 
+test("ICE CITY's ice wall (Lantern Land batch B) shuts the north of the city off until he is big enough, then he eats through it — the whole width, with no gap at the edges", () => {
+  const st = L.createGame("icecity"), G = L.geomOf("icecity");
+  const ice = st.objects.filter((o) => o.solid && o.e === "🧊");
+  assert.equal(ice.length, 24, "fixture: 24 blocks of ice in a row");
+  assert.ok(ice.every((o) => L.activeSolid(st, o)), "at the start every block is a wall");
+  const wy = ice[0].y;
+  // pushed north at the middle AND at both edges, he never gets past
+  for (const fx of [0.5, 0.06, 0.94]) {
+    const st2 = L.createGame("icecity"), x = fx * G.W;
+    park(st2, x, wy + 24);
+    let crossed = false, bumped = false;
+    for (let i = 0; i < 240; i++) {
+      L.setTarget(st2, x, wy - 40); L.step(st2);
+      if (st2.events.some((e) => e.type === "bump" && e.solid)) bumped = true;
+      st2.events.length = 0;
+      if (st2.hole.y < wy - 3) crossed = true;
+    }
+    assert.ok(!crossed, "little Gobble cannot get through the ice at x=" + x.toFixed(0));
+    assert.ok(bumped, "…and he bumps it, so it says why (x=" + x.toFixed(0) + ")");
+  }
+  // big enough: the ice is a thing to eat, and he eats his way north
+  let lv = 0;
+  while (lv < st.levels.R.length - 1 && ice.some((o) => L.activeSolid(st, o))) makeLevel(st, ++lv);
+  assert.ok(lv >= 2 && ice.every((o) => !L.activeSolid(st, o)), "the ice turns to food only once he has grown a few times (at level " + lv + ")");
+  park(st, G.W / 2, wy + 24);
+  run(st, 6, { x: G.W / 2, y: wy - 40 });
+  assert.ok(ice.some((o) => o.st === L.GONE), "he ate a block of ice");
+  assert.ok(st.hole.y < wy - 10, "…and went through the wall");
+});
+
 test("a LOCK holds until its KEY is eaten: he bumps it, the hint points at the key at once, eating the key opens the way", () => {
   const st = L.createGame("farm"), G = L.geomOf("farm");
   const gate = st.objects.find((o) => o.lock), key = st.objects.find((o) => o.key === gate.lock);
@@ -2573,8 +2604,9 @@ function actsOf(e) {
   if (e.type === "opener") return [e.how === "press" ? "button" : null, e.of > 1 ? "keys" : null];
   if (e.type === "bump" && e.bounce) return ["bounce"];
   if (e.type === "flow" && /turntable|record|whirl/.test(e.look || "")) return ["spin"];
-  // a web swing (§19) is a cannon's flight on a web, introduced as itself
-  if (e.type === "launch") return [e.look === "web" ? "swing" : "launch"];
+  // a web swing (§19) or a cloud jump is a cannon's flight on a web or a
+  // cloud, introduced as itself (the engine's one owner of which is which)
+  if (e.type === "launch") return [L.flyKind(e.look)];
   return { hit: ["hits"], power: ["power"], sprout: ["sprout"] }[e.type] || [];
 }
 
@@ -2612,7 +2644,7 @@ test("INTRODUCTIONS (§18): in every place's play each new kind of thing is intr
   assert.deepEqual(off, [], "an introduction points at something off the screen");
   assert.deepEqual(late, [], "an introduction came after the thing had already acted on him");
   assert.ok(said >= 30, "the bot's play is introduced to at least 30 things across the places (saw " + said + ")");
-  for (const k of ["button", "keys", "bounce", "hits", "power", "sprout", "launch", "swing", "spin", "count"]) assert.ok(kinds.has(k), "'" + k + "' is introduced somewhere in a bot's play");
+  for (const k of ["button", "keys", "bounce", "hits", "power", "sprout", "launch", "swing", "cloud", "spin", "count"]) assert.ok(kinds.has(k), "'" + k + "' is introduced somewhere in a bot's play");
 });
 
 test("A CRACK is not a wall (§18): every hairline seam a search found pinning him now lets him across, at the size it pinned him", () => {
@@ -2847,18 +2879,22 @@ test("§20: HoleData.PRINTS pins every place's layout fingerprint, exactly and b
 // wrong; the signs are read against Josh's own Word Cards, so the two worlds
 // cannot disagree; and the festival places are read against 华丽's festival
 // table, so the two Chinese worlds agree too.
-const LANTERN = ["newyear", "dumplings", "courtyard", "pandas", "teahills", "watertown"];
+const LANTERN = ["newyear", "dumplings", "courtyard", "pandas", "teahills", "watertown", "moongarden", "monkeys", "desk", "icecity", "kungfu", "greatwall"];
 // what each Chinese string IS: [pinyin, meaning]. Both ways: a string no place
 // says is a stale row, and a string said with no row is unchecked.
 const ZH_TRUTH = {
-  // the festival greeting, said on arrival
-  新年快乐: ["xīn nián kuài lè", "Happy New Year"],
+  // the festival greetings, said on arrival
+  新年快乐: ["xīn nián kuài lè", "Happy New Year"], 中秋快乐: ["zhōng qiū kuài lè", "Happy Moon Festival"],
   // the finales, said after the ready line
   大红包: ["dà hóng bāo", "a big red envelope"], 茶壶: ["chá hú", "teapot"], 麻将牌: ["má jiàng pái", "mahjong tile"],
   竹子: ["zhú zi", "bamboo"], 大茶杯: ["dà chá bēi", "a big teacup"], 龙舟: ["lóng zhōu", "dragon boat"],
+  月亮: ["yuè liang", "the moon"], 仙桃: ["xiān táo", "a magic peach"], 大毛笔: ["dà máo bǐ", "a big writing brush"],
+  大雪花: ["dà xuě huā", "a big snowflake"], 大钟: ["dà zhōng", "a big bell"], 大鼓: ["dà gǔ", "a big drum"],
   // the word of each place, said the first time he eats it
   鞭炮: ["biān pào", "firecrackers"], 饺子: ["jiǎo zi", "dumplings"], 毛线: ["máo xiàn", "yarn"],
   竹叶: ["zhú yè", "bamboo leaves"], 茶叶: ["chá yè", "tea leaves"], 船: ["chuán", "boat"],
+  月饼: ["yuè bing", "mooncakes"], 香蕉: ["xiāng jiāo", "bananas"], 书: ["shū", "books"],
+  冰: ["bīng", "ice"], 砖: ["zhuān", "bricks"], 风筝: ["fēng zheng", "a kite"],
   // the words that name each sign's character ("<word>的<ch>")
   红色: ["hóng sè", "red"], 春天: ["chūn tiān", "spring"], 笑脸: ["xiào liǎn", "smiling face"],
   吃饭: ["chī fàn", "eat a meal"], 饿了: ["è le", "hungry"], 好香: ["hǎo xiāng", "smells good"],
@@ -2866,6 +2902,15 @@ const ZH_TRUTH = {
   黑色: ["hēi sè", "black"], 白色: ["bái sè", "white"], 树叶: ["shù yè", "leaf"],
   绿色: ["lǜ sè", "green"], 高山: ["gāo shān", "a high mountain"], 喝水: ["hē shuǐ", "drink water"],
   小河: ["xiǎo hé", "a little river"], 上面: ["shàng mian", "on top"], 下面: ["xià mian", "underneath"],
+  星星: ["xīng xing", "stars"], 金鱼: ["jīn yú", "goldfish"],
+  花朵: ["huā duǒ", "flowers"], 水果: ["shuǐ guǒ", "fruit"], 飞机: ["fēi jī", "aeroplane"],
+  写字: ["xiě zì", "write"], 汉字: ["hàn zì", "Chinese characters"], 画画: ["huà huà", "draw a picture"],
+  下雪: ["xià xuě", "it is snowing"], 冬天: ["dōng tiān", "winter"], 好冷: ["hǎo lěng", "so cold"],
+  小手: ["xiǎo shǒu", "little hand"], 跳舞: ["tiào wǔ", "dance"], 快慢: ["kuài màn", "fast and slow"],
+  长城: ["cháng chéng", "the Great Wall"], 大火: ["dà huǒ", "a big fire"], 大门: ["dà mén", "the front gate"],
+  // the Moon Garden's count, 一 to 十: his first ten 中文 cards
+  一: ["yī", "one"], 二: ["èr", "two"], 三: ["sān", "three"], 四: ["sì", "four"], 五: ["wǔ", "five"],
+  六: ["liù", "six"], 七: ["qī", "seven"], 八: ["bā", "eight"], 九: ["jiǔ", "nine"], 十: ["shí", "ten"],
 };
 // the Chinese strings a place makes Gobble say, and the sign lines as the page
 // builds them (its own builder, read out of hole-main.js and run)
@@ -2877,6 +2922,11 @@ function zhSaid(def) {
   if (def.finale.zh) out.push({ s: def.finale.zh, why: "finale" });
   if (def.word && def.word.zh) out.push({ s: def.word.zh, why: "word" });
   if (def.greet && def.greet.zh) out.push({ s: def.greet.zh, why: "greet" });
+  // a Chinese count says his numbers, one a gulp, as far as it counts
+  if (def.count && def.count.lang === "zh") {
+    const n = L.createGame(def).objects.filter((o) => o.e === def.count.e).length;
+    for (const z of DATA.SAY.zhNum.slice(0, n)) out.push({ s: z, why: "count" });
+  }
   for (const g of def.signs || []) out.push({ s: g.word, why: "sign word" }, { s: signLine(g), why: "sign line" });
   return out;
 }
@@ -2975,7 +3025,7 @@ test("LANTERN LAND signs: every character on a sign is one of JOSH's OWN cards, 
 
 test("LANTERN LAND festivals agree with 华丽's festival table: the same emoji, and a custom from her own bin", () => {
   // the festival each place is (her table's own label), restated
-  const FEST = { newyear: "春节", watertown: "端午节" };
+  const FEST = { newyear: "春节", watertown: "端午节", moongarden: "中秋节" };
   const H = require("../scripts/hl-content.js");
   const bins = H.FESTIVAL_SETS.flatMap((s) => s.bins);
   for (const [id, label] of Object.entries(FEST)) {
@@ -2987,20 +3037,86 @@ test("LANTERN LAND festivals agree with 华丽's festival table: the same emoji,
   }
 });
 
-test("LANTERN LAND scenery: the pandas sit where he can never walk, and the Chinese face the canvas asks for is SIMPLIFIED, named first", () => {
+test("LANTERN LAND's Chinese COUNT (the Moon Garden): his own first ten 中文 cards, 一 to 十 in order, one a gulp — never more than ten, never by twos, and the last one said in English too", () => {
+  const HANZI = wcConst("HANZI", "[");
+  // the numerals Gobble says ARE his first ten cards, in order — read from
+  // the page, so the two worlds cannot disagree
+  assert.deepEqual(DATA.SAY.zhNum, HANZI.slice(0, 10).map((r) => r[0]), "the Chinese numbers are his first ten 中文 cards, in order");
+  const zh = SCENES.filter((d) => d.count && d.count.lang === "zh");
+  assert.ok(zh.length >= 1, "fixture: a place counts in Chinese (" + zh.map((d) => d.id) + ")");
+  for (const def of zh) {
+    assert.ok(LANTERN.includes(def.id), def.id + ": a Chinese count is Lantern Land's");
+    assert.equal(def.count.by || 1, 1, def.id + ": a Chinese count counts by ones (一, 二, 三 — never 二, 四, 六)");
+    const st = L.createGame(def), n = st.objects.filter((o) => o.e === def.count.e).length;
+    assert.ok(n >= 3 && n <= DATA.SAY.zhNum.length, def.id + ": it counts at most ten things (" + n + ")");
+    // a bot counts them all, in order, and the last is the last
+    const seen = [];
+    for (let i = 0; i < 60 * 240 && !st.won; i++) {
+      const tg = L.botTarget(st); if (tg) L.setTarget(st, tg.x, tg.y);
+      L.step(st, L.DT);
+      for (const e of st.events) if (e.type === "count") seen.push(e);
+      st.events.length = 0;
+    }
+    assert.deepEqual(seen.map((e) => e.n), Array.from({ length: n }, (_, k) => k + 1), def.id + ": counted 1, 2, 3 … " + n);
+    assert.ok(seen[n - 1].last && seen.slice(0, -1).every((e) => !e.last), def.id + ": only the last count is the last");
+  }
+  // the page says the number in a Chinese voice (and no measure word), and
+  // at the end the English as well
+  const cb = mainSrc.slice(mainSrc.indexOf('ev.type === "count"'), mainSrc.indexOf('ev.type === "count"') + 1200);
+  assert.ok(/count\.lang === "zh"/.test(cb) && /sayZh\(zh\)/.test(cb) && /SAY\.countLastZh/.test(cb), "the count event says 一 … 十 in Chinese, and the last one in English too");
+  assert.ok(/^\{N\} \{what\}!$/.test(DATA.SAY.countLastZh), "the English line names only the number and the things (no measure word to argue with 华丽's 量词 game)");
+});
+
+test("A LAUNCH is said as what it LOOKS like (§19 generalised): a web swing is a swing, a cloud jump is a cloud, and only a cannon is a cannon — every fly look has its own introduction, its own word and its own sound", () => {
+  const looks = new Set();
+  for (const def of SCENES) for (const p of def.portals || []) if (p.fly) looks.add(p.look || "cannon");
+  assert.ok(looks.has("web") && looks.has("cloud") && looks.has("cannon"), "fixture: cannons, web swings and cloud jumps all ship (" + [...looks] + ")");
+  const kinds = new Set();
+  for (const look of looks) {
+    const kind = L.flyKind(look === "cannon" ? undefined : look);
+    kinds.add(kind);
+    if (look !== "cannon") assert.notEqual(kind, "launch", "a " + look + " is never introduced as a cannon");
+    assert.ok(DATA.SAY.meet[kind] && DATA.SAY[kind], "a " + look + " (" + kind + ") has its own introduction and its own word");
+  }
+  assert.equal(kinds.size, looks.size, "every fly look is its own kind (" + [...kinds] + ")");
+  // the page's launch handler asks the engine which kind it is, and has a sound for each
+  const lb = mainSrc.slice(mainSrc.indexOf('ev.type === "launch"'), mainSrc.indexOf('ev.type === "launch"') + 500);
+  assert.ok(/L\.flyKind\(ev\.look\)/.test(lb) && /SAY\[kind\]/.test(lb), "the page says a launch as its kind");
+  assert.ok(/kind === "swing"/.test(lb) && /kind === "cloud"/.test(lb), "a swing and a cloud have their own sounds");
+  // and a cloud jump really flies him, on a cloud, introduced as a cloud
+  const st = L.createGame("monkeys"), G = L.geomOf("monkeys");
+  const E = G.ends.find((e) => e.fly && e.live && e.look === "cloud");
+  assert.ok(E, "fixture: a live cloud jump");
+  park(st, E.x, E.y + 14);
+  const evs = [];
+  for (let i = 0; i < 60 * 3 && !st.fly; i++) { L.setTarget(st, E.x, E.y); L.step(st, L.DT); evs.push(...st.events); st.events.length = 0; }
+  assert.ok(st.fly && st.fly.look === "cloud", "rolling onto the cloud flies him, and the flight knows it is a cloud (the renderer sits him on it)");
+  const meet = evs.filter((e) => e.type === "meet").map((e) => e.kind);
+  assert.ok(meet.includes("cloud") && !meet.includes("launch"), "it is introduced as a cloud, never as a cannon (" + meet + ")");
+  // the islands' clouds bring him home again: the progress law's no-strand
+  // half holds every one-way flight, and here every island has a way back
+  for (const p of L.sceneById("monkeys").portals.filter((q) => q.look === "cloud")) assert.ok(p.oneway && p.fly, "a cloud jump is a one-way flight");
+});
+
+test("LANTERN LAND scenery: the pandas and the monkeys sit where he can never walk, and the Chinese face the canvas asks for is SIMPLIFIED, named first", () => {
   const HR = require("../scripts/hole-render.js");
-  let spots = 0;
+  let spots = 0, monkeys = 0;
   for (const id of LANTERN) {
     const def = L.sceneById(id), G = L.geomOf(def), O = L.outlineOf(def);
     for (const [look, rings] of Object.entries(O.blocks)) {
-      if (!(HR.BLOCK_LOOKS[look] || {}).pandas) continue;
+      const K = HR.BLOCK_LOOKS[look] || {};
+      if (!K.pandas && !K.monkeys) continue;
       for (const p of HR.pandaSpots(HR.ringsInfo(rings))) {
         spots++;
-        assert.ok(G.walk(p.x, p.y) > 0, id + ": a panda sits at " + p.x.toFixed(1) + "," + p.y.toFixed(1) + ", ground he could walk onto");
+        if (K.monkeys) monkeys++;
+        assert.ok(G.walk(p.x, p.y) > 0, id + ": a " + (K.pandas ? "panda" : "monkey") + " sits at " + p.x.toFixed(1) + "," + p.y.toFixed(1) + ", ground he could walk onto");
       }
     }
   }
   assert.ok(spots >= 4, "fixture: the pandas were found (" + spots + ")");
+  // Monkey Mountain is named for its monkeys: if they are ever cut, it must
+  // be renamed (a name must not promise what is not there)
+  assert.ok(monkeys >= 3, "Monkey Mountain has its monkeys on the crags (" + monkeys + ")");
   // Word Cards' lesson: an unnamed stack falls to a JAPANESE face on Apple
   // devices, which draws different forms. One owner, an SC face first, and
   // every font the renderer sets for a character goes through it.

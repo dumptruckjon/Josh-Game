@@ -2770,3 +2770,73 @@ test("LANTERN LAND pictures: a sign's plaque is DRAWN where he can see it, and W
   assert.ok(/function drawFalling[\s\S]*?drawObject\(o,/.test(rs), "a falling finale is drawn through drawObject too");
   assert.deepEqual(pageErrors, [], "no page errors");
 });
+
+test("LANTERN LAND batch B, through the real page: the Moon Garden COUNTS in Chinese (一 … 十, then the English), a CLOUD JUMP is flown on a cloud and said as one (never 'a cannon'), and a Great Wall BEACON lights when its button is pressed", async () => {
+  await page.evaluate(() => {
+    const A = window.JoshAudio;
+    window.__said = [];
+    A.__say = A.__say || A.say; A.__tone = A.__tone || A.tone;
+    A.tone = () => {};
+    A.say = (t, o) => { if (!A.isMuted()) window.__said.push([t, (o && o.lang) || "en"]); };
+    A.setMuted(false);
+  });
+  try {
+    // 1. THE CHINESE COUNT — the 1st, then the 10th and last
+    await openScene("moongarden");
+    const zh = await page.evaluate(() => window.HoleData.SAY.zhNum.slice());
+    assert.deepEqual(zh, ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"], "fixture: the Chinese numbers");
+    await page.waitForTimeout(3300);
+    const fire = async (ev, wait) => {
+      await page.evaluate((e) => { window.__said = []; window.__HOLE.state().events.push(e); }, ev);
+      await page.waitForTimeout(wait || 300);
+      return page.evaluate(() => window.__said.slice());
+    };
+    let said = await fire({ type: "count", k: 1, n: 1, of: 10, last: false });
+    assert.deepEqual(said, [["一", "zh-CN"]], "the first lantern is 一, in a Chinese voice (" + JSON.stringify(said) + ")");
+    await page.waitForTimeout(3300);
+    said = await fire({ type: "count", k: 10, n: 10, of: 10, last: true });
+    assert.deepEqual(said, [["十", "zh-CN"], ["Ten lanterns!", "en"]], "the last is 十, then 'Ten lanterns!' (" + JSON.stringify(said) + ")");
+    // 2. THE CLOUD JUMP — roll him onto a cloud and he flies on one
+    await page.waitForTimeout(3300);
+    await openScene("monkeys");
+    await page.evaluate(() => { window.__said = []; });
+    const flew = await page.evaluate(async () => {
+      const st = window.__HOLE.state(), G = window.HoleLogic.geomOf("monkeys");
+      const E = G.ends.find((e) => e.fly && e.live && e.look === "cloud");
+      const h = st.hole;
+      h.x = h.tx = E.x; h.y = h.ty = E.y + 14; h.vx = h.vy = 0;
+      window.HoleLogic.setTarget(st, E.x, E.y);
+      let ride = 0, flying = 0;
+      for (let i = 0; i < 240 && !(flying && !st.fly); i++) {
+        await new Promise((r) => requestAnimationFrame(r));
+        if (!st.fly) { window.HoleLogic.setTarget(st, E.x, E.y); continue; }
+        flying++;
+        if (window.__HOLE.info().drawnNew.cloudride) ride++;
+      }
+      return { flying, ride };
+    });
+    assert.ok(flew.flying > 3, "fixture: he flew a cloud jump (" + flew.flying + " frames)");
+    assert.ok(flew.ride >= flew.flying - 1, "a cloud carries him all the way across (" + flew.ride + " of " + flew.flying + " frames)");
+    said = await page.evaluate(() => window.__said.slice());
+    const S = await page.evaluate(() => window.HoleData.SAY);
+    assert.ok(said.some(([t]) => t === S.cloud || t === S.meet.cloud), "a cloud jump is said as a cloud (" + JSON.stringify(said) + ")");
+    assert.ok(!said.some(([t]) => t === S.launch || t === S.meet.launch), "…never as a cannon (" + JSON.stringify(said) + ")");
+    // 3. A BEACON: unlit, then lit once its button is pressed
+    await openScene("greatwall");
+    const parkAt = (which) => page.evaluate(async (w) => {
+      const st = window.__HOLE.state();
+      const b = st.objects.filter((o) => o.press).sort((a, c) => c.y - a.y)[w];
+      st.hole.x = st.hole.tx = b.x; st.hole.y = st.hole.ty = b.y + 30; st.hole.vx = st.hole.vy = 0;
+      window.__HOLE.camera().snap && window.__HOLE.camera().snap();
+      for (let i = 0; i < 40; i++) await new Promise((r) => requestAnimationFrame(r));
+      return { feat: window.__HOLE.info().feat, id: b.id };
+    }, which);
+    let r = await parkAt(0);
+    assert.ok(r.feat.unlit >= 1 && r.feat.lit === 0, "a beacon beside an unpressed button is unlit (" + JSON.stringify(r.feat) + ")");
+    await page.evaluate((id) => { const o = window.__HOLE.state().objects.find((q) => q.id === id); o.pressed = true; }, r.id);
+    r = await parkAt(0);
+    assert.ok(r.feat.lit >= 1, "…and lit once that button is pressed (" + JSON.stringify(r.feat) + ")");
+  } finally {
+    await page.evaluate(() => { const A = window.JoshAudio; A.say = A.__say; A.tone = A.__tone; A.setMuted(true); });
+  }
+});

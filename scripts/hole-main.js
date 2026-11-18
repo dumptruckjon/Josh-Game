@@ -670,6 +670,9 @@
     // a web swing (§19): THWIP — a quick zip of a web shot, then a swoosh
     thwip: () => notes([[2093, 0, sq(0.025, 0.05)], [1568, 30, sq(0.025, 0.05)], [523.25, 90, sn(0.06, 0.12)],
       [698.46, 140, sn(0.06, 0.12)], [987.77, 190, sn(0.2, 0.12)]]),
+    // a cloud jump (Lantern Land): a soft rising puff, like a cloud lifting off
+    poof: () => notes([[392, 0, sn(0.08, 0.1)], [523.25, 60, sn(0.08, 0.1)], [659.25, 120, sn(0.08, 0.1)],
+      [783.99, 180, sn(0.1, 0.1)], [1046.5, 240, sn(0.25, 0.1)]]),
     // …and down again: a soft thump
     land: () => notes([[196, 0, sn(0.08, 0.18)], [130.81, 60, sn(0.18, 0.16)]]),
     // a runaway darts off: a quick giggle of notes (it is a game of tag)
@@ -881,9 +884,11 @@
         SFX.bonk(ev.last);
         sayPlay(ev.last ? SAY.hitLast : SAY.hit[Math.min(ev.n, SAY.hit.length) - 1]);
       } else if (ev.type === "launch") {
-        // a web swing (§19) is a cannon's flight on a web, and sounds like one
-        if (ev.look === "web") { SFX.thwip(); sayEvery("swing", 12, SAY.swing, t); }
-        else { SFX.boom(); sayEvery("launch", 12, SAY.launch, t); }
+        // a web swing (§19) or a cloud jump flies like a cannon, and sounds and
+        // is said as what it looks like (L.flyKind is the one owner)
+        const kind = L.flyKind(ev.look);
+        if (kind === "swing") SFX.thwip(); else if (kind === "cloud") SFX.poof(); else SFX.boom();
+        sayEvery(kind, 12, SAY[kind], t);
       } else if (ev.type === "land") {
         SFX.land();
       } else if (ev.type === "flee") {
@@ -899,12 +904,21 @@
         // and a queue of numbers would fall behind), and always says the last.
         SFX.count(ev.k, ev.last);
         const what = (run.def.count && run.def.count.say) || "things";
-        if (ev.last) sayPlay(SAY.countLast.replace("{n}", String(ev.n)).replace("{what}", what));
+        if (run.def.count && run.def.count.lang === "zh") {
+          // a CHINESE count (the Moon Garden): 一, 二, 三 … 十 in a Chinese
+          // voice — his first ten 中文 cards — and at the end "十!" and then
+          // "Ten lanterns!" in English. No measure word: nothing here may
+          // contradict 华丽's 量词 game.
+          const zh = SAY.zhNum[ev.n - 1];
+          if (ev.last) { sayZh(zh); sayPlay(SAY.countLastZh.replace("{N}", cap(numWord(ev.n))).replace("{what}", what)); }
+          else if (now() - run.lastSaid > COUNT_GAP_MS) sayZh(zh);
+        } else if (ev.last) sayPlay(SAY.countLast.replace("{n}", String(ev.n)).replace("{what}", what));
         else if (now() - run.lastSaid > COUNT_GAP_MS) sayPlay(String(ev.n));
       } else if (ev.type === "meet") {
         // the first time he comes near a new thing: what it is, once a run
         SFX.ooh();
-        const line = SAY.meet[ev.kind];
+        const zhCount = ev.kind === "count" && run.def.count && run.def.count.lang === "zh";
+        const line = zhCount ? SAY.meet.countZh : SAY.meet[ev.kind];
         if (line) sayPlay(line.replace("{n}", numWord(ev.n)).replace("{what}", (run.def.count && run.def.count.say) || "things"));
       } else if (ev.type === "sign") {
         // a character SIGN (Lantern Land, §4.5): once a visit, when it is a
