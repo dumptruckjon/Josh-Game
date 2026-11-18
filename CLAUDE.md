@@ -105,19 +105,15 @@ Until the owner says otherwise:
   full: ship to `main`, test, verify live, the link in every reply, the touch
   laws and the guardrails.
 - **Plain, readable updates.** A few short lines, not a long report.
-- **Parked: two known bugs, found and NOT fixed. Do not start them unless the
-  owner asks.** Both are in Robot Talk (`scripts/games-literacy.js`, `play()`):
-  1. **Its replay can say the NEXT round's answer.** `play()` sounds a letter
-     every 520ms and says the word 260ms after the last one (1300ms for a
-     three-letter word), reading `cur.word.word` at THAT moment. A correct tap
-     calls `play()` and then `api.nextRound(newRound, 900)`, so by 1300ms
-     `cur` is the new round and the robot says the new round's word. Its
-     timers also call `A.say`/`A.tone` directly, so they can still sound after
-     he has left the screen. (Six other timer sites in the game files make
-     sound directly too; re-derive that list, because line numbers move.)
-  2. **It says letter NAMES ("see-ay-tee"), not letter SOUNDS ("c-a-t").**
-     `A.say(ch)` speaks a bare letter, and a voice reads a bare letter as its
-     name. That is wrong for an oral-blending game.
+- **Parked: one known bug, found and NOT fixed. Do not start it unless the
+  owner asks.** In Robot Talk (`scripts/games-literacy.js`, `play()`): **it says
+  letter NAMES ("see-ay-tee"), not letter SOUNDS ("c-a-t").** `api.say(ch)`
+  speaks a bare letter, and a voice reads a bare letter as its name. That is
+  wrong for an oral-blending game, and the fix needs recorded sounds from the
+  owner. (Its other parked bug — the replay saying the NEXT round's word, and
+  game timers sounding after he left — was fixed 2026-11-18: the next round
+  waits for the blend, each step checks it is still its round, and every game
+  timer sounds through `api.say`/`api.tone`, which a guardrail enforces.)
 - **Declined for now (owner, 2026-09-29): a 🇺🇸 English button on 写字.** The
   writing pad keeps its English meaning as text ("it's ok as is for now"). Do
   not build it or re-offer it unless the owner raises it. The 新字 and 中文
@@ -15984,7 +15980,8 @@ window.JoshFramework.register({
 });
 ```
 
-The `api` gives you: `el`, `stage`, `setPrompt(caption, icons, spoken)/speak/say`, `win/roundWin/tryAgain`,
+The `api` gives you: `el`, `stage`, `setPrompt(caption, icons, spoken)/speak/say`,
+`tone(freq, opts)` (a note that only sounds while the game is on screen — a timer's sound goes through say/tone, never JoshAudio directly; a guardrail scans for it), `win/roundWin/tryAgain`,
 `nextRound(fn, ms)` (the round is over: close its board, run `fn` after a beat — see the test contract),
 `later(fn, ms)` (a timer that dies on navigation — for staggers and animations, never a round's end),
 `shouldRamp(n)`/`streak()` (invisible difficulty adaptivity — true once Josh has

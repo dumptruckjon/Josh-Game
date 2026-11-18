@@ -1296,7 +1296,7 @@
             if (!dots.isConnected) return;
             if (dots.children[i]) dots.children[i].classList.add("drum__dot--on", "pop");
             pic.classList.remove("pop"); void pic.offsetWidth; pic.classList.add("pop");
-            try { if (A.tone) A.tone(300, { duration: 0.12, type: "square" }); } catch (e) { /* ignore */ }
+            api.tone(300, { duration: 0.12, type: "square" });
             if (i === cur.count - 1) playing = false;
           }, i * 430);
         }
@@ -1342,23 +1342,31 @@
       api.stage.append(robot, tiles, say, chips);
       say.addEventListener("pointerdown", function warm() { if (A.unlock) A.unlock(); say.removeEventListener("pointerdown", warm); }, { once: true });
       say.addEventListener("click", play); // the ▶ control replays the blend on demand (self-paced)
+      // A blend belongs to the ROUND it was started in. A correct tap replays it
+      // and then deals the next round 900ms later, while the blend takes 1300ms
+      // for a three-letter word — so the last steps used to read `cur` after it
+      // had moved on, and the robot said the NEXT round's answer out loud. Each
+      // step checks it is still this round's blend; the word is captured once.
+      // Sound goes through api.say/api.tone, which are silent once he has left.
       function play() {
         if (playing || !cur) return; playing = true;
-        const letters = cur.word.word.split("");
+        const mine = cur, word = cur.word.word;
+        const letters = word.split("");
         [...tiles.children].forEach((t) => t.classList.remove("robot__tile--on"));
         letters.forEach((ch, i) => {
           setTimeout(() => {
-            if (!tiles.isConnected) return;
+            if (cur !== mine) return;   // a new round has been dealt: this blend is over
             if (tiles.children[i]) tiles.children[i].classList.add("robot__tile--on", "pop");
             robot.classList.remove("pop"); void robot.offsetWidth; robot.classList.add("pop");
-            try { if (A.tone) A.tone(360 + i * 60, { duration: 0.24, type: "sine" }); } catch (e) { /* ignore */ }
-            try { if (A.say) A.say(ch); } catch (e) { /* ignore */ }
-            if (i === letters.length - 1) { playing = false; setTimeout(() => { try { if (A.say) A.say(cur.word.word); } catch (e) { /* ignore */ } }, 260); }
+            api.tone(360 + i * 60, { duration: 0.24, type: "sine" });
+            api.say(ch);
+            if (i === letters.length - 1) { playing = false; setTimeout(() => { if (cur === mine) api.say(word); }, 260); }
           }, i * 520);
         });
       }
       function newRound() {
         const r = L.makeBlendPick(C.CVC_WORDS, undefined, last); last = r.idx; cur = r;
+        playing = false;   // a blend cut short by the new round must not leave ▶ dead
         tiles.innerHTML = "";
         r.word.word.split("").forEach((ch) => tiles.appendChild(api.el("span", { class: "robot__tile", text: ch.toUpperCase() })));
         api.setPrompt("What word is the robot saying? Tap the picture!", ["🤖", "👂", "👉"], "Listen to the robot and tap the picture!");
@@ -1371,7 +1379,10 @@
             play();
             api.say("Yes! " + cur.word.word + "!");
             round += 1;
-            if (round >= ROUNDS) api.win({ say: "You blended the sounds! You're reading!" }); else { api.roundWin(); api.nextRound(newRound, 900); }
+            // The next round waits for the blend to FINISH (a letter every 520ms,
+            // then the word): he hears h-a-t, hat, and only then a new word.
+            const beat = cur.word.word.length * 520 + 700;
+            if (round >= ROUNDS) api.win({ say: "You blended the sounds! You're reading!" }); else { api.roundWin(); api.nextRound(newRound, beat); }
           });
           chips.appendChild(b);
         });

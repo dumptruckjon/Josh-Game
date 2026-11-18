@@ -296,6 +296,12 @@
         iconsEl.textContent = (icons || []).join(" ");
       },
       say: (t) => sayLive(t),
+      // A TONE with the same rule as a spoken line: only while this game is the
+      // screen on show. A game's timer that plays a note (a drum demo, a tune
+      // played back, a robot's blend) must go through here, or it keeps sounding
+      // after he has left — the framework hides a screen, it never stops a
+      // game's own setTimeout. A guardrail scans for a timer that does not.
+      tone: (freq, opts) => cue(() => { if (A.tone) A.tone(freq, opts); }),
       speak,
       // a setTimeout that is auto-cleared when the screen hides or restarts —
       // use for stagger/animation timers so a hidden game can never mutate or

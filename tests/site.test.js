@@ -7242,3 +7242,42 @@ test("Word Cards 📚 Stories: every book is whole, and every page fits two rows
   // The count on the menu button is COUNTED, like every count on this page.
   assert.match(read("wordcards.html"), /STORIES\.length \+ " books"/, "the Stories count must be derived");
 });
+
+/* ---------- a game's own timer never makes a sound directly ----------
+   The framework only HIDES a screen when he leaves, so a raw setTimeout in a
+   game keeps running — and one that called JoshAudio.say/tone kept TALKING and
+   PLAYING NOTES over whatever screen he went to (Robot Talk, Drum the Word, the
+   two drum demos, Team Song's tune). Sound from a timer goes through api.say /
+   api.tone, which are silent unless the game is the screen on show. Every
+   game file is scanned (derived from the directory), and a timer's body is
+   found by matching its parentheses, not by guessing a window of lines. */
+test("guardrail: no game's own timer calls JoshAudio say/tone directly", () => {
+  const files = fs.readdirSync(path.join(root, "scripts")).filter((f) => /^games-.*\.js$/.test(f));
+  assert.ok(files.length >= 10, `only ${files.length} game files found — the scan failed open`);
+  const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/(^|[^:"'`\\])\/\/[^\n]*/g, (m, a) => a + " ".repeat(m.length - a.length));
+  const bad = [];
+  let bodies = 0;
+  for (const f of files) {
+    const src = strip(read("scripts/" + f));
+    const re = /\b(setTimeout|setInterval)\s*\(/g;
+    let m;
+    while ((m = re.exec(src))) {
+      let depth = 1, k = re.lastIndex, q = null;
+      for (; k < src.length && depth > 0; k += 1) {
+        const ch = src[k];
+        if (q) { if (ch === "\\") k += 1; else if (ch === q) q = null; continue; }
+        if (ch === '"' || ch === "'" || ch === "`") q = ch;
+        else if (ch === "(") depth += 1;
+        else if (ch === ")") depth -= 1;
+      }
+      const body = src.slice(re.lastIndex, k);
+      bodies += 1;
+      if (/\b(A|JoshAudio)\.(say|tone)\s*\(|speechSynthesis\.speak/.test(body)) {
+        bad.push(`${f}:${src.slice(0, m.index).split("\n").length}`);
+      }
+    }
+  }
+  assert.ok(bodies >= 30, `only ${bodies} timers read — the scan failed open`);
+  assert.deepEqual(bad, [], "a game timer makes a sound directly — use api.say / api.tone, which are silent once he has left");
+});

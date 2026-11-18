@@ -7192,3 +7192,65 @@ test("🌞 Today: three games for the day — Numbers, Letters and one more — 
     await ctx.close();
   }
 });
+
+test("Robot Talk: the blend a correct tap replays never says the NEXT round's word, and leaving mid-blend is silent", async () => {
+  // The parked bug: play() sounded a letter every 520ms and said the word 260ms
+  // after the last one, reading the CURRENT round at that moment — while a
+  // correct tap dealt the next round 900ms in. So the robot announced the next
+  // round's answer before he had heard it.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  try {
+    await pg.goto(baseURL + "#robot-talk", { waitUntil: "load" });
+    await pg.waitForSelector("#screen-robot-talk:not([hidden])");
+    // Record what reaches the audio module, whatever the mute state says.
+    await pg.evaluate(() => {
+      const A = window.JoshAudio;
+      window.__heard = [];
+      const say = A.say, tone = A.tone;
+      A.say = function (t) { window.__heard.push(["say", String(t)]); return say.apply(this, arguments); };
+      A.tone = function (f) { window.__heard.push(["tone", f]); return tone.apply(this, arguments); };
+    });
+    const word = () => pg.evaluate(() => [...document.querySelectorAll("#screen-robot-talk .choice")]
+      .find((b) => b.dataset.correct === "1").getAttribute("aria-label"));
+    const words = await pg.evaluate(() => window.JoshContent.CVC_WORDS.map((w) => w.word));
+
+    for (let round = 0; round < 3; round += 1) {
+      const w1 = await word();
+      await pg.evaluate(() => { window.__heard.length = 0; document.querySelector('#screen-robot-talk .choice[data-correct="1"]').click(); });
+      // the blend (a letter every 520ms, then the word) and the next round
+      await pg.waitForTimeout(3200);
+      const w2 = await word();
+      assert.notEqual(w1, w2, "fixture: the next round must be a different word");
+      const said = await pg.evaluate(() => window.__heard.filter((h) => h[0] === "say").map((h) => h[1]));
+      // The words the robot says whole are CVC words; letters are one character.
+      const whole = said.filter((t) => words.includes(t));
+      assert.ok(whole.includes(w1), `the replay must say ${w1} (said ${JSON.stringify(said)})`);
+      assert.ok(!said.some((t) => t === w2 || t.includes(" " + w2 + "!")),
+        `round ${round + 1}: the robot said the NEXT round's word "${w2}" before he heard it (said ${JSON.stringify(said)})`);
+    }
+
+    // Leaving mid-blend: nothing sounds after the screen is gone.
+    await pg.evaluate(() => { document.querySelector("#screen-robot-talk .robot__play").click(); });
+    await pg.waitForTimeout(150);
+    await pg.evaluate(() => { location.hash = "#home"; });
+    await pg.waitForSelector("#screen-home:not([hidden])");
+    await pg.evaluate(() => { window.__heard.length = 0; });
+    await pg.waitForTimeout(2000);
+    const after = await pg.evaluate(() => window.__heard.slice());
+    assert.deepEqual(after, [], `Robot Talk kept sounding after he left (${JSON.stringify(after)})`);
+
+    // …and ▶ still works when he comes back, even though the blend was cut.
+    await pg.evaluate(() => { location.hash = "#robot-talk"; });
+    await pg.waitForSelector("#screen-robot-talk:not([hidden])");
+    await pg.evaluate(() => { window.__heard.length = 0; document.querySelector("#screen-robot-talk .robot__play").click(); });
+    await pg.waitForTimeout(1800);
+    const back = await pg.evaluate(() => window.__heard.filter((h) => h[0] === "tone").length);
+    assert.ok(back >= 3, `▶ must play the blend again after coming back (${back} tones)`);
+    assert.deepEqual(errs, [], "no uncaught page errors");
+  } finally {
+    await ctx.close();
+  }
+});

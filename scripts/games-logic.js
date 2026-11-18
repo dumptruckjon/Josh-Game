@@ -760,7 +760,7 @@
             if (!pad.isConnected) return;
             const b = drums[di];
             b.classList.remove("cb__drum--hit"); void b.offsetWidth; b.classList.add("cb__drum--hit");
-            try { if (A.tone && A.isMuted && !A.isMuted()) A.tone(DRUMS[di].note, { duration: 0.25 }); } catch (e) { /* ignore */ }
+            if (A.isMuted && !A.isMuted()) api.tone(DRUMS[di].note, { duration: 0.25 });
           }, 500 + k * 650);
         });
         setTimeout(() => {

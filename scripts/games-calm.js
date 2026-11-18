@@ -1368,7 +1368,7 @@
           step += 1;
           if (step >= NOTES.length) {
             // play the whole tune back — staggered so the notes sound in sequence
-            NOTES.forEach((n, k) => { setTimeout(() => { try { if (A.tone) A.tone(n.freq, { duration: 0.3 }); } catch (e) { /* ignore */ } }, k * 340); });
+            NOTES.forEach((n, k) => { setTimeout(() => api.tone(n.freq, { duration: 0.3 }), k * 340); });
             api.win({ say: "You played the whole song together! Twinkle twinkle!" });
             return;
           }
