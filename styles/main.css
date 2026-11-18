@@ -321,6 +321,20 @@ body {
 .today__partyIcon { font-size: 3.6rem; line-height: 1; }
 .today__partyText { font-size: 1.4rem; font-weight: 800; color: #2b2340; }
 
+/* ---------- 📊 Grown-ups: progress page (read-only, for the adult) ---------- */
+.progress__body { display: grid; grid-template-columns: minmax(0, 100%); gap: 16px; width: 100%; max-width: 620px; margin: 0 auto; }
+.progress__card { background: #fff; border-radius: 22px; padding: 16px 18px; box-shadow: var(--card-shadow, 0 6px 0 rgba(0, 0, 0, 0.1)); text-align: left; }
+.progress__h { margin: 0 0 8px; font-size: 1.2rem; color: #2b2340; }
+.progress__line { margin: 8px 0 4px; font-size: 1rem; color: #33445a; line-height: 1.35; }
+.progress__big { font-size: 1.25rem; font-weight: 800; color: #2b2340; }
+.progress__row { display: grid; grid-template-columns: minmax(0, 9.5em) minmax(0, 1fr) auto; align-items: center; column-gap: 10px; margin: 8px 0; }
+.progress__label { font-size: 0.95rem; color: #33445a; font-weight: 700; overflow-wrap: anywhere; }
+.progress__track { display: block; height: 14px; border-radius: 999px; background: #e3e8ef; overflow: hidden; }
+.progress__fill { display: block; height: 100%; background: #2c7a3f; border-radius: 999px; }
+.progress__num { font-size: 0.95rem; color: #2b2340; font-weight: 800; font-variant-numeric: tabular-nums; }
+.progress__chips { display: block; margin: 4px 0 6px; }
+.progress__chip { display: inline-block; margin: 0 8px 8px 0; padding: 4px 12px; border-radius: 999px; background: #fff3c4; color: #4a3500; font-size: 1.05rem; font-weight: 700; }
+
 /* ---------- Grown-ups: reset-stars button + text parent-gate ---------- */
 /* Deliberately small/quiet (adult-only; the text gate is the real lock). */
 .reset-stars {

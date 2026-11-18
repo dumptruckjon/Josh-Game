@@ -250,6 +250,19 @@
     btn.textContent = "⚙️ Grown-ups";
     home.appendChild(btn);
 
+    // 📊 Read-only, so no gate: it changes nothing. Quiet like the reset, so a
+    // preschooler passes it by; a tap he does make just shows a page of
+    // numbers with a 🏠 home.
+    const prog = document.createElement("button");
+    prog.id = "progress-btn";
+    prog.className = "reset-stars";
+    prog.type = "button";
+    prog.dataset.adult = "1";
+    prog.setAttribute("aria-label", "Grown-ups: how Josh is doing");
+    prog.textContent = "📊 Progress";
+    prog.addEventListener("click", () => { location.hash = "#progress"; });
+    home.insertBefore(prog, btn);
+
     gateEl(); // built now, so the page is the same at load as it always was
     btn.addEventListener("click", () => askGate({
       label: "Reset stars",
@@ -409,6 +422,7 @@
     // invisible josh-won flags into something Josh can flip through.
     buildStickerBook(screens, games);
     buildToday(screens, games, byCat);
+    buildProgress(screens, games, allGames);
 
     // Live-badge a game the moment it's first beaten, and fill its sticker slot.
     window.addEventListener("josh-won", (e) => {
@@ -524,6 +538,152 @@
         try { if (window.JoshEffects && window.JoshEffects.confetti) window.JoshEffects.confetti(); } catch (e) { /* ignore */ }
         try { if (window.JoshAudio && window.JoshAudio.say) window.JoshAudio.say("You did all three today!"); } catch (e) { /* ignore */ }
       }
+    };
+  }
+
+  // ---- 📊 Grown-ups: how is he getting on? ----
+  // ONE read-only page for the grown-up, reached from a quiet button beside
+  // the ⚙️ reset. It writes NOTHING and owns no storage: every number is read
+  // from the save that already owns it (JoshProgress for the ⭐, Word Cards'
+  // two still-learning piles and its stories, Gobble Hole's and Game Night's
+  // own saves), each through a coercion, because a hand-edited or half-written
+  // save must show a smaller number, never a broken page. Counts are derived —
+  // a total is the registry's or the world's own data, never a literal.
+  let paintProgress = () => {};
+  function progRead(key) {
+    try { return JSON.parse(localStorage.getItem(key) || "null"); } catch (e) { return null; }
+  }
+  function progStrings(key) {
+    const v = progRead(key);
+    return Array.isArray(v) ? v.filter((x, i) => typeof x === "string" && x && v.indexOf(x) === i) : [];
+  }
+  function progressData(games, allGames) {
+    const cats = CATEGORIES.map((c) => {
+      const mine = games.filter((g) => CATEGORY_OF[g.id] === c.id);
+      return { icon: c.icon, title: c.title, won: mine.filter((g) => wonAlready(g.id)).length, total: mine.length };
+    });
+    const hl = allGames.filter((g) => g.hl);
+    const out = {
+      josh: { won: games.filter((g) => wonAlready(g.id)).length, total: games.length, cats },
+      huali: { won: hl.filter((g) => wonAlready(g.id)).length, total: hl.length },
+      words: progStrings("wc-pile"),
+      chars: progStrings("wc-hzpile"),
+      stories: progStrings("wc-story-done").length,
+      gobble: null,
+      night: null,
+    };
+    try {
+      const HD = window.HoleData;
+      if (HD && HD.SCENES) {
+        const g = progRead("josh-gobble-v1");
+        const done = g && g.done && typeof g.done === "object" ? g.done : {};
+        out.gobble = { won: HD.SCENES.filter((sc) => done[sc.id] === true).length, total: HD.SCENES.length };
+      }
+    } catch (e) { /* the page still shows the rest */ }
+    try {
+      const BD = window.BoardData;
+      if (BD && BD.BOXES) {
+        const b = progRead("josh-board-v1");
+        const done = b && b.done && typeof b.done === "object" ? b.done : {};
+        let n = 0;
+        BD.BOXES.forEach((box) => { const k = done[box.id]; if (typeof k === "number" && isFinite(k) && k > 0) n += Math.floor(k); });
+        out.night = n;
+      }
+    } catch (e) { /* the page still shows the rest */ }
+    return out;
+  }
+  function buildProgress(screens, games, allGames) {
+    const screen = document.createElement("section");
+    screen.className = "screen progress";
+    screen.id = "screen-progress";
+    screen.hidden = true;
+    const bar = document.createElement("div");
+    bar.className = "game__bar";
+    const back = document.createElement("button");
+    back.className = "btn-round game__home";
+    back.type = "button";
+    back.setAttribute("aria-label", "Home");
+    back.textContent = "🏠";
+    back.addEventListener("click", () => { location.hash = "#home"; });
+    const title = document.createElement("h2");
+    title.className = "game__title";
+    title.textContent = "📊 How Josh is doing";
+    bar.append(back, title, document.createElement("span"));
+    const body = document.createElement("div");
+    body.className = "progress__body";
+    screen.append(bar, body);
+    screens.appendChild(screen);
+
+    function card(heading) {
+      const c = document.createElement("section");
+      c.className = "progress__card";
+      const h = document.createElement("h3");
+      h.className = "progress__h";
+      h.textContent = heading;
+      c.appendChild(h);
+      body.appendChild(c);
+      return c;
+    }
+    function line(parent, text, cls) {
+      const p = document.createElement("p");
+      p.className = "progress__line" + (cls ? " " + cls : "");
+      p.textContent = text;
+      parent.appendChild(p);
+      return p;
+    }
+    function bar2(parent, label, n, total) {
+      const row = document.createElement("div");
+      row.className = "progress__row";
+      const l = document.createElement("span");
+      l.className = "progress__label";
+      l.textContent = label;
+      const track = document.createElement("span");
+      track.className = "progress__track";
+      track.setAttribute("aria-hidden", "true");
+      const fill = document.createElement("span");
+      fill.className = "progress__fill";
+      fill.style.width = (total ? Math.round((n / total) * 100) : 0) + "%";
+      track.appendChild(fill);
+      const v = document.createElement("span");
+      v.className = "progress__num";
+      v.textContent = n + " / " + total;
+      row.append(l, track, v);
+      parent.appendChild(row);
+    }
+    function chips(parent, list, lang) {
+      const wrap = document.createElement("div");
+      wrap.className = "progress__chips";
+      list.forEach((w) => {
+        const c = document.createElement("span");
+        c.className = "progress__chip";
+        if (lang) c.lang = lang;
+        c.textContent = w;
+        wrap.appendChild(c);
+      });
+      parent.appendChild(wrap);
+    }
+
+    paintProgress = () => {
+      const d = progressData(games, allGames);
+      body.textContent = "";
+      const g = card("⭐ Josh's games");
+      line(g, d.josh.won + " of " + d.josh.total + " games won", "progress__big");
+      d.josh.cats.forEach((c) => bar2(g, c.icon + " " + c.title, c.won, c.total));
+
+      const w = card("🃏 Word Cards");
+      line(w, d.words.length ? "Still learning (missed in 👂 Hear it, find it):" :
+        "No English words on the still-learning pile.");
+      if (d.words.length) chips(w, d.words);
+      line(w, d.chars.length ? "Chinese still learning (missed in 配对, or helped in 写字):" :
+        "No Chinese characters on the still-learning pile.");
+      if (d.chars.length) chips(w, d.chars, "zh-CN");
+      line(w, "📚 Stories read to The End: " + d.stories);
+
+      const o = card("🌍 The other worlds");
+      if (d.gobble) bar2(o, "🕳️ Gobble Hole places", d.gobble.won, d.gobble.total);
+      if (d.night !== null) line(o, "🎲 Game Night: " + d.night + (d.night === 1 ? " game" : " games") + " finished");
+      bar2(o, "👵🏻 华丽's games", d.huali.won, d.huali.total);
+      screen.dataset.won = String(d.josh.won);
     };
   }
 
@@ -683,6 +843,17 @@
         ts.hidden = false;
         document.body.classList.remove("in-game");
         paintToday();
+        window.scrollTo(0, 0);
+        return;
+      }
+    }
+    // 📊 the grown-ups' progress page re-reads every save on show.
+    if (id === "progress") {
+      const ps = document.getElementById("screen-progress");
+      if (ps) {
+        ps.hidden = false;
+        document.body.classList.remove("in-game");
+        paintProgress();
         window.scrollTo(0, 0);
         return;
       }

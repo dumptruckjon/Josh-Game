@@ -3456,6 +3456,10 @@ test("CONTRAST: every ACTIVE text run in Josh's and 华丽's worlds clears AA", 
     await look("#home", "#screen-home", "josh home");
     await look("", "#screen-start", "front door");
     await look("#stickers", "#screen-stickers", "sticker book");
+    // 📊 the grown-ups' page, with both still-learning piles holding something,
+    // so its word and character chips are on screen to be scored
+    await pg.evaluate(() => { localStorage.setItem("wc-pile", JSON.stringify(["cat", "ship"])); localStorage.setItem("wc-hzpile", JSON.stringify(["大"])); });
+    await look("#progress", "#screen-progress", "progress");
     await look("#hl-home", "#screen-hl-home", "hl home");
     await look("#hl-stickers", "#screen-hl-stickers", "hl book");
     await look("#hole-home", "#screen-hole-home", "gobble home");   // 🕳️ the fourth world's picker
@@ -7195,6 +7199,88 @@ test("Word Cards 🔁 还要练: a character missed in 配对 or written FOR him
     await pg.evaluate(() => localStorage.setItem("wc-hzpile", "[\"not-a-character\"]"));
     await pg.reload({ waitUntil: "load" });
     assert.equal((await st()).shown, false, "an entry that is not one of the 120 must not count");
+    assert.deepEqual(errs, [], "no uncaught page errors");
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("📊 Grown-ups: the progress page reads every world's own save, writes nothing, and survives junk", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  const read = () => pg.evaluate(() => {
+    const sc = document.getElementById("screen-progress");
+    return {
+      text: sc.innerText,
+      rows: [...sc.querySelectorAll(".progress__row")].map((r) => [r.querySelector(".progress__label").textContent, r.querySelector(".progress__num").textContent]),
+      chips: [...sc.querySelectorAll(".progress__chip")].map((c) => [c.textContent, c.lang || ""]),
+    };
+  });
+  const dump = () => pg.evaluate(() => { const o = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); o[k] = localStorage.getItem(k); } return o; });
+  try {
+    await pg.goto(baseURL + "#home", { waitUntil: "load" });
+    // What the registry and each world's own data say the totals are.
+    const want = await pg.evaluate(() => {
+      const games = window.JoshGames.filter((g) => !g.hl);
+      return { josh: games.length, hl: window.JoshGames.length - games.length, scenes: window.HoleData.SCENES.length,
+        first: games[0].id, second: games[1].id, scene: window.HoleData.SCENES[0].id, box: window.BoardData.BOXES[0].id };
+    });
+    await pg.evaluate((w) => {
+      localStorage.clear();
+      localStorage.setItem("josh-won-" + w.first, "1");
+      localStorage.setItem("josh-won-" + w.second, "1");
+      localStorage.setItem("wc-pile", JSON.stringify(["cat", "ship", 7, "cat"]));
+      localStorage.setItem("wc-hzpile", JSON.stringify(["大"]));
+      localStorage.setItem("wc-story-done", JSON.stringify(["fish", "hat", "fish"]));
+      localStorage.setItem("josh-gobble-v1", JSON.stringify({ v: 1, done: { [w.scene]: true, "not-a-place": true } }));
+      localStorage.setItem("josh-board-v1", JSON.stringify({ v: 1, done: { [w.box]: 3, "not-a-box": 9 } }));
+    }, want);
+    await pg.reload({ waitUntil: "load" });
+    await pg.waitForSelector("#screen-home:not([hidden])");
+    const before = await dump();
+    const btn = pg.locator("#progress-btn");
+    assert.equal(await btn.getAttribute("data-adult"), "1", "a grown-ups control, quiet and exempt from the kid tap audit");
+    await btn.click();
+    await pg.waitForSelector("#screen-progress:not([hidden])");
+    const r = await read();
+
+    // The total reads the registry. Today that IS 200, so a hard-coded 200
+    // passes this clause too (measured) — the per-category sum below is what
+    // ties every row to the registry, and a 201st game moves both.
+    assert.ok(r.text.includes("2 of " + want.josh + " games won"), "the total must be the registry's own count — saw: " + r.text.slice(0, 200));
+    const catSum = r.rows.slice(0, -2).reduce((n, [, v]) => n + Number(v.split(" / ")[1]), 0);
+    assert.equal(catSum, want.josh, "the category rows must add up to every game he has");
+    assert.equal(r.rows.slice(0, -2).reduce((n, [, v]) => n + Number(v.split(" / ")[0]), 0), 2, "the category rows must add up to his two wins");
+    assert.deepEqual(r.chips, [["cat", ""], ["ship", ""], ["大", "zh-CN"]], "the piles must be shown once each, junk dropped, Chinese marked as Chinese");
+    assert.ok(r.text.includes("Stories read to The End: 2"), "a story finished twice is one story");
+    const gob = r.rows.find(([l]) => l.includes("Gobble"));
+    assert.deepEqual(gob && gob[1], "1 / " + want.scenes, "only a real place counts, out of every place there is");
+    assert.ok(r.text.includes("Game Night: 3 games finished"), "only a real box's games count");
+    const hl = r.rows.find(([l]) => l.includes("华丽"));
+    assert.deepEqual(hl && hl[1], "0 / " + want.hl, "her games are counted out of her own total");
+    assert.deepEqual(await dump(), before, "the page must write nothing");
+
+    // Junk in every save shows smaller numbers, never a broken page.
+    await pg.evaluate(() => {
+      localStorage.setItem("wc-pile", "{not json");
+      localStorage.setItem("wc-hzpile", JSON.stringify({ a: 1 }));
+      localStorage.setItem("wc-story-done", "7");
+      localStorage.setItem("josh-gobble-v1", "null");
+      localStorage.setItem("josh-board-v1", JSON.stringify({ done: { moon: "lots" } }));
+    });
+    await pg.evaluate(() => { location.hash = "#home"; });
+    await pg.waitForSelector("#screen-home:not([hidden])");
+    await pg.evaluate(() => { location.hash = "#progress"; });
+    await pg.waitForSelector("#screen-progress:not([hidden])");
+    const j = await read();
+    assert.deepEqual(j.chips, [], "a broken pile shows as empty");
+    assert.ok(j.text.includes("No English words") && j.text.includes("No Chinese characters"), "an empty pile says so");
+    assert.ok(j.text.includes("Stories read to The End: 0") && j.text.includes("Game Night: 0 games finished"), "junk counts as nothing");
+    // Its 🏠 goes home.
+    await pg.click("#screen-progress .game__home");
+    await pg.waitForSelector("#screen-home:not([hidden])");
     assert.deepEqual(errs, [], "no uncaught page errors");
   } finally {
     await ctx.close();
