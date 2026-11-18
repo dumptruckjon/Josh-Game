@@ -6882,3 +6882,148 @@ test("private mode: the app boots and plays with storage BLOCKED", async () => {
     }
   }
 });
+
+test("Word Cards 📚 Stories: a shelf of books he READS — a word says itself, 🗣️ reads along word by word, The End earns a ⭐", async () => {
+  // Every claim is about what he experiences: nothing is read TO him until he
+  // asks (he reads first), a tapped word is that word, the read-along lights
+  // each word as it is said and in order, leaving stops it, and a finished
+  // book is remembered on the shelf.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  // A read-only accessor, so defineProperty — and the stub verifies itself.
+  const stub = () => pg.evaluate(() => {
+    window.__said = [];
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true,
+      value: { __stub: true, cancel() {}, getVoices() { return []; }, speak(u) { window.__said.push(u.text); } },
+    });
+    return !!window.speechSynthesis.__stub;
+  });
+  const st = () => pg.evaluate(() => ({
+    said: window.__said.slice(),
+    shelf: !document.getElementById("shelf").classList.contains("hidden"),
+    story: !document.getElementById("story").classList.contains("hidden"),
+    menu: !document.getElementById("menu").classList.contains("hidden"),
+    words: [...document.querySelectorAll("#swords .sw")].map((b) => b.textContent),
+    lit: [...document.querySelectorAll("#swords .sw")].findIndex((b) => b.classList.contains("now")),
+    count: document.getElementById("scount").textContent,
+    prev: document.getElementById("sprev").getAttribute("aria-disabled"),
+    next: document.getElementById("snext").getAttribute("aria-label"),
+    pic: document.getElementById("spic").textContent,
+    sound: document.getElementById("ssound").getAttribute("aria-pressed"),
+    done: (() => { try { return JSON.parse(localStorage.getItem("wc-story-done") || "[]"); } catch (e) { return null; } })(),
+  }));
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload({ waitUntil: "load" });
+    assert.ok(await stub(), "fixture: the speech stub never installed, so nothing below measures anything");
+    const books = await pg.evaluate(() => STORIES.map((b) => ({ id: b.id, title: b.title, pages: b.pages.map((p) => p[1]) })));
+    assert.equal(await pg.textContent("#storyBtn small"), books.length + " books", "the menu's count must be the books there are");
+
+    // 0. THE SHELF: one big button per book, ≥75px, each named by its title.
+    await pg.click("#storyBtn");
+    let s = await st();
+    assert.ok(s.shelf && !s.menu, "📚 must open the shelf");
+    const shelf = await pg.evaluate(() => [...document.querySelectorAll("#books .book")].map((b) => {
+      const r = b.getBoundingClientRect();
+      return { id: b.dataset.book, w: r.width, h: r.height, label: b.getAttribute("aria-label"), star: !!b.querySelector(".done") };
+    }));
+    assert.deepEqual(shelf.map((b) => b.id), books.map((b) => b.id), "the shelf must hold every book, in order");
+    for (const b of shelf) {
+      assert.ok(b.w >= 75 && b.h >= 75, `${b.id}: a book is ${b.w}x${b.h}, under the 75px floor`);
+      assert.equal(b.label, books.find((x) => x.id === b.id).title, `${b.id}: a book is named by its title`);
+      assert.equal(b.star, false, `${b.id}: a fresh shelf has no ⭐`);
+    }
+
+    // 1. OPENING A BOOK READS NOTHING: he reads first. Page 1, ◀ has nowhere to go.
+    const pup = books.find((b) => b.id === "pup");
+    await pg.click('#books [data-book="pup"]');
+    s = await st();
+    assert.ok(s.story && !s.shelf, "a book must open the reader");
+    assert.equal(s.count, `1 / ${pup.pages.length}`);
+    assert.deepEqual(s.words, pup.pages[0].split(/\s+/), "every word of the page must be its own button, in order");
+    assert.deepEqual(s.said, [], "opening a book must not read it to him");
+    assert.equal(s.sound, "false", "fixture: sound starts off");
+    assert.equal(s.prev, "true", "◀ on the first page has nowhere to go");
+    await pg.evaluate(() => document.getElementById("sprev").click());
+    assert.equal((await st()).count, `1 / ${pup.pages.length}`, "◀ on the first page must not move");
+
+    // 2. A TAPPED WORD SAYS ITSELF — without its full stop — and is lit.
+    const last = s.words.length - 1;
+    await pg.evaluate((k) => document.querySelectorAll("#swords .sw")[k].click(), last);
+    s = await st();
+    assert.deepEqual(s.said, [s.words[last].replace(/[^A-Za-z']/g, "")], `a tapped word must say exactly that word (said ${JSON.stringify(s.said)})`);
+    assert.equal(s.lit, last, "the tapped word must be lit");
+    assert.equal(s.sound, "true", "tapping a word is asking to hear it, so sound turns on");
+
+    // 3. 🗣️ READS ALONG: each word lit as it is said, in order, then none.
+    await pg.evaluate(() => {
+      window.__said.length = 0;
+      window.__lit = [];
+      const host = document.getElementById("swords");
+      new MutationObserver(() => {
+        const k = [...host.children].findIndex((b) => b.classList.contains("now"));
+        if (window.__lit[window.__lit.length - 1] !== k) window.__lit.push(k);
+      }).observe(host, { attributes: true, subtree: true, attributeFilter: ["class"] });
+      document.getElementById("sread").click();
+    });
+    await pg.waitForFunction((n) => window.__said.length >= n && !document.querySelector("#swords .now"), s.words.length, { timeout: 15000 });
+    const along = await pg.evaluate(() => ({ said: window.__said.slice(), lit: window.__lit.slice() }));
+    assert.deepEqual(along.said, s.words.map((w) => w.replace(/[^A-Za-z']/g, "")), "the read-along must say every word, in order, once");
+    // The tapped word was still lit when 🗣️ began, so the trail may open on -1 (its clear).
+    const trail = along.lit.filter((k, n) => !(n === 0 && k === -1));
+    assert.deepEqual(trail, [...s.words.keys(), -1], `each word must be lit in turn, then none (lit ${JSON.stringify(along.lit)})`);
+
+    // 4. TURNING THE PAGE MID-READ STOPS IT: nothing more is said or lit.
+    await pg.evaluate(() => { window.__said.length = 0; document.getElementById("sread").click(); document.getElementById("snext").click(); });
+    const heard = (await st()).said.length;
+    await pg.waitForTimeout(1800);
+    s = await st();
+    assert.equal(s.said.length, heard, `a page turn must stop the read-along (said ${JSON.stringify(s.said)})`);
+    assert.equal(s.lit, -1, "a new page starts with no word lit");
+    assert.equal(s.count, `2 / ${pup.pages.length}`);
+    assert.equal(s.prev, "false", "◀ works from page 2");
+
+    // 5. THE END: one past the last page, 🎉, the book is remembered, ▶ is 📚.
+    for (let k = 2; k < pup.pages.length; k += 1) await pg.evaluate(() => document.getElementById("snext").click());
+    s = await st();
+    assert.equal(s.next, "Next page", "fixture: still on the last page");
+    await pg.evaluate(() => document.getElementById("snext").click());
+    s = await st();
+    assert.deepEqual(s.words, ["The", "End!"], "after the last page comes The End");
+    assert.equal(s.pic, "🎉");
+    assert.equal(s.next, "Back to the bookshelf", "on The End, ▶ takes him back to the shelf");
+    assert.deepEqual(s.done, ["pup"], "finishing a book must remember it");
+    await pg.evaluate(() => document.getElementById("snext").click());
+    s = await st();
+    assert.ok(s.shelf && !s.story, "▶ on The End must go to the shelf");
+    const star = await pg.evaluate(() => [...document.querySelectorAll("#books .book")].filter((b) => b.querySelector(".done")).map((b) => [b.dataset.book, b.getAttribute("aria-label")]));
+    assert.deepEqual(star, [["pup", pup.title + ", read"]], "only the finished book wears a ⭐, and says so");
+
+    // 6. LEAVING MID-READ is silent, and the ⭐ survives a reload.
+    // With sound ON as well: a book that read itself aloud on opening would
+    // pass step 1 on a muted page and still read to him here.
+    await pg.evaluate(() => { window.__said.length = 0; });
+    await pg.click('#books [data-book="fox"]');
+    s = await st();
+    assert.equal(s.sound, "true", "fixture: sound is on for this open");
+    assert.deepEqual(s.said, [], `opening a book with sound on must still not read it to him (said ${JSON.stringify(s.said)})`);
+    await pg.evaluate(() => { window.__said.length = 0; document.getElementById("sread").click(); document.getElementById("sback").click(); });
+    const left = (await st()).said.length;
+    await pg.waitForTimeout(1800);
+    s = await st();
+    assert.equal(s.said.length, left, "leaving the book must stop the read-along");
+    assert.ok(s.shelf, "‹ in a book goes back to the shelf");
+    await pg.click("#shback");
+    assert.ok((await st()).menu, "‹ on the shelf goes back to the menu");
+    await pg.reload({ waitUntil: "load" });
+    await pg.click("#storyBtn");
+    assert.equal(await pg.locator('#books [data-book="pup"] .done').count(), 1, "the ⭐ must survive a reload");
+    assert.deepEqual(errs, [], "no uncaught page errors");
+  } finally {
+    await ctx.close();
+  }
+});

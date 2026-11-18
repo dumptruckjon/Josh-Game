@@ -399,6 +399,47 @@
   /* Grid gap, never flex, for the reason the matching board gives. */
   .hchoices{display:grid;grid-template-columns:minmax(0,100%);grid-auto-rows:minmax(76px,auto);gap:16px;}
   .hword{font-size:clamp(1.9rem,9vmin,3.6rem);font-weight:800;line-height:1;white-space:nowrap;}
+  /* ---------- 📚 Stories ----------
+     A bar with two controls takes two tracks: the three-track bar would leave an
+     empty third column and a stray 16px gap beside the sound toggle. */
+  .bar.two{grid-template-columns:minmax(0,1fr) auto;}
+  #shelf{grid-auto-rows:min-content;align-content:start;overflow-y:auto;overscroll-behavior:contain;}
+  .book{min-height:120px;}
+  .book .ic{font-size:40px;}
+  /* A finished book wears a star in its corner. The star is aria-hidden; the
+     button's own label says "read". */
+  .book{position:relative;}
+  .book .done{position:absolute;top:10px;right:12px;font-size:22px;line-height:1;}
+  /* The reader: bar, meter, the picture, the words, and ◀ 🗣️ ▶. The picture
+     is the one row that can give, so it is the 1fr; it is sized from its REAL
+     box by sFit(), for the reason the listening tile's picture is. */
+  #story{grid-template-rows:auto auto minmax(0,1fr) auto auto;}
+  .sstage{min-height:0;border-radius:34px;background:var(--card);display:grid;place-items:center;
+          overflow:hidden;box-shadow:0 12px 0 rgba(0,0,0,.22);}
+  .spic{font-size:96px;line-height:1;}
+  /* Each word is its own tap target, at the 76px floor, 16px apart. The words
+     wrap, so the spacing is CHILD MARGINS: flex gap is dropped on Josh's iOS
+     14.2 iPad, and a wrapping row of tiles is exactly where that bites. The
+     negative margins on the row give the margins back at its edges. */
+  .swords{display:flex;flex-wrap:wrap;justify-content:center;margin:0 -8px -16px;}
+  .sw{min-width:76px;min-height:76px;margin:0 8px 16px;padding:0 12px;border:0;border-radius:20px;
+      background:#fff;color:var(--ink);font-family:inherit;font-size:clamp(1.6rem,8vmin,2.6rem);
+      font-weight:800;line-height:1;cursor:pointer;box-shadow:0 6px 0 rgba(0,0,0,.22);}
+  .sw:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,.22);}
+  .sw:focus-visible{outline:4px solid #fff;outline-offset:3px;}
+  /* The word being said is LIT: the card's colour and a white ring, full ink.
+     A ring, never a scale — a scale on a gapped row eats the gap. */
+  .sw.now{background:var(--card);box-shadow:0 0 0 5px #fff,0 6px 0 rgba(0,0,0,.22);}
+  .snav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:84px;gap:16px;}
+  .sgo,.sread{border:0;border-radius:26px;background:#fff;color:var(--ink);font-family:inherit;
+              font-size:34px;line-height:1;cursor:pointer;box-shadow:0 8px 0 rgba(0,0,0,.22);}
+  .sread{background:var(--card);}
+  .sread .wear{font-size:38px;}
+  .sgo:active,.sread:active{transform:translateY(4px);box-shadow:0 4px 0 rgba(0,0,0,.22);}
+  .sgo:focus-visible,.sread:focus-visible{outline:4px solid #fff;outline-offset:3px;}
+  /* ◀ on the first page has nowhere to go. It keeps its box, so nothing moves,
+     and says so: an inactive control is dimmed, which WCAG 1.4.3 exempts. */
+  .sgo[aria-disabled="true"]{opacity:.35;cursor:default;}
   /* ---------- 新字: meet a new character ----------
      One stage and one row. The stage is ONE big tap zone that says it again;
      the row is either ▶ or the three tiles of a question — the matching
@@ -506,6 +547,10 @@
     #learn{display:grid;padding-top:calc(env(safe-area-inset-top, 0px) + 10px);gap:16px;
            grid-template-rows:auto minmax(0,1fr) auto;}
     #learn .meter{display:none;}
+    /* The reader yields the same chrome: the meter goes, the picture shrinks,
+       and the words and ◀ 🗣️ ▶ keep their full size. */
+    #story{grid-template-rows:auto minmax(0,1fr) auto auto;}
+    #story .meter{display:none;}
   }
   /* The grown-up's line is the one thing on the lesson stage he does not need —
      the voice says the story in Chinese and the stage's own label carries the
@@ -639,6 +684,36 @@
   </div>
 </div>
 
+<!-- 📚 Stories: a shelf of little books, then a book. Every word on a page is
+     its own button: tap one to hear it, or 🗣️ to have the page read with each
+     word lit up as it is said. Nothing is read automatically — he reads first,
+     then checks, which is the whole point of a reader. -->
+<div class="wrap hidden" id="shelf">
+  <div class="bar two">
+    <button class="back" id="shback" aria-label="Back to all the decks">&lsaquo;&nbsp; Stories</button>
+    <button class="icon snd" id="shsound" aria-pressed="false" aria-label="Read the words out loud">&#128263;</button>
+  </div>
+  <div class="grid books" id="books"></div>
+</div>
+
+<div class="wrap hidden" id="story">
+  <div class="bar two">
+    <button class="back" id="sback" aria-label="Back to the bookshelf">&lsaquo;&nbsp; Stories</button>
+    <button class="icon snd" id="ssound" aria-pressed="false" aria-label="Read the words out loud">&#128263;</button>
+  </div>
+  <div class="meter">
+    <div class="track"><div class="fill" id="sfill"></div></div>
+    <span class="count" id="scount"></span>
+  </div>
+  <div class="sstage" id="sstage" aria-hidden="true"><span class="spic" id="spic"></span></div>
+  <div class="swords" id="swords"></div>
+  <div class="snav">
+    <button class="sgo" id="sprev" type="button" aria-label="Page back">&lsaquo;</button>
+    <button class="sread" id="sread" type="button" aria-label="Read this page to me"><span class="wear" aria-hidden="true">&#128483;&#65039;</span></button>
+    <button class="sgo" id="snext" type="button" aria-label="Next page">&rsaquo;</button>
+  </div>
+</div>
+
 <div class="wrap" id="menu">
   <div class="mhead">
     <a class="home" href="./#home" aria-label="Back to Josh's Games">&#127968;</a>
@@ -655,6 +730,8 @@
        The ear is aria-hidden so the button is NAMED by its words; its count is
        written by the script, like every other count on this page. -->
   <button class="mode" id="hearBtn"><span><b aria-hidden="true">&#128066;</b> Hear&nbsp;it, find&nbsp;it</span> <small></small></button>
+  <!-- A book is read, not drilled, so it opens its own screen like 👂. -->
+  <button class="mode" id="storyBtn"><span><b aria-hidden="true">&#128218;</b> Stories</span> <small></small></button>
   <!-- One button, not a grid: a single chip in a two-column grid orphans its
        row, which is the same even-fill reasoning the fort's contents row is
        held to. The count is written by the script, like every other count on
@@ -2459,6 +2536,196 @@ $("hearBtn").addEventListener("click", () => {
   hSpeak();
 });
 
+/* ---------- 📚 Stories: the books ----------
+   Eight little books he can READ, not just hear. Every word is either one he
+   can sound out — a short vowel between consonants he knows, with the blends,
+   doubles and letter teams the Sound Teams deck teaches — or one of the sight
+   words in the Sight Words deck. A test holds every word to that, so a story
+   cannot slip in a word he has no way to read. "Josh" is the one name.
+   A page's picture illustrates its sentence; it is not a card, so two pages
+   may share one. Six words at most a page: at 320px that is two rows of word
+   buttons, and a third row would squeeze the picture to nothing. */
+const STORIES = [
+  { id: "bus", cover: "🚌", title: "The Big Bus", pages: [
+    ["🚌", "Dad has a big bus."],
+    ["🐶", "The dog got on the bus."],
+    ["🐱", "A cat got on. Yes!"],
+    ["🐔", "A hen got on. Yes!"],
+    ["🎉", "The bus can go!"]] },
+  { id: "pup", cover: "🐕", title: "Josh and the Pup", pages: [
+    ["🐕", "Josh has a pup."],
+    ["🛁", "The pup is wet."],
+    ["☀️", "The pup sat in the sun."],
+    ["😴", "Josh and the pup nap."]] },
+  { id: "fox", cover: "🦊", title: "The Red Fox", pages: [
+    ["🦊", "The fox ran up a hill."],
+    ["🥚", "The fox had an egg."],
+    ["🐔", "The hen is mad!"],
+    ["💨", "Run, fox, run!"]] },
+  { id: "bug", cover: "🦗", title: "Bug in a Mug", pages: [
+    ["☕", "A bug is in a mug."],
+    ["🦗", "The bug can hop."],
+    ["🐸", "A frog sat on a log."],
+    ["🤝", "Frog and bug are pals."]] },
+  { id: "hat", cover: "🎩", title: "The Hat", pages: [
+    ["🎩", "Mom has a big hat."],
+    ["💨", "Puff! The hat is off!"],
+    ["📦", "It sat on a box."],
+    ["😄", "Dad got it. Mom is glad!"]] },
+  { id: "pig", cover: "🐷", title: "Pig in the Mud", pages: [
+    ["🐷", "A pig dug in the mud."],
+    ["🤭", "The pig is a mess!"],
+    ["🛁", "The pig sat in a tub."],
+    ["😆", "Back to the mud!"]] },
+  { id: "jet", cover: "✈️", title: "Go, Jet, Go!", pages: [
+    ["✈️", "A jet is on the pad."],
+    ["⬆️", "It can zip up, up, up!"],
+    ["🌫️", "The jet is in the fog."],
+    ["🛬", "The jet can land."]] },
+  { id: "hens", cover: "🐔", title: "Ten Hens", pages: [
+    ["🐔", "Ten hens sit in a pen."],
+    ["🥚", "Ten hens sit on ten eggs."],
+    ["🐣", "Tap, tap, tap! Pop!"],
+    ["🐤", "Ten chicks! Lots of fun!"]] },
+];
+/* The words of a line, as the buttons show them (punctuation stays on its
+   word) and as they are SAID (without it). One owner, so the button and the
+   voice can never disagree about where a word ends. */
+function storyWords(line){ return line.split(/\s+/).filter(Boolean); }
+function storySay(word){ return word.replace(/[^A-Za-z']/g, ""); }
+/* How long the read-along rests on a word: longer where a reader would pause. */
+function storyBeat(word){ return 760 + (/[.!?]$/.test(word) ? 520 : /,$/.test(word) ? 260 : 0); }
+
+/* ---------- 📚 Stories: the screens ---------- */
+const shelfEl = $("shelf"), storyEl = $("story"), booksEl = $("books"), swordsEl = $("swords"),
+      spicEl = $("spic"), sstage = $("sstage"), sprev = $("sprev"), snext = $("snext");
+let sBook = null, sPage = 0, sTimer = 0, sLit = -1;
+function sDone(){
+  try { const v = JSON.parse(localStorage.getItem("wc-story-done") || "[]"); return Array.isArray(v) ? v : []; }
+  catch (e) { return []; }
+}
+function sMarkDone(id){
+  const d = sDone();
+  if (d.indexOf(id) < 0){ d.push(id); try { localStorage.setItem("wc-story-done", JSON.stringify(d)); } catch (e) {} }
+}
+function sStop(){ clearTimeout(sTimer); sTimer = 0; sLight(-1); }
+function sLight(k){
+  sLit = k;
+  [...swordsEl.children].forEach((b, n) => b.classList.toggle("now", n === k));
+}
+function paintShelf(){
+  booksEl.textContent = "";
+  const done = sDone();
+  STORIES.forEach((b, n) => {
+    const el = document.createElement("button");
+    el.className = "chip book"; el.type = "button"; el.dataset.book = b.id;
+    el.style.background = COLORS[n % COLORS.length];
+    const read = done.indexOf(b.id) >= 0;
+    el.innerHTML = '<span class="ic" aria-hidden="true">' + b.cover + '</span><span class="nm"></span>' +
+      (read ? '<span class="done" aria-hidden="true">⭐</span>' : '');
+    el.querySelector(".nm").textContent = b.title;
+    el.setAttribute("aria-label", b.title + (read ? ", read" : ""));
+    booksEl.appendChild(el);
+  });
+}
+/* Page N of the book, or — one past the last page — The End. */
+function sRender(){
+  sStop();
+  const b = sBook, n = b.pages.length, end = sPage >= n;
+  const [pic, line] = end ? [b.cover, "The End!"] : b.pages[sPage];
+  document.documentElement.style.setProperty("--card", COLORS[STORIES.indexOf(b) % COLORS.length]);
+  spicEl.textContent = end ? "🎉" : pic;
+  swordsEl.textContent = "";
+  for (const w of storyWords(line)){
+    const el = document.createElement("button");
+    el.type = "button"; el.className = "sw"; el.textContent = w;
+    el.setAttribute("aria-label", storySay(w));
+    swordsEl.appendChild(el);
+  }
+  const shown = Math.min(sPage + 1, n);
+  $("scount").textContent = shown + " / " + n;
+  $("sfill").style.width = Math.round((shown / n) * 100) + "%";
+  sprev.setAttribute("aria-disabled", sPage === 0 ? "true" : "false");
+  snext.innerHTML = end ? "&#128218;" : "&rsaquo;";
+  snext.setAttribute("aria-label", end ? "Back to the bookshelf" : "Next page");
+  if (end){ sMarkDone(b.id); spicEl.classList.remove("pop"); void spicEl.offsetWidth; spicEl.classList.add("pop"); }
+  sFit();
+}
+/* The picture is sized from the stage's REAL box, which is whatever the screen
+   has left after the words — from about 60px on a 320x480 phone to most of an
+   iPad. */
+function sFit(){
+  if (storyEl.classList.contains("hidden")) return;
+  const box = Math.min(sstage.clientWidth, sstage.clientHeight) - 16;
+  if (box > 0) spicEl.style.fontSize = Math.round(Math.max(28, Math.min(box * 0.78, 300))) + "px";
+}
+/* Read the page to him: each word is lit and said in turn, at a reader's pace,
+   so he can follow it with his eyes. Word by word rather than one sentence,
+   because the point is to SEE which word is which sound. Asking for it turns
+   sound on (see unmute()); on a device with no voice it still lights each
+   word, which is still how a grown-up points along a line. */
+function sReadAlong(){
+  sStop();
+  const words = [...swordsEl.children];
+  let k = 0;
+  const step = () => {
+    sTimer = 0;
+    if (storyEl.classList.contains("hidden")) return;
+    if (k >= words.length){ sLight(-1); return; }
+    sLight(k);
+    speak(storySay(words[k].textContent));
+    const beat = storyBeat(words[k].textContent);
+    k += 1;
+    sTimer = setTimeout(step, beat);
+  };
+  step();
+}
+function sOpen(id){
+  sBook = STORIES.find((b) => b.id === id) || null;
+  if (!sBook) return;
+  sPage = 0;
+  shelfEl.classList.add("hidden");
+  storyEl.classList.remove("hidden");
+  sRender();
+}
+function sToShelf(){
+  sStop();
+  try { speechSynthesis.cancel(); } catch (e) {}
+  storyEl.classList.add("hidden");
+  paintShelf();
+  shelfEl.classList.remove("hidden");
+}
+booksEl.addEventListener("click", (ev) => {
+  const b = ev.target.closest(".book");
+  if (b) sOpen(b.dataset.book);
+});
+swordsEl.addEventListener("click", (ev) => {
+  const w = ev.target.closest(".sw");
+  if (!w) return;
+  sStop();
+  unmute();  // tapping a word IS asking to hear it
+  sLight([...swordsEl.children].indexOf(w));
+  speak(storySay(w.textContent));
+});
+$("sread").addEventListener("click", () => { unmute(); sReadAlong(); });
+sprev.addEventListener("click", () => { if (sPage > 0){ sPage -= 1; sRender(); } });
+snext.addEventListener("click", () => {
+  if (sPage >= sBook.pages.length){ sToShelf(); return; }
+  sPage += 1; sRender();
+});
+$("ssound").addEventListener("click", () => toggleSound(() => { if (sLit >= 0) speak(storySay(swordsEl.children[sLit].textContent)); }));
+$("shsound").addEventListener("click", () => toggleSound(() => {}));
+$("sback").addEventListener("click", sToShelf);
+$("shback").addEventListener("click", () => {
+  shelfEl.classList.add("hidden");
+  menu.classList.remove("hidden");
+});
+$("storyBtn").querySelector("small").textContent = STORIES.length + " books";
+$("storyBtn").addEventListener("click", () => {
+  paintShelf();
+  menu.classList.add("hidden");
+  shelfEl.classList.remove("hidden");
+});
 /* ---------- 新字: the screen ----------
    The rules — the lessons, what may share a board, what is said — live with the
    other derivations above and read no DOM, so a test can deal every board in
@@ -2798,7 +3065,7 @@ deckEl.addEventListener("touchend", e => {
   startX = null;
 }, {passive:true});
 
-window.addEventListener("resize", () => { if (deck.length) render(false); hFit(); lFit(); });
+window.addEventListener("resize", () => { if (deck.length) render(false); hFit(); lFit(); sFit(); });
 </script>
 </body>
 </html>

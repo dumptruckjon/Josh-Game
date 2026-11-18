@@ -5516,6 +5516,7 @@ test("Word Cards: no card wears another card's picture with the gender swapped",
     HOMOPHONES: "words that may not share a listening board (they sound the same)",
     XIN_ANCHORS: "the familiar characters a 新字 board deals its wrong answers from",
     XIN_INK: "the two colours a 新字 card paints its parts in",
+    STORIES: "read-along books: a page's picture illustrates its sentence, it is not an answer",
   };
   const declared = [...src.matchAll(/^\s*const ([A-Z][A-Z_0-9]*) = \[/gm)].map((m) => m[1]);
   assert.ok(declared.length >= 5, `only ${declared.length} arrays found — the scan failed open`);
@@ -7156,4 +7157,88 @@ test("guardrail: Game Night marks a lesson as learned through its ONE key — a 
   assert.deepEqual(literal, [], "a lesson marked by a literal key, not teachKey(game.board)");
   const keyed = (src.match(/save\.intro\[teachKey\(game\.board\)\]\s*=\s*true/g) || []).length;
   assert.ok(keyed >= 20, "every game marks its lesson through teachKey (saw " + keyed + ")");
+});
+
+/* ---------- 📚 Stories: every word is one he can READ ----------
+   The books are for a child who decodes short-vowel words and is learning the
+   letter teams (JOSH_PROFILE: CVC mastered, digraphs working). A reader that
+   slips in a word he has no way to read — "kite", "find", "was" — is a book he
+   has to be read TO, which is a different and lesser thing. So every word of
+   every title and page is held to a rule, and the rule is stated here as data
+   rather than trusted from the author's eye. */
+const STORY_ONSETS = ["b","c","d","f","g","h","j","k","l","m","n","p","r","s","t","v","w","y","z",
+  "bl","br","cl","cr","dr","fl","fr","gl","gr","pl","pr","sk","sl","sm","sn","sp","st","sw","tr","tw",
+  "ch","sh","th","wh"];
+const STORY_CODAS = ["b","d","f","g","k","l","m","n","p","s","t","x","z","ll","ss","ff","zz","gg",
+  "ck","sh","ch","th","ng","nk","nd","nt","mp","lt","ft","st","sk","sp","lp","lf","pt"];
+// Words the shape above admits that a child does NOT read with a short vowel
+// (find, cold, ball, push, was…). Conservative on purpose: "lost" is short and
+// is refused with "most", because a rule a story must pass may be too strict
+// but never too loose.
+const STORY_LONG = /(ind|ild|old|olt|ost|all|alk|alf)$/;
+const STORY_ODD = new Set(["full","pull","bull","put","push","bush","was","want","wash","what","son","ton","won","from","of"]);
+function storyDecodable(w) {
+  if (STORY_LONG.test(w) || STORY_ODD.has(w)) return false;
+  const m = /^([b-df-hj-np-tv-z]*)([aeiou])([b-df-hj-np-tv-z]*)$/.exec(w);
+  if (!m) return false;
+  const [, on, , co] = m;
+  if (on && !STORY_ONSETS.includes(on)) return false;
+  if (!co) return false;
+  return STORY_CODAS.includes(co) || (co.length > 1 && co.endsWith("s") && STORY_CODAS.includes(co.slice(0, -1)));
+}
+const wcStories = () => {
+  const src = read("wordcards.html");
+  const a = src.indexOf("const STORIES = ["), b = src.indexOf("function storyWords");
+  assert.ok(a > 0 && b > a, "fixture: STORIES must be found on the page");
+  return new Function(src.slice(a, b) + "; return STORIES;")();
+};
+
+test("Word Cards 📚 Stories: every word in every book is one he can sound out or a sight word he has", () => {
+  // The rule itself, against words whose answer is known — or the law below
+  // could pass by accepting everything.
+  for (const w of ["cat", "frog", "hill", "chicks", "back", "eggs", "land", "glad", "puff"])
+    assert.ok(storyDecodable(w), `the rule must accept "${w}"`);
+  for (const w of ["kite", "find", "cold", "ball", "push", "was", "rain", "hello", "the", "fly"])
+    assert.ok(!storyDecodable(w), `the rule must refuse "${w}"`);
+
+  const sight = new Set(wcWords().filter((c) => c[2] === "sight").map((c) => c[0].toLowerCase()));
+  assert.ok(sight.size >= 40, `fixture: only ${sight.size} sight words read`);
+  const books = wcStories();
+  assert.ok(books.length >= 8, `only ${books.length} books`);
+  const lines = [];
+  for (const b of books) { lines.push(b.title); for (const pg of b.pages) lines.push(pg[1]); }
+  lines.push("The End!");                       // the last page of every book
+  const bad = [];
+  let n = 0;
+  for (const line of lines) for (const raw of line.split(/\s+/)) {
+    const w = raw.replace(/[^A-Za-z']/g, "").toLowerCase();
+    if (!w) continue;
+    n += 1;
+    if (sight.has(w) || w === "josh" || storyDecodable(w)) continue;
+    bad.push(`"${w}" in "${line}"`);
+  }
+  assert.ok(n >= 150, `only ${n} words checked — the scan failed open`);
+  assert.deepEqual(bad, [], "a word he cannot sound out and has no sight card for");
+});
+
+test("Word Cards 📚 Stories: every book is whole, and every page fits two rows of word buttons", () => {
+  const books = wcStories();
+  const ids = books.map((b) => b.id), titles = books.map((b) => b.title);
+  assert.equal(new Set(ids).size, ids.length, "two books share an id (their ⭐ would be shared)");
+  assert.equal(new Set(titles).size, titles.length, "two books share a title");
+  for (const b of books) {
+    assert.ok(/\p{Extended_Pictographic}/u.test(b.cover), `${b.id}: a cover is a picture`);
+    assert.ok(b.pages.length >= 4, `${b.id}: a book is at least four pages`);
+    for (const [pic, line] of b.pages) {
+      assert.ok(/\p{Extended_Pictographic}/u.test(pic), `${b.id}: "${line}" has no picture`);
+      // Six words is two rows of buttons at 320px (the browser test measures
+      // it); a seventh can push a third row and squeeze the picture to nothing.
+      const words = line.split(/\s+/).length;
+      assert.ok(words <= 6, `${b.id}: "${line}" is ${words} words — six at most`);
+      // A sentence is a sentence: a capital to start, a stop to end.
+      assert.ok(/^[A-Z]/.test(line) && /[.!?]$/.test(line), `${b.id}: "${line}" must start with a capital and end with a stop`);
+    }
+  }
+  // The count on the menu button is COUNTED, like every count on this page.
+  assert.match(read("wordcards.html"), /STORIES\.length \+ " books"/, "the Stories count must be derived");
 });

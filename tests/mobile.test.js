@@ -2288,3 +2288,75 @@ test("🎲 Game Night: what a PAD shows stays inside its card, on every box (a s
   }
   await page.setViewportSize({ width: 390, height: 844 });
 });
+
+test("Word Cards 📚 Stories on the real engine: every page of every book fits a phone, nothing small, no word cut off", async () => {
+  // Every word on a page is its own tap target, so a page is a WRAPPING row of
+  // buttons — the 76px floor and the 16px spacing law bind on every pair, and
+  // the spacing is child margins (flex gap is dropped on Josh's iOS 14.2 iPad).
+  // A page that needed a third row would squeeze the picture to nothing or run
+  // past the fold, so EVERY page of every book is laid out and asked, not the
+  // first page a fresh open happens to show.
+  const SIZES = [[390, 844], [320, 480], [320, 568], [834, 1112]];
+  for (const [w, h] of SIZES) {
+    const ctx2 = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx2.newPage();
+    const errs = [];
+    p2.on("pageerror", (e) => errs.push(String(e)));
+    try {
+      await p2.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+      await p2.click("#storyBtn");
+      await p2.waitForSelector("#shelf:not(.hidden)");
+      const shelf = await p2.evaluate(() => [...document.querySelectorAll("#shelf button")].filter((b) => b.getClientRects().length)
+        .map((b) => { const q = b.getBoundingClientRect(); return { x: q.x, y: q.y, r: q.right, b: q.bottom, s: Math.min(q.width, q.height), k: b.id || b.dataset.book }; }));
+      assert.ok(shelf.length >= 10, `${w}x${h}: only ${shelf.length} shelf controls — the walk found the wrong screen`);
+      assert.deepEqual(shelf.filter((t) => t.s < MIN_TAP).map((t) => t.k), [], `${w}x${h}: shelf controls under ${MIN_TAP}px`);
+      const g0 = tightestGap(shelf);
+      assert.equal(g0.overlaps, 0, `${w}x${h}: shelf controls overlap`);
+      assert.ok(g0.worst >= MIN_GAP, `${w}x${h}: shelf controls ${g0.worst.toFixed(1)}px apart (${g0.who})`);
+
+      const pages = await p2.evaluate((MIN) => {
+        const out = [];
+        for (const b of STORIES) {
+          sOpen(b.id);
+          for (let p = 0; p <= b.pages.length; p += 1) {
+            sPage = p; sRender();
+            const ws = [...document.querySelectorAll("#swords .sw")];
+            const all = [...document.querySelectorAll("#story button")].filter((x) => x.getClientRects().length);
+            out.push({
+              at: b.id + "/" + p,
+              words: ws.length,
+              rows: new Set(ws.map((x) => Math.round(x.getBoundingClientRect().top))).size,
+              boxes: all.map((x) => { const q = x.getBoundingClientRect(); return { x: q.x, y: q.y, r: q.right, b: q.bottom, k: x.id || x.textContent }; }),
+              small: all.filter((x) => { const q = x.getBoundingClientRect(); return Math.min(q.width, q.height) < MIN; }).map((x) => x.id || x.textContent),
+              clipped: ws.filter((x) => x.scrollWidth > x.clientWidth + 1).map((x) => x.textContent),
+              pic: Math.round(document.getElementById("sstage").getBoundingClientRect().height),
+              bottom: Math.round(Math.max(...all.map((x) => x.getBoundingClientRect().bottom))),
+              scrollY: document.documentElement.scrollHeight - document.documentElement.clientHeight,
+              ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+              vh: innerHeight,
+            });
+          }
+          sToShelf();
+        }
+        return out;
+      }, MIN_TAP);
+      assert.ok(pages.length >= 40, `${w}x${h}: only ${pages.length} pages walked — the walk measured nothing`);
+      for (const p of pages) {
+        assert.ok(p.words >= 2, `${w}x${h} ${p.at}: no words drawn`);
+        assert.deepEqual(p.small, [], `${w}x${h} ${p.at}: controls under ${MIN_TAP}px`);
+        const g = tightestGap(p.boxes);
+        assert.equal(g.overlaps, 0, `${w}x${h} ${p.at}: controls overlap`);
+        assert.ok(g.worst >= MIN_GAP, `${w}x${h} ${p.at}: controls ${g.worst.toFixed(1)}px apart (${g.who})`);
+        assert.deepEqual(p.clipped, [], `${w}x${h} ${p.at}: a word does not fit its button`);
+        assert.ok(p.rows <= 2, `${w}x${h} ${p.at}: the words take ${p.rows} rows`);
+        assert.ok(p.ovf <= 0, `${w}x${h} ${p.at}: the page scrolls sideways by ${p.ovf}px`);
+        assert.ok(p.bottom <= p.vh && p.scrollY <= 0,
+          `${w}x${h} ${p.at}: the page runs past the fold (bottom ${p.bottom} of ${p.vh}, scroll ${p.scrollY})`);
+        assert.ok(p.pic >= 48, `${w}x${h} ${p.at}: the picture is squeezed to ${p.pic}px`);
+      }
+      assert.deepEqual(errs, [], `${w}x${h}: page errors`);
+    } finally {
+      await ctx2.close();
+    }
+  }
+});

@@ -89,7 +89,7 @@ Until the owner says otherwise:
   things that go together). F is done, and with it the whole programme; the
   role swap and iPad-only boards were considered and declined (PLAN_BOARD §18).
 - **Word Cards** (`wordcards.html`: the English deck, 中文, 写字, 配对,
-  👂 Hear it, find it and 新字) **and 🕳️ Gobble Hole** (the owner's pick of
+  👂 Hear it, find it, 新字 and 📚 Stories) **and 🕳️ Gobble Hole** (the owner's pick of
   2026-09-30: "a hole eating game like hole.io, Donut County or Hole em All",
   as a new button below the fort — PLAN_GOBBLE.md, `scripts/hole-*.js`).
   **Where Gobble stands (2026-11-18):** 66 places in six lands. 🏮 Lantern
@@ -10753,6 +10753,20 @@ bedtime, so it counts — and must itself be whole on the first screen. (4)
 of open boxes, so dropping the filter from `tonight()` stayed green; it asks
 `tonight(day)` itself now, over 28 days, and the mutation goes red.
 
+**📚 STORIES (2026-11): a reader that slips in a word he cannot read is a book
+read TO him, so decodability is a LAW, not the author's eye.** Every word of
+every title and page must pass a stated rule (an onset he knows, one short
+vowel, a coda he knows, an optional plural s; long-vowel shapes like -ind,
+-old, -all and odd words like was/push refused) or be a Sight Words card or
+"Josh". The rule is proven against known answers both ways first, or it could
+pass by accepting everything (that mutation is red). Drafting found two pages
+it caught: "back" and "chicks" needed the letter-team codas he is learning,
+and "The wind got the hat" was cut (wind reads two ways). **A "nothing is read
+to him on opening" clause passed its mutation** because sound starts off and a
+muted page says nothing anyway; it now opens a second book with sound on. The
+same shape as the CVC-vs-sound lesson: a clause tested only in the state where
+the defect is invisible proves nothing.
+
 ---
 
 ## Repository Structure
@@ -10857,6 +10871,14 @@ tooling.
 │                               #   meaning and its sentence in English (xinEnglish, derived from the
 │                               #   meaning the screen shows; a Chinese word inside it — "西瓜 means
 │                               #   watermelon" — is said in a Chinese voice, via speakParts).
+│                               #   Then 📚 Stories (2026-11) — eight little books he READS: every word of
+│                               #   every title and page is one he can sound out (a short vowel between
+│                               #   consonants he knows, with blends, doubles and letter teams) or one of
+│                               #   the Sight Words deck's words, held to that by a rule in site.test.js.
+│                               #   Each word is its own ≥76px button (tap one, hear it); 🗣️ reads the page
+│                               #   with each word lit as it is said; nothing is read on its own, because
+│                               #   he reads first. The End wears a ⭐ on the shelf. Six words a page at
+│                               #   most, so every page fits a phone (measured at four sizes).
 │                               #   Every count is counted,
 │                               #   and every control
 │                               #   SAYS what it is — the chips name their deck and its size, the card
