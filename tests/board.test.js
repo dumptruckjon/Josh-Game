@@ -3509,8 +3509,16 @@ test("🔼 a whole Higher or Lower against the computer: the card to beat shows 
   // a doubled tap is ONE guess, and its answer is SEEN
   const up = await page.evaluate(() => window.BoardLogic.hiloBest(window.__BOARD.state()));
   await page.locator('.bn-hilo__guess button.bn-hlg[data-up="' + (up ? 1 : 0) + '"]').dblclick();
-  await page.waitForFunction(() => { const a = document.querySelector(".bn-hilo__ans"); return a && a.textContent; }, null, { timeout: 5000 });
-  const s1 = await st(), d1 = await dom();
+  // Read the mark, the card and the engine in the SAME instant the mark
+  // appears: under the quick test pace the next turn can clear it between two
+  // separate reads (a 1-in-a-full-gate flake, `ans: ''`).
+  const snap = await (await page.waitForFunction(() => {
+    const a = document.querySelector(".bn-hilo__ans");
+    if (!a || !a.textContent) return null;
+    const S = window.__BOARD.state();
+    return { s1: { flips: S.flips, top: S.top }, d1: { ans: a.textContent, n: Number(document.querySelector(".bn-hilo__top .bn-hlc__n").textContent) } };
+  }, null, { timeout: 5000 })).jsonValue();
+  const { s1, d1 } = snap;
   assert.equal(s1.flips, 1, "one guess, one card turned");
   assert.equal(d1.n, s1.top, "the turned card is the next to beat");
   const right = up ? s1.top > s0.top : s1.top < s0.top;
