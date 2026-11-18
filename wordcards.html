@@ -2745,7 +2745,25 @@ function sRender(){
   snext.innerHTML = end ? "&#128218;" : "&rsaquo;";
   snext.setAttribute("aria-label", end ? "Back to the bookshelf" : "Next page");
   if (end){ sMarkDone(b.id); spicEl.classList.remove("pop"); void spicEl.offsetWidth; spicEl.classList.add("pop"); }
+  sFitWords();
   sFit();
+}
+/* Two rows of words at most, whatever the font. The CSS size fits every page
+   in this sandbox's font, and Josh's iPad (or CI's WebKit, with a wider font)
+   can draw the same words wider — "Dad got it. Mom is glad!" took a third row
+   there and squeezed the picture. So the page measures its own rows and steps
+   the words down until they fit, never below a size that still reads easily.
+   The buttons keep their 76px floor; only the letters get smaller. */
+function sFitWords(){
+  const ws = [...swordsEl.children];
+  ws.forEach((w) => { w.style.fontSize = ""; });
+  if (!ws.length || storyEl.classList.contains("hidden")) return;
+  const rows = () => new Set(ws.map((w) => w.offsetTop)).size;
+  let size = parseFloat(getComputedStyle(ws[0]).fontSize), guard = 0;
+  while (rows() > 2 && size > 18 && guard++ < 20){
+    size -= 2;
+    ws.forEach((w) => { w.style.fontSize = size + "px"; });
+  }
 }
 /* The picture is sized from the stage's REAL box, which is whatever the screen
    has left after the words — from about 60px on a 320x480 phone to most of an
@@ -3161,7 +3179,7 @@ deckEl.addEventListener("touchend", e => {
   startX = null;
 }, {passive:true});
 
-window.addEventListener("resize", () => { if (deck.length) render(false); hFit(); lFit(); sFit(); });
+window.addEventListener("resize", () => { if (deck.length) render(false); hFit(); lFit(); sFitWords(); sFit(); });
 </script>
 </body>
 </html>

@@ -10749,6 +10749,15 @@ bedtime, so it counts — and must itself be whole on the first screen. (4)
 of open boxes, so dropping the filter from `tonight()` stayed green; it asks
 `tonight(day)` itself now, over 28 days, and the mutation goes red.
 
+**📚 STORIES' FIRST CI RUN WENT RED ON A FONT, the "Chocolate" lesson a third
+time.** Every page fitted two rows of word buttons in this sandbox's font, and
+CI's real WebKit draws them in the wider DejaVu Sans, where "Dad got it. Mom is
+glad!" took a third row at 320x480. The fix is not shorter sentences but a page
+that measures its own rows (`sFitWords`) and steps the letters down, never below
+18px, with the buttons keeping their 76px floor; the mobile test walks every
+page twice, the second time with the words forced into DejaVu Sans, which
+reproduces CI's failure locally when the fitting is switched off.
+
 **📚 STORIES (2026-11): a reader that slips in a word he cannot read is a book
 read TO him, so decodability is a LAW, not the author's eye.** Every word of
 every title and page must pass a stated rule (an onset he knows, one short

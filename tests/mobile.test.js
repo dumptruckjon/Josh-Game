@@ -2314,7 +2314,16 @@ test("Word Cards 📚 Stories on the real engine: every page of every book fits 
       assert.equal(g0.overlaps, 0, `${w}x${h}: shelf controls overlap`);
       assert.ok(g0.worst >= MIN_GAP, `${w}x${h}: shelf controls ${g0.worst.toFixed(1)}px apart (${g0.who})`);
 
-      const pages = await p2.evaluate((MIN) => {
+      // Walked TWICE: in the page's own font, and with the words forced into
+      // DejaVu Sans — CI's real WebKit draws them in it, and it is wider, which
+      // is exactly how "Dad got it. Mom is glad!" took a third row there while
+      // passing here. Josh's iPad may draw wider still; the page fits its own
+      // rows, so whatever the font, the claim below must hold.
+      for (const font of [null, '"DejaVu Sans"']) {
+      const pages = await p2.evaluate(({ MIN, font }) => {
+        let st = document.getElementById("__font");
+        if (!st) { st = document.createElement("style"); st.id = "__font"; document.head.appendChild(st); }
+        st.textContent = font ? `.sw{font-family:${font} !important}` : "";
         const out = [];
         for (const b of STORIES) {
           sOpen(b.id);
@@ -2329,6 +2338,7 @@ test("Word Cards 📚 Stories on the real engine: every page of every book fits 
               boxes: all.map((x) => { const q = x.getBoundingClientRect(); return { x: q.x, y: q.y, r: q.right, b: q.bottom, k: x.id || x.textContent }; }),
               small: all.filter((x) => { const q = x.getBoundingClientRect(); return Math.min(q.width, q.height) < MIN; }).map((x) => x.id || x.textContent),
               clipped: ws.filter((x) => x.scrollWidth > x.clientWidth + 1).map((x) => x.textContent),
+              font: Math.min(...ws.map((x) => parseFloat(getComputedStyle(x).fontSize))),
               pic: Math.round(document.getElementById("sstage").getBoundingClientRect().height),
               bottom: Math.round(Math.max(...all.map((x) => x.getBoundingClientRect().bottom))),
               scrollY: document.documentElement.scrollHeight - document.documentElement.clientHeight,
@@ -2339,9 +2349,11 @@ test("Word Cards 📚 Stories on the real engine: every page of every book fits 
           sToShelf();
         }
         return out;
-      }, MIN_TAP);
+      }, { MIN: MIN_TAP, font });
       assert.ok(pages.length >= 40, `${w}x${h}: only ${pages.length} pages walked — the walk measured nothing`);
-      for (const p of pages) {
+      for (const p0 of pages) {
+        const p = Object.assign({}, p0, { at: p0.at + (font ? " (DejaVu)" : "") });
+        assert.ok(p.font >= 18, `${w}x${h} ${p.at}: the words shrank to ${p.font}px to fit`);
         assert.ok(p.words >= 2, `${w}x${h} ${p.at}: no words drawn`);
         assert.deepEqual(p.small, [], `${w}x${h} ${p.at}: controls under ${MIN_TAP}px`);
         const g = tightestGap(p.boxes);
@@ -2353,6 +2365,7 @@ test("Word Cards 📚 Stories on the real engine: every page of every book fits 
         assert.ok(p.bottom <= p.vh && p.scrollY <= 0,
           `${w}x${h} ${p.at}: the page runs past the fold (bottom ${p.bottom} of ${p.vh}, scroll ${p.scrollY})`);
         assert.ok(p.pic >= 48, `${w}x${h} ${p.at}: the picture is squeezed to ${p.pic}px`);
+      }
       }
       assert.deepEqual(errs, [], `${w}x${h}: page errors`);
     } finally {
