@@ -10867,7 +10867,7 @@ tooling.
 │                               #   meaning and its sentence in English (xinEnglish, derived from the
 │                               #   meaning the screen shows; a Chinese word inside it — "西瓜 means
 │                               #   watermelon" — is said in a Chinese voice, via speakParts).
-│                               #   Then 📚 Stories (2026-11) — eight little books he READS: every word of
+│                               #   Then 📚 Stories (2026-11) — sixteen little books he READS: every word of
 │                               #   every title and page is one he can sound out (a short vowel between
 │                               #   consonants he knows, with blends, doubles and letter teams) or one of
 │                               #   the Sight Words deck's words, held to that by a rule in site.test.js.
@@ -10875,6 +10875,9 @@ tooling.
 │                               #   with each word lit as it is said; nothing is read on its own, because
 │                               #   he reads first. The End wears a ⭐ on the shelf. Six words a page at
 │                               #   most, so every page fits a phone (measured at four sizes).
+│                               #   The second eight are letter-team books (sh, ch, th, ck, ee): every page
+│                               #   carries the book's team, and the reader underlines it wherever the page's
+│                               #   own sound splitter makes it one sound; the rule admits ee and qu/thr.
 │                               #   And 🔁 Still learning (2026-11): a word whose FIRST tap in 👂 was wrong
 │                               #   goes on a pile (`wc-pile`, words not indices); found first time later,
 │                               #   it leaves. The pile is a flash deck of its own, and its button shows

@@ -430,6 +430,10 @@
   /* The word being said is LIT: the card's colour and a white ring, full ink.
      A ring, never a scale — a scale on a gapped row eats the gap. */
   .sw.now{background:var(--card);box-shadow:0 0 0 5px #fff,0 6px 0 rgba(0,0,0,.22);}
+  /* The letter team in a team book: an underline in full ink, never a colour
+     alone (it must read in any colour vision and on any card hue). */
+  .steam{border-bottom:.12em solid var(--ink);padding-bottom:.02em;}
+  .book .bteam{font-size:22px;font-weight:900;vertical-align:middle;}
   .snav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:84px;gap:16px;}
   .sgo,.sread{border:0;border-radius:26px;background:#fff;color:var(--ink);font-family:inherit;
               font-size:34px;line-height:1;cursor:pointer;box-shadow:0 8px 0 rgba(0,0,0,.22);}
@@ -2621,12 +2625,69 @@ const STORIES = [
     ["🥚", "Ten hens sit on ten eggs."],
     ["🐣", "Tap, tap, tap! Pop!"],
     ["🐤", "Ten chicks! Lots of fun!"]] },
+  /* The second shelf: each book is built on ONE letter team he is learning
+     (sh, ch, th, ck, ee), every page carries it, and the reader underlines it
+     wherever the page's own sound splitter makes it one sound. */
+  { id: "fish", team: "sh", cover: "🐟", title: "The Fish Ship", pages: [
+    ["🚢", "Josh is on a ship."],
+    ["🎣", "Dad got a fish!"],
+    ["🐟", "The fish can flap and flop."],
+    ["💦", "The fish swam off. Fun!"]] },
+  { id: "chick", team: "ch", cover: "🐤", title: "Chick and Chips", pages: [
+    ["🐤", "A chick can chomp."],
+    ["🍟", "The chick has a chip."],
+    ["😋", "Chomp, chomp, chomp!"],
+    ["🐤", "The chick had six chips!"]] },
+  { id: "moth", team: "th", cover: "🦋", title: "The Moth", pages: [
+    ["🦋", "A moth is on the bath."],
+    ["🛁", "Josh is in the bath."],
+    ["😄", "The moth sat on Josh!"],
+    ["💨", "Then it left. Thanks, moth!"]] },
+  { id: "duck", team: "ck", cover: "🦆", title: "Duck and the Clock", pages: [
+    ["🦆", "A duck in the muck!"],
+    ["🕐", "Tick, tock, tick, tock!"],
+    ["🦆", "Quack, quack! Quick, duck!"],
+    ["😄", "Duck got the clock back!"]] },
+  { id: "bees", team: "ee", cover: "🐝", title: "Three Bees", pages: [
+    ["🐝", "Three bees see a tree."],
+    ["🌳", "The tree is green."],
+    ["🌸", "The bees sip sweet buds."],
+    ["😴", "The bees sleep."]] },
+  { id: "sheep", team: "sh", cover: "🐑", title: "Sheep on a Hill", pages: [
+    ["🐑", "A sheep on a hill."],
+    ["🐑", "Ten sheep sleep."],
+    ["🐶", "The sheep see a dog."],
+    ["😄", "Sheep and dog are pals!"]] },
+  { id: "feet", team: "ee", cover: "🦶", title: "Wet Feet", pages: [
+    ["☔", "Josh has wet feet."],
+    ["🧦", "Socks on feet, Josh!"],
+    ["🛁", "Feet in a hot bath!"],
+    ["😄", "Feet as snug as a bug!"]] },
+  { id: "chop", team: "ch", cover: "🪵", title: "Chop, Chop!", pages: [
+    ["🪵", "Dad can chop a log."],
+    ["🪓", "Chop the logs, Dad!"],
+    ["🔥", "We sit and chat."],
+    ["😄", "Lots of chat and fun!"]] },
 ];
 /* The words of a line, as the buttons show them (punctuation stays on its
    word) and as they are SAID (without it). One owner, so the button and the
    voice can never disagree about where a word ends. */
 function storyWords(line){ return line.split(/\s+/).filter(Boolean); }
 function storySay(word){ return word.replace(/[^A-Za-z']/g, ""); }
+/* A letter-team book underlines its team wherever the page's OWN splitter
+   makes it one sound — so "sh" is marked in "ship" and "fish", and never in a
+   word where those letters are two sounds. The button's text stays the word. */
+function storyMarkTeam(el, word, team){
+  const m = /^([^A-Za-z']*)([A-Za-z']+)([^A-Za-z']*)$/.exec(word);
+  if (!team || !m){ el.textContent = word; return; }
+  el.appendChild(document.createTextNode(m[1]));
+  for (const t of sounds(m[2])){
+    if (t.toLowerCase() === team){
+      const u = document.createElement("span"); u.className = "steam"; u.textContent = t; el.appendChild(u);
+    } else el.appendChild(document.createTextNode(t));
+  }
+  el.appendChild(document.createTextNode(m[3]));
+}
 /* How long the read-along rests on a word: longer where a reader would pause. */
 function storyBeat(word){ return 760 + (/[.!?]$/.test(word) ? 520 : /,$/.test(word) ? 260 : 0); }
 
@@ -2655,7 +2716,7 @@ function paintShelf(){
     el.className = "chip book"; el.type = "button"; el.dataset.book = b.id;
     el.style.background = COLORS[n % COLORS.length];
     const read = done.indexOf(b.id) >= 0;
-    el.innerHTML = '<span class="ic" aria-hidden="true">' + b.cover + '</span><span class="nm"></span>' +
+    el.innerHTML = '<span class="ic" aria-hidden="true">' + b.cover + (b.team ? ' <span class="bteam">' + b.team + '</span>' : '') + '</span><span class="nm"></span>' +
       (read ? '<span class="done" aria-hidden="true">⭐</span>' : '');
     el.querySelector(".nm").textContent = b.title;
     el.setAttribute("aria-label", b.title + (read ? ", read" : ""));
@@ -2672,7 +2733,8 @@ function sRender(){
   swordsEl.textContent = "";
   for (const w of storyWords(line)){
     const el = document.createElement("button");
-    el.type = "button"; el.className = "sw"; el.textContent = w;
+    el.type = "button"; el.className = "sw";
+    storyMarkTeam(el, w, end ? "" : b.team || "");
     el.setAttribute("aria-label", storySay(w));
     swordsEl.appendChild(el);
   }

@@ -7168,7 +7168,7 @@ test("guardrail: Game Night marks a lesson as learned through its ONE key — a 
    rather than trusted from the author's eye. */
 const STORY_ONSETS = ["b","c","d","f","g","h","j","k","l","m","n","p","r","s","t","v","w","y","z",
   "bl","br","cl","cr","dr","fl","fr","gl","gr","pl","pr","sk","sl","sm","sn","sp","st","sw","tr","tw",
-  "ch","sh","th","wh"];
+  "ch","sh","th","wh","qu","thr"];
 const STORY_CODAS = ["b","d","f","g","k","l","m","n","p","s","t","x","z","ll","ss","ff","zz","gg",
   "ck","sh","ch","th","ng","nk","nd","nt","mp","lt","ft","st","sk","sp","lp","lf","pt"];
 // Words the shape above admits that a child does NOT read with a short vowel
@@ -7179,11 +7179,13 @@ const STORY_LONG = /(ind|ild|old|olt|ost|all|alk|alf)$/;
 const STORY_ODD = new Set(["full","pull","bull","put","push","bush","was","want","wash","what","son","ton","won","from","of"]);
 function storyDecodable(w) {
   if (STORY_LONG.test(w) || STORY_ODD.has(w)) return false;
-  const m = /^([b-df-hj-np-tv-z]*)([aeiou])([b-df-hj-np-tv-z]*)$/.exec(w);
+  // One short vowel, or the "ee" team (the letter-team shelf teaches it);
+  // only "ee" may end a word with no consonant after it (see, tree, three).
+  const m = /^([b-df-hj-np-tv-z]*?|qu)(ee|[aeiou])([b-df-hj-np-tv-z]*)$/.exec(w);
   if (!m) return false;
-  const [, on, , co] = m;
+  const [, on, nuc, co] = m;
   if (on && !STORY_ONSETS.includes(on)) return false;
-  if (!co) return false;
+  if (!co) return nuc === "ee";
   return STORY_CODAS.includes(co) || (co.length > 1 && co.endsWith("s") && STORY_CODAS.includes(co.slice(0, -1)));
 }
 const wcStories = () => {
@@ -7198,7 +7200,9 @@ test("Word Cards 📚 Stories: every word in every book is one he can sound out 
   // could pass by accepting everything.
   for (const w of ["cat", "frog", "hill", "chicks", "back", "eggs", "land", "glad", "puff"])
     assert.ok(storyDecodable(w), `the rule must accept "${w}"`);
-  for (const w of ["kite", "find", "cold", "ball", "push", "was", "rain", "hello", "the", "fly"])
+  for (const w of ["see", "tree", "sheep", "quack", "three", "thanks"])
+    assert.ok(storyDecodable(w), `the rule must accept "${w}"`);
+  for (const w of ["kite", "find", "cold", "ball", "push", "was", "rain", "hello", "the", "fly", "seat", "moon", "sea", "go"])
     assert.ok(!storyDecodable(w), `the rule must refuse "${w}"`);
 
   const sight = new Set(wcWords().filter((c) => c[2] === "sight").map((c) => c[0].toLowerCase()));
@@ -7238,6 +7242,13 @@ test("Word Cards 📚 Stories: every book is whole, and every page fits two rows
       // A sentence is a sentence: a capital to start, a stop to end.
       assert.ok(/^[A-Z]/.test(line) && /[.!?]$/.test(line), `${b.id}: "${line}" must start with a capital and end with a stop`);
     }
+  }
+  // A letter-team book teaches its team on EVERY page, or it is not that book.
+  const teamBooks = books.filter((b) => b.team);
+  assert.ok(teamBooks.length >= 6, `only ${teamBooks.length} letter-team books`);
+  for (const b of teamBooks) {
+    for (const [, line] of b.pages)
+      assert.ok(line.toLowerCase().includes(b.team), `${b.id} (${b.team}): "${line}" has no ${b.team} in it`);
   }
   // The count on the menu button is COUNTED, like every count on this page.
   assert.match(read("wordcards.html"), /STORIES\.length \+ " books"/, "the Stories count must be derived");
