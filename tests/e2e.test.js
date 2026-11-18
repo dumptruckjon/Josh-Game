@@ -7027,3 +7027,74 @@ test("Word Cards 📚 Stories: a shelf of books he READS — a word says itself,
     await ctx.close();
   }
 });
+
+test("Word Cards 🔁 Still learning: a word he misses in 👂 goes on a pile he can practise, and leaves when he finds it first time", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  const stub = () => pg.evaluate(() => {
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true, value: { __stub: true, cancel() {}, getVoices() { return []; }, speak() {} },
+    });
+    return !!window.speechSynthesis.__stub;
+  });
+  const st = () => pg.evaluate(() => ({
+    pile: JSON.parse(localStorage.getItem("wc-pile") || "[]"),
+    shown: !document.getElementById("pileBtn").classList.contains("hidden"),
+    count: document.querySelector("#pileBtn small").textContent,
+    word: hDeck[hi] && hDeck[hi][0],
+  }));
+  const tap = (w) => pg.evaluate((x) => document.querySelector(`#hchoices [data-word="${x}"]`).click(), w);
+  const openHear = async () => { await pg.click("#hearBtn"); await pg.waitForSelector("#hear:not(.hidden)"); };
+  const back = async () => { await pg.evaluate(() => document.getElementById("hback").click()); await pg.waitForSelector("#menu:not(.hidden)"); };
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload({ waitUntil: "load" });
+    assert.ok(await stub(), "fixture: the speech stub never installed");
+    let s = await st();
+    assert.equal(s.shown, false, "an empty pile must not show a button");
+
+    // 1. A WRONG FIRST TAP puts the word on the pile — and finding it after a
+    //    miss does NOT take it off: he did not know it.
+    await openHear();
+    s = await st();
+    const first = s.word;
+    const wrong = (await pg.evaluate(() => [...document.querySelectorAll("#hchoices .mtile")].map((b) => b.dataset.word))).filter((w) => w !== first);
+    await tap(wrong[0]);
+    assert.deepEqual((await st()).pile, [first], "a wrong first tap must put the word on the pile");
+    await tap(wrong[1]);
+    assert.deepEqual((await st()).pile, [first], "a second miss must not add it twice");
+    await tap(first);
+    assert.deepEqual((await st()).pile, [first], "found after a miss, the word stays on the pile");
+    await back();
+    s = await st();
+    assert.equal(s.shown, true, "a pile with a word in it must show its button");
+    assert.equal(s.count, "1 word", "the count says how many, in the singular for one");
+
+    // 2. THE PILE IS A DECK of exactly those words.
+    await pg.click("#pileBtn");
+    await pg.waitForSelector("#deck:not(.hidden)");
+    const deckWords = await pg.evaluate(() => deck.map((c) => c[0]));
+    assert.deepEqual(deckWords, [first], "the still-learning deck must be the pile, no more and no less");
+    await pg.evaluate(() => document.getElementById("back").click());
+    await pg.waitForSelector("#menu:not(.hidden)");
+
+    // 3. A FIRST-TIME FIND takes it off, and the empty pile hides its button.
+    await pg.evaluate(() => localStorage.setItem("wc-hear-at", "0"));
+    await pg.reload({ waitUntil: "load" });
+    assert.ok(await stub(), "fixture: the speech stub never installed after reload");
+    assert.equal((await st()).shown, true, "the pile must survive a reload");
+    await openHear();
+    assert.equal((await st()).word, first, "fixture: back on the missed word");
+    await tap(first);
+    s = await st();
+    assert.deepEqual(s.pile, [], "found on the first tap, the word must leave the pile");
+    await back();
+    assert.equal((await st()).shown, false, "an emptied pile must hide its button again");
+    assert.deepEqual(errs, [], "no uncaught page errors");
+  } finally {
+    await ctx.close();
+  }
+});

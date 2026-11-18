@@ -10879,6 +10879,10 @@ tooling.
 │                               #   with each word lit as it is said; nothing is read on its own, because
 │                               #   he reads first. The End wears a ⭐ on the shelf. Six words a page at
 │                               #   most, so every page fits a phone (measured at four sizes).
+│                               #   And 🔁 Still learning (2026-11): a word whose FIRST tap in 👂 was wrong
+│                               #   goes on a pile (`wc-pile`, words not indices); found first time later,
+│                               #   it leaves. The pile is a flash deck of its own, and its button shows
+│                               #   only while the pile has something in it.
 │                               #   Every count is counted,
 │                               #   and every control
 │                               #   SAYS what it is — the chips name their deck and its size, the card

@@ -730,6 +730,12 @@
        The ear is aria-hidden so the button is NAMED by its words; its count is
        written by the script, like every other count on this page. -->
   <button class="mode" id="hearBtn"><span><b aria-hidden="true">&#128066;</b> Hear&nbsp;it, find&nbsp;it</span> <small></small></button>
+  <!-- 🔁 The words he MISSED in 👂: a word joins when his first tap on it is
+       wrong and leaves when he finds it first time. Hidden while it is empty,
+       so it only ever appears with something in it. `.mode`, not `.all`: it is
+       not a whole-library deck, and the walks that open every `.all` would
+       otherwise meet an empty deck. -->
+  <button class="mode hidden" id="pileBtn"><span><b aria-hidden="true">&#128257;</b> Still learning</span> <small></small></button>
   <!-- A book is read, not drilled, so it opens its own screen like 👂. -->
   <button class="mode" id="storyBtn"><span><b aria-hidden="true">&#128218;</b> Stories</span> <small></small></button>
   <!-- One button, not a grid: a single chip in a two-column grid orphans its
@@ -2383,6 +2389,24 @@ const HEAR_BEAT = 1500;
 let hDeck = [], hi = 0, hMiss = 0, hSolved = false, hCued = false, hTimer = 0;
 
 function hDeckOnce(){ if (!hDeck.length) hDeck = hearDeck(); return hDeck; }
+/* 🔁 Still learning: the ONE owner of the pile. Words only (never indices,
+   which move whenever the deck grows), read back through byWord so a word that
+   has left the deck drops out instead of rendering as nothing. Storage can
+   throw in private mode, so the pile is then simply empty. */
+function pileRead(){
+  try {
+    const v = JSON.parse(localStorage.getItem("wc-pile") || "[]");
+    return Array.isArray(v) ? v.filter((w) => typeof w === "string" && byWord[w]) : [];
+  } catch (e) { return []; }
+}
+function pileWrite(list){ try { localStorage.setItem("wc-pile", JSON.stringify(list)); } catch (e) {} paintPile(); }
+function pileAdd(w){ const p = pileRead(); if (p.indexOf(w) < 0){ p.push(w); pileWrite(p); } }
+function pileDrop(w){ const p = pileRead(); const k = p.indexOf(w); if (k >= 0){ p.splice(k, 1); pileWrite(p); } }
+function paintPile(){
+  const n = pileRead().length, b = $("pileBtn");
+  b.classList.toggle("hidden", n === 0);
+  b.querySelector("small").textContent = n + (n === 1 ? " word" : " words");
+}
 function hCard(){ return hDeck[hi] || null; }
 function hSpeak(){ const c = hCard(); if (c) speak.apply(null, cardSpeech(c)); }
 function hSaveAt(n){ try { localStorage.setItem("wc-hear-at", String(n)); } catch (e) {} }
@@ -2452,6 +2476,8 @@ function hRender(){
 }
 
 function hSolve(b){
+  // Found on the FIRST tap: he knows it now, so it leaves the pile.
+  if (hMiss === 0) pileDrop(hCard()[0]);
   hSolved = true;
   b.classList.add("done");
   // An answered board answers nothing: no "try again" can follow a right
@@ -2474,6 +2500,8 @@ function hTap(b){
   if (hSolved || b.getAttribute("aria-disabled") === "true") return;
   const c = hCard(); if (!c) return;
   if (b.dataset.word === c[0]){ hSolve(b); return; }
+  // His FIRST tap on this word was wrong: it goes on the still-learning pile.
+  if (hMiss === 0) pileAdd(c[0]);
   nudge(b);
   hSpeak();   // the word again, so he can compare what he heard with what he read
   hMiss += 1;
@@ -2535,6 +2563,12 @@ $("hearBtn").addEventListener("click", () => {
   hRender();
   hSpeak();
 });
+
+$("pileBtn").addEventListener("click", () => {
+  const list = pileRead().map((w) => byWord[w]);
+  if (list.length) start(list, "Still learning", "pile");
+});
+paintPile();
 
 /* ---------- 📚 Stories: the books ----------
    Eight little books he can READ, not just hear. Every word is either one he
