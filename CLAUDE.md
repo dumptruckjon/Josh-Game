@@ -10904,6 +10904,10 @@ tooling.
 │                               #   or a declared pair, or appear in the sentence the voice reads after it
 │                               #   (hzHearOk, the ONE rule). Misses go on 还要练. hzChars() is the ONE
 │                               #   reader of HANZI every Chinese-only extra goes through.
+│                               #   📚 读一读 (HZ_STORIES): eight little Chinese books on the Stories reader,
+│                               #   with their own shelf. Every character is one of his 120, a space marks a
+│                               #   word tile (小猫, 出来了), no tile is a bare two-reading character (好, 了),
+│                               #   six characters a page at most, said in a zh-CN voice, ending on 好了！
 │                               #   Every count is counted,
 │                               #   and every control
 │                               #   SAYS what it is — the chips name their deck and its size, the card

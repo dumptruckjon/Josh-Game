@@ -198,7 +198,7 @@
      PingFang SC. Everything that paints a han character carries this face and
      a lang="zh-CN", which is also what gives VoiceOver a Chinese voice on it. */
   :root{ --hz-face:"PingFang SC","Hiragino Sans GB","Heiti SC","Source Han Sans SC","Noto Sans CJK SC","Microsoft YaHei",system-ui,sans-serif; }
-  .word.hz,.hz__zh,.mchar,.all.hz b,.mode.hz b{font-family:var(--hz-face);}
+  .word.hz,.hz__zh,.mchar,.all.hz b,.mode.hz b,.swz,.book .nm:lang(zh-CN){font-family:var(--hz-face);}
   .all.hz,.mode.hz{background:#FF5A5A;}
   /* The back of a hanzi card is THREE runs, not one picture, so the cue shrinks
      to leave them room — and every run is FULL ink. The .7 the sound strip uses
@@ -753,6 +753,8 @@
   <button class="mode hz" id="hzTodayBtn"><span><b aria-hidden="true">&#127774;</b> <b lang="zh-CN">&#20170;&#22825;</b> Today's characters</span> <small></small></button>
   <!-- 👂 听一听: the page says a character and he taps it from three. The
        Chinese twin of Hear it, find it, on the same screen. -->
+  <!-- 📚 读一读: little books written only with his 120 characters. -->
+  <button class="mode hz" id="hzStoryBtn"><span><b aria-hidden="true">&#128218;</b> <b lang="zh-CN">&#35835;&#19968;&#35835;</b> Little stories</span> <small></small></button>
   <button class="mode hz" id="hzHearBtn"><span><b aria-hidden="true">&#128066;</b> <b lang="zh-CN">&#21548;&#19968;&#21548;</b> Hear it, find it</span> <small></small></button>
   <!-- `.mode`, not `.all`: `.all` means "opens a whole-library card DECK" to two
        derived test walks, and this opens the writing pad instead. It takes the
@@ -2806,8 +2808,66 @@ const STORIES = [
 /* The words of a line, as the buttons show them (punctuation stays on its
    word) and as they are SAID (without it). One owner, so the button and the
    voice can never disagree about where a word ends. */
+/* 📚 读一读: the Chinese shelf. Every character on every page is one of the 120
+   on his 中文 cards, so this is reading, not being read to — a test holds that.
+   A space marks a WORD tile (小猫, 出来了): he taps a word and hears it, and no
+   tile is ever a bare character with two readings (好 hǎo/hào, 了 le/liǎo),
+   because a voice reading it alone may pick the wrong one. Six characters a
+   page at most, so a page fits a phone. */
+const HZ_STORIES = [
+  { id: "zh-cat", cover: "🐱", title: "小猫", pages: [
+    ["🐱", "我 有 小猫。"],
+    ["🥛", "小猫 喝 牛奶。"],
+    ["🦋", "小猫 看 蝴蝶。"],
+    ["😴", "小猫 睡了。"]] },
+  { id: "zh-rain", cover: "🌧️", title: "下雨了", pages: [
+    ["🌧️", "下雨了！"],
+    ["🐶", "小狗 不 出去。"],
+    ["🌷", "花草 喝水。"],
+    ["☀️", "太阳 出来了！"]] },
+  { id: "zh-rabbit", cover: "🐰", title: "白兔", pages: [
+    ["🐰", "一只 白兔。"],
+    ["🐇", "白兔 跳起来。"],
+    ["🐺", "狼 来了！"],
+    ["🏠", "白兔 跑回家。"],
+    ["😊", "白兔 好高兴！"]] },
+  { id: "zh-family", cover: "🏠", title: "我的家", pages: [
+    ["👨", "我 爱 爸爸。"],
+    ["👩", "我 爱 妈妈。"],
+    ["👴", "爷爷 来了！"],
+    ["👵", "奶奶 笑了。"],
+    ["❤️", "我 爱 我的家。"]] },
+  { id: "zh-birds", cover: "🐦", title: "几只鸟", pages: [
+    ["🐦", "树上 有 一只 鸟。"],
+    ["🐦🐦", "又 来 一只。"],
+    ["🐦🐦🐦", "又 来 一只！"],
+    ["❓", "有 几只 鸟？"],
+    ["🌳", "三只 鸟！"]] },
+  { id: "zh-moon", cover: "🌙", title: "月亮", pages: [
+    ["🌙", "月亮 出来了。"],
+    ["⭐", "天上 有 星星。"],
+    ["🐶", "小狗 看 月亮。"],
+    ["🛏️", "我 睡了。"]] },
+  { id: "zh-sea", cover: "🌊", title: "大海", pages: [
+    ["🌊", "大海 是 蓝的。"],
+    ["🐟", "海里 有 鱼。"],
+    ["🐟", "小鱼 找 妈妈。"],
+    ["🐠", "找到了！"]] },
+  { id: "zh-spring", cover: "🌸", title: "春天", pages: [
+    ["🌸", "春天 来了！"],
+    ["🌷", "花 开了。"],
+    ["🐝", "蜜蜂 飞来了。"],
+    ["🦋", "蝴蝶 飞来 飞去。"],
+    ["😄", "我 好高兴！"]] },
+];
 function storyWords(line){ return line.split(/\s+/).filter(Boolean); }
-function storySay(word){ return word.replace(/[^A-Za-z']/g, ""); }
+function storySay(word){ return sZh() ? word.replace(/[。！？，]/g, "") : word.replace(/[^A-Za-z']/g, ""); }
+// Which shelf is open: the English books or the Chinese ones. Everything else
+// about a book — the pages, the read-along, the star at The End — is shared.
+let sList = null;
+function sBooks(){ return sList || STORIES; }
+function sZh(){ return sBooks() === HZ_STORIES; }
+function sLang(){ return sZh() ? "zh-CN" : null; }
 /* A letter-team book underlines its team wherever the page's OWN splitter
    makes it one sound — so "sh" is marked in "ship" and "fish", and never in a
    word where those letters are two sounds. The button's text stays the word. */
@@ -2823,7 +2883,11 @@ function storyMarkTeam(el, word, team){
   el.appendChild(document.createTextNode(m[3]));
 }
 /* How long the read-along rests on a word: longer where a reader would pause. */
-function storyBeat(word){ return 760 + (/[.!?]$/.test(word) ? 520 : /,$/.test(word) ? 260 : 0); }
+function storyBeat(word){
+  // A Chinese tile is a whole word of one to three syllables: rest per character.
+  if (sZh()) return 380 * storySay(word).length + 300 + (/[。！？]$/.test(word) ? 420 : 0);
+  return 760 + (/[.!?]$/.test(word) ? 520 : /,$/.test(word) ? 260 : 0);
+}
 
 /* ---------- 📚 Stories: the screens ---------- */
 const shelfEl = $("shelf"), storyEl = $("story"), booksEl = $("books"), swordsEl = $("swords"),
@@ -2845,7 +2909,7 @@ function sLight(k){
 function paintShelf(){
   booksEl.textContent = "";
   const done = sDone();
-  STORIES.forEach((b, n) => {
+  sBooks().forEach((b, n) => {
     const el = document.createElement("button");
     el.className = "chip book"; el.type = "button"; el.dataset.book = b.id;
     el.style.background = COLORS[n % COLORS.length];
@@ -2853,6 +2917,7 @@ function paintShelf(){
     el.innerHTML = '<span class="ic" aria-hidden="true">' + b.cover + (b.team ? ' <span class="bteam">' + b.team + '</span>' : '') + '</span><span class="nm"></span>' +
       (read ? '<span class="done" aria-hidden="true">⭐</span>' : '');
     el.querySelector(".nm").textContent = b.title;
+    if (sZh()) el.querySelector(".nm").lang = "zh-CN";
     el.setAttribute("aria-label", b.title + (read ? ", read" : ""));
     booksEl.appendChild(el);
   });
@@ -2861,14 +2926,16 @@ function paintShelf(){
 function sRender(){
   sStop();
   const b = sBook, n = b.pages.length, end = sPage >= n;
-  const [pic, line] = end ? [b.cover, "The End!"] : b.pages[sPage];
-  document.documentElement.style.setProperty("--card", COLORS[STORIES.indexOf(b) % COLORS.length]);
+  // The Chinese end page is 好了！ ("all done!") — both characters his own.
+  const [pic, line] = end ? [b.cover, sZh() ? "好了！" : "The End!"] : b.pages[sPage];
+  document.documentElement.style.setProperty("--card", COLORS[sBooks().indexOf(b) % COLORS.length]);
   spicEl.textContent = end ? "🎉" : pic;
   swordsEl.textContent = "";
   for (const w of storyWords(line)){
     const el = document.createElement("button");
     el.type = "button"; el.className = "sw";
     storyMarkTeam(el, w, end ? "" : b.team || "");
+    if (sZh()){ el.lang = "zh-CN"; el.classList.add("swz"); }
     el.setAttribute("aria-label", storySay(w));
     swordsEl.appendChild(el);
   }
@@ -2921,7 +2988,7 @@ function sReadAlong(){
     if (storyEl.classList.contains("hidden")) return;
     if (k >= words.length){ sLight(-1); return; }
     sLight(k);
-    speak(storySay(words[k].textContent));
+    speak(storySay(words[k].textContent), sLang());
     const beat = storyBeat(words[k].textContent);
     k += 1;
     sTimer = setTimeout(step, beat);
@@ -2929,7 +2996,7 @@ function sReadAlong(){
   step();
 }
 function sOpen(id){
-  sBook = STORIES.find((b) => b.id === id) || null;
+  sBook = sBooks().find((b) => b.id === id) || null;
   if (!sBook) return;
   sPage = 0;
   shelfEl.classList.add("hidden");
@@ -2953,7 +3020,7 @@ swordsEl.addEventListener("click", (ev) => {
   sStop();
   unmute();  // tapping a word IS asking to hear it
   sLight([...swordsEl.children].indexOf(w));
-  speak(storySay(w.textContent));
+  speak(storySay(w.textContent), sLang());
 });
 $("sread").addEventListener("click", () => { unmute(); sReadAlong(); });
 sprev.addEventListener("click", () => { if (sPage > 0){ sPage -= 1; sRender(); } });
@@ -2961,7 +3028,7 @@ snext.addEventListener("click", () => {
   if (sPage >= sBook.pages.length){ sToShelf(); return; }
   sPage += 1; sRender();
 });
-$("ssound").addEventListener("click", () => toggleSound(() => { if (sLit >= 0) speak(storySay(swordsEl.children[sLit].textContent)); }));
+$("ssound").addEventListener("click", () => toggleSound(() => { if (sLit >= 0) speak(storySay(swordsEl.children[sLit].textContent), sLang()); }));
 $("shsound").addEventListener("click", () => toggleSound(() => {}));
 $("sback").addEventListener("click", sToShelf);
 $("shback").addEventListener("click", () => {
@@ -2969,7 +3036,20 @@ $("shback").addEventListener("click", () => {
   menu.classList.remove("hidden");
 });
 $("storyBtn").querySelector("small").textContent = STORIES.length + " books";
+function sShelf(list, label){
+  sList = list;
+  $("shback").innerHTML = "&lsaquo;&nbsp; " + label;
+  $("sback").innerHTML = "&lsaquo;&nbsp; " + label;
+}
+$("hzStoryBtn").querySelector("small").textContent = HZ_STORIES.length + " books";
+$("hzStoryBtn").addEventListener("click", () => {
+  sShelf(HZ_STORIES, '<span lang="zh-CN">\u8bfb\u4e00\u8bfb</span>');
+  paintShelf();
+  menu.classList.add("hidden");
+  shelfEl.classList.remove("hidden");
+});
 $("storyBtn").addEventListener("click", () => {
+  sShelf(STORIES, "Stories");
   paintShelf();
   menu.classList.add("hidden");
   shelfEl.classList.remove("hidden");

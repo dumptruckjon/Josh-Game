@@ -5517,6 +5517,7 @@ test("Word Cards: no card wears another card's picture with the gender swapped",
     XIN_ANCHORS: "the familiar characters a 新字 board deals its wrong answers from",
     XIN_INK: "the two colours a 新字 card paints its parts in",
     STORIES: "read-along books: a page's picture illustrates its sentence, it is not an answer",
+    HZ_STORIES: "the Chinese read-along books: as STORIES",
   };
   const declared = [...src.matchAll(/^\s*const ([A-Z][A-Z_0-9]*) = \[/gm)].map((m) => m[1]);
   assert.ok(declared.length >= 5, `only ${declared.length} arrays found — the scan failed open`);
@@ -7253,6 +7254,60 @@ test("Word Cards 📚 Stories: every book is whole, and every page fits two rows
   }
   // The count on the menu button is COUNTED, like every count on this page.
   assert.match(read("wordcards.html"), /STORIES\.length \+ " books"/, "the Stories count must be derived");
+});
+
+const wcHzStories = () => {
+  const src = read("wordcards.html");
+  const a = src.indexOf("const HZ_STORIES = ["), b = src.indexOf("function storyWords");
+  assert.ok(a > 0 && b > a, "fixture: HZ_STORIES must be found on the page");
+  return new Function(src.slice(a, b) + "; return HZ_STORIES;")();
+};
+
+test("Word Cards 📚 读一读: every character is one of his 120, no tile is a bare two-reading character, and every page fits", () => {
+  // Reading, not being read to: a character he has no card for is a word he
+  // cannot read, so every one must be on the 中文 cards.
+  const have = new Set(wcHanzi().map((c) => c[0]));
+  assert.ok(have.size >= 100, `fixture: only ${have.size} characters read`);
+  const books = wcHzStories();
+  assert.ok(books.length >= 8, `only ${books.length} Chinese books`);
+  const english = wcStories();
+  const ids = books.map((b) => b.id).concat(english.map((b) => b.id));
+  assert.equal(new Set(ids).size, ids.length, "a Chinese book shares an id with another book (their ⭐ would be shared)");
+  // The bare characters a voice may read the wrong way when alone — the same
+  // list the 中文 cards pin (只 zhī/zhǐ, 了 le/liǎo, 好 hǎo/hào …).
+  const two = ["只", "了", "少", "地", "的", "兴", "乐", "中", "什", "好", "几", "大"];
+  const PUNCT = /[。！？，]/g;
+  const bad = [], bare = [];
+  let chars = 0;
+  const check = (line, where) => {
+    for (const ch of line.replace(PUNCT, "").replace(/\s+/g, "")) {
+      chars += 1;
+      if (!have.has(ch)) bad.push(`${ch} in "${line}" (${where})`);
+    }
+  };
+  for (const b of books) {
+    check(b.title, b.id + " title");
+    assert.ok(/\p{Extended_Pictographic}/u.test(b.cover), `${b.id}: a cover is a picture`);
+    assert.ok(b.pages.length >= 4, `${b.id}: a book is at least four pages`);
+    assert.ok(/^zh-/.test(b.id), `${b.id}: a Chinese book's id starts zh- so it never meets an English one`);
+    for (const [pic, line] of b.pages) {
+      check(line, b.id);
+      assert.ok(/\p{Extended_Pictographic}/u.test(pic), `${b.id}: "${line}" has no picture`);
+      const n = line.replace(PUNCT, "").replace(/\s+/g, "").length;
+      assert.ok(n <= 6, `${b.id}: "${line}" is ${n} characters — six at most`);
+      assert.ok(/[。！？]$/.test(line), `${b.id}: "${line}" must end with a stop`);
+      for (const tile of line.split(/\s+/)) if (two.includes(tile.replace(PUNCT, ""))) bare.push(`${tile} in "${line}" (${b.id})`);
+    }
+  }
+  check("好了！", "the end page");
+  assert.ok(chars >= 120, `only ${chars} characters checked — the scan failed open`);
+  assert.deepEqual(bad, [], "a character he has no card for");
+  assert.deepEqual(bare, [], "a tile that is a bare two-reading character (a voice may read it wrongly alone)");
+  // The rule itself, so the two checks above cannot pass by accepting everything.
+  assert.ok(!have.has("很") && !have.has("在"), "fixture: 很 and 在 are not his characters — the rule has something to refuse");
+  const src = read("wordcards.html");
+  assert.match(src, /HZ_STORIES\.length \+ " books"/, "the 读一读 count must be derived");
+  assert.match(src, /"好了！" : "The End!"/, "the Chinese end page is 好了！, his own two characters");
 });
 
 /* ---------- a game's own timer never makes a sound directly ----------

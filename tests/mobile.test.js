@@ -2304,11 +2304,13 @@ test("Word Cards 📚 Stories on the real engine: every page of every book fits 
     p2.on("pageerror", (e) => errs.push(String(e)));
     try {
       await p2.goto(baseURL + "wordcards.html", { waitUntil: "load" });
-      await p2.click("#storyBtn");
+      for (const [btn, which] of [["#storyBtn", "en"], ["#hzStoryBtn", "zh"]]) {
+      await p2.evaluate(() => { for (const id of ["shelf", "story"]) document.getElementById(id).classList.add("hidden"); document.getElementById("menu").classList.remove("hidden"); });
+      await p2.click(btn);
       await p2.waitForSelector("#shelf:not(.hidden)");
       const shelf = await p2.evaluate(() => [...document.querySelectorAll("#shelf button")].filter((b) => b.getClientRects().length)
         .map((b) => { const q = b.getBoundingClientRect(); return { x: q.x, y: q.y, r: q.right, b: q.bottom, s: Math.min(q.width, q.height), k: b.id || b.dataset.book }; }));
-      assert.ok(shelf.length >= 10, `${w}x${h}: only ${shelf.length} shelf controls — the walk found the wrong screen`);
+      assert.ok(shelf.length >= 10, `${w}x${h} ${which}: only ${shelf.length} shelf controls — the walk found the wrong screen`);
       assert.deepEqual(shelf.filter((t) => t.s < MIN_TAP).map((t) => t.k), [], `${w}x${h}: shelf controls under ${MIN_TAP}px`);
       const g0 = tightestGap(shelf);
       assert.equal(g0.overlaps, 0, `${w}x${h}: shelf controls overlap`);
@@ -2320,12 +2322,12 @@ test("Word Cards 📚 Stories on the real engine: every page of every book fits 
       // passing here. Josh's iPad may draw wider still; the page fits its own
       // rows, so whatever the font, the claim below must hold.
       for (const font of [null, '"DejaVu Sans"']) {
-      const pages = await p2.evaluate(({ MIN, font }) => {
+      const pages = await p2.evaluate(({ MIN, font, which }) => {
         let st = document.getElementById("__font");
         if (!st) { st = document.createElement("style"); st.id = "__font"; document.head.appendChild(st); }
         st.textContent = font ? `.sw{font-family:${font} !important}` : "";
         const out = [];
-        for (const b of STORIES) {
+        for (const b of (which === "zh" ? HZ_STORIES : STORIES)) {
           sOpen(b.id);
           for (let p = 0; p <= b.pages.length; p += 1) {
             sPage = p; sRender();
@@ -2349,12 +2351,12 @@ test("Word Cards 📚 Stories on the real engine: every page of every book fits 
           sToShelf();
         }
         return out;
-      }, { MIN: MIN_TAP, font });
-      assert.ok(pages.length >= 40, `${w}x${h}: only ${pages.length} pages walked — the walk measured nothing`);
+      }, { MIN: MIN_TAP, font, which });
+      assert.ok(pages.length >= 40, `${w}x${h} ${which}: only ${pages.length} pages walked — the walk measured nothing`);
       for (const p0 of pages) {
         const p = Object.assign({}, p0, { at: p0.at + (font ? " (DejaVu)" : "") });
         assert.ok(p.font >= 18, `${w}x${h} ${p.at}: the words shrank to ${p.font}px to fit`);
-        assert.ok(p.words >= 2, `${w}x${h} ${p.at}: no words drawn`);
+        assert.ok(p.words >= 1, `${w}x${h} ${p.at}: no words drawn`);   // a Chinese page can be ONE word tile (找到了！)
         assert.deepEqual(p.small, [], `${w}x${h} ${p.at}: controls under ${MIN_TAP}px`);
         const g = tightestGap(p.boxes);
         assert.equal(g.overlaps, 0, `${w}x${h} ${p.at}: controls overlap`);
@@ -2365,6 +2367,7 @@ test("Word Cards 📚 Stories on the real engine: every page of every book fits 
         assert.ok(p.bottom <= p.vh && p.scrollY <= 0,
           `${w}x${h} ${p.at}: the page runs past the fold (bottom ${p.bottom} of ${p.vh}, scroll ${p.scrollY})`);
         assert.ok(p.pic >= 48, `${w}x${h} ${p.at}: the picture is squeezed to ${p.pic}px`);
+      }
       }
       }
       assert.deepEqual(errs, [], `${w}x${h}: page errors`);

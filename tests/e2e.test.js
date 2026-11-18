@@ -7476,6 +7476,86 @@ test("Word Cards 👂 听一听: hear a character, tap it from three — every b
   }
 });
 
+test("Word Cards 📚 读一读: Chinese books he reads word by word, in a Chinese voice, with their own shelf and a ⭐ at 好了", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  const stub = () => pg.evaluate(() => {
+    window.__said = [];
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true, value: { __stub: true, cancel() {}, getVoices() { return []; }, speak(u) { window.__said.push([u.text, u.lang]); } },
+    });
+    return !!window.speechSynthesis.__stub;
+  });
+  const shelf = () => pg.evaluate(() => ({
+    ids: [...document.querySelectorAll("#books .book")].map((b) => b.dataset.book),
+    stars: [...document.querySelectorAll("#books .book")].filter((b) => b.querySelector(".done")).map((b) => b.dataset.book),
+    back: document.getElementById("shback").textContent,
+  }));
+  const toMenu = async () => { await pg.evaluate(() => document.getElementById("shback").click()); await pg.waitForSelector("#menu:not(.hidden)"); };
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload({ waitUntil: "load" });
+    assert.ok(await stub(), "fixture: the speech stub never installed");
+    const want = await pg.evaluate(() => ({ zh: HZ_STORIES.map((b) => b.id), en: STORIES.map((b) => b.id) }));
+    assert.equal(await pg.textContent("#hzStoryBtn small"), want.zh.length + " books", "the button counts the Chinese books");
+
+    // 1. Its own shelf: the Chinese books only, titles marked Chinese.
+    await pg.click("#hzStoryBtn");
+    await pg.waitForSelector("#shelf:not(.hidden)");
+    let sh = await shelf();
+    assert.deepEqual(sh.ids, want.zh, "the 读一读 shelf holds the Chinese books, and only those");
+    assert.ok(sh.back.includes("读一读"), "the shelf's back button names it");
+    assert.ok(await pg.evaluate(() => [...document.querySelectorAll("#books .book .nm")].every((n) => n.lang === "zh-CN")), "every title is marked Chinese");
+
+    // 2. A page: word tiles marked Chinese; a tap says that word, no stop, in a Chinese voice.
+    const id = want.zh[0];
+    await pg.evaluate((x) => document.querySelector(`#books [data-book="${x}"]`).click(), id);
+    await pg.waitForSelector("#story:not(.hidden)");
+    const tiles = await pg.evaluate(() => [...document.querySelectorAll("#swords .sw")].map((w) => [w.textContent, w.lang]));
+    assert.ok(tiles.length >= 2 && tiles.every(([, l]) => l === "zh-CN"), "every word tile is marked Chinese");
+    await pg.evaluate(() => document.querySelectorAll("#swords .sw")[1].click());
+    let said = await pg.evaluate(() => window.__said.slice());
+    const last = said[said.length - 1];
+    assert.deepEqual(last, [tiles[1][0].replace(/[。！？，]/g, ""), "zh-CN"], "a tapped word is said alone, without its stop, in a Chinese voice");
+
+    // 3. Read to him: every word on the page said in order, all in Chinese.
+    await pg.evaluate(() => { window.__said = []; document.getElementById("sread").click(); });
+    await pg.waitForFunction((n) => window.__said.length >= n, tiles.length, { timeout: 15000 });
+    said = await pg.evaluate(() => window.__said.slice());
+    assert.deepEqual(said.map(([t]) => t), tiles.map(([w]) => w.replace(/[。！？，]/g, "")), "the read-along says each word in turn");
+    assert.ok(said.every(([, l]) => l === "zh-CN"), "in a Chinese voice");
+
+    // 4. The last page is 好了！, and the book wears a ⭐ on the shelf.
+    const pages = await pg.evaluate((x) => HZ_STORIES.find((b) => b.id === x).pages.length, id);
+    for (let k = 0; k < pages; k += 1) await pg.evaluate(() => document.getElementById("snext").click());
+    assert.equal(await pg.evaluate(() => [...document.querySelectorAll("#swords .sw")].map((w) => w.textContent).join("")), "好了！", "the Chinese end page");
+    await pg.evaluate(() => document.getElementById("snext").click());
+    await pg.waitForSelector("#shelf:not(.hidden)");
+    sh = await shelf();
+    assert.deepEqual(sh.stars, [id], "the finished book wears a ⭐");
+    await toMenu();
+
+    // 5. The English shelf is still the English shelf, English voice and all.
+    await pg.click("#storyBtn");
+    await pg.waitForSelector("#shelf:not(.hidden)");
+    sh = await shelf();
+    assert.deepEqual(sh.ids, want.en, "the Stories shelf holds the English books, and only those");
+    assert.ok(sh.back.includes("Stories"), "and its own back label");
+    await pg.evaluate((x) => document.querySelector(`#books [data-book="${x}"]`).click(), want.en[0]);
+    await pg.waitForSelector("#story:not(.hidden)");
+    await pg.evaluate(() => { window.__said = []; document.querySelector("#swords .sw").click(); });
+    said = await pg.evaluate(() => window.__said.slice());
+    assert.ok(said.length && said[0][1] !== "zh-CN", "an English word is never said in a Chinese voice");
+    assert.ok(await pg.evaluate(() => [...document.querySelectorAll("#swords .sw")].every((w) => !w.lang)), "English tiles carry no Chinese lang");
+    assert.deepEqual(errs, [], "no uncaught page errors");
+  } finally {
+    await ctx.close();
+  }
+});
+
 test("🌞 Today: three games for the day — Numbers, Letters and one more — that come back to the set, wear a ✅ when won, and end in a party", async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
   const pg = await ctx.newPage();
