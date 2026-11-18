@@ -7098,3 +7098,97 @@ test("Word Cards 🔁 Still learning: a word he misses in 👂 goes on a pile he
     await ctx.close();
   }
 });
+
+test("🌞 Today: three games for the day — Numbers, Letters and one more — that come back to the set, wear a ✅ when won, and end in a party", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  const go = async (h, sel) => { await pg.evaluate((x) => { location.hash = x; }, h); await pg.waitForSelector(sel + ":not([hidden])"); };
+  const tiles = () => pg.evaluate(() => [...document.querySelectorAll("#screen-today .today__tile")].map((t) => ({
+    id: t.dataset.today, done: t.classList.contains("is-done") && !!t.querySelector(".today__done"), label: t.getAttribute("aria-label"),
+  })));
+  const party = () => pg.evaluate(() => !document.querySelector("#screen-today .today__party").hidden);
+  // Win the game on screen through the test contract, as the every-game harness does.
+  const winOn = async (id) => {
+    for (let k = 0; k < 800; k += 1) {
+      const won = await pg.evaluate((x) => {
+        const s = document.getElementById("screen-" + x);
+        if (s.dataset.won === "1") return true;
+        const t = s.querySelector('[data-correct="1"]') || s.querySelector("[data-toy]");
+        if (t) t.click();
+        return false;
+      }, id);
+      if (won) return true;
+      await pg.waitForTimeout(20);
+    }
+    return false;
+  };
+  try {
+    await pg.goto(baseURL, { waitUntil: "load" });
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload({ waitUntil: "load" });
+    await go("#home", "#screen-home");
+    assert.equal(await pg.locator("#screen-home .tile--today").count(), 1, "Josh's home must offer 🌞 Today");
+    await pg.evaluate(() => document.querySelector("#screen-home .tile--today").click());
+    await pg.waitForSelector("#screen-today:not([hidden])");
+
+    // 1. THREE GAMES, one Numbers, one Letters, one thinking / finding / science.
+    let t = await tiles();
+    const ids = t.map((x) => x.id);
+    assert.equal(ids.length, 3, "today is three games");
+    const cats = await pg.evaluate((xs) => xs.map((x) => (window.JoshGames.find((g) => g.id === x) || {}).cat), ids);
+    assert.equal(cats[0], "numbers", `the first is a Numbers game (${cats})`);
+    assert.equal(cats[1], "letters", `the second is a Letters game (${cats})`);
+    assert.ok(["thinking", "find", "science"].includes(cats[2]), `the third is thinking, finding or science (${cats})`);
+    assert.deepEqual(t.map((x) => x.done), [false, false, false], "nothing is done at the start of the day");
+    assert.equal(await party(), false, "no party before anything is played");
+    const stored = await pg.evaluate(() => JSON.parse(localStorage.getItem("josh-today")));
+    assert.deepEqual(stored.ids, ids, "the day's three are stored, so they cannot reshuffle");
+    assert.deepEqual(stored.ids, await pg.evaluate((d) => {
+      const by = {}; for (const g of window.JoshGames) if (!g.hl && g.cat) (by[g.cat] = by[g.cat] || []).push(g.id);
+      return window.JoshLogic.todayPicks(d, by, () => false);
+    }, stored.day), "the three are the pure picker's for this date");
+
+    // 2. PLAYED FROM THE SET: won, its 🏠 comes back to Today, and it wears a ✅.
+    await pg.evaluate((x) => document.querySelector(`#screen-today [data-today="${x}"]`).click(), ids[0]);
+    await pg.waitForSelector(`#screen-${ids[0]}:not([hidden])`);
+    assert.ok(await winOn(ids[0]), `fixture: ${ids[0]} never reached a win`);
+    await pg.evaluate((x) => document.querySelector(`#screen-${x} .game__home`).click(), ids[0]);
+    await pg.waitForSelector("#screen-today:not([hidden])");
+    t = await tiles();
+    assert.deepEqual(t.map((x) => x.done), [true, false, false], "the game he won must wear its ✅");
+    assert.ok(t[0].label.endsWith(", done"), `the done tile must say so (${t[0].label})`);
+
+    // 3. THE SAME GAME FROM ITS CATEGORY goes back to the category, not Today.
+    await go("#cat-" + cats[0], "#screen-cat-" + cats[0]);
+    await pg.evaluate((x) => document.querySelector(`#screen-cat-${x.c} [data-go="${x.id}"]`).click(), { c: cats[0], id: ids[0] });
+    await pg.waitForSelector(`#screen-${ids[0]}:not([hidden])`);
+    await pg.evaluate((x) => document.querySelector(`#screen-${x} .game__home`).click(), ids[0]);
+    await pg.waitForSelector(`#screen-cat-${cats[0]}:not([hidden])`);
+
+    // 4. IT IS REMEMBERED, and the other two finish the set — with a party.
+    await pg.reload({ waitUntil: "load" });
+    await go("#today", "#screen-today");
+    assert.deepEqual((await tiles()).map((x) => x.done), [true, false, false], "the ✅ must survive a reload");
+    for (const id of ids.slice(1)) {
+      await pg.evaluate((x) => document.querySelector(`#screen-today [data-today="${x}"]`).click(), id);
+      await pg.waitForSelector(`#screen-${id}:not([hidden])`);
+      assert.ok(await winOn(id), `fixture: ${id} never reached a win`);
+      await pg.evaluate((x) => document.querySelector(`#screen-${x} .game__home`).click(), id);
+      await pg.waitForSelector("#screen-today:not([hidden])");
+    }
+    assert.deepEqual((await tiles()).map((x) => x.done), [true, true, true]);
+    assert.equal(await party(), true, "all three done must be a party");
+
+    // 5. A NEW DAY is a new set, with nothing done.
+    await pg.evaluate(() => { const s = JSON.parse(localStorage.getItem("josh-today")); s.day = "2000-01-01"; localStorage.setItem("josh-today", JSON.stringify(s)); });
+    await pg.reload({ waitUntil: "load" });
+    await go("#today", "#screen-today");
+    assert.deepEqual((await tiles()).map((x) => x.done), [false, false, false], "a new day starts with nothing done");
+    assert.equal(await party(), false, "a new day has no party yet");
+    assert.deepEqual(errs, [], "no uncaught page errors");
+  } finally {
+    await ctx.close();
+  }
+});

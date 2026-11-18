@@ -1778,7 +1778,41 @@
     return { spots: assigned, need: 4 };
   }
 
+  // 🌞 Josh's Day: three games chosen for a DATE — one Numbers, one Letters,
+  // and one from the thinking / finding / science shelves, which rotate — so a
+  // day always carries the two skills his profile works on most plus one more.
+  // Pure and seeded by the date, so the same day gives the same three on every
+  // device and a test can walk a month of them. A game he has not beaten yet
+  // is chosen first, so the day keeps bringing him something new.
+  function dayRng(day) {
+    let h = 2166136261;
+    for (let k = 0; k < day.length; k++) { h ^= day.charCodeAt(k); h = Math.imul(h, 16777619); }
+    let a = h >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const TODAY_OTHERS = ["thinking", "find", "science"];
+  function todayPicks(day, byCat, isWon) {
+    const rng = dayRng(String(day));
+    const won = isWon || (() => false);
+    const pick = (ids) => {
+      const list = (ids || []).slice().sort();
+      if (!list.length) return null;
+      const fresh = list.filter((id) => !won(id));
+      const from = fresh.length ? fresh : list;
+      return from[Math.floor(rng() * from.length)];
+    };
+    const other = TODAY_OTHERS[Math.floor(rng() * TODAY_OTHERS.length)];
+    return ["numbers", "letters", other].map((cat) => pick(byCat[cat])).filter(Boolean);
+  }
+
   const API = {
+    todayPicks, dayRng, TODAY_OTHERS,
     randInt, pickIndex, shuffle, sample, makeOddOneOut, makePattern, PATTERN_UNITS,
     makeSkipCount, makeTakeAway, makeCompare,
     makeCoinTrade, makeDouble, makeLengthPick, makeCountdown, makeSeesaw,

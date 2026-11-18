@@ -335,6 +335,19 @@
     });
     grid.appendChild(surprise);
 
+    // 🌞 Today: three games for TODAY, one Numbers, one Letters and one more,
+    // picked by JoshLogic.todayPicks from the date (see buildToday below).
+    const todayTile = document.createElement("button");
+    todayTile.className = "tile tile--today tap";
+    todayTile.type = "button";
+    todayTile.setAttribute("role", "listitem");
+    todayTile.setAttribute("aria-label", "Today's three games");
+    todayTile.innerHTML = '<span class="tile__icon" aria-hidden="true">🌞</span><span class="tile__label">Today</span>';
+    todayTile.addEventListener("click", () => { location.hash = "#today"; });
+    // FIRST, as a banner across the whole row: the home was nine tiles, an
+    // even 3x3, and a tenth would leave one tile alone on a row.
+    grid.insertBefore(todayTile, grid.firstChild);
+
     // A Sticker Book tile: opens a scrapbook that fills as Josh wins games.
     const stickersTile = document.createElement("button");
     stickersTile.className = "tile tile--stickers tap";
@@ -395,10 +408,12 @@
     // its slot, and a star meter shows how full the book is — turning the
     // invisible josh-won flags into something Josh can flip through.
     buildStickerBook(screens, games);
+    buildToday(screens, games, byCat);
 
     // Live-badge a game the moment it's first beaten, and fill its sticker slot.
     window.addEventListener("josh-won", (e) => {
       if (!e.detail || !e.detail.id) return;
+      todayWon(e.detail.id);
       markTileWon(e.detail.id);
       const slot = document.querySelector('.sticker-slot[data-sticker="' + e.detail.id + '"]');
       if (slot && !slot.classList.contains("is-won")) {
@@ -410,6 +425,106 @@
 
     window.addEventListener("hashchange", route);
     route();
+  }
+
+  // ---- 🌞 Today: three games a day, played as a little set ----
+  // The day's three are FROZEN when the day is first opened (josh-today), so
+  // beating one cannot reshuffle the others under him. A game opened from here
+  // comes back here (its 🏠 is pointed at #today while it is played from the
+  // set), its tile wears a ✅ once it is won today, and finishing all three is
+  // a party. Storage can throw in private mode: the set still works for the
+  // visit, it just is not remembered.
+  let todayDefs = {}, todayFrom = null, todayState = null, todayCheered = false;
+  function todayKey() {
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function todayLoad(byCat) {
+    const day = todayKey();
+    if (todayState && todayState.day === day) return todayState;
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem("josh-today") || "null"); } catch (e) { saved = null; }
+    const valid = saved && saved.day === day && Array.isArray(saved.ids) && Array.isArray(saved.done) &&
+      saved.ids.length === 3 && saved.ids.every((id) => todayDefs[id]);
+    if (valid) {
+      todayState = { day, ids: saved.ids, done: saved.done.filter((id) => saved.ids.indexOf(id) >= 0) };
+    } else {
+      const L = window.JoshLogic;
+      const ids = L && L.todayPicks ? L.todayPicks(day, byCat, wonAlready) : [];
+      todayState = { day, ids, done: [] };
+      todaySave();
+    }
+    todayCheered = todayState.done.length === todayState.ids.length;
+    return todayState;
+  }
+  function todaySave() {
+    try { localStorage.setItem("josh-today", JSON.stringify(todayState)); } catch (e) { /* private mode */ }
+  }
+  function todayWon(id) {
+    if (!todayState || todayState.day !== todayKey()) return;
+    if (todayState.ids.indexOf(id) < 0 || todayState.done.indexOf(id) >= 0) return;
+    todayState.done.push(id);
+    todaySave();
+  }
+  let paintToday = () => {};
+  function buildToday(screens, games, byCat) {
+    games.forEach((g) => { todayDefs[g.id] = g; });
+    // The picker takes IDS per category; the launcher's byCat holds the game
+    // objects themselves.
+    const idsByCat = {};
+    Object.keys(byCat).forEach((c) => { idsByCat[c] = byCat[c].map((g) => g.id); });
+    const screen = document.createElement("section");
+    screen.className = "screen today";
+    screen.id = "screen-today";
+    screen.hidden = true;
+    const bar = document.createElement("div");
+    bar.className = "game__bar";
+    const back = document.createElement("button");
+    back.className = "btn-round game__home";
+    back.type = "button";
+    back.setAttribute("aria-label", "Home");
+    back.textContent = "🏠";
+    back.addEventListener("click", () => { location.hash = "#home"; });
+    const title = document.createElement("h2");
+    title.className = "game__title";
+    title.textContent = "🌞 Today";
+    bar.append(back, title, document.createElement("span"));
+    const tgrid = document.createElement("div");
+    tgrid.className = "home-grid today__grid";
+    const party = document.createElement("div");
+    party.className = "today__party";
+    party.hidden = true;
+    party.innerHTML = '<span class="today__partyIcon" aria-hidden="true">🎉</span><span class="today__partyText">All three today!</span>';
+    screen.append(bar, tgrid, party);
+    screens.appendChild(screen);
+    paintToday = () => {
+      const st = todayLoad(idsByCat);
+      tgrid.textContent = "";
+      st.ids.forEach((id) => {
+        const def = todayDefs[id];
+        if (!def) return;
+        const done = st.done.indexOf(id) >= 0;
+        const tile = document.createElement("button");
+        tile.className = "tile tap today__tile" + (done ? " is-done" : "");
+        tile.type = "button";
+        tile.dataset.today = id;
+        tile.setAttribute("role", "listitem");
+        tile.setAttribute("aria-label", def.title + (done ? ", done" : ""));
+        tile.innerHTML = '<span class="tile__icon" aria-hidden="true"></span><span class="tile__label"></span>' +
+          (done ? '<span class="today__done" aria-hidden="true">✅</span>' : "");
+        tile.querySelector(".tile__icon").textContent = def.icon;
+        tile.querySelector(".tile__label").textContent = def.title;
+        tile.addEventListener("click", () => { todayFrom = id; location.hash = "#" + id; });
+        tgrid.appendChild(tile);
+      });
+      const all = st.ids.length > 0 && st.done.length === st.ids.length;
+      party.hidden = !all;
+      if (all && !todayCheered) {
+        todayCheered = true;
+        try { if (window.JoshEffects && window.JoshEffects.confetti) window.JoshEffects.confetti(); } catch (e) { /* ignore */ }
+        try { if (window.JoshAudio && window.JoshAudio.say) window.JoshAudio.say("You did all three today!"); } catch (e) { /* ignore */ }
+      }
+    };
   }
 
   // Build the #screen-stickers scrapbook and wire refreshStickers().
@@ -548,6 +663,7 @@
       window.scrollTo(0, 0);
       return;
     }
+    if (!id || id === "home" || id.indexOf("cat-") === 0) todayFrom = null;
     if (!id || id === "home") {
       if (home) home.hidden = false;
       document.body.classList.remove("in-game");
@@ -558,6 +674,18 @@
     if (id.indexOf("cat-") === 0) {
       const cs = document.getElementById("screen-" + id);
       if (cs) { cs.hidden = false; document.body.classList.remove("in-game"); window.scrollTo(0, 0); return; }
+    }
+    // 🌞 Today is an out-of-game screen too; it re-reads the day on show, so
+    // a set left open past midnight turns into the new day's three.
+    if (id === "today") {
+      const ts = document.getElementById("screen-today");
+      if (ts) {
+        ts.hidden = false;
+        document.body.classList.remove("in-game");
+        paintToday();
+        window.scrollTo(0, 0);
+        return;
+      }
     }
     // The Sticker Book (#stickers) is an out-of-game screen; re-sync it on show.
     if (id === "stickers") {
@@ -572,6 +700,11 @@
     }
     const target = document.getElementById("screen-" + id);
     if (target) {
+      // A game played FROM 🌞 Today comes back to it; any other way in goes
+      // back to its category, as before. Only Josh's games are touched: 华丽's
+      // carry their own homeHash.
+      const def = todayDefs[id];
+      if (def && !def.hl) def.homeHash = todayFrom === id ? "#today" : undefined;
       target.hidden = false;
       document.body.classList.add("in-game");
       if (!target.__started) { target.__start(); target.__started = true; }

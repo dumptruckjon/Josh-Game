@@ -1937,3 +1937,36 @@ test("makeHideSpots: exactly 4 hiding (with a friend) + 2 empty decoys", () => {
     hiding.forEach((s) => assert.ok(s.friend, "a hiding spot has a friend"));
   }
 });
+
+test("🌞 todayPicks: one Numbers, one Letters, one thinking/finding/science game — the same three for a date, new ones first", () => {
+  const by = {
+    numbers: ["n1", "n2", "n3", "n4"], letters: ["l1", "l2", "l3"],
+    thinking: ["t1", "t2"], find: ["f1", "f2"], science: ["s1", "s2"], play: ["p1"], friends: ["c1"],
+  };
+  const others = new Set([...by.thinking, ...by.find, ...by.science]);
+  const days = [];
+  for (let d = 1; d <= 60; d += 1) days.push("2026-" + String(1 + Math.floor((d - 1) / 28)).padStart(2, "0") + "-" + String(1 + ((d - 1) % 28)).padStart(2, "0"));
+  const thirds = new Set(), firsts = new Set();
+  for (const day of days) {
+    const p = L.todayPicks(day, by);
+    assert.equal(p.length, 3, day);
+    assert.ok(by.numbers.includes(p[0]), `${day}: the first is a Numbers game (${p})`);
+    assert.ok(by.letters.includes(p[1]), `${day}: the second is a Letters game (${p})`);
+    assert.ok(others.has(p[2]), `${day}: the third is thinking, finding or science — never play or friends (${p})`);
+    assert.deepEqual(L.todayPicks(day, by), p, `${day}: the same date must give the same three`);
+    firsts.add(p[0]); thirds.add(p[2]);
+  }
+  // Over two months every game in a shelf comes up — the day really rotates.
+  assert.equal(firsts.size, by.numbers.length, "every Numbers game comes up over the days");
+  assert.equal(thirds.size, others.size, "every thinking/finding/science game comes up over the days");
+  // A game he has not beaten comes first; when all are beaten, any will do.
+  for (const day of days) {
+    const p = L.todayPicks(day, by, (id) => id !== "n3" && id !== "l2");
+    assert.equal(p[0], "n3", `${day}: the one unbeaten Numbers game must be chosen`);
+    assert.equal(p[1], "l2", `${day}: the one unbeaten Letters game must be chosen`);
+  }
+  assert.equal(L.todayPicks("2026-01-01", by, () => true).length, 3, "all beaten still gives three");
+  // The order a shelf is LISTED in must not matter, only what is in it.
+  const shuffled = Object.fromEntries(Object.entries(by).map(([k, v]) => [k, v.slice().reverse()]));
+  for (const day of days) assert.deepEqual(L.todayPicks(day, shuffled), L.todayPicks(day, by), `${day}: listing order changed the picks`);
+});

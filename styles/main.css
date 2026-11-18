@@ -305,6 +305,21 @@ body {
 .tile__badge { position: absolute; top: 3px; right: 4px; font-size: 1.5rem; line-height: 1; filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 2px #fff) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35)); }
 .tile--surprise { background: linear-gradient(135deg, #ffe08a, #ff9f43); }
 .tile--surprise .tile__label { color: #6b3d00; } /* was #7a4a10 = 4.24:1 on the painted #ffb95f; now 5.39:1 */
+/* 🌞 Today: a sunny tile with the Surprise tile's dark-brown label, which
+   clears AA on both ends of an opaque gradient. */
+.tile--today { background: linear-gradient(135deg, #fff3a8, #ffd24d); grid-column: 1 / -1;
+  flex-direction: row; justify-content: center; }
+/* Child margin, not flex gap: Safari 14 drops gap in a flex row. */
+.tile--today .tile__label { margin-left: 14px; font-size: 1.25rem; }
+.tile--today .tile__label { color: #5a3b00; }
+/* A game done today wears a ✅ in the corner the ⭐ uses; ✅ carries its own
+   green box, so it reads over any picture without a filter. */
+.today__done { position: absolute; top: 4px; right: 6px; font-size: 1.6rem; line-height: 1; }
+.today__tile.is-done { background: #e6f9ea; }
+.today__party { display: grid; justify-items: center; gap: 6px; margin: 20px auto 0; padding: 18px 26px;
+  border-radius: 26px; background: #fff; box-shadow: 0 8px 0 rgba(0, 0, 0, 0.12); max-width: 360px; }
+.today__partyIcon { font-size: 3.6rem; line-height: 1; }
+.today__partyText { font-size: 1.4rem; font-weight: 800; color: #2b2340; }
 
 /* ---------- Grown-ups: reset-stars button + text parent-gate ---------- */
 /* Deliberately small/quiet (adult-only; the text gate is the real lock). */
