@@ -7099,6 +7099,108 @@ test("Word Cards 🔁 Still learning: a word he misses in 👂 goes on a pile he
   }
 });
 
+test("Word Cards 🔁 还要练: a character missed in 配对 or written FOR him in 写字 goes on its own pile, and leaves when he gets it alone", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  const stub = () => pg.evaluate(() => {
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true, value: { __stub: true, cancel() {}, getVoices() { return []; }, speak() {} },
+    });
+    return !!window.speechSynthesis.__stub;
+  });
+  const st = () => pg.evaluate(() => ({
+    pile: JSON.parse(localStorage.getItem("wc-hzpile") || "[]"),
+    english: JSON.parse(localStorage.getItem("wc-pile") || "[]"),
+    shown: !document.getElementById("hzPileBtn").classList.contains("hidden"),
+    count: document.querySelector("#hzPileBtn small").textContent,
+  }));
+  const round = () => pg.evaluate(() => [...document.querySelectorAll("#mchars .mtile")].map((b) => b.dataset.ch));
+  const tap = (side, ch) => pg.evaluate(([sd, c]) => document.querySelector(`#m${sd} .mtile[data-ch="${c}"]`).click(), [side, ch]);
+  const toMenu = async (id) => { await pg.evaluate((x) => document.getElementById(x).click(), id); await pg.waitForSelector("#menu:not(.hidden)"); };
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload({ waitUntil: "load" });
+    assert.ok(await stub(), "fixture: the speech stub never installed");
+    assert.equal((await st()).shown, false, "an empty pile must not show a button");
+
+    // Learn the first board, then seed the pile with ONE of its characters so
+    // a first-time pair has something to take off.
+    await pg.click("#matchBtn");
+    await pg.waitForSelector("#match:not(.hidden)");
+    const [a, b, c, d] = await round();
+    assert.ok(a && b && c && d, "fixture: a board of four");
+    await toMenu("mback");
+    await pg.evaluate((x) => { localStorage.setItem("wc-hzpile", JSON.stringify([x])); localStorage.setItem("wc-match-at", "0"); }, d);
+    await pg.reload({ waitUntil: "load" });
+    assert.ok(await stub(), "fixture: the speech stub never installed after reload");
+    let s = await st();
+    assert.equal(s.shown, true, "a seeded pile must show its button");
+    assert.equal(s.count, "1 character", "the count says how many, in the singular for one");
+    await pg.click("#matchBtn");
+    await pg.waitForSelector("#match:not(.hidden)");
+    assert.deepEqual(await round(), [a, b, c, d], "fixture: the same board after the reload");
+
+    // 1. A WRONG GUESS puts the held character on the pile, and pairing it
+    //    afterwards does NOT take it off.
+    await tap("chars", a); await tap("pics", b);
+    assert.deepEqual((await st()).pile, [d, a], "a wrong guess must put the held character on the pile");
+    await tap("pics", a);
+    assert.deepEqual((await st()).pile, [d, a], "paired after a miss, the character stays on the pile");
+
+    // 2. Missing, switching away and coming back must not count as knowing it.
+    await tap("chars", c); await tap("pics", b);
+    await tap("chars", b); await tap("chars", c); await tap("pics", c);
+    assert.deepEqual((await st()).pile, [d, a, c], "a miss earlier on the board must keep it on, even after switching away");
+
+    // 3. A FIRST-TIME pair takes a character off; a picture held first counts too.
+    await tap("pics", d); await tap("chars", d);
+    s = await st();
+    assert.deepEqual(s.pile, [a, c], "paired with no miss, the character must leave the pile");
+    assert.deepEqual(s.english, [], "the Chinese pile must never touch the English one");
+    await toMenu("mback");
+    s = await st();
+    assert.equal(s.count, "2 characters", "the count follows the pile");
+
+    // 4. THE PILE IS A DECK of exactly those characters, shown as Chinese cards.
+    await pg.click("#hzPileBtn");
+    await pg.waitForSelector("#deck:not(.hidden)");
+    const deckChars = await pg.evaluate(() => deck.map((x) => x[0]).sort());
+    assert.deepEqual(deckChars, [a, c].sort(), "the still-learning deck must be the pile, no more and no less");
+    assert.equal(await pg.evaluate(() => document.getElementById("word").getAttribute("lang")), "zh-CN", "a pile card is a Chinese card");
+    await toMenu("back");
+
+    // 5. 写字: a stroke written FOR him (✍) puts the character on the pile and
+    //    finishing it does not take it off; writing it all himself does.
+    await pg.click("#writeBtn");
+    await pg.waitForSelector("#write:not(.hidden)");
+    const w = await pg.evaluate(() => wDeck[wi][0]);
+    assert.ok(![a, c].includes(w), "fixture: the first writing character is not already on the pile");
+    await pg.evaluate(() => document.getElementById("wshow").click());
+    assert.ok((await st()).pile.includes(w), "a stroke written for him must put the character on the pile");
+    await pg.waitForFunction(() => wStep >= 1);
+    await pg.evaluate(() => { const n = STROKES[wDeck[wi][0]].s.length; while (wStep < n) wInk(); });
+    assert.ok((await st()).pile.includes(w), "finished after a rescue, the character stays on the pile");
+    await pg.evaluate((x) => { wi = wDeck.findIndex((q) => q[0] === x); wGo(0); }, a);
+    assert.equal(await pg.evaluate(() => wDeck[wi][0]), a, "fixture: moved to a character on the pile");
+    await pg.evaluate(() => { const n = STROKES[wDeck[wi][0]].s.length; while (wStep < n) wInk(); });
+    assert.ok(!(await st()).pile.includes(a), "written all by himself, the character must leave the pile");
+    await toMenu("wback");
+
+    // 6. Empty it and the button hides again; it survives a reload until then.
+    await pg.reload({ waitUntil: "load" });
+    assert.equal((await st()).shown, true, "the pile must survive a reload");
+    await pg.evaluate(() => localStorage.setItem("wc-hzpile", "[\"not-a-character\"]"));
+    await pg.reload({ waitUntil: "load" });
+    assert.equal((await st()).shown, false, "an entry that is not one of the 120 must not count");
+    assert.deepEqual(errs, [], "no uncaught page errors");
+  } finally {
+    await ctx.close();
+  }
+});
+
 test("🌞 Today: three games for the day — Numbers, Letters and one more — that come back to the set, wear a ✅ when won, and end in a party", async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
   const pg = await ctx.newPage();

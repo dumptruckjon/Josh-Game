@@ -757,6 +757,10 @@
        other three buttons ask him to RECALL a character; this one TEACHES one
        he has never seen, so it gets its own screen and its own lessons. -->
   <button class="mode hz" id="learnBtn"><span><b lang="zh-CN">&#26032;&#23383;</b> New Characters</span> <small></small></button>
+  <!-- 🔁 The characters he missed: a wrong guess in 配对, or a stroke 写字 had
+       to write for him. One right first time takes it off again. Hidden while
+       empty, like the English pile. -->
+  <button class="mode hz hidden" id="hzPileBtn"><span><b aria-hidden="true">&#128257;</b> <b lang="zh-CN">&#36824;&#35201;&#32451;</b> Still learning</span> <small></small></button>
   <h2 class="sect">Letter teams</h2>
   <div class="grid" id="teamGrid"></div>
   <h2 class="sect">Bossy R</h2>
@@ -2018,7 +2022,7 @@ function svgEl(tag, attrs){
 }
 const writeEl = $("write"), wpad = $("wpad"), wglyph = $("wglyph"), wghost = $("wghost"),
       wdoneEl = $("wdone"), whint = $("whint"), wtrail = $("wtrail");
-let wDeck = [], wi = 0, wStep = 0, wMiss = 0, wPath = [], wPid = null, wLock = false;
+let wDeck = [], wi = 0, wStep = 0, wMiss = 0, wPath = [], wPid = null, wLock = false, wHelped = false;
 
 function wCard(){ return wDeck[wi] || null; }
 function wData(){ const c = wCard(); return c ? STROKES[c[0]] : null; }
@@ -2061,7 +2065,11 @@ function wInk(){
   const d = wData(); if (!d) return;
   wStep += 1; wMiss = 0; wPath = [];
   wRender();
-  if (wStep >= d.s.length) wSpeak();
+  if (wStep >= d.s.length){
+    // Every stroke his own, no rescue: he can write this one now.
+    if (!wHelped) hzPileDrop(wDeck[wi][0]);
+    wSpeak();
+  }
 }
 /* ONE owner for "write this stroke for him": the ✍ button, the three-miss
    rescue, and the only way through a character for anyone who cannot drag. */
@@ -2069,6 +2077,8 @@ function wShow(){
   const d = wData();
   if (!d || wLock || wStep >= d.s.length) return;
   wLock = true;
+  // A stroke written FOR him (the rescue, or ✍) puts the character on the pile.
+  wHelped = true; hzPileAdd(wDeck[wi][0]);
   wdoneEl.appendChild(svgEl("path", { d: d.s[wStep], class: "winkin" }));
   whint.textContent = "";
   setTimeout(() => {
@@ -2081,7 +2091,7 @@ function wShow(){
 function wGo(step){
   if (!wDeck.length) return;
   wi = (wi + step + wDeck.length) % wDeck.length;
-  wStep = 0; wMiss = 0; wPath = []; wPid = null; wLock = false;
+  wStep = 0; wMiss = 0; wPath = []; wPid = null; wLock = false; wHelped = false;
   try { localStorage.setItem("wc-write-at", String(wi)); } catch (e) {}
   wRender();
   wSpeak();
@@ -2169,7 +2179,7 @@ $("writeBtn").addEventListener("click", () => {
     const v = parseInt(localStorage.getItem("wc-write-at"), 10);
     if (v >= 0 && v < wDeck.length) wi = v;
   } catch (e) {}
-  wStep = 0; wMiss = 0; wPath = []; wPid = null; wLock = false;
+  wStep = 0; wMiss = 0; wPath = []; wPid = null; wLock = false; wHelped = false;
   menu.classList.add("hidden");
   writeEl.classList.remove("hidden");
   wRender();
@@ -2186,7 +2196,7 @@ $("writeBtn").addEventListener("click", () => {
    catches his eye, and refusing one direction would be a failure state in a
    game RULE 5 does not allow to have one. */
 const matchEl = $("match"), mcharsEl = $("mchars"), mpicsEl = $("mpics");
-let mRounds = [], mr = 0, mHeld = null, mMiss = 0, mDone = 0, mLock = false;
+let mRounds = [], mr = 0, mHeld = null, mMiss = 0, mDone = 0, mLock = false, mMissed = new Set();
 
 function mDeck(){ if (!mRounds.length) mRounds = matchRounds(); return mRounds; }
 function mRound(){ return mRounds[mr] || []; }
@@ -2245,7 +2255,7 @@ function mTile(side, c){
 function mRender(){
   const round = mRound();
   mcharsEl.textContent = ""; mpicsEl.textContent = "";
-  mHeld = null; mMiss = 0; mDone = 0;
+  mHeld = null; mMiss = 0; mDone = 0; mMissed = new Set();
   for (const c of round) mcharsEl.appendChild(mTile("char", c));
   for (const c of mPicOrder(round, "pic" + mr)) mpicsEl.appendChild(mTile("pic", c));
   $("mcount").textContent = (mr + 1) + " / " + mRounds.length;
@@ -2264,6 +2274,10 @@ function mPair(a, b){
     el.setAttribute("aria-disabled", "true");
     el.removeAttribute("aria-pressed");
   }
+  // Paired with no wrong guess on it anywhere this board — not merely since
+  // he last picked it up, or missing, switching away and back would count —
+  // so he knows this one.
+  if (!mMissed.has(a.dataset.ch)) hzPileDrop(a.dataset.ch);
   mHeld = null; mMiss = 0; mDone += 1;
   mSay(a.dataset.ch);
   if (mDone >= mRound().length) mFinish();
@@ -2273,6 +2287,7 @@ function mPair(a, b){
    a wrong tap costs is the tap. */
 function mBump(b){
   nudge(b);
+  if (mHeld){ mMissed.add(mHeld.dataset.ch); hzPileAdd(mHeld.dataset.ch); }
   mMiss += 1;
   if (mMiss < 3 || !mHeld) return;
   const other = mHeld.dataset.side === "char" ? mpicsEl : mcharsEl;
@@ -2406,6 +2421,24 @@ function pileRead(){
 function pileWrite(list){ try { localStorage.setItem("wc-pile", JSON.stringify(list)); } catch (e) {} paintPile(); }
 function pileAdd(w){ const p = pileRead(); if (p.indexOf(w) < 0){ p.push(w); pileWrite(p); } }
 function pileDrop(w){ const p = pileRead(); const k = p.indexOf(w); if (k >= 0){ p.splice(k, 1); pileWrite(p); } }
+/* The Chinese pile: the same shape as the English one, its own key, keyed by
+   the CHARACTER and read back through HANZI so a character that has left the
+   deck drops out. */
+const hzBy = {}; for (const c of HANZI) hzBy[c[0]] = c;
+function hzPileRead(){
+  try {
+    const v = JSON.parse(localStorage.getItem("wc-hzpile") || "[]");
+    return Array.isArray(v) ? v.filter((h) => typeof h === "string" && hzBy[h]) : [];
+  } catch (e) { return []; }
+}
+function hzPileWrite(list){ try { localStorage.setItem("wc-hzpile", JSON.stringify(list)); } catch (e) {} paintHzPile(); }
+function hzPileAdd(h){ if (!hzBy[h]) return; const p = hzPileRead(); if (p.indexOf(h) < 0){ p.push(h); hzPileWrite(p); } }
+function hzPileDrop(h){ const p = hzPileRead(); const k = p.indexOf(h); if (k >= 0){ p.splice(k, 1); hzPileWrite(p); } }
+function paintHzPile(){
+  const n = hzPileRead().length, b = $("hzPileBtn");
+  b.classList.toggle("hidden", n === 0);
+  b.querySelector("small").textContent = n + (n === 1 ? " character" : " characters");
+}
 function paintPile(){
   const n = pileRead().length, b = $("pileBtn");
   b.classList.toggle("hidden", n === 0);
@@ -2573,6 +2606,12 @@ $("pileBtn").addEventListener("click", () => {
   if (list.length) start(list, "Still learning", "pile");
 });
 paintPile();
+
+$("hzPileBtn").addEventListener("click", () => {
+  const list = hzPileRead().map((h) => hzBy[h]);
+  if (list.length) start(list, "Still learning \u4e2d\u6587", "hzpile");
+});
+paintHzPile();
 
 /* ---------- 📚 Stories: the books ----------
    Eight little books he can READ, not just hear. Every word is either one he

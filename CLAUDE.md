@@ -10891,6 +10891,10 @@ tooling.
 │                               #   goes on a pile (`wc-pile`, words not indices); found first time later,
 │                               #   it leaves. The pile is a flash deck of its own, and its button shows
 │                               #   only while the pile has something in it.
+│                               #   Its Chinese twin, 🔁 还要练 (`wc-hzpile`, characters): a wrong guess
+│                               #   in 配对 or a stroke 写字 had to write for him puts the character on;
+│                               #   pairing it with no miss on that board, or writing every stroke himself,
+│                               #   takes it off. It opens as a 中文 flash deck.
 │                               #   Every count is counted,
 │                               #   and every control
 │                               #   SAYS what it is — the chips name their deck and its size, the card
