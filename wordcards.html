@@ -751,6 +751,9 @@
   <!-- 🌞 Six characters for today: the ones he is still learning first, then
        the rest of the 120 by the date, the same six all day. -->
   <button class="mode hz" id="hzTodayBtn"><span><b aria-hidden="true">&#127774;</b> <b lang="zh-CN">&#20170;&#22825;</b> Today's characters</span> <small></small></button>
+  <!-- 👂 听一听: the page says a character and he taps it from three. The
+       Chinese twin of Hear it, find it, on the same screen. -->
+  <button class="mode hz" id="hzHearBtn"><span><b aria-hidden="true">&#128066;</b> <b lang="zh-CN">&#21548;&#19968;&#21548;</b> Hear it, find it</span> <small></small></button>
   <!-- `.mode`, not `.all`: `.all` means "opens a whole-library card DECK" to two
        derived test walks, and this opens the writing pad instead. It takes the
        same style and none of the meaning. -->
@@ -2410,7 +2413,22 @@ const hearEl = $("hear"), hsay = $("hsay"), hcue = $("hcue"), hchoices = $("hcho
 const HEAR_BEAT = 1500;
 let hDeck = [], hi = 0, hMiss = 0, hSolved = false, hCued = false, hTimer = 0;
 
-function hDeckOnce(){ if (!hDeck.length) hDeck = hearDeck(); return hDeck; }
+// The English ladder is built once; hDeck is whichever deck is on screen, so
+// it must never be the cache (opening 听一听 first would otherwise hand the
+// English button the Chinese deck).
+let hEnDeck = [];
+function hDeckOnce(){ if (!hEnDeck.length) hEnDeck = hearDeck(); return hEnDeck; }
+/* The screen plays one of two decks. Everything that differs between English
+   and Chinese lives here — the ladder, the board, where his place is kept and
+   which still-learning pile a miss goes on — so the round itself is ONE code
+   path and the two cannot drift apart. */
+const HEAR_EN = { key: "wc-hear-at", back: "Hear it", zh: false,
+  deck: () => hDeckOnce(), choices: (c) => hearChoices(c[0]),
+  add: (w) => pileAdd(w), drop: (w) => pileDrop(w) };
+const HEAR_ZH = { key: "wc-hzhear-at", back: "\u542c\u4e00\u542c", zh: true,
+  deck: () => hzChars().map((h) => hzBy[h]), choices: (c) => hzHearChoices(c[0]),
+  add: (h) => hzPileAdd(h), drop: (h) => hzPileDrop(h) };
+let hMode = HEAR_EN;
 /* 🔁 Still learning: the ONE owner of the pile. Words only (never indices,
    which move whenever the deck grows), read back through byWord so a word that
    has left the deck drops out instead of rendering as nothing. Storage can
@@ -2448,6 +2466,38 @@ function paintHzPile(){
    FROZEN for the day (wc-hztoday), or a character he got right this morning
    would swap a card out from under him this afternoon, and a new day starts
    the deck from its first card again. */
+/* The 120 characters in the order the printed table teaches them: the ONE
+   place the Chinese-only extras read HANZI, so they cannot drift apart. */
+function hzChars(){ return HANZI.map((c) => c[0]); }
+/* 听一听's board: the character he hears and two others. A wrong answer may
+   not SOUND like the right one (the same syllable in any tone — 下 and 夏 are
+   both xià), may not share its picture or be one of its declared pairs (the
+   silent cue is the picture, so 蝴 and 蝶 can never both be on a board), and
+   may not appear in the sentence the voice reads after the character — or he
+   would hear the wrong answer too. Seeded per character, like the English
+   board: position never answers the question. */
+function hzSyllable(p){ return p.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
+// The ONE rule for "may d sit beside the answer c": the board below uses it,
+// and a test drives it on known pairs, because on today's seeds no board
+// happens to draw 蝶 beside 蝴 — so only the rule itself can be checked.
+function hzHearOk(c, d){
+  return c[0] !== d[0] && hzSyllable(d[3]) !== hzSyllable(c[3]) && !clash(c, d) && c[5].indexOf(d[0]) < 0;
+}
+function hzHearChoices(ch){
+  const c = hzBy[ch]; if (!c) return [];
+  const r = rngFrom(seedOf("hzhear " + ch));
+  const pool = hzChars().filter((h) => h !== ch).map((h) => ({ h, t: r() })).sort((a, b) => a.t - b.t);
+  const out = [];
+  for (const { h } of pool){
+    if (out.length >= HEAR_CHOICES - 1) break;
+    const d = hzBy[h];
+    if (!hzHearOk(c, d)) continue;
+    if (out.some((o) => clash(hzBy[o], d) || hzSyllable(hzBy[o][3]) === hzSyllable(d[3]))) continue;
+    out.push(h);
+  }
+  out.splice(Math.floor(r() * (out.length + 1)), 0, ch);
+  return out;
+}
 const HZ_TODAY_N = 6;
 function hzDayKey(d){
   const t = d || new Date();
@@ -2457,7 +2507,7 @@ function hzTodayPick(day, pile){
   const r = rngFrom(seedOf("hztoday:" + day));
   const shuffle = (a) => { for (let k = a.length - 1; k > 0; k--){ const j = Math.floor(r() * (k + 1)); const t = a[k]; a[k] = a[j]; a[j] = t; } return a; };
   const mine = shuffle(pile.filter((h, k) => hzBy[h] && pile.indexOf(h) === k)).slice(0, HZ_TODAY_N / 2);
-  const rest = shuffle(HANZI.map((c) => c[0]).filter((h) => mine.indexOf(h) < 0));
+  const rest = shuffle(hzChars().filter((h) => mine.indexOf(h) < 0));
   return mine.concat(rest.slice(0, HZ_TODAY_N - mine.length));
 }
 function hzToday(){
@@ -2481,7 +2531,7 @@ function paintPile(){
 }
 function hCard(){ return hDeck[hi] || null; }
 function hSpeak(){ const c = hCard(); if (c) speak.apply(null, cardSpeech(c)); }
-function hSaveAt(n){ try { localStorage.setItem("wc-hear-at", String(n)); } catch (e) {} }
+function hSaveAt(n){ try { localStorage.setItem(hMode.key, String(n)); } catch (e) {} }
 
 /* The prompt tile. Unsolved and audible, it is only the say-it glyph — the
    question is the sound. Silent (sound off, or no voice on the device), it
@@ -2533,12 +2583,13 @@ function hRender(){
   hCued = !soundOn || !window.speechSynthesis;
   document.documentElement.style.setProperty("--card", COLORS[hi % COLORS.length]);
   hchoices.textContent = "";
-  for (const w of hearChoices(c[0])){
+  for (const w of hMode.choices(c)){
     const b = document.createElement("button");
     b.type = "button"; b.className = "mtile"; b.dataset.word = w;
     if (w === c[0]) b.dataset.correct = "1";
     const sp = document.createElement("span");
     sp.className = "hword"; sp.textContent = w;
+    if (hMode.zh){ sp.classList.add("mchar"); sp.lang = "zh-CN"; }
     b.appendChild(sp);
     hchoices.appendChild(b);
   }
@@ -2549,7 +2600,7 @@ function hRender(){
 
 function hSolve(b){
   // Found on the FIRST tap: he knows it now, so it leaves the pile.
-  if (hMiss === 0) pileDrop(hCard()[0]);
+  if (hMiss === 0) hMode.drop(hCard()[0]);
   hSolved = true;
   b.classList.add("done");
   // An answered board answers nothing: no "try again" can follow a right
@@ -2573,7 +2624,7 @@ function hTap(b){
   const c = hCard(); if (!c) return;
   if (b.dataset.word === c[0]){ hSolve(b); return; }
   // His FIRST tap on this word was wrong: it goes on the still-learning pile.
-  if (hMiss === 0) pileAdd(c[0]);
+  if (hMiss === 0) hMode.add(c[0]);
   nudge(b);
   hSpeak();   // the word again, so he can compare what he heard with what he read
   hMiss += 1;
@@ -2595,7 +2646,7 @@ function hRestart(){
   if (!hDeck.length) return;
   hi = 0;
   // REMOVED, not set to "0", exactly as 配对 does it.
-  try { localStorage.removeItem("wc-hear-at"); } catch (e) {}
+  try { localStorage.removeItem(hMode.key); } catch (e) {}
   hRender();
   hSpeak();
 }
@@ -2619,13 +2670,15 @@ $("hback").addEventListener("click", () => {
   try { speechSynthesis.cancel(); } catch (e) {}
 });
 $("hearBtn").querySelector("small").textContent = hDeckOnce().length + " words";
-$("hearBtn").addEventListener("click", () => {
-  hDeckOnce();
+function hOpen(mode){
+  hMode = mode;
+  hDeck = mode.deck();
+  $("hback").innerHTML = "&lsaquo;&nbsp; " + (mode.zh ? '<span lang="zh-CN">' + mode.back + "</span>" : mode.back);
   // The bound is the modular one, as on the other two boards: the last word is
   // a real place to stop, and coming back must land on it, not on the first.
   hi = 0;
   try {
-    const v = parseInt(localStorage.getItem("wc-hear-at"), 10);
+    const v = parseInt(localStorage.getItem(mode.key), 10);
     if (v >= 0 && v < hDeck.length) hi = v;
   } catch (e) {}
   // A listening game IS a request for sound — see unmute().
@@ -2634,7 +2687,10 @@ $("hearBtn").addEventListener("click", () => {
   hearEl.classList.remove("hidden");
   hRender();
   hSpeak();
-});
+}
+$("hearBtn").addEventListener("click", () => hOpen(HEAR_EN));
+$("hzHearBtn").querySelector("small").textContent = hzChars().length + " characters";
+$("hzHearBtn").addEventListener("click", () => hOpen(HEAR_ZH));
 
 $("pileBtn").addEventListener("click", () => {
   const list = pileRead().map((w) => byWord[w]);

@@ -6158,8 +6158,8 @@ test("Word Cards: the Chinese characters stay OUT of every English derivation", 
   assert.equal(uses, 8,
     `HANZI is referenced ${uses} times; it may only be declared, counted for its own ` +
     "reading button and handed to that button's start(), counted for the WRITING " +
-    "button and handed to writeDeck(), walked by matchRounds(), and indexed for the " +
-    "Chinese still-learning pile (hzBy), and shuffled for today's six (hzTodayPick) — a ninth " +
+    "button and handed to writeDeck(), walked by matchRounds(), indexed by hzBy and listed in table order by hzChars() " +
+    "(the ONE reader every Chinese-only extra — the pile, 今天, 听一听 — goes through) — a ninth " +
     "derivation reading it is how a han " +
     "character gets into a phonics deck. This count is the weak structural sibling of " +
     "\"the Chinese characters stay OUT of every English derivation\", which is the claim; " +

@@ -10898,6 +10898,12 @@ tooling.
 │                               #   🌞 今天 (`wc-hztoday`): six characters a day — up to three from that
 │                               #   pile, the rest of the 120 by a shuffle seeded on the date — frozen for
 │                               #   the day, a new day starting from its first card.
+│                               #   👂 听一听 (`wc-hzhear-at`): the Chinese twin of Hear it, find it, on the
+│                               #   same screen (HEAR_EN / HEAR_ZH hold everything that differs). A wrong
+│                               #   answer may not sound like the right one in any tone, share its picture
+│                               #   or a declared pair, or appear in the sentence the voice reads after it
+│                               #   (hzHearOk, the ONE rule). Misses go on 还要练. hzChars() is the ONE
+│                               #   reader of HANZI every Chinese-only extra goes through.
 │                               #   Every count is counted,
 │                               #   and every control
 │                               #   SAYS what it is — the chips name their deck and its size, the card

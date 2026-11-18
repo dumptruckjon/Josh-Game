@@ -7361,6 +7361,121 @@ test("Word Cards 🌞 今天: six characters a day, his still-learning ones firs
   }
 });
 
+test("Word Cards 👂 听一听: hear a character, tap it from three — every board fair, misses on the Chinese pile, its own place", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  const stub = () => pg.evaluate(() => {
+    window.__said = [];
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true, value: { __stub: true, cancel() {}, getVoices() { return []; }, speak(u) { window.__said.push([u.text, u.lang]); } },
+    });
+    return !!window.speechSynthesis.__stub;
+  });
+  const st = () => pg.evaluate(() => ({
+    word: hDeck[hi] && hDeck[hi][0], cat: hDeck[hi] && hDeck[hi][2],
+    tiles: [...document.querySelectorAll("#hchoices .mtile")].map((b) => [b.dataset.word, b.querySelector(".hword").lang]),
+    hz: JSON.parse(localStorage.getItem("wc-hzpile") || "[]"), en: JSON.parse(localStorage.getItem("wc-pile") || "[]"),
+    at: localStorage.getItem("wc-hzhear-at"), enAt: localStorage.getItem("wc-hear-at"),
+    back: document.getElementById("hback").textContent, said: window.__said.slice(),
+  }));
+  const tap = (w) => pg.evaluate((x) => document.querySelector(`#hchoices [data-word="${x}"]`).click(), w);
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload({ waitUntil: "load" });
+    assert.ok(await stub(), "fixture: the speech stub never installed");
+
+    // 1. EVERY board of the 120 is fair: three different characters, the
+    //    right one among them, none sounding like it, none sharing its picture
+    //    or a declared pair, none in the sentence the voice reads after it.
+    const bad = await pg.evaluate(() => {
+      const out = [];
+      for (const h of hzChars()){
+        const b = hzHearChoices(h), c = hzBy[h];
+        const why = [];
+        if (b.length !== 3 || new Set(b).size !== 3 || b.indexOf(h) < 0) why.push("not three with the answer");
+        for (const o of b) if (o !== h){
+          const d = hzBy[o];
+          if (!d) why.push(o + " not a card");
+          else {
+            if (hzSyllable(d[3]) === hzSyllable(c[3])) why.push(o + " sounds like it");
+            if (clash(c, d)) why.push(o + " shares its picture or a pair");
+            if (c[5].indexOf(o) >= 0) why.push(o + " is in its sentence");
+          }
+        }
+        if (why.length) out.push(h + ": " + why.join(", "));
+      }
+      return out;
+    });
+    assert.deepEqual(bad, [], "every 听一听 board must have one fair answer");
+    // The rule itself, on pairs that must be refused whether or not a seed
+    // ever draws them: the same picture, a declared pair, the same syllable,
+    // a character in the answer's own sentence — and a plain stranger allowed.
+    const rule = await pg.evaluate(() => {
+      const ok = (a, b) => hzHearOk(hzBy[a], hzBy[b]);
+      const inSentence = [...hzBy["大"][5]].find((h) => h !== "大" && hzBy[h]);
+      return { butterfly: ok("蝴", "蝶"), pair: ok("大", "小"), syllable: ok("下", "夏"),
+        sentence: inSentence ? ok("大", inSentence) : "none", stranger: ok("大", "水") };
+    });
+    assert.deepEqual(rule, { butterfly: false, pair: false, syllable: false, sentence: false, stranger: true },
+      "the fair-wrong-answer rule must refuse look-alike, paired, same-sounding and spoken characters");
+    const spread = await pg.evaluate(() => hzChars().map((h) => hzHearChoices(h).indexOf(h)));
+    assert.equal(new Set(spread).size, 3, "the answer must not always sit in the same place");
+
+    // 2. Opening it: Chinese tiles, its own back label, the character AND its
+    //    sentence said in a Chinese voice.
+    await pg.click("#hzHearBtn");
+    await pg.waitForSelector("#hear:not(.hidden)");
+    let s = await st();
+    assert.equal(s.cat, "hanzi", "听一听 asks for the Chinese characters");
+    assert.ok(s.tiles.length === 3 && s.tiles.every(([, l]) => l === "zh-CN"), "every tile is a Chinese character, marked so");
+    assert.ok(s.back.includes("听一听"), "the back button names the Chinese board");
+    const first = s.word, c5 = await pg.evaluate((h) => hzBy[h][5], first);
+    assert.ok(s.said.some(([t, l]) => l === "zh-CN" && t.indexOf(first) === 0 && t.includes(c5)), "the character and its sentence, in a Chinese voice");
+
+    // 3. A wrong first tap goes on the CHINESE pile, never the English one;
+    //    found after a miss it stays; the next character's place is saved.
+    const wrong = s.tiles.map(([w]) => w).filter((w) => w !== first);
+    await tap(wrong[0]);
+    s = await st();
+    assert.deepEqual(s.hz, [first], "a miss goes on the Chinese pile");
+    assert.deepEqual(s.en, [], "and never on the English one");
+    await tap(first);
+    s = await st();
+    assert.deepEqual(s.hz, [first], "found after a miss, it stays on the pile");
+    assert.equal(s.at, "1", "the next character is saved as his place");
+    assert.equal(s.enAt, null, "the English board's place is untouched");
+
+    // 4. Back on the menu, the English board is still the English board.
+    await pg.evaluate(() => { clearTimeout(hTimer); document.getElementById("hback").click(); });
+    await pg.waitForSelector("#menu:not(.hidden)");
+    await pg.click("#hearBtn");
+    await pg.waitForSelector("#hear:not(.hidden)");
+    s = await st();
+    assert.notEqual(s.cat, "hanzi", "opening English after Chinese must give the English deck");
+    assert.ok(s.back.includes("Hear it"), "and its own back label");
+    assert.ok(s.tiles.every(([, l]) => l === ""), "English tiles carry no Chinese lang");
+    await pg.evaluate(() => { clearTimeout(hTimer); document.getElementById("hback").click(); });
+    await pg.waitForSelector("#menu:not(.hidden)");
+
+    // 5. A first-time find takes it off the pile, and the place survives a reload.
+    await pg.evaluate(() => localStorage.setItem("wc-hzhear-at", "0"));
+    await pg.reload({ waitUntil: "load" });
+    assert.ok(await stub(), "fixture: the speech stub never installed after reload");
+    await pg.click("#hzHearBtn");
+    await pg.waitForSelector("#hear:not(.hidden)");
+    assert.equal((await st()).word, first, "fixture: back on the missed character");
+    await tap(first);
+    assert.deepEqual((await st()).hz, [], "found on the first tap, it leaves the Chinese pile");
+    assert.equal(await pg.textContent("#hzHearBtn small"), (await pg.evaluate(() => HANZI.length)) + " characters", "the button says how many");
+    assert.deepEqual(errs, [], "no uncaught page errors");
+  } finally {
+    await ctx.close();
+  }
+});
+
 test("🌞 Today: three games for the day — Numbers, Letters and one more — that come back to the set, wear a ✅ when won, and end in a party", async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
   const pg = await ctx.newPage();
