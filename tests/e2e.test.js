@@ -7287,6 +7287,80 @@ test("📊 Grown-ups: the progress page reads every world's own save, writes not
   }
 });
 
+test("Word Cards 🌞 今天: six characters a day, his still-learning ones first, the same six all day, a fresh set tomorrow", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  const open = async () => {
+    await pg.click("#hzTodayBtn");
+    await pg.waitForSelector("#deck:not(.hidden)");
+    const r = await pg.evaluate(() => ({
+      deck: deck.map((c) => c[0]), cats: deck.map((c) => c[2]), at: i,
+      saved: JSON.parse(localStorage.getItem("wc-hztoday") || "null"), today: hzDayKey(),
+    }));
+    await pg.evaluate(() => document.getElementById("back").click());
+    await pg.waitForSelector("#menu:not(.hidden)");
+    return r;
+  };
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload({ waitUntil: "load" });
+    assert.equal(await pg.textContent("#hzTodayBtn small"), "6 characters", "the button says how many");
+
+    // 1. Six real, different Chinese cards, saved against today's date.
+    let r = await open();
+    assert.equal(r.deck.length, 6, "six characters a day");
+    assert.equal(new Set(r.deck).size, 6, "no character twice");
+    assert.ok(r.cats.every((c) => c === "hanzi"), "every card is one of the 120 Chinese cards");
+    assert.deepEqual(r.saved && r.saved.day, r.today, "the set is saved against today's date");
+    assert.deepEqual([...r.deck].sort(), [...r.saved.chars].sort(), "the deck is the saved set");
+
+    // 2. His still-learning characters come first: up to three of them.
+    const pile = await pg.evaluate(() => HANZI.slice(10, 15).map((c) => c[0]));
+    await pg.evaluate((p) => { localStorage.setItem("wc-hzpile", JSON.stringify(p)); localStorage.removeItem("wc-hztoday"); }, pile);
+    await pg.reload({ waitUntil: "load" });
+    r = await open();
+    assert.equal(r.deck.filter((h) => pile.includes(h)).length, 3, "three of today's six must come from his pile of five");
+    const pile1 = await pg.evaluate(() => HANZI.slice(20, 21).map((c) => c[0]));
+    const one = await pg.evaluate(([p, d]) => hzTodayPick(d, p), [pile1, r.today]);
+    assert.equal(one.length, 6, "a pile of one still makes six");
+    assert.ok(one.includes(pile1[0]), "a pile of one is always in today's set");
+
+    // 3. FROZEN for the day: the pile changing does not swap a card out.
+    const first = r.deck.slice().sort();
+    await pg.evaluate(() => localStorage.setItem("wc-hzpile", "[]"));
+    await pg.reload({ waitUntil: "load" });
+    r = await open();
+    assert.deepEqual([...r.deck].sort(), first, "the same six all day, whatever happens to the pile");
+
+    // 4. A NEW DAY is a new set and starts from its first card.
+    await pg.evaluate(() => {
+      localStorage.setItem("wc-hztoday", JSON.stringify({ day: "2000-01-01", chars: HANZI.slice(0, 6).map((c) => c[0]) }));
+      localStorage.setItem("wc-at-hztoday", "3");
+    });
+    await pg.reload({ waitUntil: "load" });
+    r = await open();
+    assert.equal(r.saved.day, r.today, "yesterday's set is replaced by today's");
+    assert.equal(r.at, 0, "a new day starts at the first card");
+    const days = await pg.evaluate(() => ["2026-01-01", "2026-01-02", "2026-01-03"].map((d) => hzTodayPick(d, []).join("")));
+    assert.equal(new Set(days).size, 3, "different days give different sets");
+    assert.equal(await pg.evaluate(() => hzTodayPick("2026-01-01", []).join("")), days[0], "the same day always gives the same set");
+
+    // 5. A broken save is replaced, not trusted.
+    for (const junk of ["{nope", JSON.stringify({ day: "x", chars: 7 }), JSON.stringify({ day: r.today, chars: ["not", "real", "a", "b", "c", "d"] })]) {
+      await pg.evaluate((j) => localStorage.setItem("wc-hztoday", j), junk);
+      await pg.reload({ waitUntil: "load" });
+      const k = await open();
+      assert.ok(k.deck.length === 6 && k.cats.every((c) => c === "hanzi"), "junk in the save must give a real set — " + junk);
+    }
+    assert.deepEqual(errs, [], "no uncaught page errors");
+  } finally {
+    await ctx.close();
+  }
+});
+
 test("🌞 Today: three games for the day — Numbers, Letters and one more — that come back to the set, wear a ✅ when won, and end in a party", async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
   const pg = await ctx.newPage();

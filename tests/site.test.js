@@ -6155,11 +6155,11 @@ test("Word Cards: the Chinese characters stay OUT of every English derivation", 
   const bare = src.replace(/<!--[\s\S]*?-->/g, "").replace(/\/\*[\s\S]*?\*\//g, "")
                   .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
   const uses = (bare.match(/\bHANZI\b/g) || []).length;
-  assert.equal(uses, 7,
+  assert.equal(uses, 8,
     `HANZI is referenced ${uses} times; it may only be declared, counted for its own ` +
     "reading button and handed to that button's start(), counted for the WRITING " +
     "button and handed to writeDeck(), walked by matchRounds(), and indexed for the " +
-    "Chinese still-learning pile (hzBy) — an eighth " +
+    "Chinese still-learning pile (hzBy), and shuffled for today's six (hzTodayPick) — a ninth " +
     "derivation reading it is how a han " +
     "character gets into a phonics deck. This count is the weak structural sibling of " +
     "\"the Chinese characters stay OUT of every English derivation\", which is the claim; " +

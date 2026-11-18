@@ -10895,6 +10895,9 @@ tooling.
 │                               #   in 配对 or a stroke 写字 had to write for him puts the character on;
 │                               #   pairing it with no miss on that board, or writing every stroke himself,
 │                               #   takes it off. It opens as a 中文 flash deck.
+│                               #   🌞 今天 (`wc-hztoday`): six characters a day — up to three from that
+│                               #   pile, the rest of the 120 by a shuffle seeded on the date — frozen for
+│                               #   the day, a new day starting from its first card.
 │                               #   Every count is counted,
 │                               #   and every control
 │                               #   SAYS what it is — the chips name their deck and its size, the card

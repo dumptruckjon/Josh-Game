@@ -748,6 +748,9 @@
        this page. -->
   <h2 class="sect">Chinese</h2>
   <button class="all hz" id="hanziBtn"><span><b lang="zh-CN">&#20013;&#25991;</b> Chinese Characters</span> <small></small></button>
+  <!-- 🌞 Six characters for today: the ones he is still learning first, then
+       the rest of the 120 by the date, the same six all day. -->
+  <button class="mode hz" id="hzTodayBtn"><span><b aria-hidden="true">&#127774;</b> <b lang="zh-CN">&#20170;&#22825;</b> Today's characters</span> <small></small></button>
   <!-- `.mode`, not `.all`: `.all` means "opens a whole-library card DECK" to two
        derived test walks, and this opens the writing pad instead. It takes the
        same style and none of the meaning. -->
@@ -2439,6 +2442,38 @@ function paintHzPile(){
   b.classList.toggle("hidden", n === 0);
   b.querySelector("small").textContent = n + (n === 1 ? " character" : " characters");
 }
+/* 🌞 Today's characters: a small set for the day. Up to half come from his
+   still-learning pile, the rest from the 120 by a shuffle seeded on the date,
+   so a day he has nothing to catch up on is still six he can read. The set is
+   FROZEN for the day (wc-hztoday), or a character he got right this morning
+   would swap a card out from under him this afternoon, and a new day starts
+   the deck from its first card again. */
+const HZ_TODAY_N = 6;
+function hzDayKey(d){
+  const t = d || new Date();
+  return t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0");
+}
+function hzTodayPick(day, pile){
+  const r = rngFrom(seedOf("hztoday:" + day));
+  const shuffle = (a) => { for (let k = a.length - 1; k > 0; k--){ const j = Math.floor(r() * (k + 1)); const t = a[k]; a[k] = a[j]; a[j] = t; } return a; };
+  const mine = shuffle(pile.filter((h, k) => hzBy[h] && pile.indexOf(h) === k)).slice(0, HZ_TODAY_N / 2);
+  const rest = shuffle(HANZI.map((c) => c[0]).filter((h) => mine.indexOf(h) < 0));
+  return mine.concat(rest.slice(0, HZ_TODAY_N - mine.length));
+}
+function hzToday(){
+  const day = hzDayKey();
+  try {
+    const v = JSON.parse(localStorage.getItem("wc-hztoday") || "null");
+    if (v && v.day === day && Array.isArray(v.chars) && v.chars.length === HZ_TODAY_N &&
+        v.chars.every((h) => hzBy[h])) return v.chars;
+  } catch (e) {}
+  const chars = hzTodayPick(day, hzPileRead());
+  try {
+    localStorage.setItem("wc-hztoday", JSON.stringify({ day, chars }));
+    localStorage.removeItem("wc-at-hztoday");   // a new day starts at its first card
+  } catch (e) {}
+  return chars;
+}
 function paintPile(){
   const n = pileRead().length, b = $("pileBtn");
   b.classList.toggle("hidden", n === 0);
@@ -2612,6 +2647,10 @@ $("hzPileBtn").addEventListener("click", () => {
   if (list.length) start(list, "Still learning \u4e2d\u6587", "hzpile");
 });
 paintHzPile();
+$("hzTodayBtn").querySelector("small").textContent = HZ_TODAY_N + " characters";
+$("hzTodayBtn").addEventListener("click", () => {
+  start(hzToday().map((h) => hzBy[h]), "Today \u4e2d\u6587", "hztoday");
+});
 
 /* ---------- 📚 Stories: the books ----------
    Eight little books he can READ, not just hear. Every word is either one he
