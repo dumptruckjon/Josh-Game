@@ -873,11 +873,13 @@
     ],
     // What Made This? — each effect has ONE unambiguous cause; causes are unique
     // across the set, so any distractor is automatically also-wrong.
+    // Each clue carries its own question and answer line: "What made the
+    // umbrella?" was the one-size question, and rain does not MAKE an umbrella.
     WEATHER_CLUES: [
-      { q: "⛄", name: "the snowman", a: "❄️", cause: "snow" },
-      { q: "🪁", name: "the flying kite", a: "💨", cause: "wind" },
-      { q: "🌻", name: "the open sunflower", a: "☀️", cause: "sunshine", avoid: ["🌧️"] }, // rain ALSO makes flowers grow — never its distractor (audit)
-      { q: "🌂", name: "the umbrella", a: "🌧️", cause: "rain" },
+      { q: "⛄", name: "the snowman", a: "❄️", cause: "snow", ask: "What made the snowman?", tell: "Snow made the snowman!" },
+      { q: "🪁", name: "the flying kite", a: "💨", cause: "wind", ask: "What makes the kite fly?", tell: "Wind makes the kite fly!" },
+      { q: "🌻", name: "the open sunflower", a: "☀️", cause: "sunshine", avoid: ["🌧️"], ask: "What makes the sunflower open?", tell: "Sunshine makes the sunflower open!" }, // rain ALSO makes flowers grow — never its distractor (audit)
+      { q: "🌂", name: "the umbrella", a: "🌧️", cause: "rain", ask: "What do we need the umbrella for?", tell: "Rain! The umbrella keeps us dry." },
     ],
     // Whose Home Is This? — structure → dweller. Homes unique, animals unique,
     // and every animal lives in exactly ONE of these homes (no overlap).

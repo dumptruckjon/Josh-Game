@@ -846,6 +846,16 @@ test("W5 weather clues: each effect has ONE cause; causes unique so distractors 
   assert.equal(new Set(W.map((w) => w.q)).size, W.length, "effects unique");
   assert.equal(new Set(W.map((w) => w.a)).size, W.length, "causes unique — a distractor can never also be right");
   for (const w of W) assert.ok(w.cause && w.name, "each clue needs a cause word + effect name");
+  // Each clue asks and answers in its own words: the shared "What made the
+  // umbrella?" said rain MADE an umbrella. Restated, so a sentence that says
+  // something false cannot come back.
+  const TRUTH = {
+    "⛄": ["What made the snowman?", "Snow made the snowman!"],
+    "🪁": ["What makes the kite fly?", "Wind makes the kite fly!"],
+    "🌻": ["What makes the sunflower open?", "Sunshine makes the sunflower open!"],
+    "🌂": ["What do we need the umbrella for?", "Rain! The umbrella keeps us dry."],
+  };
+  for (const w of W) assert.deepEqual([w.ask, w.tell], TRUTH[w.q], `${w.q} is asked and answered in its own words`);
 });
 test("W5 animal homes: homes unique, dwellers unique (each animal has one home)", () => {
   const H = content.ANIMAL_HOMES2;

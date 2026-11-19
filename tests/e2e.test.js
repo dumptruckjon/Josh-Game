@@ -7871,7 +7871,7 @@ test("Dress Me, This Goes With That and Tidy Up SAY their pictures with the righ
   // line they say is read.
   await page.evaluate(() => { const A = window.JoshAudio; window.__SAY0 = A.say; window.__SAID2 = []; A.say = (t, o) => { window.__SAID2.push(String(t)); return window.__SAY0.call(A, t, o); }; });
   try {
-    for (const id of ["dress-me", "goes-with", "tidy-up"]) {
+    for (const id of ["dress-me", "goes-with", "tidy-up", "weather-clues"]) {
       await openGame(id);
       for (let k = 0; k < 40; k++) {
         const won = await page.evaluate((id) => { const s = document.getElementById("screen-" + id); if (s.dataset.won) return true;
@@ -7889,6 +7889,8 @@ test("Dress Me, This Goes With That and Tidy Up SAY their pictures with the righ
     assert.deepEqual(bad, [], `a picture was said without its phrase: ${bad.join(" | ")}`);
     assert.ok(said.some((l) => /— perfect for the (rain|sun|snow)!/.test(l)), "fixture: Dress Me confirmed a round");
     assert.ok(said.some((l) => / what\?$/.test(l)), "fixture: This Goes With That asked its question");
+    assert.deepEqual(said.filter((l) => /made the (umbrella|flying kite|open sunflower)/.test(l)), [], "What Made This? never says weather MADE an umbrella");
+    assert.ok(said.some((l) => /^(Snow made the snowman|Wind makes the kite fly|Sunshine makes the sunflower open|Rain! The umbrella keeps us dry)/.test(l)), "fixture: What Made This? confirmed a round");
     const tidy = said.filter((l) => / goes (in|on) the /.test(l));
     assert.ok(tidy.length >= 4, "fixture: Tidy Up said where things go");
     assert.deepEqual(tidy.filter((l) => !/ goes (in the toy box|on the bookshelf|in the art cup|in the laundry basket)!$/.test(l)), [], "Tidy Up says each home as a phrase (a book goes ON the bookshelf)");

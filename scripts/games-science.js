@@ -706,9 +706,9 @@
     id: "weather-clues", icon: "🌦️", title: "What Made This?", skill: "cause inference [W]",
     items: (C.WEATHER_CLUES || []),
     big: (item) => item.q,
-    prompt: (item) => "What made " + item.name + "?",
+    prompt: (item) => item.ask,
     icons: (item) => [item.q, "❓", "🌦️"],
-    win: (item) => item.cause + " made " + item.name + "!",
+    win: (item) => item.tell,
     done: "You're a weather detective!",
   });
 
