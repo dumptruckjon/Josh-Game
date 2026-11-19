@@ -7899,3 +7899,44 @@ test("Dress Me, This Goes With That and Tidy Up SAY their pictures with the righ
     await page.evaluate(() => { window.JoshAudio.say = window.__SAY0; });
   }
 });
+
+test("an app left open picks up a new version when it comes back — on a menu screen, never mid-game", async () => {
+  // A home-screen app that iOS keeps in memory is never reloaded (screens are
+  // hash changes), so it could run an old version for days. main.js asks which
+  // build is current when the app returns after a minute away. Here the page
+  // is served as build "aaa" and the server then answers with "bbb".
+  const ctx = await browser.newContext({ viewport: { width: 402, height: 874 } });
+  let served = "aaa", checks = 0;
+  await ctx.route(/index\.html|\/(\?.*)?(#.*)?$/, async (route) => {
+    const url = route.request().url();
+    const res = await route.fetch();
+    let body = await res.text();
+    if (/check=/.test(url)) { checks++; body = body.replace(/__BUILD__/g, served); }
+    else body = body.replace(/__BUILD__/g, "aaa");
+    await route.fulfill({ response: res, body });
+  });
+  const pg = await ctx.newPage();
+  const away = () => pg.evaluate(() => {
+    const set = (h) => { Object.defineProperty(document, "hidden", { configurable: true, get: () => h }); Object.defineProperty(document, "visibilityState", { configurable: true, get: () => (h ? "hidden" : "visible") }); document.dispatchEvent(new Event("visibilitychange")); };
+    set(true); const now = Date.now; Date.now = () => now() + 120000; set(false); Date.now = now;
+  });
+  try {
+    await pg.goto(baseURL + "#home", { waitUntil: "load" });
+    await pg.evaluate(() => { window.__sameDoc = 1; });
+    // 1. the same build: nothing happens
+    served = "aaa"; await away(); await pg.waitForTimeout(600);
+    assert.ok(checks >= 1, "fixture: coming back after a minute asks the server for the current build");
+    assert.equal(await pg.evaluate(() => window.__sameDoc), 1, "the same build must not reload");
+    // 2. a newer build while he is mid-game: it waits
+    await pg.evaluate(() => { location.hash = "#count-feed"; });
+    await pg.locator("#screen-count-feed").waitFor({ state: "visible" });
+    served = "bbb"; await away(); await pg.waitForTimeout(600);
+    assert.equal(await pg.evaluate(() => window.__sameDoc), 1, "a newer build must NOT reload the page in the middle of a game");
+    // 3. he goes back to a menu: now it reloads, onto the same screen
+    await Promise.all([pg.waitForEvent("load", { timeout: 8000 }), pg.evaluate(() => { location.hash = "#cat-numbers"; })]);
+    assert.equal(await pg.evaluate(() => window.__sameDoc), undefined, "landing on a menu screen with a newer build waiting must reload");
+    assert.equal(await pg.evaluate(() => location.hash), "#cat-numbers", "the reload keeps him on the screen he chose");
+  } finally {
+    await ctx.close();
+  }
+});

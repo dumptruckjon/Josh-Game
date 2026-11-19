@@ -162,3 +162,17 @@ test("offline: every shipped PAGE serves ITSELF, not the index.html fallback", a
     await page.goto(baseURL, { waitUntil: "load", timeout: 20000 }).catch(() => {});
   }
 });
+
+test("every shipped page names its own icon, so a browser never asks the server for a /favicon.ico that does not exist", () => {
+  // Word Cards had no <link rel="icon">, so every open of it logged a 404 for
+  // /favicon.ico (a quota probe surfaced it). Derived over the repo's pages.
+  const fs = require("fs"), path = require("path");
+  const root = path.join(__dirname, "..");
+  const pages = fs.readdirSync(root).filter((f) => f.endsWith(".html"));
+  assert.ok(pages.length >= 2, "fixture: the pages were found");
+  for (const f of pages) {
+    const html = fs.readFileSync(path.join(root, f), "utf8");
+    assert.match(html, /<link rel="icon" href="[^"]+"/, `${f} has no <link rel="icon">`);
+    assert.match(html, /<link rel="apple-touch-icon" href="assets\/apple-touch-icon\.png"/, `${f} has no apple-touch-icon`);
+  }
+});

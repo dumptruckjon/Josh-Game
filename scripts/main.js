@@ -139,6 +139,44 @@
     });
   }
 
+  // ---- Stay current while the app stays open ----
+  // A home-screen app that iOS keeps in memory is never reloaded: moving
+  // between screens only changes the hash, so it could run an old version for
+  // days after a fix ships. When the app comes back to the screen after being
+  // away a minute or more, it asks the server which build is current (the
+  // `?v=` the deploy stamps on every asset) and, if it is newer, reloads — but
+  // only on a menu screen, never in the middle of a game (a pending update
+  // waits for him to land on one). Offline, the check simply fails and nothing
+  // happens. Locally the build is the literal token, so it never runs.
+  const UPDATE_AWAY_MS = 60000;
+  const myBuild = (() => {
+    const el = document.querySelector('script[src*="scripts/main.js"]');
+    const m = el && /[?&]v=([^&]+)/.exec(el.getAttribute("src"));
+    return m ? m[1] : null;
+  })();
+  let awayAt = 0, newerBuild = false;
+  function updateSafeHere() {
+    return !location.hash || /^#(home|cat-|stickers|today|progress|hole-home|hole-land-|board-home|hl-home|td-home)/.test(location.hash);
+  }
+  function reloadIfNewer() {
+    if (newerBuild && !document.hidden && updateSafeHere()) location.reload();
+  }
+  function checkForUpdate() {
+    if (!myBuild || myBuild === "__" + "BUILD__" || !window.fetch) return;
+    fetch("index.html?check=" + Date.now(), { cache: "no-store" })
+      .then((r) => (r.ok ? r.text() : ""))
+      .then((t) => {
+        const m = /scripts\/main\.js\?v=([^"&]+)/.exec(t);
+        if (m && m[1] !== myBuild) { newerBuild = true; reloadIfNewer(); }
+      })
+      .catch(() => { /* offline or blocked: try again next time */ });
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) awayAt = Date.now();
+    else if (awayAt && Date.now() - awayAt >= UPDATE_AWAY_MS) { awayAt = 0; checkForUpdate(); }
+  });
+  window.addEventListener("hashchange", reloadIfNewer);
+
   // ---- Grown-ups: the ONE type-the-word parent gate (the kid worlds) ----
   // A box that ONLY accepts the word "reset" (any case); nothing else does
   // anything. Josh's ⭐ reset (below) and Gobble Hole's reset both ask through
