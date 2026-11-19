@@ -689,7 +689,7 @@
       line(w, d.words.length ? "Still learning (missed in 👂 Hear it, find it):" :
         "No English words on the still-learning pile.");
       if (d.words.length) chips(w, d.words);
-      line(w, d.chars.length ? "Chinese still learning (missed in 配对, or helped in 写字):" :
+      line(w, d.chars.length ? "Chinese still learning (missed in 配对 or 听一听, or helped in 写字):" :
         "No Chinese characters on the still-learning pile.");
       if (d.chars.length) chips(w, d.chars, "zh-CN");
       line(w, "📚 Stories read to The End: " + d.stories);
