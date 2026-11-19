@@ -1599,7 +1599,7 @@
         const binByHome = {};
         binsRow.innerHTML = ""; toysRow.innerHTML = "";
         set.bins.forEach((bin) => {
-          const el = api.el("button", { class: "choice tidy__bin tap", type: "button", dataset: { home: bin.home, empty: "1" }, aria: { label: bin.label } }, [
+          const el = api.el("button", { class: "choice tidy__bin tap", type: "button", dataset: { home: bin.home, empty: "1", put: bin.put }, aria: { label: bin.label } }, [
             api.el("span", { class: "tidy__binIcon", aria: { hidden: "true" }, text: bin.emoji }),
             api.el("span", { class: "tidy__binLabel", text: bin.label }),
           ]);
@@ -1611,7 +1611,7 @@
               held.dataset.placed = "1"; held.classList.remove("held"); held.classList.add("choice--used"); held.disabled = true;
               const goneName = held.dataset.name; held = null; placed += 1;
               try { if (A && A.tone && A.isMuted && !A.isMuted()) A.tone(660, { duration: 0.1 }); } catch (e) { /* ignore */ }
-              api.say("The " + goneName + " goes in the " + el.querySelector(".tidy__binLabel").textContent + "!");
+              api.say("The " + goneName + " goes " + el.dataset.put + "!");
               if (placed >= set.items.length) {
                 round += 1;
                 if (round >= SETS.length) api.win({ say: "All tidy! Great cleaning up!" }); else { api.roundWin(); newRound(); }
@@ -1627,7 +1627,7 @@
             if (held) held.classList.remove("held");
             held = b; b.classList.add("held"); reflag();
             // Speak the destination so a non-reader never has to read a bin label.
-            const dest = binByHome[it.home]; if (dest) api.say("The " + it.name + " goes in the " + dest.querySelector(".tidy__binLabel").textContent + "!");
+            const dest = binByHome[it.home]; if (dest) api.say("The " + it.name + " goes " + dest.dataset.put + "!");
           });
           toysRow.appendChild(b); return b;
         });

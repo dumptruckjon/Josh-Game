@@ -1411,8 +1411,9 @@
         qMark.textContent = "?"; qMark.classList.remove("gw__cell--filled");
         // Keep C the SUBJECT of the relation ("monkey eats what?"), never the
         // object ("what eats monkey?" would invert every directional relation).
-        api.setPrompt(r.a.word + " goes with " + r.b.word + ". What goes with " + r.c.word + "?", ["👀", "🔗", "🤔"],
-          r.a.word + " " + r.set.relation + " " + r.b.word + ". " + r.c.word + " " + r.set.relation + " what?");
+        const sp = (t) => t.say || t.word, cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+        api.setPrompt(cap(sp(r.a)) + " goes with " + sp(r.b) + ". What goes with " + sp(r.c) + "?", ["👀", "🔗", "🤔"],
+          cap(sp(r.a)) + " " + r.set.relation + " " + sp(r.b) + ". " + cap(sp(r.c)) + " " + r.set.relation + " what?");
         api.speak();
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -1420,7 +1421,7 @@
           b.addEventListener("click", () => {
             if (!ch.correct) { api.tryAgain(b); return; }
             qMark.textContent = ch.emoji; qMark.classList.add("gw__cell--filled", "pop");
-            api.say(r.c.word + " " + r.set.relation + " " + r.d.word + "!");
+            api.say(cap(sp(r.c)) + " " + r.set.relation + " " + sp(r.d) + "!");
             round += 1;
             if (round >= ROUNDS) api.win({ say: "You're a matching star!" }); else { api.roundWin(); api.nextRound(newRound, 900); }
           });

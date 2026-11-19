@@ -1229,3 +1229,30 @@ test("AUDIT Who Uses This?: every tool's spoken name matches its picture", () =>
     if (want) assert.ok(t.toolName.includes(want), `${t.tool} is spoken as "${t.toolName}" — must name the real thing (${want})`);
   }
 });
+
+// Spoken phrases are content too: a voice reads them exactly as built. Dress Me
+// said "a mittens — perfect for snowing!" (the generic a/an rule cannot know
+// mittens is plural) and This Goes With That said "rabbit eats carrot. monkey
+// eats what?" (no articles, a lowercase sentence on the caption). Each picture
+// now carries the phrase it is SPOKEN as, restated here.
+test("spoken phrases: every gear and analogy picture is said with the right article", () => {
+  const GEAR = { umbrella: ["an umbrella", "the rain"], cap: ["a cap", "the sun"], mittens: ["mittens", "the snow"] };
+  for (const w of content.WEATHERS) {
+    assert.deepEqual([w.gearSay, w.for], GEAR[w.gearName], `${w.gearName}: said as "${w.gearSay}", perfect for "${w.for}"`);
+  }
+  const SAY = { rabbit: "a rabbit", carrot: "a carrot", monkey: "a monkey", banana: "a banana", fish: "a fish", "the water": "the water",
+    bird: "a bird", "a tree": "a tree", acorn: "an acorn", tree: "a tree", egg: "an egg", chick: "a chick", rain: "rain",
+    umbrella: "an umbrella", sun: "the sun", sunglasses: "sunglasses" };
+  let n = 0;
+  for (const s of content.ANALOGY_SETS) for (const t of [s.a, s.b, s.c, s.d]) {
+    assert.equal(t.say, SAY[t.word], `${t.word} must be said as "${SAY[t.word]}" (got "${t.say}")`);
+    n++;
+  }
+  assert.ok(n >= 16, "fixture: the analogy sets were read");
+  // Tidy Up said "The book goes in the Bookshelf!" — the bin's LABEL read
+  // mid-sentence. Each bin says where a thing goes.
+  const PUT = { box: "in the toy box", shelf: "on the bookshelf", art: "in the art cup", laundry: "in the laundry basket" };
+  let bins = 0;
+  for (const set of content.TIDY_SETS) for (const b of set.bins) { assert.equal(b.put, PUT[b.home], `the ${b.home} bin is said as "${PUT[b.home]}"`); bins++; }
+  assert.ok(bins >= 8, "fixture: the tidy bins were read");
+});

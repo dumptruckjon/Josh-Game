@@ -51,7 +51,7 @@
           api.el("span", { class: "find__targetArt art-fill", aria: { hidden: "true" }, html: heroArt(r.target) }),
           api.el("span", { class: "find__targetLabel", text: "Find " + r.count + "!" })
         );
-        api.setPrompt("Find all " + r.count + " of these heroes!", ["👀", "🕷️", "👆"]);
+        api.setPrompt(r.count === 2 ? "Find both of these heroes!" : "Find all " + r.count + " of these heroes!", ["👀", "🕷️", "👆"]);
         api.speak();
         field.innerHTML = "";
         r.cells.forEach((cell) => {

@@ -965,8 +965,8 @@
     if (weathers.length > 1 && idx === lastIdx) idx = (idx + 1) % weathers.length;
     const weather = weathers[idx];
     const others = shuffle(weathers.filter((w, i) => i !== idx), rng).slice(0, 2);
-    const choices = shuffle([{ emoji: weather.gear, name: weather.gearName, correct: true },
-      ...others.map((w) => ({ emoji: w.gear, name: w.gearName, correct: false }))], rng);
+    const choices = shuffle([{ emoji: weather.gear, name: weather.gearName, say: weather.gearSay, correct: true },
+      ...others.map((w) => ({ emoji: w.gear, name: w.gearName, say: w.gearSay, correct: false }))], rng);
     return { idx, weather, choices };
   }
 

@@ -7862,3 +7862,37 @@ test("Word Cards 📚 Stories, the letter-team shelf: each book underlines its t
     await ctx.close();
   }
 });
+
+test("Dress Me, This Goes With That and Tidy Up SAY their pictures with the right words", async () => {
+  // A voice reads a line exactly as built. Dress Me said "a mittens — perfect
+  // for snowing!" and This Goes With That "rabbit eats carrot. monkey eats
+  // what?"; each picture now carries the phrase it is spoken as (content.test
+  // restates them). Here the games are PLAYED, wrong taps included, and every
+  // line they say is read.
+  await page.evaluate(() => { const A = window.JoshAudio; window.__SAY0 = A.say; window.__SAID2 = []; A.say = (t, o) => { window.__SAID2.push(String(t)); return window.__SAY0.call(A, t, o); }; });
+  try {
+    for (const id of ["dress-me", "goes-with", "tidy-up"]) {
+      await openGame(id);
+      for (let k = 0; k < 40; k++) {
+        const won = await page.evaluate((id) => { const s = document.getElementById("screen-" + id); if (s.dataset.won) return true;
+          const wrong = id !== "tidy-up" && s.querySelector(".choice:not([data-correct])"); if (wrong) wrong.click();
+          const t = s.querySelector("[data-correct]"); if (t) t.click(); return false; }, id);
+        if (won) break;
+        await page.waitForTimeout(id === "tidy-up" ? 450 : 1100);
+      }
+      assert.ok(await page.evaluate((id) => !!document.getElementById("screen-" + id).dataset.won, id), `fixture: ${id} was not won`);
+    }
+    const said = await page.evaluate(() => window.__SAID2);
+    const caps = said.filter((l) => /\s/.test(l) && /^\p{Ll}/u.test(l));
+    assert.deepEqual(caps, [], `a spoken sentence starts lowercase — it was built from a bare word: ${caps.join(" | ")}`);
+    const bad = said.filter((l) => /\b(a|an) mittens\b|perfect for (raining|sunny|snowing)|\b(rabbit|monkey|fish|bird|acorn|egg) (eats|lives in|grows into)/i.test(l) && !/\b(a|an) (rabbit|monkey|fish|bird|acorn|egg) /i.test(l));
+    assert.deepEqual(bad, [], `a picture was said without its phrase: ${bad.join(" | ")}`);
+    assert.ok(said.some((l) => /— perfect for the (rain|sun|snow)!/.test(l)), "fixture: Dress Me confirmed a round");
+    assert.ok(said.some((l) => / what\?$/.test(l)), "fixture: This Goes With That asked its question");
+    const tidy = said.filter((l) => / goes (in|on) the /.test(l));
+    assert.ok(tidy.length >= 4, "fixture: Tidy Up said where things go");
+    assert.deepEqual(tidy.filter((l) => !/ goes (in the toy box|on the bookshelf|in the art cup|in the laundry basket)!$/.test(l)), [], "Tidy Up says each home as a phrase (a book goes ON the bookshelf)");
+  } finally {
+    await page.evaluate(() => { window.JoshAudio.say = window.__SAY0; });
+  }
+});

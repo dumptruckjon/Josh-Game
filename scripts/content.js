@@ -408,10 +408,13 @@
     // ---- 🌦️ Dress Me! (weather → the right gear, worn ON the friend) ----
     // `spot` places the gear on the portrait: hat = on the head, hand = beside
     // the body (held), over = floating above (an umbrella).
+    // `gearSay` is the gear SPOKEN, article and all ("mittens" is plural, so
+    // the generic article rule said "a mittens"), and `for` is the weather as
+    // a noun ("perfect for the snow", not "perfect for snowing").
     WEATHERS: [
-      { sky: "🌧️", name: "raining", say: "It's raining!", gear: "☂️", gearName: "umbrella", spot: "over" },
-      { sky: "☀️", name: "sunny", say: "It's sunny!", gear: "🧢", gearName: "cap", spot: "hat" },
-      { sky: "❄️", name: "snowing", say: "It's snowing!", gear: "🧤", gearName: "mittens", spot: "hand" },
+      { sky: "🌧️", name: "raining", say: "It's raining!", gear: "☂️", gearName: "umbrella", gearSay: "an umbrella", for: "the rain", spot: "over" },
+      { sky: "☀️", name: "sunny", say: "It's sunny!", gear: "🧢", gearName: "cap", gearSay: "a cap", for: "the sun", spot: "hat" },
+      { sky: "❄️", name: "snowing", say: "It's snowing!", gear: "🧤", gearName: "mittens", gearSay: "mittens", for: "the snow", spot: "hand" },
     ],
 
     // ---- 🌈 Season Windows (which season does it belong to?) ----
@@ -1070,10 +1073,14 @@
     // UNRELATED objects (a truth test restates that none satisfies the relation
     // with C), so no distractor is ever also-correct.
     ANALOGY_SETS: [
-      { relation: "eats", a: { emoji: "🐰", word: "rabbit" }, b: { emoji: "🥕", word: "carrot" }, c: { emoji: "🐵", word: "monkey" }, d: { emoji: "🍌", word: "banana" }, distractors: [{ emoji: "🚗", word: "car" }, { emoji: "⭐", word: "star" }] },
-      { relation: "lives in", a: { emoji: "🐟", word: "fish" }, b: { emoji: "🌊", word: "the water" }, c: { emoji: "🐦", word: "bird" }, d: { emoji: "🌳", word: "a tree" }, distractors: [{ emoji: "🍕", word: "pizza" }, { emoji: "🎈", word: "balloon" }] },
-      { relation: "grows into", a: { emoji: "🌰", word: "acorn" }, b: { emoji: "🌳", word: "tree" }, c: { emoji: "🥚", word: "egg" }, d: { emoji: "🐣", word: "chick" }, distractors: [{ emoji: "🚗", word: "car" }, { emoji: "🧦", word: "sock" }] },
-      { relation: "goes with", a: { emoji: "🌧️", word: "rain" }, b: { emoji: "☂️", word: "umbrella" }, c: { emoji: "☀️", word: "sun" }, d: { emoji: "🕶️", word: "sunglasses" }, distractors: [{ emoji: "🍎", word: "apple" }, { emoji: "🐠", word: "fish" }] },
+      // `say` is how a picture is SPOKEN in a sentence, article and all: the
+      // bare word ("rabbit eats carrot. monkey eats what?") was what the voice
+      // read, and the caption showed it lowercase. A content test pins every
+      // `say` to its `word`.
+      { relation: "eats", a: { emoji: "🐰", word: "rabbit", say: "a rabbit" }, b: { emoji: "🥕", word: "carrot", say: "a carrot" }, c: { emoji: "🐵", word: "monkey", say: "a monkey" }, d: { emoji: "🍌", word: "banana", say: "a banana" }, distractors: [{ emoji: "🚗", word: "car" }, { emoji: "⭐", word: "star" }] },
+      { relation: "lives in", a: { emoji: "🐟", word: "fish", say: "a fish" }, b: { emoji: "🌊", word: "the water", say: "the water" }, c: { emoji: "🐦", word: "bird", say: "a bird" }, d: { emoji: "🌳", word: "a tree", say: "a tree" }, distractors: [{ emoji: "🍕", word: "pizza" }, { emoji: "🎈", word: "balloon" }] },
+      { relation: "grows into", a: { emoji: "🌰", word: "acorn", say: "an acorn" }, b: { emoji: "🌳", word: "tree", say: "a tree" }, c: { emoji: "🥚", word: "egg", say: "an egg" }, d: { emoji: "🐣", word: "chick", say: "a chick" }, distractors: [{ emoji: "🚗", word: "car" }, { emoji: "🧦", word: "sock" }] },
+      { relation: "goes with", a: { emoji: "🌧️", word: "rain", say: "rain" }, b: { emoji: "☂️", word: "umbrella", say: "an umbrella" }, c: { emoji: "☀️", word: "sun", say: "the sun" }, d: { emoji: "🕶️", word: "sunglasses", say: "sunglasses" }, distractors: [{ emoji: "🍎", word: "apple" }, { emoji: "🐠", word: "fish" }] },
     ],
     // Baby to Big! — life cycles ordered egg/seed → middle → grown. Reuses the
     // story-order machinery; a truth test restates every canonical order.
@@ -1113,20 +1120,22 @@
     // books→shelf, art→cup, CLOTHES→laundry basket (a sock never goes in the toy
     // box, so no bin is an also-valid home). The game also SPEAKS the destination
     // when an item is picked up, so a non-reader never has to read the bin label.
+    // `put` is where the voice says a thing goes ("The book goes ON the
+    // bookshelf"): the label read mid-sentence said "goes in the Bookshelf".
     TIDY_SETS: [
       { items: [
         { emoji: "🧱", name: "block", home: "box" }, { emoji: "📕", name: "book", home: "shelf" },
         { emoji: "🖍️", name: "crayon", home: "art" }, { emoji: "🧦", name: "sock", home: "laundry" },
       ], bins: [
-        { emoji: "📦", label: "Toy box", home: "box" }, { emoji: "📚", label: "Bookshelf", home: "shelf" },
-        { emoji: "✏️", label: "Art cup", home: "art" }, { emoji: "🧺", label: "Laundry basket", home: "laundry" },
+        { emoji: "📦", label: "Toy box", put: "in the toy box", home: "box" }, { emoji: "📚", label: "Bookshelf", put: "on the bookshelf", home: "shelf" },
+        { emoji: "✏️", label: "Art cup", put: "in the art cup", home: "art" }, { emoji: "🧺", label: "Laundry basket", put: "in the laundry basket", home: "laundry" },
       ] },
       { items: [
         { emoji: "🚗", name: "car", home: "box" }, { emoji: "📗", name: "book", home: "shelf" },
         { emoji: "🖌️", name: "paintbrush", home: "art" }, { emoji: "👕", name: "shirt", home: "laundry" },
       ], bins: [
-        { emoji: "📦", label: "Toy box", home: "box" }, { emoji: "📚", label: "Bookshelf", home: "shelf" },
-        { emoji: "✏️", label: "Art cup", home: "art" }, { emoji: "🧺", label: "Laundry basket", home: "laundry" },
+        { emoji: "📦", label: "Toy box", put: "in the toy box", home: "box" }, { emoji: "📚", label: "Bookshelf", put: "on the bookshelf", home: "shelf" },
+        { emoji: "✏️", label: "Art cup", put: "in the art cup", home: "art" }, { emoji: "🧺", label: "Laundry basket", put: "in the laundry basket", home: "laundry" },
       ] },
     ],
     // Dump Truck! — how many rocks to load each round before the DUMP.

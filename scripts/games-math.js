@@ -1592,7 +1592,7 @@
         const aPart = r.a === 1 ? "one " + (r.actor.one || r.actor.name) + " " + (r.actor.verbOne || r.actor.verb) : numberWord(r.a) + " " + r.actor.name + " " + r.actor.verb;
         const bPart = r.b === 1 ? "Then one more comes!" : "Then " + numberWord(r.b) + " more come!";
         // The story IS the question, so it is the spoken prompt — and 👂 retells it.
-        api.setPrompt("Listen to the story — how many " + r.actor.name + "?", ["👂", r.actor.emoji, "🔢"], aPart + " in the pond. " + bPart + " How many " + r.actor.name + " now?");
+        api.setPrompt("Listen to the story — how many " + r.actor.name + "?", ["👂", r.actor.emoji, "🔢"], aPart.charAt(0).toUpperCase() + aPart.slice(1) + " in the pond. " + bPart + " How many " + r.actor.name + " now?");
         api.speak();
         // Act it out: a ducks glide in, then b more (a beat later), each counting.
         let shown = 0;

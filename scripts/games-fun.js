@@ -423,6 +423,7 @@
       const L = window.JoshLogic;
       const ROUNDS = 3;
       let round = 0, lastIdx = -1, r = null;
+      const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
       const scene = api.el("div", { class: "dm__scene", aria: { hidden: "true" } });
       const windowEl = api.el("span", { class: "dm__window" });
       const kid = api.el("span", { class: "dm__kid art-fill" });
@@ -449,13 +450,13 @@
             dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.name },
           }, [ch.emoji]);
           b.addEventListener("click", () => {
-            if (!ch.correct) { api.tryAgain(b); api.say(L.article(ch.name) + " " + ch.name + "? Not today! Hee hee."); return; }
+            if (!ch.correct) { api.tryAgain(b); api.say(cap(ch.say) + "? Not today! Hee hee."); return; }
             gearSpot.textContent = ch.emoji; // the friend actually GETS the gear
             gearSpot.classList.add("dm__gear--" + r.weather.spot, "pop");
             kid.classList.remove("pop"); void kid.offsetWidth; kid.classList.add("pop");
             round += 1;
             if (round >= ROUNDS) api.win({ say: "All dressed for every weather!" });
-            else { api.roundWin({ say: L.article(ch.name) + " " + ch.name + " — perfect for " + r.weather.name + "!" }); api.nextRound(newRound, 900); }
+            else { api.roundWin({ say: cap(ch.say) + " — perfect for " + r.weather.for + "!" }); api.nextRound(newRound, 900); }
           });
           chips.appendChild(b);
         });
