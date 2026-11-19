@@ -802,6 +802,26 @@ test("EVERY category screen: no overflow + big well-spaced tiles at 320px", asyn
   }
 });
 
+test("🌞 Today and 📊 Progress: no overflow + big well-spaced taps at phone AND tablet sizes", async () => {
+  // Two screens on Josh's own home that NO size audit opened: the launcher
+  // test walks #home, the category test walks #cat-*, and both of these were
+  // added after them. A viewport list is the test, and so is a SCREEN list.
+  // Today is a kid screen (three big game doors); Progress is the grown-up's,
+  // so its own controls carry [data-adult] and the 75px kid floor skips them —
+  // what binds there is that it never scrolls sideways.
+  for (const [w, h] of [[390, 780], [320, 568], [834, 1112]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await showScreen(page, "#today", "#screen-today");
+    await noOverflow(page, `today@${w}x${h}`);
+    await auditActiveScreen(page, `today@${w}x${h}`);
+    const doors = await page.evaluate(() => document.querySelectorAll("#screen-today button, #screen-today a[href]").length);
+    assert.ok(doors >= 3, `today@${w}: only ${doors} controls — the audit measured the wrong screen`);
+    await showScreen(page, "#progress", "#screen-progress");
+    await noOverflow(page, `progress@${w}x${h}`);
+    await auditActiveScreen(page, `progress@${w}x${h}`);
+  }
+});
+
 test("EVERY game screen: no overflow + >=75px well-spaced targets at 320px", async () => {
   const ids = await gameIds();
   await page.setViewportSize({ width: 320, height: 780 });
