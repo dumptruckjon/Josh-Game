@@ -1412,7 +1412,9 @@
         const r = L.makeCompound(C.COMPOUND_WORDS, undefined, last); last = r.idx;
         aEl.textContent = r.a.emoji; bEl.textContent = r.b.emoji;
         parts.classList.remove("glue__parts--join"); void parts.offsetWidth;
-        api.setPrompt(r.a.word + " and " + r.b.word + " — what word do they make?", ["👂", "🧩", "😊"], r.a.word + "... " + r.b.word + "... what word do they make?");
+        // A sentence starts with a capital, on the caption and in the voice.
+        const Cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+        api.setPrompt(Cap(r.a.word) + " and " + r.b.word + " — what word do they make?", ["👂", "🧩", "😊"], Cap(r.a.word) + "... " + r.b.word + "... What word do they make?");
         api.speak();
         chips.innerHTML = "";
         r.choices.forEach((ch) => {
@@ -1420,7 +1422,7 @@
           b.addEventListener("click", () => {
             if (!ch.correct) { api.tryAgain(b); return; }
             parts.classList.add("glue__parts--join");
-            api.say(r.a.word + " and " + r.b.word + " make " + r.word + "!");
+            api.say(Cap(r.a.word) + " and " + r.b.word + " make " + r.word + "!");
             round += 1;
             if (round >= ROUNDS) api.win({ say: "You made big words!" }); else { api.roundWin(); api.nextRound(newRound, 850); }
           });
