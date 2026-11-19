@@ -177,6 +177,11 @@ portrait law (full-bleed field, one control row) is guardrail-locked in
 `tests/td.test.js`.
 
 The touch laws:
+- **THE DEVICE (owner, 2026-11): an iPhone 17 Pro, in portrait, ONLY — never
+  landscape.** 402x874 CSS px opened from the home screen, the Dynamic Island
+  taking 62px at the top and the home bar 34px at the bottom. Audit on THAT
+  geometry first (`mobile.test.js` "📱 Josh's iPhone 17 Pro" rewrites every
+  `env(safe-area-inset-*)` to those values); landscape only has to not break.
 - **Tap targets ≥ 75px**, generous spacing (≥ 16px); whole-card tap zones, not
   small buttons. (Adults get 44px; a preschooler needs much bigger.)
 - **Zero reading required.** Icons, emoji, color, and (gesture-gated) audio
@@ -10772,6 +10777,32 @@ muted page says nothing anyway; it now opens a second book with sound on. The
 same shape as the CVC-vs-sound lesson: a clause tested only in the state where
 the defect is invisible proves nothing.
 
+
+**AUDITED ON THE ACTUAL PHONE (owner, 2026-11: portrait only, an iPhone 17
+Pro), THE TOP BAR WAS THE BIGGEST THING ON EVERY GAME SCREEN.** Opened from the
+home screen the 17 Pro gives 402x874 with the Dynamic Island taking 62px, and
+the app's top bar — a "Josh's Games" title nobody in a game reads, plus the
+mute — stood 157px tall above every game in every world (only landscape hid it,
+in two worlds). Copy My Picture, Finish the Butterfly and Peek & Copy ran their
+bottom row of cells off the screen. Three findings worth keeping. (1) **A
+safe-area inset is simulated by rewriting the served CSS**, never by guessing a
+padding: every `env(safe-area-inset-*)` in the CSS and HTML a page loads becomes
+the phone's real value through a context route, so the pages' own rules apply
+exactly as on the device (the earlier tests injected one or two padding rules by
+hand, which is a model of the page, not the page). (2) **In a game the mute
+floats into a FOURTH slot the game bar keeps empty**, the title row is gone, and
+the game takes its height; Gobble's meter, which sat where a title would and
+measured 0px wide with a fourth button, takes its own full-width row (wider than
+it ever was, and the field still gains ~50px). The mute lives outside every
+screen, so no per-screen spacing audit could see it crowd 👂 — the new 17 Pro
+test measures it against every control (mutation: a 4px bar gap fires on every
+game). (3) **A round-by-round walk finds what a first-round audit cannot**: Team
+Hop placed its token at `left: 100%` when a player got home, so the page
+scrolled 24px sideways only at the END of the game; the token's centre now runs
+from 20px in to 20px short of the far end. Measured and NOT changed: nine games
+flagged "small" taps after a few rounds are all spent states (eaten, popped,
+gone, faded to 0-0.4 opacity, most with pointer-events none), which shrink on
+purpose.
 ---
 
 ## Repository Structure

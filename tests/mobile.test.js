@@ -551,7 +551,7 @@ test("🕳️ Gobble's WIN box shows the cheer AND 🔁/▶ with no scrolling at
   // A viewport list IS the test: these are the sizes where the two states differ.
   // [w, h, [topInset, bottomInset]]
   const SIZES = [[320, 480, [0, 0]], [320, 568, [20, 0]], [568, 320, [0, 0]], [667, 375, [0, 0]],
-    [844, 390, [0, 21]], [932, 430, [0, 21]], [390, 844, [47, 34]], [834, 1112, [24, 20]], [1024, 768, [24, 20]]];
+    [844, 390, [0, 21]], [932, 430, [0, 21]], [390, 844, [47, 34]], [402, 874, [62, 34]], [834, 1112, [24, 20]], [1024, 768, [24, 20]]];
   for (const [w, h, inset] of SIZES) {
     const { ctx, p } = await freshPage(w, h, inset);
     try {
@@ -607,7 +607,7 @@ test("🕳️ Gobble's home: every LAND door on the FIRST screen at every size, 
   // indicator below.
   // [w, h, [topInset, bottomInset]]
   const PHONES = [[320, 568, [20, 0]], [360, 640, [0, 0]], [375, 667, [20, 0]], [375, 812, [50, 34]], [390, 844, [47, 34]],
-    [393, 852, [59, 34]], [414, 896, [48, 34]], [430, 932, [59, 34]]];
+    [393, 852, [59, 34]], [402, 874, [62, 34]], [414, 896, [48, 34]], [430, 932, [59, 34]]];
   const TABLETS = [[768, 1024, [20, 0]], [810, 1080, [24, 20]], [834, 1112, [24, 20]], [1024, 1366, [24, 20]],
     [1024, 768, [24, 20]], [1194, 834, [24, 20]]];
   const doorsOn = ({ bottomInset, sel }) => {
@@ -2452,4 +2452,85 @@ test("Word Cards: nothing on any screen paints over a control, at the short size
     }
   }
   assert.equal(screensSeen, SIZES.length * OPEN.length, "every screen at every size was measured");
+});
+
+// ---------------------------------------------------------------------------
+// JOSH'S OWN PHONE. The owner (2026-11): these games are played ONLY in
+// portrait, ONLY on an iPhone 17 Pro — 402x874 CSS px, opened from the home
+// screen, where the Dynamic Island takes 62px at the top and the home bar 34px
+// at the bottom. No browser emulates a notch, so the safe area is put in by
+// REWRITING every `env(safe-area-inset-*)` the served CSS and HTML actually
+// use to the phone's real values: the pages' own padding rules then apply
+// exactly as they do on the device, rather than a test guessing where they go.
+// ---------------------------------------------------------------------------
+const IP17 = { w: 402, h: 874, top: 62, bottom: 34 };
+async function ip17Page() {
+  const ctx = await browser.newContext({ viewport: { width: IP17.w, height: IP17.h }, isMobile: true, hasTouch: true });
+  await ctx.route(/\.(css|html)(\?.*)?$|\/$/, async (route) => {
+    const res = await route.fetch();
+    const body = (await res.text()).replace(/env\(\s*safe-area-inset-(top|right|bottom|left)\s*(,[^()]*(\([^()]*\))?[^()]*)?\)/g,
+      (m, side) => (side === "top" ? IP17.top : side === "bottom" ? IP17.bottom : 0) + "px");
+    await route.fulfill({ response: res, body });
+  });
+  return { ctx, p: await ctx.newPage() };
+}
+
+test("📱 Josh's iPhone 17 Pro: every one of his games fits the screen, under the Dynamic Island and above the home bar", async () => {
+  // Measured on the device's geometry, Copy My Picture's bottom row of cells
+  // ran 21px past the bottom of the screen (its cells grew to 102px), and the
+  // top bar — "Josh's Games" plus the mute — took 157px above EVERY game. In a
+  // game the mute now floats into the game bar's fourth slot, so the bar the
+  // title used to need is the game's.
+  //
+  // THE CLAIM: on the first round of every game, (1) no control starts under
+  // the Dynamic Island, (2) none runs off the bottom of the screen, (3) none has
+  // its CENTRE in the home-bar strip, where a tap meets the swipe-home gesture,
+  // and (4) nothing scrolls sideways. A control that merely dips into the strip
+  // with its centre above it is still a comfortable tap, so that is allowed.
+  const { ctx, p } = await ip17Page();
+  try {
+    await p.goto(baseURL, { waitUntil: "load" });
+    const pad = await p.evaluate(() => parseFloat(getComputedStyle(document.querySelector(".topbar")).paddingTop));
+    assert.ok(pad >= IP17.top, `fixture: the safe-area rewrite did not apply (top bar padding ${pad}px)`);
+    const ids = await p.evaluate(() => (window.JoshGames || []).filter((g) => !g.hl).map((g) => g.id));
+    assert.ok(ids.length >= 200, `fixture: only ${ids.length} of Josh's games found`);
+    const bad = [];
+    for (const id of ids) {
+      await p.evaluate((h) => { location.hash = h; }, "#" + id);
+      await p.waitForFunction((id) => { const s = document.getElementById("screen-" + id); return s && !s.hidden; }, id);
+      await p.waitForTimeout(60);
+      const r = await p.evaluate(([T, B, H]) => {
+        const scr = [...document.querySelectorAll(".screen")].find((s) => !s.hidden);
+        const out = [];
+        for (const e of document.querySelectorAll("button, a[href], [role=button], [data-correct], [data-toy]")) {
+          if (e.closest("[hidden]") || e.closest("[data-adult]")) continue;
+          const q = e.getBoundingClientRect();
+          if (!q.width || !q.height || getComputedStyle(e).visibility === "hidden" || getComputedStyle(e).opacity === "0") continue;
+          const k = ((e.id || e.className || e.tagName) + "").slice(0, 28);
+          if (q.top < T - 1) out.push(k + " under the island (top " + Math.round(q.top) + ")");
+          if (q.bottom > H + 1) out.push(k + " off the bottom (" + Math.round(q.bottom) + ")");
+          else if ((q.top + q.bottom) / 2 > H - B) out.push(k + " centred in the home bar (" + Math.round((q.top + q.bottom) / 2) + ")");
+        }
+        const ovf = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+        if (ovf > 1) out.push("scrolls sideways " + ovf + "px");
+        // The mute floats over the game in its own corner (it lives in the top
+        // bar, outside every screen, so the per-screen spacing audits cannot see
+        // it): it must be a full kid tap and clear every control of the game.
+        const m = document.getElementById("sound-toggle").getBoundingClientRect();
+        if (m.width < 75 || m.height < 75) out.push("the mute is " + Math.round(m.width) + "px");
+        for (const e of scr.querySelectorAll("button, a[href], [role=button]")) {
+          if (e.closest("[hidden]")) continue;
+          const q = e.getBoundingClientRect(); if (!q.width) continue;
+          const ox = Math.min(q.right, m.right) - Math.max(q.left, m.left), oy = Math.min(q.bottom, m.bottom) - Math.max(q.top, m.top);
+          const gap = ox > 4 ? Math.max(q.top, m.top) - Math.min(q.bottom, m.bottom) : oy > 4 ? Math.max(q.left, m.left) - Math.min(q.right, m.right) : 99;
+          if ((ox > 1 && oy > 1) || gap < 14) out.push("the mute crowds " + ((e.className || e.tagName) + "").slice(0, 20) + " (gap " + Math.round(gap) + ")");
+        }
+        return out;
+      }, [IP17.top, IP17.bottom, IP17.h]);
+      if (r.length) bad.push(id + ": " + r.slice(0, 3).join("; "));
+    }
+    assert.deepEqual(bad, [], `on an iPhone 17 Pro:\n${bad.join("\n")}`);
+  } finally {
+    await ctx.close();
+  }
 });

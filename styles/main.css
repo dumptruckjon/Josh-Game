@@ -430,6 +430,34 @@ body.in-game { display: flex; flex-direction: column; }
 body.in-game #screens { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
 body.in-game .screen.game { flex: 1 1 auto; display: flex; flex-direction: column; }
 body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-content: safe center; }
+/* In a game the top bar carries one thing he uses — the mute — so it stops being
+   a ROW. On Josh's iPhone 17 Pro opened from the home screen (402x874, the
+   Dynamic Island taking 62px) the bar was 157px tall above every game in
+   every world, a "Josh's Games" title nobody reads plus the mute, and it is
+   what pushed Copy My Picture's bottom row off the screen. The mute now floats
+   into a FOURTH slot the game bar keeps empty for it, top-right where it always
+   was, and the game bar rises into the bar's place. Off a game nothing changes.
+   `right` follows #screens' own 720px column, so on a tablet the button still
+   lands in that slot rather than at the far edge of the screen. */
+body.in-game:not(.td-mode) .topbar {
+  position: fixed;
+  left: auto;
+  right: max(calc(env(safe-area-inset-right, 0px) + var(--pad)), calc((100% - 720px) / 2 + var(--pad)));
+  padding: calc(env(safe-area-inset-top, 0px) + var(--pad)) 0 0 0;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+body.in-game:not(.td-mode) .topbar .brand { display: none; }
+body.in-game:not(.td-mode) #screens { padding-top: calc(env(safe-area-inset-top, 0px) + var(--pad)); }
+body.in-game:not(.td-mode) .game__bar { grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap) var(--tap); column-gap: 16px; }
+/* 🕳️ Gobble's bar holds his growth METER where a title would be, and with a
+   fourth button the meter's bar measured 0px wide on a 402 phone. In a game the
+   meter takes its own full-width row under 🏠 👂 🔇 instead: a WIDER bar than it
+   ever had, and the field still gains about 50px over the old title row. */
+body.in-game:not(.td-mode) .hole-play .hole-bar { row-gap: 10px; }
+body.in-game:not(.td-mode) .hole-play .hole-meter { grid-column: 1 / -1; grid-row: 2; }
+body.in-game:not(.td-mode) .hole-play .hole-hear { grid-column: 3; grid-row: 1; }
 /* A soft meadow "floor" glow so the bottom reads as ground, not empty gradient. */
 .screen.game {
   background:
@@ -737,7 +765,7 @@ body.in-game .game__stage { flex: 1 1 auto; justify-content: safe center; align-
 .coop__face svg { width: 100%; height: auto; display: block; }
 .coop__lane { display: grid; gap: 8px; } /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
 .coop__track { position: relative; height: 56px; background: rgba(255, 255, 255, 0.6); border-radius: 16px; }
-.coop__token { position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%); font-size: 2rem; transition: left 0.25s; margin-left: 20px; }
+.coop__token { position: absolute; top: 50%; left: 20px; transform: translate(-50%, -50%); font-size: 2rem; transition: left 0.25s; }
 .coop__home { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); font-size: 1.8rem; }
 .coop__btn {
   min-height: var(--tap); border-radius: 18px; background: var(--card);
@@ -2407,7 +2435,11 @@ body.hl-mode .brand { color: #ffe9b0; }
 .cg__model .cg__cell { aspect-ratio: 1 / 1; min-height: 32px; border-radius: 8px; background: #eef2f7; border: 2px solid rgba(120,170,255,0.25); }
 .cg__model .cg__cell--on { background: #5a3fd6; border-color: #5a3fd6; }
 .cg__label { text-align: center; font-weight: 800; color: #5a3fd6; margin-bottom: 8px; }
-.cg__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; width: 100%; max-width: 340px; margin: 0 auto; }
+/* 280px, not 340: three ~83px cells (over the 75px kid floor). At 340 each
+   cell grew to 102px and on an iPhone 17 Pro opened from its home screen
+   (402x874, the Dynamic Island taking 62px at the top) the grid's bottom row
+   ran past the bottom of the screen in all three toggle games. */
+.cg__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; width: 100%; max-width: 280px; margin: 0 auto; }
 .tg__cell { aspect-ratio: 1 / 1; min-height: var(--tap); border-radius: 16px; }
 .tg__cell--on { background: linear-gradient(180deg, #7a5cd6, #5a3fd6) !important; border-color: #5a3fd6 !important; }
 /* A TWO-TONE ring, because this one cell can be either surface: a pale card or

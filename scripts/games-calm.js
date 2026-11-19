@@ -200,7 +200,10 @@
         return { token, btn };
       });
 
-      function place(idx) { laneEls[idx].token.style.left = (players[idx].pos / GOAL * 100) + "%"; }
+      // The token's CENTRE runs from 20px in to 20px short of the far end, so at
+      // the goal it stands on the 🏠 instead of hanging past the lane (at 100%
+      // it pushed the whole page 24px sideways the moment a player got home).
+      function place(idx) { laneEls[idx].token.style.left = "calc(20px + (100% - 40px) * " + (players[idx].pos / GOAL) + ")"; }
 
       function updateTurn() {
         if (players[0].done && players[1].done) return;
