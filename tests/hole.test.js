@@ -2644,10 +2644,15 @@ test("§22: a reset still holds after the device's clock goes BACK — a gen loa
 test("Gobble Hole never touches Josh's games: no registry entry, no sticker, its own storage", async () => {
   const r = await page.evaluate(() => ({
     reg: (window.JoshGames || []).some((g) => /hole|gobble/i.test(g.id)),
-    keys: Object.keys(localStorage).filter((k) => /gobble|hole/i.test(k)),
+    // josh-last-<area> is the HOME shell's "last opened" stamp for the 📊
+    // page, written by main.js's router, not by Gobble Hole: Gobble's own
+    // storage is still exactly its one save.
+    keys: Object.keys(localStorage).filter((k) => /gobble|hole/i.test(k) && k.indexOf("josh-last-") !== 0),
+    shell: Object.keys(localStorage).filter((k) => k.indexOf("josh-last-") === 0),
   }));
   assert.equal(r.reg, false, "it is a world, not a registered game (Josh's book stays at 200)");
   assert.deepEqual(r.keys, ["josh-gobble-v1"], "one storage key");
+  assert.ok(r.shell.every((k) => /^josh-last-(games|words|gobble|night)$/.test(k)), "the shell's stamps are only its four named areas: " + r.shell.join(", "));
 });
 
 test("no uncaught page errors anywhere in the Gobble run", () => {
