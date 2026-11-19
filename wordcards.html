@@ -249,7 +249,12 @@
      different task from reading and wants the whole viewport. It borrows the
      deck's own bar, meter and nav, so every control is where his thumb already
      expects it. */
-  #write{grid-template-rows:auto auto auto minmax(0,1fr) auto;}
+  /* The pad's row has the pad's own floor: the pad may never be smaller than
+     200px (its iOS 14.2 fallback, and the least a finger can trace on), and a
+     min-height beats a max-height. On a 0 floor the pad overflowed its row and
+     painted over ◀ ▶ — hidden outright on a phone on its side, half-covered at
+     320x480. Too short a screen now scrolls to the nav instead of burying it. */
+  #write{grid-template-rows:auto auto auto minmax(200px,1fr) auto;}
   /* The WORD is the say-it button. Everything else on this screen speaks only
      when the character changes or is finished, so mid-character the only way to
      hear it again was to navigate away — which throws the strokes away. It is
@@ -413,7 +418,11 @@
   /* The reader: bar, meter, the picture, the words, and ◀ 🗣️ ▶. The picture
      is the one row that can give, so it is the 1fr; it is sized from its REAL
      box by sFit(), for the reason the listening tile's picture is. */
-  #story{grid-template-rows:auto auto minmax(0,1fr) auto auto;}
+  /* The picture's row has a FLOOR: on a 0 floor a phone on its side (568x320)
+     squeezed the stage to nothing while the emoji kept its 96px, so the
+     picture painted straight over the words. 52px keeps a small picture and
+     lets a screen that short scroll the last few pixels instead. */
+  #story{grid-template-rows:auto auto minmax(52px,1fr) auto auto;}
   .sstage{min-height:0;border-radius:34px;background:var(--card);display:grid;place-items:center;
           overflow:hidden;box-shadow:0 12px 0 rgba(0,0,0,.22);}
   .spic{font-size:96px;line-height:1;}
@@ -553,7 +562,7 @@
     #learn .meter{display:none;}
     /* The reader yields the same chrome: the meter goes, the picture shrinks,
        and the words and ◀ 🗣️ ▶ keep their full size. */
-    #story{grid-template-rows:auto minmax(0,1fr) auto auto;}
+    #story{grid-template-rows:auto minmax(52px,1fr) auto auto;}
     #story .meter{display:none;}
   }
   /* The grown-up's line is the one thing on the lesson stage he does not need —

@@ -2048,15 +2048,13 @@ test("Word Cards' WRITING pad on the real engine: nothing crushed, nothing small
             .filter((t) => t.s < MIN),
           buttons: document.querySelectorAll("#write button").length,
           ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-          // The nav is the only way forward, so it has to be reachable. What
-          // that guards is an AUTO row growing — the pad cannot displace it at
-          // all, because `.wpadwrap` is `min-height: 0`, so an oversized pad
-          // overflows its own wrap instead of pushing anything (measured: a
-          // 900px pad min-height moves the nav by zero). Short LANDSCAPE does
-          // leave the page 44px scrollable here and always has (36px before
-          // the word became a button) — that same 200px iOS fallback against a
-          // 390-tall viewport — and the nav stays on screen through it, which
-          // is the property rather than the slack.
+          // The nav is the only way forward, so it has to be reachable at
+          // these sizes. (CORRECTED: this comment used to say a short
+          // LANDSCAPE phone kept the nav "on screen" — it did, UNDER the pad:
+          // the pad's row had a 0 floor, so its 200px minimum overflowed the
+          // row and painted over ◀ ▶. The row's floor is the pad's own 200px
+          // now, so a screen that short scrolls to the nav instead; the
+          // overlap law in "nothing paints over a control" below holds it.)
           navBottom: Math.round(document.querySelector("#write .nav").getBoundingClientRect().bottom),
           vh: window.innerHeight,
         };
@@ -2375,4 +2373,63 @@ test("Word Cards 📚 Stories on the real engine: every page of every book fits 
       await ctx2.close();
     }
   }
+});
+
+test("Word Cards: nothing on any screen paints over a control, at the short sizes and on a phone on its side", async () => {
+  // TWO SCREENS DREW THEIR BIG PICTURE STRAIGHT OVER THEIR OWN BUTTONS, and no
+  // law could see it: every other check here measures SIZE, spacing or
+  // clipping, and an overlap breaks none of those. Both were a grid row with a
+  // 0 floor holding content that has a minimum of its own. 写字's pad keeps
+  // 200px whatever its row gets, so on a phone on its side it covered ◀ ▶
+  // completely (and half-covered them at 320x480); 📚 Stories' picture kept its
+  // 96px on a stage squeezed to 0 at 568x320 and sat on the words. Both rows
+  // carry a floor now and a screen that short scrolls instead.
+  //
+  // The claim is derived over every visible control of every screen, plus the
+  // three big pieces of content that can grow over one (the pad, the story
+  // picture, the lesson drawing), so a new screen inherits it.
+  const SIZES = [[320, 480], [320, 568], [568, 320], [667, 375], [844, 390]];
+  const OPEN = ["hanziBtn", "hzTodayBtn", "hzTodayWriteBtn", "hzHearBtn", "hzStoryBtn",
+                "storyBtn", "hearBtn", "writeBtn", "matchBtn", "learnBtn", "allBtn"];
+  let screensSeen = 0;
+  for (const [w, h] of SIZES) {
+    const ctx2 = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx2.newPage();
+    try {
+      for (const id of OPEN) {
+        await p2.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+        await p2.evaluate((id) => document.getElementById(id).click(), id);
+        await p2.waitForTimeout(250);
+        if (id === "storyBtn" || id === "hzStoryBtn") {
+          await p2.evaluate(() => document.querySelector("#books .book").click());
+          await p2.waitForTimeout(250);
+        }
+        const r = await p2.evaluate(() => {
+          const vis = (e) => { const b = e.getBoundingClientRect();
+            return b.width > 0 && b.height > 0 && getComputedStyle(e).visibility !== "hidden"; };
+          const scr = [...document.querySelectorAll(".wrap")].find((x) => !x.classList.contains("hidden") && vis(x));
+          if (!scr) return { scr: null, bad: [] };
+          const els = [...scr.querySelectorAll("button, svg.wpad, #spic, .lpic, .lchar")]
+            .filter(vis).filter((e) => !e.parentElement.closest("button"));
+          const name = (e) => e.id || (e.className && e.className.baseVal !== undefined ? e.className.baseVal : e.className);
+          const bad = [];
+          for (let i = 0; i < els.length; i++) for (let j = i + 1; j < els.length; j++) {
+            if (els[i].contains(els[j]) || els[j].contains(els[i])) continue;
+            const a = els[i].getBoundingClientRect(), b = els[j].getBoundingClientRect();
+            const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+            const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+            if (ox > 1 && oy > 1) bad.push(name(els[i]) + " over " + name(els[j]) + " by " + Math.round(ox) + "x" + Math.round(oy));
+          }
+          return { scr: scr.id, n: els.length, bad };
+        });
+        assert.ok(r.scr, `${w}x${h}: ${id} opened no screen`);
+        assert.ok(r.n >= 3, `${w}x${h}: ${id} found only ${r.n} controls on #${r.scr} — the walk measured nothing`);
+        screensSeen += 1;
+        assert.deepEqual(r.bad, [], `${w}x${h}: on #${r.scr} (via ${id}) something paints over a control`);
+      }
+    } finally {
+      await ctx2.close();
+    }
+  }
+  assert.equal(screensSeen, SIZES.length * OPEN.length, "every screen at every size was measured");
 });
