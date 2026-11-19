@@ -434,6 +434,11 @@ body {
   gap: var(--pad);
 }
 .game__foot { display: flex; justify-content: center; margin-top: 18px; }
+/* A win scrolls Again into view (framework.js); "nearest" stops with the
+   button flush at the screen's bottom edge, which on a notched phone opened
+   from the home screen is UNDER the home bar (an iPhone 17 Pro: 34px). The
+   margin makes the scroll stop clear of it. */
+.game__again { scroll-margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); }
 
 /* ---------- A#1: fill the screen while playing, center the play, add a floor ----------
    Games were top-aligned, stranding the play in the top third with a dead

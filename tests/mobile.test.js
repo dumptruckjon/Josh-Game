@@ -2590,3 +2590,35 @@ test("📱 iPhone 17 Pro: the games that GROW still fit in their later rounds", 
     await ctx.close();
   }
 });
+
+test("📱 iPhone 17 Pro: after a win, Again comes to rest ABOVE the home bar, not under it", async () => {
+  // A win reveals Again and scrolls it into view (framework.js). "nearest"
+  // stops with the button flush at the screen's bottom edge — measured at
+  // 798..874 on Find the Heroes, i.e. its whole lower half under the 34px home
+  // bar, where a tap meets the swipe-home gesture. `.game__again` carries a
+  // scroll-margin of the inset + 16px, so the scroll stops clear of it.
+  // Find the Heroes is the case that separates the claims: its stage is the
+  // tallest, so the page has to scroll to reach Again at all.
+  const { ctx, p } = await ip17Page();
+  try {
+    await p.goto(baseURL, { waitUntil: "load" });
+    await p.evaluate(() => { location.hash = "#find-hero"; });
+    await p.waitForFunction(() => { const s = document.getElementById("screen-find-hero"); return s && !s.hidden; });
+    for (let k = 0; k < 60; k++) {
+      const won = await p.evaluate(() => { const s = document.getElementById("screen-find-hero");
+        if (s.dataset.won) return true; const t = s.querySelector("[data-correct]"); if (t) t.click(); return false; });
+      if (won) break;
+      await p.waitForTimeout(900);
+    }
+    await p.waitForTimeout(900);
+    const r = await p.evaluate(() => { const a = document.querySelector("#screen-find-hero .game__again");
+      const q = a.getBoundingClientRect(); return { hidden: a.hidden, top: q.top, bottom: q.bottom, scrolled: scrollY }; });
+    assert.ok(!r.hidden, "fixture: the game was not won, so Again never showed");
+    assert.ok(r.scrolled > 0, `fixture: the page did not need to scroll to Again (scrollY ${r.scrolled}), so this cannot separate the claims`);
+    assert.ok(r.bottom <= IP17.h - IP17.bottom,
+      `Again ends at ${Math.round(r.bottom)} of ${IP17.h}: under the home bar (it starts at ${IP17.h - IP17.bottom})`);
+    assert.ok(r.top >= IP17.top, `Again starts at ${Math.round(r.top)}, under the Dynamic Island`);
+  } finally {
+    await ctx.close();
+  }
+});
