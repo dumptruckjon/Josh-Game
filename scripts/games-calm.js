@@ -253,7 +253,7 @@
       const tower = api.el("div", { class: "build__tower" });
       const p0 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[0].name + " add block" } }, [players[0].emoji + " Add block"]);
       const p1 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[1].name + " add block" } }, [players[1].emoji + " Add block"]);
-      const btns = api.el("div", { class: "coop__lanes" }, [p0, p1]);
+      const btns = api.el("div", { class: "coop__lanes coop__pair" }, [p0, p1]);
       api.stage.append(turnEl, tower, btns);
       const laneBtns = [p0, p1];
 
@@ -304,7 +304,7 @@
       const dots = api.el("div", { class: "tc__dots" });
       const p0 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[0].name + " add two" } }, [players[0].emoji + " +2"]);
       const p1 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[1].name + " add two" } }, [players[1].emoji + " +2"]);
-      const btns = api.el("div", { class: "coop__lanes" }, [p0, p1]);
+      const btns = api.el("div", { class: "coop__lanes coop__pair" }, [p0, p1]);
       api.stage.append(turnEl, countEl, dots, btns);
       const laneBtns = [p0, p1];
       for (let i = 0; i < GOAL; i++) dots.appendChild(api.el("span", { class: "tc__dot" }));
@@ -356,7 +356,7 @@
       const gauge = api.el("div", { class: "tc__dots" });
       const p0 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[0].name + " count down" } }, [players[0].emoji + " Count down"]);
       const p1 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[1].name + " count down" } }, [players[1].emoji + " Count down"]);
-      const btns = api.el("div", { class: "coop__lanes" }, [p0, p1]);
+      const btns = api.el("div", { class: "coop__lanes coop__pair" }, [p0, p1]);
       api.stage.append(turnEl, rocketEl, numEl, gauge, btns);
       const laneBtns = [p0, p1];
       // Start with all lights ON; each turn takes one away as we count down.
@@ -604,7 +604,7 @@
 
       const p0 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[0].name + " place a stone" } }, [players[0].emoji + " Stone"]);
       const p1 = api.el("button", { class: "coop__btn tap", type: "button", aria: { label: players[1].name + " place a stone" } }, [players[1].emoji + " Stone"]);
-      const btns = api.el("div", { class: "coop__lanes" }, [p0, p1]);
+      const btns = api.el("div", { class: "coop__lanes coop__pair" }, [p0, p1]);
       api.stage.append(turnEl, river, btns);
       const laneBtns = [p0, p1];
 

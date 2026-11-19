@@ -2534,3 +2534,52 @@ test("📱 Josh's iPhone 17 Pro: every one of his games fits the screen, under t
     await ctx.close();
   }
 });
+
+test("📱 iPhone 17 Pro: the games that GROW still fit in their later rounds", async () => {
+  // A first-round audit cannot see a game that grows. Walking all 200 games
+  // round by round on the 17 Pro found four that outgrew the screen: Find the
+  // Heroes reached 17 cells in three columns (a hero he hunts could be in the
+  // row below the screen), The Big One's grid went 13px off the bottom, Team
+  // Number Tower's ninth block pushed the second player's button off, and Team
+  // Hop's token stood at left:100% when a player got home, scrolling the page
+  // 24px sideways. Each is driven here to the round that broke it.
+  // (Measured: reverting the side-by-side buttons ALONE leaves Team Number
+  // Tower inside the screen now, because the in-game title also got smaller —
+  // it fits by two fixes, either of which would do; the other three cases each
+  // go red on their own fix's mutation.)
+  const CASES = [["find-hero", 13], ["big-red-one", 4], ["team-build", 9], ["team-hop", 10]];
+  const { ctx, p } = await ip17Page();
+  try {
+    await p.goto(baseURL, { waitUntil: "load" });
+    const bad = [];
+    for (const [id, steps] of CASES) {
+      await p.evaluate((h) => { location.hash = h; }, "#__x");
+      await p.evaluate((h) => { location.hash = h; }, "#" + id);
+      await p.waitForFunction((id) => { const s = document.getElementById("screen-" + id); return s && !s.hidden; }, id);
+      let tapped = 0;
+      for (let k = 0; k < steps; k++) {
+        const ok = await p.evaluate((id) => { const s = document.getElementById("screen-" + id);
+          const t = s.querySelector("[data-correct]") || s.querySelector("[data-toy]:not([disabled])"); if (t) t.click(); return !!t; }, id);
+        if (ok) tapped += 1;
+        await p.waitForTimeout(1100);
+      }
+      assert.ok(tapped >= steps - 1, `fixture: ${id} took only ${tapped} of ${steps} taps — the walk did not reach the late round`);
+      const r = await p.evaluate(([id, B, H]) => {
+        const s = document.getElementById("screen-" + id), out = [];
+        for (const e of s.querySelectorAll("button, [data-correct]")) {
+          const q = e.getBoundingClientRect(), cs = getComputedStyle(e);
+          if (!q.width || cs.opacity === "0" || cs.visibility === "hidden" || e.closest("[hidden]")) continue;
+          if (q.bottom > H + 1) out.push(((e.className || "") + "").slice(0, 24) + " off the bottom (" + Math.round(q.bottom) + ")");
+          else if ((q.top + q.bottom) / 2 > H - B) out.push(((e.className || "") + "").slice(0, 24) + " centred in the home bar");
+        }
+        const ovf = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+        if (ovf > 1) out.push("scrolls sideways " + ovf + "px");
+        return out;
+      }, [id, IP17.bottom, IP17.h]);
+      if (r.length) bad.push(id + ": " + r.slice(0, 3).join("; "));
+    }
+    assert.deepEqual(bad, [], `late rounds on an iPhone 17 Pro:\n${bad.join("\n")}`);
+  } finally {
+    await ctx.close();
+  }
+});

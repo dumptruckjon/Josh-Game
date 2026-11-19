@@ -451,6 +451,9 @@ body.in-game:not(.td-mode) .topbar {
 body.in-game:not(.td-mode) .topbar .brand { display: none; }
 body.in-game:not(.td-mode) #screens { padding-top: calc(env(safe-area-inset-top, 0px) + var(--pad)); }
 body.in-game:not(.td-mode) .game__bar { grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap) var(--tap); column-gap: 16px; }
+/* The title's column is narrower with four buttons beside it, so a long name
+   ("Team Number Tower (2 players)") takes a size that wraps to fewer lines. */
+body.in-game:not(.td-mode) .game__title { font-size: clamp(1rem, 4.4vw, 1.4rem); line-height: 1.15; }
 /* 🕳️ Gobble's bar holds his growth METER where a title would be, and with a
    fourth button the meter's bar measured 0px wide on a 402 phone. In a game the
    meter takes its own full-width row under 🏠 👂 🔇 instead: a WIDER bar than it
@@ -763,6 +766,10 @@ body.in-game:not(.td-mode) .hole-play .hole-hear { grid-column: 3; grid-row: 1; 
 .coop__turn { font-size: 1.3rem; font-weight: 800; color: #2b8a5b; text-align: center; }
 .coop__face { display: inline-block; width: 36px; vertical-align: middle; }
 .coop__face svg { width: 100%; height: auto; display: block; }
+/* Two players' buttons SIDE BY SIDE: stacked, the second sat 76px lower, and
+   on Josh's iPhone 17 Pro Team Number Tower's ninth block pushed it off the
+   bottom of the screen. Side by side, each player also has their own half. */
+.coop__pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .coop__lane { display: grid; gap: 8px; } /* grid, not flex: flex-gap is dropped on iOS 14.2 (audit) */
 .coop__track { position: relative; height: 56px; background: rgba(255, 255, 255, 0.6); border-radius: 16px; }
 .coop__token { position: absolute; top: 50%; left: 20px; transform: translate(-50%, -50%); font-size: 2rem; transition: left 0.25s; }
@@ -865,6 +872,15 @@ body.in-game:not(.td-mode) .hole-play .hole-hear { grid-column: 3; grid-row: 1; 
 .find__egs { display: inline-flex; gap: 6px; align-items: center; } /* "…like these" category examples */
 .find__eg { font-size: 1.6rem; line-height: 1; }
 .find__field { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pad); width: 100%; }
+/* A hunt that has ramped past twelve cells goes FOUR across. In three columns
+   Find the Heroes reached six rows by its later rounds, and on Josh's iPhone 17
+   Pro the last row (where a hero he is hunting can be) sat below the screen.
+   Four across is ~80px a cell at 402 wide, over the 75px floor; below 380px it
+   would not be, so narrower phones keep three and scroll. An engine without
+   :has() simply keeps three columns, as before. */
+@media (min-width: 380px) {
+  .find__field:has(> :nth-child(13)) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 .find__cell {
   min-height: 80px; border-radius: 16px; background: var(--card);
   box-shadow: 0 5px 14px rgba(0, 0, 0, 0.1); font-size: clamp(2.2rem, 9vw, 3.3rem);
