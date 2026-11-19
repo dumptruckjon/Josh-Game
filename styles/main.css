@@ -230,6 +230,14 @@ body {
   padding: 12px;
 }
 .start-tile:active { transform: scale(0.97); }
+/* On a tall phone the doors grow with the screen: on Josh's iPhone 17 Pro the
+   five sat in the top two-thirds with ~270px of empty floor below. The floor
+   is the old 136px, so a short phone is unchanged; the door's picture grows
+   with it. Portrait only — on its side a phone has the height least. */
+@media (orientation: portrait) and (max-width: 599px) {
+  .start-tile { min-height: clamp(136px, 21vh, 200px); }
+  .start-tile__icon, .start-tile__art { width: clamp(84px, 11.5vh, 112px); height: clamp(84px, 11.5vh, 112px); font-size: clamp(3.8rem, 6.4vh, 4.8rem); }
+}
 /* ONE shared mark box for every door. Measured INK, not boxes: Josh's
    JoshArt.friend portrait inks 56x77 inside a 96x96 box while 👵🏻 inks 58x63
    and 🏰 inks 72x70 at their own font size — so the PRIMARY door carried the
