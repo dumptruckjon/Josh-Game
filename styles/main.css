@@ -316,6 +316,15 @@ body {
    green box, so it reads over any picture without a filter. */
 .today__done { position: absolute; top: 4px; right: 6px; font-size: 1.6rem; line-height: 1; }
 .today__tile.is-done { background: #e6f9ea; }
+/* Today's three are the three biggest things on the page: one per row, a whole
+   card each. On Josh's iPhone 17 Pro the three fell into one row of ~123px
+   tiles in the top third with the rest of the screen empty — the dead bottom
+   half this app fixed for games. Height follows the screen (a 568-tall phone
+   keeps the old 104px), with the picture and name side by side. */
+.today__grid { grid-template-columns: minmax(0, 1fr); }
+.today__tile { min-height: clamp(104px, 18vh, 170px); flex-direction: row; justify-content: flex-start; padding: 10px 24px; }
+.today__tile .tile__icon { font-size: clamp(2.6rem, 9vh, 4.4rem); }
+.today__tile .tile__label { margin-left: 16px; font-size: 1.3rem; text-align: left; }
 .today__party { display: grid; justify-items: center; gap: 6px; margin: 20px auto 0; padding: 18px 26px;
   border-radius: 26px; background: #fff; box-shadow: 0 8px 0 rgba(0, 0, 0, 0.12); max-width: 360px; }
 .today__partyIcon { font-size: 3.6rem; line-height: 1; }

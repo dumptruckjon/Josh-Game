@@ -816,6 +816,13 @@ test("🌞 Today and 📊 Progress: no overflow + big well-spaced taps at phone 
     await auditActiveScreen(page, `today@${w}x${h}`);
     const doors = await page.evaluate(() => document.querySelectorAll("#screen-today button, #screen-today a[href]").length);
     assert.ok(doors >= 3, `today@${w}: only ${doors} controls — the audit measured the wrong screen`);
+    // The day's three are the three biggest things on the page, one per row:
+    // on a 402 phone they used to be three ~123px tiles in one row, the rest of
+    // the screen empty.
+    const tiles = await page.evaluate(() => [...document.querySelectorAll("#screen-today .today__tile")]
+      .map((t) => t.getBoundingClientRect().width / innerWidth));
+    assert.equal(tiles.length, 3, `today@${w}: three tiles`);
+    if (w < 600) assert.ok(tiles.every((f) => f >= 0.8), `today@${w}: each of the day's games is a whole-width card (${tiles.map((f) => f.toFixed(2))})`);
     await showScreen(page, "#progress", "#screen-progress");
     await noOverflow(page, `progress@${w}x${h}`);
     await auditActiveScreen(page, `progress@${w}x${h}`);
