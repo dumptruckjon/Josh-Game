@@ -550,6 +550,19 @@
   // save must show a smaller number, never a broken page. Counts are derived —
   // a total is the registry's or the world's own data, never a literal.
   let paintProgress = () => {};
+  // When each area was last opened, for the 📊 page: ONE key per area
+  // (josh-last-<area>), each written only by that area's own entrance, so no
+  // two writers ever share a key. Word Cards writes its own from its page.
+  function markLast(area) {
+    try { localStorage.setItem("josh-last-" + area, String(Date.now())); } catch (e) { /* private mode */ }
+  }
+  function lastSeen(area, now) {
+    const v = parseInt(progRead("josh-last-" + area), 10);
+    if (!(v > 0) || v > now + 60000) return "not yet";
+    const day = (t) => { const d = new Date(t); return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5; };
+    const n = Math.round(day(now) - day(v));
+    return n <= 0 ? "today" : n === 1 ? "yesterday" : n + " days ago";
+  }
   function progRead(key) {
     try { return JSON.parse(localStorage.getItem(key) || "null"); } catch (e) { return null; }
   }
@@ -666,8 +679,10 @@
     paintProgress = () => {
       const d = progressData(games, allGames);
       body.textContent = "";
+      const now = Date.now();
       const g = card("⭐ Josh's games");
       line(g, d.josh.won + " of " + d.josh.total + " games won", "progress__big");
+      line(g, "Last played: " + lastSeen("games", now), "progress__last");
       d.josh.cats.forEach((c) => bar2(g, c.icon + " " + c.title, c.won, c.total));
 
       const w = card("🃏 Word Cards");
@@ -678,10 +693,13 @@
         "No Chinese characters on the still-learning pile.");
       if (d.chars.length) chips(w, d.chars, "zh-CN");
       line(w, "📚 Stories read to The End: " + d.stories);
+      line(w, "Last opened: " + lastSeen("words", now), "progress__last");
 
       const o = card("🌍 The other worlds");
       if (d.gobble) bar2(o, "🕳️ Gobble Hole places", d.gobble.won, d.gobble.total);
+      line(o, "🕳️ Gobble Hole last played: " + lastSeen("gobble", now), "progress__last");
       if (d.night !== null) line(o, "🎲 Game Night: " + d.night + (d.night === 1 ? " game" : " games") + " finished");
+      line(o, "🎲 Game Night last played: " + lastSeen("night", now), "progress__last");
       bar2(o, "👵🏻 华丽's games", d.huali.won, d.huali.total);
       screen.dataset.won = String(d.josh.won);
     };
@@ -797,6 +815,7 @@
     // handles every known hole-* hash; an unknown one falls through to the
     // front door. Isolated like the fort: its failure can never break the site.
     if (id.indexOf("hole-") === 0) {
+      markLast("gobble");
       try {
         if (window.GobbleHole && window.GobbleHole.route && window.GobbleHole.route(id)) return;
       } catch (e) { /* a Gobble failure must never break Josh's site */ }
@@ -808,6 +827,7 @@
     // every known board-* hash; an unknown one falls through to the front
     // door. Isolated: its failure can never break Josh's site.
     if (id.indexOf("board-") === 0) {
+      markLast("night");
       try {
         if (window.GameNight && window.GameNight.route && window.GameNight.route(id)) return;
       } catch (e) { /* a Game Night failure must never break Josh's site */ }
@@ -876,6 +896,9 @@
       // carry their own homeHash.
       const def = todayDefs[id];
       if (def && !def.hl) def.homeHash = todayFrom === id ? "#today" : undefined;
+      // todayDefs holds Josh's games only, so 华丽's never stamp his key (the
+      // browser test proves it; an hl check here could never fire).
+      if (def) markLast("games");
       target.hidden = false;
       document.body.classList.add("in-game");
       if (!target.__started) { target.__start(); target.__started = true; }

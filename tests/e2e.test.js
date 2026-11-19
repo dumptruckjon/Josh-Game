@@ -7236,6 +7236,14 @@ test("📊 Grown-ups: the progress page reads every world's own save, writes not
       localStorage.setItem("wc-story-done", JSON.stringify(["fish", "hat", "fish"]));
       localStorage.setItem("josh-gobble-v1", JSON.stringify({ v: 1, done: { [w.scene]: true, "not-a-place": true } }));
       localStorage.setItem("josh-board-v1", JSON.stringify({ v: 1, done: { [w.box]: 3, "not-a-box": 9 } }));
+      // When each area was last opened, counted in CALENDAR days, not hours.
+      // (Yesterday noon reads "yesterday" at any hour; an hours-based count
+      // gets it wrong before noon, so that mutation is caught half the day.)
+      const d = new Date(); d.setHours(12, 0, 0, 0);
+      localStorage.setItem("josh-last-games", String(Date.now()));
+      localStorage.setItem("josh-last-words", String(d.getTime() - 864e5));
+      localStorage.setItem("josh-last-gobble", String(d.getTime() - 3 * 864e5));
+      localStorage.setItem("josh-last-night", String(Date.now() + 10 * 864e5));   // a clock put back: not trusted
     }, want);
     await pg.reload({ waitUntil: "load" });
     await pg.waitForSelector("#screen-home:not([hidden])");
@@ -7260,6 +7268,10 @@ test("📊 Grown-ups: the progress page reads every world's own save, writes not
     assert.ok(r.text.includes("Game Night: 3 games finished"), "only a real box's games count");
     const hl = r.rows.find(([l]) => l.includes("华丽"));
     assert.deepEqual(hl && hl[1], "0 / " + want.hl, "her games are counted out of her own total");
+    const lasts = await pg.evaluate(() => [...document.querySelectorAll("#screen-progress .progress__last")].map((p) => p.textContent));
+    assert.deepEqual(lasts, ["Last played: today", "Last opened: yesterday",
+      "🕳️ Gobble Hole last played: 3 days ago", "🎲 Game Night last played: not yet"],
+      "each area says when it was last opened, in calendar days, and a time from the future is not trusted");
     assert.deepEqual(await dump(), before, "the page must write nothing");
 
     // Junk in every save shows smaller numbers, never a broken page.
@@ -7606,6 +7618,42 @@ test("Word Cards ✍️ 写今天的字: today's six on the writing pad, easiest
     assert.equal(s.at, 0, "a new day's six start from the first character");
     assert.equal(await pg.textContent("#hzTodayWriteBtn small"), "6 characters", "the button says how many");
     assert.deepEqual(errs, [], "no uncaught page errors");
+  } finally {
+    await ctx.close();
+  }
+});
+
+test("📊 last played: each area stamps only its own key when it is opened", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const lasts = () => pg.evaluate(() => Object.fromEntries(["games", "words", "gobble", "night"].map((k) => [k, localStorage.getItem("josh-last-" + k)])));
+  const go = async (h, sel) => { await pg.evaluate((x) => { location.hash = x; }, h); await pg.waitForSelector(sel + ":not([hidden])"); };
+  try {
+    await pg.goto(baseURL + "#home", { waitUntil: "load" });
+    await pg.evaluate(() => localStorage.clear());
+    await pg.reload({ waitUntil: "load" });
+    await go("#home", "#screen-home");
+    await go("#progress", "#screen-progress");
+    await go("#stickers", "#screen-stickers");
+    assert.deepEqual(await lasts(), { games: null, words: null, gobble: null, night: null }, "home, progress and the sticker book open no area");
+    const id = await pg.evaluate(() => window.JoshGames.find((g) => !g.hl).id);
+    await go("#" + id, "#screen-" + id);
+    let l = await lasts();
+    assert.ok(Number(l.games) > 0 && !l.words && !l.gobble && !l.night, "a game stamps games, and only games");
+    await go("#hole-home", "#screen-hole-home");
+    l = await lasts();
+    assert.ok(Number(l.gobble) > 0 && !l.night, "Gobble Hole stamps gobble");
+    await go("#board-home", "#screen-board-home");
+    l = await lasts();
+    assert.ok(Number(l.night) > 0 && !l.words, "Game Night stamps night");
+    await pg.evaluate(() => { location.hash = "#hl-home"; });
+    await pg.waitForSelector("#screen-hl-home:not([hidden])");
+    const before = await lasts();
+    await pg.evaluate(() => { location.hash = "#" + window.JoshGames.find((g) => g.hl).id; });
+    await pg.waitForTimeout(200);
+    assert.deepEqual(await lasts(), before, "华丽's games stamp nothing of Josh's");
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    assert.ok(Number((await lasts()).words) > 0, "Word Cards stamps words when it opens");
   } finally {
     await ctx.close();
   }

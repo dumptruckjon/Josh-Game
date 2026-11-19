@@ -327,6 +327,7 @@ body {
 .progress__h { margin: 0 0 8px; font-size: 1.2rem; color: #2b2340; }
 .progress__line { margin: 8px 0 4px; font-size: 1rem; color: #33445a; line-height: 1.35; }
 .progress__big { font-size: 1.25rem; font-weight: 800; color: #2b2340; }
+.progress__last { font-size: 0.92rem; color: #4a5568; font-style: italic; }
 .progress__row { display: grid; grid-template-columns: minmax(0, 9.5em) minmax(0, 1fr) auto; align-items: center; column-gap: 10px; margin: 8px 0; }
 .progress__label { font-size: 0.95rem; color: #33445a; font-weight: 700; overflow-wrap: anywhere; }
 .progress__track { display: block; height: 14px; border-radius: 999px; background: #e3e8ef; overflow: hidden; }

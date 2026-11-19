@@ -2715,6 +2715,9 @@ $("hzPileBtn").addEventListener("click", () => {
   if (list.length) start(list, "Still learning \u4e2d\u6587", "hzpile");
 });
 paintHzPile();
+// For the grown-ups' 📊 page on Josh's home: Word Cards' own "last opened"
+// key, written only here (each area writes its own josh-last-<area>).
+try { localStorage.setItem("josh-last-words", String(Date.now())); } catch (e) {}
 $("hzTodayBtn").querySelector("small").textContent = HZ_TODAY_N + " characters";
 $("hzTodayWriteBtn").querySelector("small").textContent = HZ_TODAY_N + " characters";
 $("hzTodayBtn").addEventListener("click", () => {
