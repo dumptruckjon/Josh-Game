@@ -751,6 +751,8 @@
   <!-- 🌞 Six characters for today: the ones he is still learning first, then
        the rest of the 120 by the date, the same six all day. -->
   <button class="mode hz" id="hzTodayBtn"><span><b aria-hidden="true">&#127774;</b> <b lang="zh-CN">&#20170;&#22825;</b> Today's characters</span> <small></small></button>
+  <!-- ✍️ the same six, to WRITE: 写字's pad, easiest first. -->
+  <button class="mode hz" id="hzTodayWriteBtn"><span><b aria-hidden="true">&#9997;&#65039;</b> <b lang="zh-CN">&#20889;&#20170;&#22825;&#30340;&#23383;</b> Write today's six</span> <small></small></button>
   <!-- 👂 听一听: the page says a character and he taps it from three. The
        Chinese twin of Hear it, find it, on the same screen. -->
   <!-- 📚 读一读: little books written only with his 120 characters. -->
@@ -2100,7 +2102,7 @@ function wGo(step){
   if (!wDeck.length) return;
   wi = (wi + step + wDeck.length) % wDeck.length;
   wStep = 0; wMiss = 0; wPath = []; wPid = null; wLock = false; wHelped = false;
-  try { localStorage.setItem("wc-write-at", String(wi)); } catch (e) {}
+  try { localStorage.setItem(wKey, String(wi)); } catch (e) {}
   wRender();
   wSpeak();
 }
@@ -2170,27 +2172,34 @@ $("wback").addEventListener("click", () => {
   try { speechSynthesis.cancel(); } catch (e) {}
 });
 $("writeBtn").querySelector("small").textContent = HANZI.length + " characters";
-$("writeBtn").addEventListener("click", () => {
-  wDeck = writeDeck();
-  // Same reasoning as the flash deck: a stable order is only worth having if
-  // you can carry on from where you stopped. The BOUND is not the deck's,
-  // though, and what decides it is the NAV. go() is CLAMPED, so the flash
-  // deck's last card is terminal — a dead Next button — and its `< n - 1` is a
-  // deliberate wrap-to-the-start. wGo() is MODULAR, so every index here is a
-  // playable index and the last character is simply the last one he can be
-  // parked on; with the deck's bound, coming back to it silently started him
-  // over at the first. This is the board's rule for the board's reason, and
-  // harmonising the three onto one number would break whichever two did not
-  // get it.
+/* The pad writes one of two decks: all 120 easiest-first, or today's six (the
+   🌞 今天 set, easiest-first too). Each keeps its own place, and a new day's
+   six start from their first character. */
+let wKey = "wc-write-at";
+// The saved place's BOUND is the modular one: wGo() wraps, so every index is a
+// playable place and the last character is a real place to stop. (The flash
+// deck's `< n - 1` exists because its go() is CLAMPED; copying it here once
+// silently restarted him from the first character.)
+function wOpen(deck, key, label){
+  wDeck = deck; wKey = key;
+  $("wback").innerHTML = "&lsaquo;&nbsp; " + label;
   wi = 0;
   try {
-    const v = parseInt(localStorage.getItem("wc-write-at"), 10);
+    const v = parseInt(localStorage.getItem(key), 10);
     if (v >= 0 && v < wDeck.length) wi = v;
   } catch (e) {}
   wStep = 0; wMiss = 0; wPath = []; wPid = null; wLock = false; wHelped = false;
   menu.classList.add("hidden");
   writeEl.classList.remove("hidden");
   wRender();
+}
+$("hzTodayWriteBtn").addEventListener("click", () => {
+  const today = hzToday().map((h) => hzBy[h]);
+  wOpen(today.map((row, n) => [row, n]).sort((a, b) => strokesOf(a[0][0]) - strokesOf(b[0][0]) || a[1] - b[1]).map((p) => p[0]),
+    "wc-write-today-at", '<span lang="zh-CN">\u4eca\u5929</span>');
+});
+$("writeBtn").addEventListener("click", () => {
+  wOpen(writeDeck(), "wc-write-at", "Writing");
 });
 
 /* ---------- 配对: match the character to its picture ----------
@@ -2523,6 +2532,7 @@ function hzToday(){
   try {
     localStorage.setItem("wc-hztoday", JSON.stringify({ day, chars }));
     localStorage.removeItem("wc-at-hztoday");   // a new day starts at its first card
+    localStorage.removeItem("wc-write-today-at");
   } catch (e) {}
   return chars;
 }
@@ -2706,6 +2716,7 @@ $("hzPileBtn").addEventListener("click", () => {
 });
 paintHzPile();
 $("hzTodayBtn").querySelector("small").textContent = HZ_TODAY_N + " characters";
+$("hzTodayWriteBtn").querySelector("small").textContent = HZ_TODAY_N + " characters";
 $("hzTodayBtn").addEventListener("click", () => {
   start(hzToday().map((h) => hzBy[h]), "Today \u4e2d\u6587", "hztoday");
 });

@@ -10897,7 +10897,8 @@ tooling.
 │                               #   takes it off. It opens as a 中文 flash deck.
 │                               #   🌞 今天 (`wc-hztoday`): six characters a day — up to three from that
 │                               #   pile, the rest of the 120 by a shuffle seeded on the date — frozen for
-│                               #   the day, a new day starting from its first card.
+│                               #   the day, a new day starting from its first card. ✍️ 写今天的字 puts the same six on 写字's pad,
+│                               #   easiest first, with their own place (`wc-write-today-at`, cleared on a new day).
 │                               #   👂 听一听 (`wc-hzhear-at`): the Chinese twin of Hear it, find it, on the
 │                               #   same screen (HEAR_EN / HEAR_ZH hold everything that differs). A wrong
 │                               #   answer may not sound like the right one in any tone, share its picture

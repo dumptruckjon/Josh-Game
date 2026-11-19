@@ -7556,6 +7556,61 @@ test("Word Cards 📚 读一读: Chinese books he reads word by word, in a Chine
   }
 });
 
+test("Word Cards ✍️ 写今天的字: today's six on the writing pad, easiest first, with their own place", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const pg = await ctx.newPage();
+  const errs = [];
+  pg.on("pageerror", (e) => errs.push(e.message));
+  const st = () => pg.evaluate(() => ({
+    deck: wDeck.map((c) => c[0]), strokes: wDeck.map((c) => STROKES[c[0]].s.length), at: wi,
+    today: JSON.parse(localStorage.getItem("wc-hztoday") || "null"),
+    key: localStorage.getItem("wc-write-today-at"), all: localStorage.getItem("wc-write-at"),
+    back: document.getElementById("wback").textContent,
+  }));
+  const back = async () => { await pg.evaluate(() => document.getElementById("wback").click()); await pg.waitForSelector("#menu:not(.hidden)"); };
+  try {
+    await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
+    await pg.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await pg.reload({ waitUntil: "load" });
+    await pg.click("#hzTodayWriteBtn");
+    await pg.waitForSelector("#write:not(.hidden)");
+    let s = await st();
+    assert.deepEqual([...s.deck].sort(), [...s.today.chars].sort(), "the pad deals exactly today's six");
+    assert.ok(s.strokes.every((n, k) => k === 0 || n >= s.strokes[k - 1]), "easiest first, by stroke count");
+    assert.ok(s.back.includes("今天"), "the back button names today's set");
+    await pg.evaluate(() => wGo(2));
+    s = await st();
+    assert.equal(s.key, "2", "today's place is saved under its own key");
+    assert.equal(s.all, null, "and never moves the 120's place");
+    await back();
+
+    // The 120 open on their own deck and place, and a reopened today comes back where he was.
+    await pg.click("#writeBtn");
+    await pg.waitForSelector("#write:not(.hidden)");
+    s = await st();
+    assert.equal(s.deck.length, await pg.evaluate(() => HANZI.length), "the full pad is still all of them");
+    assert.ok(s.back.includes("Writing"), "with its own back label");
+    assert.equal(s.at, 0, "and its own place");
+    await back();
+    await pg.click("#hzTodayWriteBtn");
+    await pg.waitForSelector("#write:not(.hidden)");
+    assert.equal((await st()).at, 2, "today's six come back where he stopped");
+    await back();
+
+    // A new day: a new six, starting from the first.
+    await pg.evaluate(() => localStorage.setItem("wc-hztoday", JSON.stringify({ day: "2000-01-01", chars: HANZI.slice(0, 6).map((c) => c[0]) })));
+    await pg.reload({ waitUntil: "load" });
+    await pg.click("#hzTodayWriteBtn");
+    await pg.waitForSelector("#write:not(.hidden)");
+    s = await st();
+    assert.equal(s.at, 0, "a new day's six start from the first character");
+    assert.equal(await pg.textContent("#hzTodayWriteBtn small"), "6 characters", "the button says how many");
+    assert.deepEqual(errs, [], "no uncaught page errors");
+  } finally {
+    await ctx.close();
+  }
+});
+
 test("🌞 Today: three games for the day — Numbers, Letters and one more — that come back to the set, wear a ✅ when won, and end in a party", async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
   const pg = await ctx.newPage();
