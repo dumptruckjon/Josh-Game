@@ -457,10 +457,13 @@ body.in-game:not(.td-mode) .game__title { font-size: clamp(1rem, 4.4vw, 1.4rem);
 /* 🕳️ Gobble's bar holds his growth METER where a title would be, and with a
    fourth button the meter's bar measured 0px wide on a 402 phone. In a game the
    meter takes its own full-width row under 🏠 👂 🔇 instead: a WIDER bar than it
-   ever had, and the field still gains about 50px over the old title row. */
-body.in-game:not(.td-mode) .hole-play .hole-bar { row-gap: 10px; }
-body.in-game:not(.td-mode) .hole-play .hole-meter { grid-column: 1 / -1; grid-row: 2; }
-body.in-game:not(.td-mode) .hole-play .hole-hear { grid-column: 3; grid-row: 1; }
+   ever had, and the field still gains about 50px over the old title row.
+   Portrait only: a phone on its side has the height to spare least. */
+@media (orientation: portrait) {
+  body.in-game:not(.td-mode) .hole-play .hole-bar { display: grid; row-gap: 10px; }
+  body.in-game:not(.td-mode) .hole-play .hole-meter { grid-column: 1 / -1; grid-row: 2; }
+  body.in-game:not(.td-mode) .hole-play .hole-hear { grid-column: 3; grid-row: 1; }
+}
 /* A soft meadow "floor" glow so the bottom reads as ground, not empty gradient. */
 .screen.game {
   background:

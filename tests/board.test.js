@@ -1947,7 +1947,10 @@ test("§18 E: TABLE MODE — the iPad flat between two people: the far player's 
     const p0 = r(".bn-pad--0"), p1 = r(".bn-pad--1");
     return { table: p.dataset.table, boardTop: b.top, boardBottom: b.bottom, cell: b.width / 6, p0, p1, turn1: getComputedStyle(document.querySelector(".bn-pad--1")).transform, scroll: document.documentElement.scrollHeight > innerHeight + 1 };
   });
-  const sizes = [[390, 844], [834, 1112], [320, 568]];
+  // The step-aside case is 320x480: with the in-game top bar gone, a 320x568
+  // phone has the room for table mode (39px squares, 88px pads), so it no
+  // longer separates the two states; 320x480 still does.
+  const sizes = [[390, 844], [834, 1112], [320, 480]];
   try {
     for (const [w, h] of sizes) {
       await page.setViewportSize({ width: w, height: h });
@@ -1956,8 +1959,8 @@ test("§18 E: TABLE MODE — the iPad flat between two people: the far player's 
       await page.waitForTimeout(400);
       const v = await look();
       if (w === 320) {
-        assert.equal(v.table, "0", "[320x568] table mode steps aside: the squares would be under 38px");
-        assert.ok(v.p0.top >= v.boardBottom && v.p1.top >= v.boardBottom, "[320x568] both pads under the board as usual");
+        assert.equal(v.table, "0", "[320x480] table mode steps aside: the squares would be under 38px");
+        assert.ok(v.p0.top >= v.boardBottom && v.p1.top >= v.boardBottom, "[320x480] both pads under the board as usual");
         continue;
       }
       assert.equal(v.table, "1", `[${w}x${h}] two people on a race: table mode`);
