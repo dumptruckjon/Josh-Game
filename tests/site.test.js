@@ -7179,8 +7179,20 @@ const STORY_CODAS = ["b","d","f","g","k","l","m","n","p","s","t","x","z","ll","s
 // but never too loose.
 const STORY_LONG = /(ind|ild|old|olt|ost|all|alk|alf)$/;
 const STORY_ODD = new Set(["full","pull","bull","put","push","bush","was","want","wash","what","son","ton","won","from","of"]);
+// Bossy R (the deck teaches ar/er/ir/or/ur): a vowel and its r are ONE sound,
+// so car, her, bird, fork and fur read like a short-vowel word with that team
+// in the middle. Except after w, where ar says "or" (war, warm) and or says
+// "er" (word, work, worm) — refused, the conservative way.
+const STORY_BOSSY_W = /^w(ar|or)/;
 function storyDecodable(w) {
   if (STORY_LONG.test(w) || STORY_ODD.has(w)) return false;
+  const r = /^([b-df-hj-np-tv-z]*)(ar|er|ir|or|ur)([b-df-hj-np-tv-z]*)$/.exec(w);
+  if (r && !STORY_BOSSY_W.test(w)) {
+    const [, on, , co] = r;
+    if (on && !STORY_ONSETS.includes(on)) return false;
+    return !co || STORY_CODAS.includes(co) || ["m", "n", "s", "t", "ch", "st"].includes(co) ||
+      (co.length > 1 && co.endsWith("s") && STORY_CODAS.includes(co.slice(0, -1)));
+  }
   // One short vowel, or the "ee" team (the letter-team shelf teaches it);
   // only "ee" may end a word with no consonant after it (see, tree, three).
   const m = /^([b-df-hj-np-tv-z]*?|qu)(ee|[aeiou])([b-df-hj-np-tv-z]*)$/.exec(w);
@@ -7204,6 +7216,10 @@ test("Word Cards 📚 Stories: every word in every book is one he can sound out 
     assert.ok(storyDecodable(w), `the rule must accept "${w}"`);
   for (const w of ["see", "tree", "sheep", "quack", "three", "thanks"])
     assert.ok(storyDecodable(w), `the rule must accept "${w}"`);
+  for (const w of ["car", "her", "bird", "fork", "fur", "shark", "first", "twirl", "curls", "torch"])
+    assert.ok(storyDecodable(w), `the rule must accept the bossy-r word "${w}"`);
+  for (const w of ["war", "warm", "word", "work", "worm", "bear", "heart", "four", "door", "purr"])
+    assert.ok(!storyDecodable(w), `the rule must refuse "${w}" (not a plain bossy r)`);
   for (const w of ["kite", "find", "cold", "ball", "push", "was", "rain", "hello", "the", "fly", "seat", "moon", "sea", "go"])
     assert.ok(!storyDecodable(w), `the rule must refuse "${w}"`);
 

@@ -2815,10 +2815,37 @@ const STORIES = [
     ["🪓", "Chop the logs, Dad!"],
     ["🔥", "We sit and chat."],
     ["😄", "Lots of chat and fun!"]] },
+  // Bossy R: a vowel and its r are one sound, underlined like the other teams.
+  { id: "car", team: "ar", cover: "🚗", title: "A Car in the Dark", pages: [
+    ["🚗", "Dad has a big car."],
+    ["🌑", "It is dark. We park."],
+    ["⭐", "A star is up. Yes!"],
+    ["🦈", "Is that a shark? No!"],
+    ["🐄", "The car is at the farm."]] },
+  { id: "fern", team: "er", cover: "🌿", title: "Her Fern", pages: [
+    ["🌿", "Her fern is big."],
+    ["🐄", "A herd ran past her fern."],
+    ["😮", "Her fern is flat!"],
+    ["🌿", "The fern can get up. Yes!"]] },
+  { id: "bird", team: "ir", cover: "🐦", title: "The Girl and the Bird", pages: [
+    ["🐦", "The bird is in the dirt."],
+    ["👧", "A girl has a red shirt."],
+    ["💃", "The girl can twirl."],
+    ["🐦", "The bird can twirl!"],
+    ["🥇", "The bird is first!"]] },
+  { id: "storm", team: "or", cover: "⛈️", title: "Corn and a Storm", pages: [
+    ["🌽", "Mom has corn on a fork."],
+    ["📯", "Dad has a big horn."],
+    ["⛈️", "A storm! Honk the horn!"],
+    ["🔦", "Get the torch! Yes!"],
+    ["🌽", "The corn is short."]] },
+  { id: "fur", team: "ur", cover: "🐱", title: "The Cat with Fur", pages: [
+    ["🐱", "The cat has fur."],
+    ["🧶", "The fur can curl."],
+    ["🔄", "The cat can turn and turn."],
+    ["😿", "Is the cat hurt? No!"],
+    ["😺", "The cat curls up."]] },
 ];
-/* The words of a line, as the buttons show them (punctuation stays on its
-   word) and as they are SAID (without it). One owner, so the button and the
-   voice can never disagree about where a word ends. */
 /* 📚 读一读: the Chinese shelf. Every character on every page is one of the 120
    on his 中文 cards, so this is reading, not being read to — a test holds that.
    A space marks a WORD tile (小猫, 出来了): he taps a word and hears it, and no
@@ -2871,6 +2898,9 @@ const HZ_STORIES = [
     ["🦋", "蝴蝶 飞来 飞去。"],
     ["😄", "我 好高兴！"]] },
 ];
+/* The words of a line, as the buttons show them (punctuation stays on its
+   word) and as they are SAID (without it). One owner, so the button and the
+   voice can never disagree about where a word ends. */
 function storyWords(line){ return line.split(/\s+/).filter(Boolean); }
 function storySay(word){ return sZh() ? word.replace(/[。！？，]/g, "") : word.replace(/[^A-Za-z']/g, ""); }
 // Which shelf is open: the English books or the Chinese ones. Everything else

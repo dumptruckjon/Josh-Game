@@ -7776,11 +7776,15 @@ test("Word Cards 📚 Stories, the letter-team shelf: each book underlines its t
     await pg.goto(baseURL + "wordcards.html", { waitUntil: "load" });
     await pg.click("#storyBtn");
     const r = await pg.evaluate(() => {
-      const out = { books: 0, marked: 0, bad: [], plain: 0 };
+      const out = { books: 0, marked: 0, bad: [], plain: 0, unmarked: [] };
       for (const b of STORIES) {
         sOpen(b.id);
         for (let p = 0; p <= b.pages.length; p += 1) {
           sPage = p; sRender();
+          // A team book teaches its team on EVERY page: a page where the
+          // splitter makes none of its letters that team (heart, four) is a
+          // page that does not teach it, whatever the spelling says.
+          if (b.team && p < b.pages.length && !document.querySelector("#swords .steam")) out.unmarked.push(b.id + "/" + p);
           for (const el of document.querySelectorAll("#swords .sw")) {
             const word = el.textContent, core = word.replace(/[^A-Za-z']/g, "");
             const marks = [...el.querySelectorAll(".steam")].map((x) => x.textContent.toLowerCase());
@@ -7802,6 +7806,7 @@ test("Word Cards 📚 Stories, the letter-team shelf: each book underlines its t
     assert.ok(r.books >= 6, `only ${r.books} letter-team books`);
     assert.ok(r.marked >= 40, `only ${r.marked} team marks drawn — the marking did nothing`);
     assert.equal(r.plain, 0, "a book with no team must underline nothing");
+    assert.deepEqual(r.unmarked, [], "every page of a letter-team book must show its team at least once");
     assert.deepEqual(r.bad, [], "a word's marks disagree with the sound splitter");
     assert.deepEqual(r.badges, r.teams, "each letter-team book's tile shows its team");
     assert.deepEqual(errs, [], "no uncaught page errors");

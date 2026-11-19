@@ -10884,7 +10884,9 @@ tooling.
 │                               #   with each word lit as it is said; nothing is read on its own, because
 │                               #   he reads first. The End wears a ⭐ on the shelf. Six words a page at
 │                               #   most, so every page fits a phone (measured at four sizes).
-│                               #   The second eight are letter-team books (sh, ch, th, ck, ee): every page
+│                               #   Then five Bossy R books (ar, er, ir, or, ur; the rule admits a vowel+r as one
+│                               #   sound, but not after w: war, word, work).
+#   The second eight are letter-team books (sh, ch, th, ck, ee): every page
 │                               #   carries the book's team, and the reader underlines it wherever the page's
 │                               #   own sound splitter makes it one sound; the rule admits ee and qu/thr.
 │                               #   And 🔁 Still learning (2026-11): a word whose FIRST tap in 👂 was wrong
