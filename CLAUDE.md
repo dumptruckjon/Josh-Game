@@ -10829,6 +10829,19 @@ also handle the deployed value**, since verify-live runs the same file against
 the stamped page. Also: the World maps grow on a tablet (480px, same shape;
 phones and an iPad on its side unchanged), and China Trip's wrong tap says
 "That's not from China!" rather than "Not here!".
+**THE WORLD GAMES LEFT MOST OF THE PHONE EMPTY (owner, 2026-11-20: "look weird
+layout wise during playing with empty space").** On the iPhone 17 Pro the pick
+games were one row of three 96px cards in a 560px play area (17% of it used),
+and the maps sat at 340px on a 370px stage. The cards now size from the
+screen's height (`.choices--world`, up to 168px), the flag games' picture is
+112px, the buddy (`api.mascot()`) fills below, and a map takes the stage's full
+width at its own shape, never shorter than the box its geometry is tested at.
+On a short screen the buddy steps aside, so a 320x568 phone and a phone on its
+side do not scroll. A mobile test pins all of it; three mutations each red.
+Measured while there and NOT changed (outside the pick): **69 of Josh's 208
+games use under 45% of the play area's height on the 17 Pro**, worst Who Hid?
+at 14%, so this is the house layout and not only the World games.
+
 ---
 
 ## Repository Structure

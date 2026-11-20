@@ -2675,6 +2675,56 @@ test("Josh's home grid: the last row of tiles always reaches the edge, even afte
   }
 });
 
+test("🗺️ the World games FILL a phone: big cards, a big picture, a full-width map — and still fit a small one", async () => {
+  // On an iPhone 17 Pro the pick games showed one row of three 96px cards in a
+  // 560px play area (17% of it used) and the maps were pinned at 340px on a
+  // 370px stage. THE CLAIM: on the device, the play spans at least 45% of the
+  // stage's height, a pick card is a big target (≥140px tall) and a map takes
+  // the stage's full width; and on a short phone (and one on its side) the pick
+  // games still fit without scrolling — the buddy steps aside there.
+  const PICKS = ["wa-wonders", "china-trip", "flag-friends", "where-world"], MAPS = ["wa-map", "world-fly"];
+  const look = (p) => p.evaluate(() => {
+    const s = document.querySelector(".screen:not([hidden])");
+    const st = s.querySelector(".game__stage"), S = st.getBoundingClientRect();
+    let t = 1e9, b = -1e9;
+    for (const c of st.querySelectorAll("*")) {
+      const q = c.getBoundingClientRect();
+      if (!q.width || !q.height) continue;
+      t = Math.min(t, q.top); b = Math.max(b, q.bottom);
+    }
+    const card = s.querySelector(".choices--world .choice"), map = s.querySelector(".map__stage");
+    return { fill: (b - t) / S.height, stageW: S.width, card: card ? card.getBoundingClientRect().height : 0,
+      mapW: map ? map.getBoundingClientRect().width : 0, scroll: document.documentElement.scrollHeight - innerHeight };
+  });
+  const { ctx, p } = await ip17Page();
+  try {
+    await p.goto(baseURL, { waitUntil: "load" });
+    for (const id of PICKS.concat(MAPS)) {
+      await p.evaluate((h) => { location.hash = h; }, "#" + id);
+      await p.waitForFunction((id) => { const s = document.getElementById("screen-" + id); return s && !s.hidden; }, id);
+      await p.waitForTimeout(60);
+      const r = await look(p);
+      assert.ok(r.fill >= 0.45, `iPhone 17 Pro ${id}: the play spans only ${Math.round(r.fill * 100)}% of its stage`);
+      if (PICKS.includes(id)) assert.ok(r.card >= 140, `iPhone 17 Pro ${id}: a pick card is only ${Math.round(r.card)}px tall`);
+      else assert.ok(r.mapW >= r.stageW - 2, `iPhone 17 Pro ${id}: the map is ${Math.round(r.mapW)}px on a ${Math.round(r.stageW)}px stage`);
+    }
+  } finally { await ctx.close(); }
+  for (const s of [{ w: 320, h: 568 }, { w: 375, h: 667 }, { w: 844, h: 390 }]) {
+    const ctx2 = await browser.newContext({ viewport: { width: s.w, height: s.h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx2.newPage();
+    try {
+      await p2.goto(baseURL, { waitUntil: "load" });
+      for (const id of PICKS) {
+        await p2.evaluate((h) => { location.hash = h; }, "#" + id);
+        await p2.waitForFunction((id) => { const s = document.getElementById("screen-" + id); return s && !s.hidden; }, id);
+        await p2.waitForTimeout(60);
+        const r = await look(p2);
+        assert.ok(r.scroll <= 8, `${s.w}x${s.h} ${id}: the page scrolls ${r.scroll}px — the cards no longer fit a short screen`);
+      }
+    } finally { await ctx2.close(); }
+  }
+});
+
 test("🗺️ the World maps grow on a tablet, keeping their shape, with every place inside and well apart", async () => {
   // A map that stays 340px wide on an iPad is a phone picture in a ten-inch
   // column. On a tall screen it grows; the 78px places do not, so only the

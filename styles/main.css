@@ -4691,7 +4691,10 @@ button.bn-pickd { cursor: pointer; }
 /* ================= 🗺️ World ================= */
 /* A drawn map under the shared scene zones: the art fills the stage behind
    the ≥75px place buttons, which wear the place's picture. */
-.map__stage { width: min(340px, calc(100vw - 40px)); border-radius: 24px; overflow: hidden; box-shadow: var(--card-shadow, 0 6px 16px rgba(30,40,80,0.16)); }
+/* On a phone the map takes the whole stage width (it was pinned at 340px on a
+   370px stage) and keeps its shape, never shorter than its box (--map-h, the
+   height the place geometry is tested at). */
+.map__stage { width: min(370px, calc(100vw - 32px)) !important; max-width: 100% !important; height: max(var(--map-h, 360px), calc(min(370px, 100vw - 32px) * var(--map-r, 1.06))) !important; border-radius: 24px; overflow: hidden; box-shadow: var(--card-shadow, 0 6px 16px rgba(30,40,80,0.16)); }
 .map__art { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
 .map__art svg { display: block; width: 100%; height: 100%; }
 .map__stage .scene__zone { background: rgba(255,255,255,0.22); border: 3px solid rgba(255,255,255,0.95); }
@@ -4699,12 +4702,24 @@ button.bn-pickd { cursor: pointer; }
 .map__pin { font-size: 2.3rem; line-height: 1; pointer-events: none; }
 .map__marker { position: absolute; right: -6px; top: -10px; font-size: 1.8rem; line-height: 1; pointer-events: none; }
 .choice--flag { font-size: clamp(3rem, 16vw, 4.6rem); }
+/* The World pick games: three tall cards and a big picture, sized from the
+   screen's height, so the play fills a phone instead of sitting as one thin row
+   in the middle of an empty stage. vh, not dvh: these are minimums, and a vh
+   twin is what Safari 14 reads anyway. */
+.choices--world .choice { min-height: clamp(96px, 18vh, 168px); font-size: clamp(3rem, 15vw, 4.6rem); }
+.pick__big--world { font-size: clamp(4rem, 28vw, 7rem); margin: 0 0 18px; }
+/* A short screen (a small phone, any phone on its side) has no room for the
+   buddy as well: it steps aside rather than push the cards off the screen. */
+@media (max-height: 700px) {
+  .world-pick .game__mascot { display: none; }
+  .pick__big--world { font-size: clamp(3rem, 14vh, 4.6rem); margin-bottom: 12px; }
+}
 /* On a tablet the maps grow with the screen, keeping their own shape
    (--map-r, set by the game from its box). !important because sceneZones sets
    the phone size inline. The 78px places stay the same, so only the room
    BETWEEN them grows — the phone geometry test is the tightest case. Only on a
    tall screen: on its side an iPad keeps the phone map, which already fits. */
 @media (min-width: 600px) and (min-height: 800px) {
-  .map__stage { width: 480px !important; max-width: 100% !important; height: calc(480px * var(--map-r, 1.06)) !important; }
+  .map__stage { width: 520px !important; max-width: 100% !important; height: calc(520px * var(--map-r, 1.06)) !important; }
   .map__pin { font-size: 3rem; }
 }

@@ -17,8 +17,12 @@
       start(api) {
         const ROUNDS = 4;
         let round = 0, last = -1;
-        const chips = api.el("div", { class: "choices choices--3" });
+        // Three BIG cards and the buddy below: three 96px cards alone left
+        // most of a phone's play area empty (measured on an iPhone 17 Pro).
+        const chips = api.el("div", { class: "choices choices--3 choices--world" });
         api.stage.append(chips);
+        api.mascot();
+        api.stage.classList.add("world-pick");
         function newRound() {
           const r = L.makeOddPlace(cfg.own(), cfg.far(), undefined, last); last = r.idx;
           api.setPrompt(cfg.ask, cfg.icons, cfg.ask);
@@ -84,6 +88,7 @@
         // Its shape, for the tablet size (styles/main.css): a map that stays
         // 340px on an iPad is a phone picture in a ten-inch column.
         built.stage.style.setProperty("--map-r", String(scene.box.h / scene.box.w));
+        built.stage.style.setProperty("--map-h", scene.box.h + "px");
         built.stage.insertBefore(art, built.stage.firstChild);
         built.btns.forEach((b, i) => b.appendChild(api.el("span", { class: "map__pin", aria: { hidden: "true" } }, [zones[i].e])));
         api.stage.append(built.stage);
@@ -156,9 +161,11 @@
       start(api) {
         const ROUNDS = 5;
         let round = 0, last = -1;
-        const big = api.el("div", { class: "pick__big", aria: { hidden: "true" } });
-        const chips = api.el("div", { class: "choices choices--3" });
+        const big = api.el("div", { class: "pick__big pick__big--world", aria: { hidden: "true" } });
+        const chips = api.el("div", { class: "choices choices--3 choices--world" });
         api.stage.append(big, chips);
+        api.mascot();
+        api.stage.classList.add("world-pick");
         function newRound() {
           const r = L.makeFlagPick(C.COUNTRIES || [], undefined, last); last = r.idx;
           const c = r.country;
