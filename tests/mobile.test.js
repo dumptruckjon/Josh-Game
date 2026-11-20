@@ -2754,7 +2754,16 @@ test("🗺️ the World games FILL a phone: big cards, a big picture, a full-wid
     }
     const card = s.querySelector(".choices--world .choice"), map = s.querySelector(".map__stage");
     return { fill: (b - t) / S.height, stageW: S.width, card: card ? card.getBoundingClientRect().height : 0,
-      mapW: map ? map.getBoundingClientRect().width : 0, scroll: document.documentElement.scrollHeight - innerHeight };
+      mapW: map ? map.getBoundingClientRect().width : 0, scroll: document.documentElement.scrollHeight - innerHeight,
+      pins: map ? (() => {
+        const M = map.getBoundingClientRect(), z = [...map.querySelectorAll(".scene__zone")].map((e) => e.getBoundingClientRect());
+        let gap = 1e9, out = 0;
+        for (let i = 0; i < z.length; i++) {
+          if (z[i].left < M.left - 1 || z[i].right > M.right + 1 || z[i].top < M.top - 1 || z[i].bottom > M.bottom + 1) out++;
+          for (let j = i + 1; j < z.length; j++) gap = Math.min(gap, Math.max(z[j].left - z[i].right, z[i].left - z[j].right, z[j].top - z[i].bottom, z[i].top - z[j].bottom));
+        }
+        return { n: z.length, size: Math.min(...z.map((q) => Math.min(q.width, q.height))), gap, out };
+      })() : null };
   });
   const { ctx, p } = await ip17Page();
   try {
@@ -2766,7 +2775,14 @@ test("🗺️ the World games FILL a phone: big cards, a big picture, a full-wid
       const r = await look(p);
       assert.ok(r.fill >= 0.45, `iPhone 17 Pro ${id}: the play spans only ${Math.round(r.fill * 100)}% of its stage`);
       if (PICKS.includes(id)) assert.ok(r.card >= 140, `iPhone 17 Pro ${id}: a pick card is only ${Math.round(r.card)}px tall`);
-      else assert.ok(r.mapW >= r.stageW - 2, `iPhone 17 Pro ${id}: the map is ${Math.round(r.mapW)}px on a ${Math.round(r.stageW)}px stage`);
+      else {
+        assert.ok(r.mapW >= r.stageW - 2, `iPhone 17 Pro ${id}: the map is ${Math.round(r.mapW)}px on a ${Math.round(r.stageW)}px stage`);
+        // the pins grow with the map on the device (78 -> 96), still apart and inside it
+        assert.ok(r.pins.n >= 4, `fixture: ${id} drew ${r.pins.n} pins`);
+        assert.ok(r.pins.size >= 90, `iPhone 17 Pro ${id}: a map pin is only ${Math.round(r.pins.size)}px`);
+        assert.ok(r.pins.gap >= 16, `iPhone 17 Pro ${id}: two pins are only ${Math.round(r.pins.gap)}px apart`);
+        assert.equal(r.pins.out, 0, `iPhone 17 Pro ${id}: ${r.pins.out} pin(s) hang off the map`);
+      }
     }
   } finally { await ctx.close(); }
   for (const s of [{ w: 320, h: 568 }, { w: 375, h: 667 }, { w: 844, h: 390 }]) {

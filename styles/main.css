@@ -4709,6 +4709,11 @@ button.bn-pickd { cursor: pointer; }
 .map__art svg { display: block; width: 100%; height: 100%; }
 .map__stage .scene__zone { background: rgba(255,255,255,0.22); border: 3px solid rgba(255,255,255,0.95); }
 .map__stage .scene__zone--found { background: #eafbe8; border-color: #2c7a3f; box-shadow: 0 0 0 3px #2c7a3f; }
+/* On a tall phone (the iPhone 17 Pro) the pins sit 130px apart, so they grow
+   78 -> 96px and keep 34px between them; a smaller phone keeps 78. */
+@media (orientation: portrait) and (min-height: 800px) and (max-width: 599px) {
+  .map__stage .scene__zone { width: 96px; height: 96px; font-size: 2.6rem; }
+}
 .map__pin { font-size: 2.3rem; line-height: 1; pointer-events: none; }
 .map__marker { position: absolute; right: -6px; top: -10px; font-size: 1.8rem; line-height: 1; pointer-events: none; }
 .choice--flag { font-size: clamp(3rem, 16vw, 4.6rem); }
