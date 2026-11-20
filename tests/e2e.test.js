@@ -7941,7 +7941,7 @@ test("an app left open picks up a new version when it comes back — on a menu s
   }
 });
 
-test("the owner's new picks play as designed: Story Dice, Treasure Hunt at Home and the 🗺️ World", async () => {
+test("the owner's new picks play as designed: Story Dice, Hunt at Home and the 🗺️ World", async () => {
   await page.evaluate(() => { const A = window.JoshAudio; window.__SAY1 = A.say; window.__S1 = []; A.say = (t, o) => { window.__S1.push([String(t), (o && o.lang) || ""]); return window.__SAY1.call(A, t, o); }; });
   const said = () => page.evaluate(() => window.__S1.splice(0));
   try {
@@ -7973,7 +7973,13 @@ test("the owner's new picks play as designed: Story Dice, Treasure Hunt at Home 
     assert.equal(await page.evaluate(() => document.querySelector("#screen-home-hunt .hhunt__count").textContent), "⭐", "a doubled tap counts ONE find");
     for (let k = 0; k < 4; k++) { await page.waitForTimeout(850); await page.evaluate(() => document.querySelector("#screen-home-hunt .hhunt__got").click()); }
     assert.ok(await page.evaluate(() => !!document.getElementById("screen-home-hunt").dataset.won), "five finds earn the sticker");
-    assert.ok((await said()).some((x) => /^You found (something|a|an) .+! Find /.test(x[0])), "each find is named, then the next hunt");
+    const hunt = (await said()).map((x) => x[0]);
+    assert.ok(hunt.some((l) => /^You found (something|a|an) .+! Find /.test(l)), "each find is named, then the next hunt");
+    const praise = hunt.indexOf("Five treasures! You're a super finder!");
+    assert.ok(praise >= 0, "the fifth find is praised");
+    // the win's praise is not preceded (in its own tap) by the NEXT hunt
+    assert.ok(!/^Find /.test(hunt[praise - 1] || ""), `the fifth find is praised before any next hunt (${JSON.stringify(hunt.slice(-3))})`);
+    assert.ok(!hunt.slice(praise).some((l) => /^Find /.test(l) || /! Find /.test(l)), "and the next hunt is not said over the win");
 
     // 🐼 China Trip: the right answer says its fact, then its Chinese word in a Chinese voice.
     await openGame("china-trip");
@@ -7987,13 +7993,22 @@ test("the owner's new picks play as designed: Story Dice, Treasure Hunt at Home 
     await openGame("world-fly");
     const fly = await page.evaluate(() => {
       const s = document.getElementById("screen-world-fly");
-      const wrong = s.querySelector(".scene__zone:not([data-correct])"); wrong.click();
+      window.__S1.length = 0;
+      const wrong = s.querySelector(".scene__zone:not([data-correct])"); const wrongName = wrong.getAttribute("aria-label"); wrong.click();
+      const wrongSaid = window.__S1.map((x) => x[0]);
       const after = s.querySelectorAll(".map__marker").length;
       const right = s.querySelector(".scene__zone[data-correct]"); const name = right.getAttribute("aria-label"); right.click();
-      return { after, landed: !!right.querySelector(".map__marker"), name, prompt: s.querySelector(".game__promptText").textContent };
+      return { after, landed: !!right.querySelector(".map__marker"), name, wrongName, wrongSaid, prompt: s.querySelector(".game__promptText").textContent };
     });
+    assert.ok(fly.wrongSaid.includes("That's " + fly.wrongName + ". Fly to " + fly.name + "!"), `a wrong continent is named, then the goal again (${JSON.stringify(fly.wrongSaid)})`);
     assert.equal(fly.after, 0, "a wrong continent lands no plane");
     assert.ok(fly.landed, `the plane lands on ${fly.name}`);
+
+    // 🚩 Flag Friends: a wrong flag says whose flag it is.
+    await openGame("flag-friends");
+    await said();
+    const fl = await page.evaluate(() => { const b = document.querySelector("#screen-flag-friends .choice--flag:not([data-correct])"); b.click(); return b.getAttribute("aria-label"); });
+    assert.ok((await said()).some((x) => "That's " + fl + "." === x[0]), `a wrong flag is named (${fl})`);
   } finally {
     await page.evaluate(() => { window.JoshAudio.say = window.__SAY1; });
   }

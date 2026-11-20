@@ -11254,6 +11254,19 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   scrub → rinse → dry, the car visibly cleans up). *Set 3:* **Dump Truck!** (the
   namesake — load rocks, count, pull the DUMP lever), **Puppy Love** (nurture toy
   — pat/brush/treat), **Boing! Boing!** (bounce Josh's chosen buddy ever higher).
+- **🗺️ World** (the owner's pick, 2026-11: "geography items … Washington state, USA,
+  China, or the world") — **Washington Wonders** and **China Trip** (which one is
+  from here? China Trip also says the Chinese word), **Washington Map** (ocean,
+  Seattle, Mount Rainier, the apple orchards on a drawn map) and **Fly Around the
+  World** (the seven continents), both on the shared `F.sceneZones`, and **Flag
+  Friends** / **Where in the World?** (a flag by its name, or by what the country
+  is known for; `makeFlagPick` never offers a defensible neighbour). A wrong tap
+  names what was tapped. Two more, the same day: **🎲 Story Dice** (Calm & Friends:
+  roll who / where / an uh-oh and tell the story — a toy, three stories win) and
+  **🧭 Hunt at Home** (Find It: find something red, soft, a spoon… in the room,
+  then tap Got it). Josh is at **208**; the home's tiles fill their last row at
+  every column count (`fillLastRow`), and below 360px wide a game's title steps
+  aside (it ran under 👂 on every game at 320).
 - **🤝 Calm & Friends** — Breathing Star, I Did It! (certificate), Follow the
   Path (lacing), Team Hop, **Team Number Tower** (count to 10 together), **Team
   Count by 2s** (skip-count co-op), **Team Countdown** (5→0 blast off), Team

@@ -836,6 +836,25 @@ test("EVERY game screen: no overflow + >=75px well-spaced targets at 320px", asy
     await showScreen(page, "#" + id, `#screen-${id}`);
     await noOverflow(page, id);
     await auditActiveScreen(page, id);
+    // the game's NAME may step aside on a narrow phone, but its ink may never
+    // sit under a bar button (at 320 every title once ran under 👂)
+    const under = await page.evaluate((i) => {
+      const s = document.getElementById("screen-" + i);
+      const t = s && s.querySelector(".game__title");
+      if (!t) return null;
+      const rg = document.createRange(); rg.selectNodeContents(t);
+      // what is PAINTED: each line clipped to the title's own box (a name that
+      // stepped aside is clipped to 1px and paints nothing)
+      const box = t.getBoundingClientRect();
+      const lines = [...rg.getClientRects()].map((r) => ({
+        left: Math.max(r.left, box.left), right: Math.min(r.right, box.right),
+        top: Math.max(r.top, box.top), bottom: Math.min(r.bottom, box.bottom),
+      })).filter((r) => r.right - r.left > 2 && r.bottom - r.top > 2);
+      const btns = [...document.querySelectorAll(".game__bar button, .topbar button")].filter((b) => b.offsetWidth).map((b) => b.getBoundingClientRect());
+      for (const l of lines) for (const b of btns) if (l.right > b.left + 1 && l.left < b.right - 1 && l.bottom > b.top + 1 && l.top < b.bottom - 1) return t.textContent;
+      return null;
+    }, id);
+    assert.equal(under, null, `[${id}] its title "${under}" sits under a bar button at 320px`);
   }
 });
 
@@ -2620,5 +2639,38 @@ test("📱 iPhone 17 Pro: after a win, Again comes to rest ABOVE the home bar, n
     assert.ok(r.top >= IP17.top, `Again starts at ${Math.round(r.top)}, under the Dynamic Island`);
   } finally {
     await ctx.close();
+  }
+});
+
+// Josh's home: 🌞 Today across the top, then the category tiles. Their count
+// (8 categories + Surprise + Stickers) divides by none of the column counts a
+// phone and an iPad give, so the World category once sat alone on the last row.
+// The last row's tiles stretch to fill it — at every size, and again after the
+// phone is turned (the column count changes under the same page).
+test("Josh's home grid: the last row of tiles always reaches the edge, even after a turn", async () => {
+  const lastRow = (p) => p.evaluate(() => {
+    const grid = document.getElementById("home-grid");
+    const tiles = [...grid.children].filter((t) => t.offsetWidth && !t.classList.contains("tile--today"));
+    const g = grid.getBoundingClientRect();
+    const bottom = Math.max(...tiles.map((t) => t.getBoundingClientRect().top));
+    const row = tiles.filter((t) => Math.abs(t.getBoundingClientRect().top - bottom) < 2).map((t) => t.getBoundingClientRect());
+    return { n: tiles.length, cols: getComputedStyle(grid).gridTemplateColumns.split(" ").length,
+      left: Math.round(Math.min(...row.map((r) => r.left)) - g.left), right: Math.round(g.right - Math.max(...row.map((r) => r.right))) };
+  });
+  for (const s of [{ w: 320, h: 568 }, { w: 402, h: 874 }, { w: 834, h: 1112 }, { w: 1024, h: 768 }]) {
+    const ctx2 = await browser.newContext({ viewport: { width: s.w, height: s.h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx2.newPage();
+    try {
+      await p2.goto(baseURL + "#home", { waitUntil: "load" });
+      await p2.waitForSelector("#screen-home:not([hidden])");
+      await p2.waitForTimeout(150);
+      let r = await lastRow(p2);
+      assert.ok(r.n >= 10, `fixture: the home holds its tiles (${r.n})`);
+      assert.ok(r.left <= 1 && r.right <= 1, `${s.w}x${s.h}: the last row is ragged (${JSON.stringify(r)})`);
+      await p2.setViewportSize({ width: s.h, height: s.w });
+      await p2.waitForTimeout(250);
+      r = await lastRow(p2);
+      assert.ok(r.left <= 1 && r.right <= 1, `${s.h}x${s.w} (turned): the last row is ragged (${JSON.stringify(r)})`);
+    } finally { await ctx2.close(); }
   }
 });

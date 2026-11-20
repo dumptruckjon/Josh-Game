@@ -1212,8 +1212,8 @@
   // exempt from the framework's echo guard), so it only counts once.
   F.register({
     id: "home-hunt",
-    icon: "🏠",
-    title: "Treasure Hunt at Home",
+    icon: "🧭",
+    title: "Hunt at Home",
     skill: "colors, shapes & words in the real world [M]",
     start(api) {
       const LIST = api.C.HOME_HUNT || [{ e: "🔴", say: "something red" }];
@@ -1226,12 +1226,12 @@
       api.stage.append(card, got);
       let order = api.shuffle(LIST.slice()), at = 0, finds = 0, won = false, lastAt = -1e9;
       const now = () => (window.performance && performance.now ? performance.now() : Date.now());
-      const show = (lead) => {
+      const show = (lead, quiet) => {
         const it = order[at % order.length];
         pic.textContent = it.e;
         count.textContent = "⭐".repeat(Math.min(finds, GOAL));
         api.setPrompt("Find " + it.say + "!", ["👀", it.e, "✅"], (lead ? lead + " " : "") + "Find " + it.say + "! Then tap Got it.");
-        api.speak();
+        if (!quiet) api.speak();
       };
       got.addEventListener("click", () => {
         const t = now();
@@ -1243,7 +1243,8 @@
         if (at % order.length === 0) order = api.shuffle(LIST.slice());
         card.classList.remove("pop"); void card.offsetWidth; card.classList.add("pop");
         const lead = "You found " + it.say + "!";
-        if (!won && finds >= GOAL) { won = true; show(); api.win({ say: "Five treasures! You're a super finder!" }); }
+        // the praise first; the next find waits on screen (👂 says it)
+        if (!won && finds >= GOAL) { won = true; show(null, true); api.win({ say: "Five treasures! You're a super finder!" }); }
         else show(lead);
       });
       show();

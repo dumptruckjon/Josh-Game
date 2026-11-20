@@ -1267,7 +1267,7 @@ test("spoken phrases: every gear and analogy picture is said with the right arti
   assert.ok(bins >= 8, "fixture: the tidy bins were read");
 });
 
-// ===== 🗺️ World + Story Dice + Treasure Hunt at Home (owner's picks, 2026-11) =====
+// ===== 🗺️ World + Story Dice + Hunt at Home (owner's picks, 2026-11) =====
 
 test("🗺️ Washington Wonders: every Washington thing is really Washington, every far thing really is not", () => {
   // Restated truth (a teaching tool): the state's own things, and things that

@@ -9,6 +9,28 @@
   const F = window.JoshFramework;
 
   // Top-level categories (the home menu). Icons carry the meaning for a non-reader.
+  // The home grid's column count follows the screen (3 on a phone, 4 on an
+  // iPad, 5 on a wide one), so a fixed count of tiles leaves one or two alone
+  // on the last row at some sizes — the World category did exactly that. Each
+  // time the grid's size changes, the last row's tiles stretch to fill it (a
+  // banner that spans the whole row, like 🌞 Today, is not counted).
+  function fillLastRow(grid) {
+    const fit = () => {
+      const cols = getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length;
+      const tiles = [...grid.children].filter((t) => !t.classList.contains("tile--today"));
+      tiles.forEach((t) => { t.style.gridColumn = ""; });
+      if (cols < 2) return;
+      const rem = tiles.length % cols;
+      if (!rem) return;
+      const last = tiles.slice(-rem);
+      if (cols % rem === 0) last.forEach((t) => { t.style.gridColumn = "span " + (cols / rem); });
+      else last[last.length - 1].style.gridColumn = "span " + (cols - rem + 1);
+    };
+    fit();
+    if (window.ResizeObserver) new ResizeObserver(fit).observe(grid);
+    else window.addEventListener("resize", fit);
+  }
+
   const CATEGORIES = [
     { id: "numbers", icon: "🔢", title: "Numbers", color: "#5ec8ff" },
     { id: "letters", icon: "🔤", title: "Letters", color: "#ff7ac0" },
@@ -452,6 +474,7 @@
       screen.append(bar, cgrid);
       screens.appendChild(screen);
     });
+    fillLastRow(grid);
 
     // Build the actual game screens — for EVERY registered game, Josh's and
     // 华丽's alike (the framework owns all game screens; only tiles differ).

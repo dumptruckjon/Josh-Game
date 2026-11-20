@@ -69,7 +69,7 @@
         const ROUNDS = cfg.rounds || zones.length;
         let round = 0, order = [], target = null;
         const built = F.sceneZones(api, scene.box, zones, (z, b) => {
-          if (z !== target) { api.tryAgain(b); return; }
+          if (z !== target) { api.tryAgain(b); api.say(cfg.wrong(z, target)); return; }
           delete b.dataset.correct; b.classList.add("scene__zone--found");
           if (cfg.marker) { b.appendChild(api.el("span", { class: "map__marker", aria: { hidden: "true" } }, [cfg.marker])); }
           api.say(cfg.found(z));
@@ -115,6 +115,7 @@
     caption: (z) => "Tap " + z.say + "!",
     ask: (z) => z.ask,
     found: (z) => "That's " + z.say + "!",
+    wrong: (z, t) => "That's " + z.say + ". " + t.ask,
     done: "You can read the map of Washington!",
   });
 
@@ -135,6 +136,7 @@
     caption: (z) => "Fly to " + z.name + "!",
     ask: (z) => "Fly the plane to " + z.name + ", " + z.hint + "!",
     found: (z) => "Welcome to " + z.name + "!",
+    wrong: (z, t) => "That's " + z.name + ". Fly to " + t.name + "!",
     done: "You flew all around the world!",
   });
 
@@ -162,7 +164,7 @@
               dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "the flag of " + ch.country.name },
             });
             b.addEventListener("click", () => {
-              if (!ch.correct) { api.tryAgain(b); return; }
+              if (!ch.correct) { api.tryAgain(b); api.say("That's the flag of " + ch.country.name + "."); return; }
               api.say(cfg.found(c));
               round += 1;
               if (round >= ROUNDS) api.win({ say: cfg.done }); else { api.roundWin(); api.nextRound(newRound, 1100); }
