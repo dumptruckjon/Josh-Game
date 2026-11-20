@@ -565,7 +565,7 @@ body.in-game:not(.td-mode) .game__title { font-size: clamp(1rem, 4.4vw, 1.4rem);
    cards and their pictures grow with the height; a short or wide screen is
    unchanged. vh is a minimum here, so Safari 14's missing dvh does not matter. */
 @media (orientation: portrait) and (min-height: 800px) and (max-width: 599px) {
-  .game__stage .choice { min-height: clamp(96px, 15vh, 140px); }
+  .game__stage .choices .choice { min-height: clamp(96px, 15vh, 140px); } /* answer ROWS only: a 3x3 grid or a line of 5 would run off the bottom */
 }
 .choice:active { transform: scale(0.94); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14); } /* deeper squish = better tap feedback */
 
@@ -4716,7 +4716,7 @@ button.bn-pickd { cursor: pointer; }
    screen's height, so the play fills a phone instead of sitting as one thin row
    in the middle of an empty stage. vh, not dvh: these are minimums, and a vh
    twin is what Safari 14 reads anyway. */
-.choices--world .choice { min-height: clamp(96px, 18vh, 168px); font-size: clamp(3rem, 15vw, 4.6rem); }
+.game__stage .choices--world .choice { min-height: clamp(96px, 18vh, 168px); font-size: clamp(3rem, 15vw, 4.6rem); }
 .pick__big--world { font-size: clamp(4rem, 28vw, 7rem); margin: 0 0 18px; }
 /* A short screen (a small phone, any phone on its side) has no room for the
    buddy as well: it steps aside rather than push the cards off the screen. */

@@ -2681,8 +2681,8 @@ test("📱 iPhone 17 Pro: every game uses its play area — tall cards, the budd
   // play area, the worst (Who Hid?) using 14% of it. Cards on a tall phone now
   // grow with the height, the flat games carry the buddy, and the ending-sound
   // picture got the size it never had. THE CLAIM, over every game: (1) the
-  // play spans at least 30% of the stage's height, (2) a choice card is at
-  // least 125px tall, and (3) no text runs out of its card — a bigger card
+  // play spans at least 30% of the stage's height, (2) a card in an answer
+  // row (.choices) is at least 125px tall, and (3) no text runs out of its card — a bigger card
   // must never come with words that do not fit it. Pump the Balloon is exempt
   // from (1) because it starts small on purpose (the pumping is the game), and
   // the exemption is asserted to still be needed.
@@ -2712,7 +2712,9 @@ test("📱 iPhone 17 Pro: every game uses its play area — tall cards, the budd
           const C = c.getBoundingClientRect();
           if (!C.width || c.closest("[hidden]")) continue;
           n++;
-          if (C.height < 125) short.push(Math.round(C.height));
+          // height: answer ROWS only — a 3x3 grid or a line of five must stay
+          // small, or its last row runs off the bottom (the gate caught it)
+          if (C.height < 125 && c.parentElement.closest(".choices")) short.push(Math.round(C.height));
           const w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT);
           for (let x; (x = w.nextNode());) {
             if (!x.textContent.trim()) continue;
