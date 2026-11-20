@@ -2673,13 +2673,16 @@ test("Josh's home grid: the last row of tiles always reaches the edge, even afte
     try {
       await p2.goto(baseURL + "#home", { waitUntil: "load" });
       await p2.waitForSelector("#screen-home:not([hidden])");
+      // the fill runs on a task after the grid's size settles, so wait for it
+      // (a real defect stays ragged for good; 3s is only a ceiling)
+      const settled = async () => { let r; for (let i = 0; i < 30; i++) { r = await lastRow(p2); if (r.left <= 1 && r.right <= 1) break; await p2.waitForTimeout(100); } return r; };
       await p2.waitForTimeout(150);
-      let r = await lastRow(p2);
+      let r = await settled();
       assert.ok(r.n >= 10, `fixture: the home holds its tiles (${r.n})`);
       assert.ok(r.left <= 1 && r.right <= 1, `${s.w}x${s.h}: the last row is ragged (${JSON.stringify(r)})`);
       await p2.setViewportSize({ width: s.h, height: s.w });
       await p2.waitForTimeout(250);
-      r = await lastRow(p2);
+      r = await settled();
       assert.ok(r.left <= 1 && r.right <= 1, `${s.h}x${s.w} (turned): the last row is ragged (${JSON.stringify(r)})`);
       assert.equal(await p2.evaluate(() => window.__roLoops), 0, `${s.w}x${s.h}: the last-row fill looped its ResizeObserver`);
       assert.deepEqual(errs, [], `${s.w}x${s.h}: page errors`);

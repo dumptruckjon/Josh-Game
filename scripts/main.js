@@ -15,9 +15,11 @@
   // time the grid's size changes, the last row's tiles stretch to fill it (a
   // banner that spans the whole row, like 🌞 Today, is not counted).
   // It writes a style only where the span really changes, and the observer
-  // waits a frame: clearing every span and setting it again inside the
-  // callback changed the grid's height, which re-fired the observer, and
-  // WebKit reported "ResizeObserver loop completed" as a page error.
+  // hands the work to a task: clearing every span and setting it again inside
+  // the callback changed the grid's height, which re-fired the observer, and
+  // WebKit reported "ResizeObserver loop completed" as a page error. A task,
+  // not an animation frame: headless WebKit can go a long while without a
+  // frame, and the row stayed ragged until one came.
   function fillLastRow(grid) {
     const fit = () => {
       const cols = getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length;
@@ -30,7 +32,7 @@
     };
     fit();
     let queued = false;
-    const later = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; fit(); }); };
+    const later = () => { if (queued) return; queued = true; setTimeout(() => { queued = false; fit(); }, 0); };
     if (window.ResizeObserver) new ResizeObserver(later).observe(grid);
     else window.addEventListener("resize", later);
   }

@@ -262,17 +262,21 @@ test("EVERY place opens and draws: its floor, ALL its ground features in the ope
       if (!without || !withAir || !again) return { settled: false };
       return { settled: true, control: diff(without, again), n: diff(withAir, without) };
     });
-    let best = -1, tries = 0;
+    let best = -1, tries = 0, clean = 0, noisy = [];
     for (; tries < 8 && best < 30; tries++) {
       if (tries) await page.waitForTimeout(320);
       const painted = await paintOnce();
       assert.ok(painted.settled, id + ": fixture: each picture comes out the same twice in a row within 12 draws");
       // the control is usually 0; in a full run Music Land once came back with
       // 3 px that settled differently (the same 1-12 px class the swirl test
-      // measures), so it gets that measured bar — far below the air's own 30
-      assert.ok(painted.control <= 12, id + ": fixture: the frame without its air is the same before and after the one with it (" + painted.control + " px differ)");
+      // measures), and on CI's WebKit the castle once with 19. A try whose
+      // control is noisy cannot measure the air, so it is thrown away and the
+      // next moment of the cycle is tried; at least one try must be clean.
+      if (painted.control > 12) { noisy.push(painted.control); continue; }
+      clean++;
       best = Math.max(best, painted.n);
     }
+    assert.ok(clean > 0, id + ": fixture: the frame without its air never came out the same before and after the one with it (" + noisy.join(", ") + " px differ)");
     assert.ok(best >= 30, id + ": its " + r.wantAir + " paints the screen (at most " + best + " px change with it, over " + tries + " moments of its cycle)");
     // …and it plays: a few bites through the real event path
     const p = await page.evaluate(() => window.__HOLE.autoplay(60 * 3));
