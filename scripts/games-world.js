@@ -174,12 +174,14 @@
           api.speak();
           chips.innerHTML = "";
           r.choices.forEach((ch) => {
+            // a choice is a FLAG (Where in the World?) or a THING (Flag Friends)
+            const o = ch.country, thing = cfg.pick === "thing";
             const b = api.el("button", {
-              class: "choice choice--flag tap", type: "button", text: ch.country.flag,
-              dataset: ch.correct ? { correct: "1" } : {}, aria: { label: "the flag of " + ch.country.name },
+              class: "choice " + (thing ? "choice--thing" : "choice--flag") + " tap", type: "button", text: thing ? o.thing : o.flag,
+              dataset: ch.correct ? { correct: "1" } : {}, aria: { label: thing ? o.thingName : "the flag of " + o.name },
             });
             b.addEventListener("click", () => {
-              if (!ch.correct) { api.tryAgain(b); api.say("That's the flag of " + ch.country.name + "."); return; }
+              if (!ch.correct) { api.tryAgain(b); api.say(thing ? "That's " + o.thingName + ", from " + o.name + "." : "That's the flag of " + o.name + "."); return; }
               api.say(cfg.found(c));
               round += 1;
               if (round >= ROUNDS) api.win({ say: cfg.done }); else { api.roundWin(); api.nextRound(newRound, 1100); }
@@ -193,12 +195,15 @@
   }
 
   flagGame({
+    // the flag is the question and the answer is what the country is known
+    // for — the other way round from Where in the World?, so the two differ.
     id: "flag-friends", icon: "🚩", title: "Flag Friends", skill: "country flags [W]",
-    big: (c) => c.thing,
-    caption: (c) => "Which flag is " + c.name + "'s?",
-    icons: (c) => ["🚩", c.thing, "👉"],
-    ask: (c) => "Find the flag of " + c.name + "!",
-    found: (c) => "That's the flag of " + c.name + "!",
+    pick: "thing",
+    big: (c) => c.flag,
+    caption: (c) => "What is " + c.name + " known for?",
+    icons: (c) => [c.flag, "🤔", "👉"],
+    ask: (c) => "This is the flag of " + c.name + ". What is " + c.name + " known for?",
+    found: (c) => c.name.replace(/^the /, "The ") + " is known for " + c.thingName + "!",
     done: "You know the flags of the world!",
   });
 

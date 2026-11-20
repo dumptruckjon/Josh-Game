@@ -1291,10 +1291,12 @@ test("🗺️ China Trip: every China thing with its Chinese word; every far thi
 });
 
 test("🗺️ countries: each flag is its own country's, and a thing's `avoid` names every place it is also true", () => {
-  const FLAG = { usa: "🇺🇸", china: "🇨🇳", india: "🇮🇳", russia: "🇷🇺", canada: "🇨🇦", japan: "🇯🇵", mexico: "🇲🇽", australia: "🇦🇺" };
-  const THING = { usa: "🗽", china: "🐼", india: "🐅", russia: "🪆", canada: "🍁", japan: "🗻", mexico: "🌮", australia: "🦘" };
-  // also true elsewhere among these eight, so never a wrong flag for it:
-  const ALSO = { india: ["china", "russia"], canada: ["usa"], mexico: ["usa"] };
+  const FLAG = { usa: "🇺🇸", china: "🇨🇳", india: "🇮🇳", russia: "🇷🇺", canada: "🇨🇦", japan: "🇯🇵", mexico: "🇲🇽", australia: "🇦🇺", uk: "🇬🇧", kenya: "🇰🇪", brazil: "🇧🇷" };
+  const THING = { usa: "🗽", china: "🐼", india: "🐅", russia: "🪆", canada: "🍁", japan: "🗻", mexico: "🌮", australia: "🦘", uk: "💂", kenya: "🦒", brazil: "🦥" };
+  // also true elsewhere among these eleven, so never offered against it either
+  // way: wild tigers in China and Russia; maples wild in the USA, Japan, China
+  // and the UK; tacos all over the USA; sloths in the south of Mexico.
+  const ALSO = { india: ["china", "russia"], canada: ["usa", "japan", "china", "uk"], mexico: ["usa"], brazil: ["mexico"] };
   const C = content.COUNTRIES;
   assert.deepEqual(Object.fromEntries(C.map((c) => [c.id, c.flag])), FLAG);
   assert.deepEqual(Object.fromEntries(C.map((c) => [c.id, c.thing])), THING);

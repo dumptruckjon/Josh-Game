@@ -1986,6 +1986,8 @@ test("🗺️ makeFlagPick: three different flags, the country's own among them,
     assert.equal(r.choices.filter((c) => c.correct).length, 1, "exactly one right flag");
     assert.equal(r.choices.find((c) => c.correct).country.id, r.country.id, "the right flag is the country's own");
     for (const id of r.country.avoid || []) assert.ok(!ids.includes(id), `${r.country.thingName} is also true in ${id}, so its flag is never a wrong choice`);
+    // and the other way (Flag Friends offers THINGS): a wrong country's thing must not be true of this one
+    for (const ch of r.choices) if (!ch.correct) assert.ok(!(ch.country.avoid || []).includes(r.country.id), `${ch.country.thingName} is also true in ${r.country.name}, so it is never a wrong thing for it`);
     if ((r.country.avoid || []).length) sawAvoider++;
   }
   assert.ok(sawAvoider > 500, "fixture: countries with an avoid list were drawn");

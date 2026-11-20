@@ -8028,11 +8028,32 @@ test("the owner's new picks play as designed: Story Dice, Hunt at Home and the �
     assert.equal(fly.after, 0, "a wrong continent lands no plane");
     assert.ok(fly.landed, `the plane lands on ${fly.name}`);
 
-    // 🚩 Flag Friends: a wrong flag says whose flag it is.
+    // 🌍 Where in the World?: a THING big, three FLAGS; a wrong flag says whose flag it is.
+    await openGame("where-world");
+    await said();
+    const ww = await page.evaluate(() => {
+      const s = document.getElementById("screen-where-world"), b = s.querySelector(".choice--flag:not([data-correct])");
+      const big = s.querySelector(".pick__big").textContent, n = s.querySelectorAll(".choice--flag").length;
+      b.click(); return { label: b.getAttribute("aria-label"), big, n, things: s.querySelectorAll(".choice--thing").length };
+    });
+    assert.equal(ww.n, 3, "Where in the World? offers three flags");
+    assert.equal(ww.things, 0, "…and no things");
+    assert.ok(!/[\u{1F1E6}-\u{1F1FF}]/u.test(ww.big), `its question is a thing, not a flag (${ww.big})`);
+    assert.ok((await said()).some((x) => "That's " + ww.label + "." === x[0]), `a wrong flag is named (${ww.label})`);
+
+    // 🚩 Flag Friends is the other way round: a FLAG big, three THINGS; a wrong thing says where it is from.
     await openGame("flag-friends");
     await said();
-    const fl = await page.evaluate(() => { const b = document.querySelector("#screen-flag-friends .choice--flag:not([data-correct])"); b.click(); return b.getAttribute("aria-label"); });
-    assert.ok((await said()).some((x) => "That's " + fl + "." === x[0]), `a wrong flag is named (${fl})`);
+    const ff = await page.evaluate(() => {
+      const s = document.getElementById("screen-flag-friends"), b = s.querySelector(".choice--thing:not([data-correct])");
+      const big = s.querySelector(".pick__big").textContent, n = s.querySelectorAll(".choice--thing").length;
+      const c = (window.JoshContent.COUNTRIES || []).find((x) => x.thingName === b.getAttribute("aria-label"));
+      b.click(); return { big, n, flags: s.querySelectorAll(".choice--flag").length, label: b.getAttribute("aria-label"), from: c && c.name };
+    });
+    assert.equal(ff.n, 3, "Flag Friends offers three things");
+    assert.equal(ff.flags, 0, "…and no flags");
+    assert.ok(/[\u{1F1E6}-\u{1F1FF}]/u.test(ff.big), `its question is a flag (${ff.big})`);
+    assert.ok((await said()).some((x) => "That's " + ff.label + ", from " + ff.from + "." === x[0]), `a wrong thing says where it is from (${ff.label})`);
   } finally {
     await page.evaluate(() => { window.JoshAudio.say = window.__SAY1; });
   }

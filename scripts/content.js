@@ -1283,17 +1283,21 @@
     // Flag Friends + Where in the World?: each country's real flag, a picture
     // it is known for, and how it is spoken.`avoid` names countries whose flag must
     // never be a WRONG choice for this thing because it is also true there:
-    // wild tigers live in China and Russia too, and maple trees and tacos are
-    // everywhere in the USA.
+    // wild tigers live in China and Russia too, maple trees grow wild in the USA,
+    // Japan, China and the UK, tacos are everywhere in the USA, and sloths live in
+    // the south of Mexico. The clash goes both ways (logic.js makeFlagPick).
     COUNTRIES: [
       { id: "usa", flag: "🇺🇸", name: "the USA", thing: "🗽", thingName: "the Statue of Liberty" },
       { id: "china", flag: "🇨🇳", name: "China", thing: "🐼", thingName: "the panda" },
       { id: "india", flag: "🇮🇳", name: "India", thing: "🐅", thingName: "the tiger", avoid: ["china", "russia"] },
       { id: "russia", flag: "🇷🇺", name: "Russia", thing: "🪆", thingName: "the nesting dolls" },
-      { id: "canada", flag: "🇨🇦", name: "Canada", thing: "🍁", thingName: "the maple leaf", avoid: ["usa"] },
+      { id: "canada", flag: "🇨🇦", name: "Canada", thing: "🍁", thingName: "the maple leaf", avoid: ["usa", "japan", "china", "uk"] },
       { id: "japan", flag: "🇯🇵", name: "Japan", thing: "🗻", thingName: "Mount Fuji" },
       { id: "mexico", flag: "🇲🇽", name: "Mexico", thing: "🌮", thingName: "the taco", avoid: ["usa"] },
       { id: "australia", flag: "🇦🇺", name: "Australia", thing: "🦘", thingName: "the kangaroo" },
+      { id: "uk", flag: "🇬🇧", name: "the UK", thing: "💂", thingName: "the royal guards" },
+      { id: "kenya", flag: "🇰🇪", name: "Kenya", thing: "🦒", thingName: "the giraffe" },
+      { id: "brazil", flag: "🇧🇷", name: "Brazil", thing: "🦥", thingName: "the sloth", avoid: ["mexico"] },
     ],
     // Fly Around the World: the seven continents on a drawn world map, laid out
     // where they really are relative to each other (the Americas west, Europe

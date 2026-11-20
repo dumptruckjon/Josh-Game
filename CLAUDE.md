@@ -11307,8 +11307,12 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   from here? China Trip also says the Chinese word), **Washington Map** (ocean,
   Seattle, Mount Rainier, the apple orchards on a drawn map) and **Fly Around the
   World** (the seven continents), both on the shared `F.sceneZones`, and **Flag
-  Friends** / **Where in the World?** (a flag by its name, or by what the country
-  is known for; `makeFlagPick` never offers a defensible neighbour). A wrong tap
+  Friends** / **Where in the World?** (what a country is known for, from its flag; or the flag, from what it
+  is known for; `makeFlagPick` never offers a defensible neighbour, and the
+  clash goes both ways). Flag Friends is the reverse of Where in the World? —
+  the flag is the question and the answer is the thing the country is known
+  for — so the two never look alike; eleven countries (UK 💂, Kenya 🦒 and
+  Brazil 🦥 added 2026-11-20). On the iPhone 17 Pro the map pins are 96px. A wrong tap
   names what was tapped. Two more, the same day: **🎲 Story Dice** (Calm & Friends:
   roll who / where / an uh-oh and tell the story — a toy, three stories win) and
   **🧭 Hunt at Home** (Find It: find something red, soft, a spoon… in the room,

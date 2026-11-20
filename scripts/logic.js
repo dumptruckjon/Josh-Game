@@ -1086,7 +1086,12 @@
     let idx = Math.floor(rnd() * countries.length);
     if (countries.length > 1 && idx === lastIdx) idx = (idx + 1) % countries.length;
     const country = countries[idx];
-    const others = sample(countries.filter((c, i) => i !== idx && !(country.avoid || []).includes(c.id)), 2, rng);
+    // A clash goes BOTH ways: Where in the World? asks for the country of a
+    // thing (a wrong flag must not be a place the thing is also true), and Flag
+    // Friends asks for the thing of a country (a wrong thing must not also be
+    // true there) — so a pair is kept apart if EITHER names the other.
+    const clash = (c) => (country.avoid || []).includes(c.id) || (c.avoid || []).includes(country.id);
+    const others = sample(countries.filter((c, i) => i !== idx && !clash(c)), 2, rng);
     const choices = shuffle([{ country, correct: true }, ...others.map((c) => ({ country: c, correct: false }))], rng);
     return { idx, country, choices };
   }
