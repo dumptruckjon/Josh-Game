@@ -2660,6 +2660,16 @@ test("Josh's home grid: the last row of tiles always reaches the edge, even afte
   for (const s of [{ w: 320, h: 568 }, { w: 402, h: 874 }, { w: 834, h: 1112 }, { w: 1024, h: 768 }]) {
     const ctx2 = await browser.newContext({ viewport: { width: s.w, height: s.h }, hasTouch: true, isMobile: true });
     const p2 = await ctx2.newPage();
+    // The fill once cleared every span and set it again inside its own
+    // ResizeObserver callback, which moved the grid and re-fired the observer:
+    // WebKit then reported "ResizeObserver loop completed" as a page error
+    // (verify-live, 2026-11-20). An observer must not be able to loop.
+    const errs = [];
+    p2.on("pageerror", (e) => errs.push(String(e)));
+    await p2.addInitScript(() => {
+      window.__roLoops = 0;
+      window.addEventListener("error", (e) => { if (/ResizeObserver loop/.test(e.message || "")) window.__roLoops++; });
+    });
     try {
       await p2.goto(baseURL + "#home", { waitUntil: "load" });
       await p2.waitForSelector("#screen-home:not([hidden])");
@@ -2671,6 +2681,8 @@ test("Josh's home grid: the last row of tiles always reaches the edge, even afte
       await p2.waitForTimeout(250);
       r = await lastRow(p2);
       assert.ok(r.left <= 1 && r.right <= 1, `${s.h}x${s.w} (turned): the last row is ragged (${JSON.stringify(r)})`);
+      assert.equal(await p2.evaluate(() => window.__roLoops), 0, `${s.w}x${s.h}: the last-row fill looped its ResizeObserver`);
+      assert.deepEqual(errs, [], `${s.w}x${s.h}: page errors`);
     } finally { await ctx2.close(); }
   }
 });

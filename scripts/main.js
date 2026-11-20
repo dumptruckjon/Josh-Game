@@ -14,21 +14,25 @@
   // on the last row at some sizes — the World category did exactly that. Each
   // time the grid's size changes, the last row's tiles stretch to fill it (a
   // banner that spans the whole row, like 🌞 Today, is not counted).
+  // It writes a style only where the span really changes, and the observer
+  // waits a frame: clearing every span and setting it again inside the
+  // callback changed the grid's height, which re-fired the observer, and
+  // WebKit reported "ResizeObserver loop completed" as a page error.
   function fillLastRow(grid) {
     const fit = () => {
       const cols = getComputedStyle(grid).gridTemplateColumns.split(" ").filter(Boolean).length;
       const tiles = [...grid.children].filter((t) => !t.classList.contains("tile--today"));
-      tiles.forEach((t) => { t.style.gridColumn = ""; });
-      if (cols < 2) return;
-      const rem = tiles.length % cols;
-      if (!rem) return;
-      const last = tiles.slice(-rem);
-      if (cols % rem === 0) last.forEach((t) => { t.style.gridColumn = "span " + (cols / rem); });
-      else last[last.length - 1].style.gridColumn = "span " + (cols - rem + 1);
+      const want = tiles.map(() => "");
+      const rem = cols < 2 ? 0 : tiles.length % cols;
+      if (rem && cols % rem === 0) for (let i = tiles.length - rem; i < tiles.length; i++) want[i] = "span " + (cols / rem);
+      else if (rem) want[tiles.length - 1] = "span " + (cols - rem + 1);
+      tiles.forEach((t, i) => { if (t.style.gridColumn !== want[i]) t.style.gridColumn = want[i]; });
     };
     fit();
-    if (window.ResizeObserver) new ResizeObserver(fit).observe(grid);
-    else window.addEventListener("resize", fit);
+    let queued = false;
+    const later = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; fit(); }); };
+    if (window.ResizeObserver) new ResizeObserver(later).observe(grid);
+    else window.addEventListener("resize", later);
   }
 
   const CATEGORIES = [
