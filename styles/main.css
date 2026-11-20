@@ -4675,6 +4675,9 @@ button.bn-pickd { cursor: pointer; }
 @keyframes sdiceRoll { 0% { transform: rotate(-10deg) scale(0.9); } 60% { transform: rotate(6deg) scale(1.04); } 100% { transform: none; } }
 .sdice__btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; width: 100%; max-width: 520px; margin: 0 auto; }
 .sdice__btns .btn-big { min-width: 0; width: 100%; }
+.sdice__roll { order: 1; }
+.sdice__end { order: 2; } /* first in the DOM for the harness, right on the screen */
+.sdice__end--off { opacity: 0.5; box-shadow: none; } /* asleep until there is a story to end */
 @media (prefers-reduced-motion: reduce) {
   .sdice__die--roll { animation: none !important; }
 }
@@ -4696,3 +4699,12 @@ button.bn-pickd { cursor: pointer; }
 .map__pin { font-size: 2.3rem; line-height: 1; pointer-events: none; }
 .map__marker { position: absolute; right: -6px; top: -10px; font-size: 1.8rem; line-height: 1; pointer-events: none; }
 .choice--flag { font-size: clamp(3rem, 16vw, 4.6rem); }
+/* On a tablet the maps grow with the screen, keeping their own shape
+   (--map-r, set by the game from its box). !important because sceneZones sets
+   the phone size inline. The 78px places stay the same, so only the room
+   BETWEEN them grows — the phone geometry test is the tightest case. Only on a
+   tall screen: on its side an iPad keeps the phone map, which already fits. */
+@media (min-width: 600px) and (min-height: 800px) {
+  .map__stage { width: 480px !important; max-width: 100% !important; height: calc(480px * var(--map-r, 1.06)) !important; }
+  .map__pin { font-size: 3rem; }
+}

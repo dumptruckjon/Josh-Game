@@ -2674,3 +2674,45 @@ test("Josh's home grid: the last row of tiles always reaches the edge, even afte
     } finally { await ctx2.close(); }
   }
 });
+
+test("🗺️ the World maps grow on a tablet, keeping their shape, with every place inside and well apart", async () => {
+  // A map that stays 340px wide on an iPad is a phone picture in a ten-inch
+  // column. On a tall screen it grows; the 78px places do not, so only the
+  // room between them grows. On a phone (and an iPad on its side) it keeps the
+  // size the content.test geometry proves.
+  const measure = (p) => p.evaluate(() => {
+    const s = document.querySelector(".screen:not([hidden])");
+    const st = s.querySelector(".map__stage").getBoundingClientRect();
+    const z = [...s.querySelectorAll(".scene__zone")].map((b) => b.getBoundingClientRect());
+    let gap = 1e9;
+    for (let i = 0; i < z.length; i++) for (let j = i + 1; j < z.length; j++) {
+      const a = z[i], b = z[j];
+      gap = Math.min(gap, Math.max(Math.max(b.left - a.right, a.left - b.right), Math.max(b.top - a.bottom, a.top - b.bottom)));
+    }
+    const inside = z.every((b) => b.left >= st.left - 1 && b.right <= st.right + 1 && b.top >= st.top - 1 && b.bottom <= st.bottom + 1);
+    return { w: st.width, h: st.height, n: z.length, gap, inside, low: Math.max(...z.map((b) => b.bottom)), vh: innerHeight };
+  });
+  const sizes = {};
+  for (const s of [{ w: 402, h: 874 }, { w: 834, h: 1112 }, { w: 768, h: 1024 }, { w: 1024, h: 768 }]) {
+    const ctx2 = await browser.newContext({ viewport: { width: s.w, height: s.h }, hasTouch: true, isMobile: true });
+    const p2 = await ctx2.newPage();
+    try {
+      for (const id of ["wa-map", "world-fly"]) {
+        await p2.goto(baseURL + "#" + id, { waitUntil: "load" });
+        await p2.waitForSelector("#screen-" + id + ":not([hidden]) .map__stage");
+        const r = await measure(p2);
+        assert.ok(r.n >= 4, `fixture: ${id} drew its places (${r.n})`);
+        assert.ok(r.inside, `${s.w}x${s.h} ${id}: a place sticks out of the map (${JSON.stringify(r)})`);
+        assert.ok(r.gap >= 14, `${s.w}x${s.h} ${id}: two places are ${r.gap}px apart (${JSON.stringify(r)})`);
+        assert.ok(r.low <= r.vh, `${s.w}x${s.h} ${id}: the lowest place is below the fold (${Math.round(r.low)} of ${r.vh})`);
+        sizes[s.w + "x" + s.h + " " + id] = r;
+      }
+    } finally { await ctx2.close(); }
+  }
+  for (const id of ["wa-map", "world-fly"]) {
+    const phone = sizes["402x874 " + id], pad = sizes["834x1112 " + id], side = sizes["1024x768 " + id];
+    assert.ok(pad.w >= phone.w * 1.3, `${id}: the map is ${pad.w}px on an iPad against ${phone.w}px on a phone — it must grow`);
+    assert.ok(Math.abs(pad.h / pad.w - phone.h / phone.w) < 0.02, `${id}: the tablet map changed shape (${(pad.h / pad.w).toFixed(3)} vs ${(phone.h / phone.w).toFixed(3)})`);
+    assert.ok(Math.abs(side.w - phone.w) < 1, `${id}: an iPad on its side keeps the phone map (${side.w} vs ${phone.w})`);
+  }
+});

@@ -7905,14 +7905,22 @@ test("an app left open picks up a new version when it comes back — on a menu s
   // hash changes), so it could run an old version for days. main.js asks which
   // build is current when the app returns after a minute away. Here the page
   // is served as build "aaa" and the server then answers with "bbb".
-  const ctx = await browser.newContext({ viewport: { width: 402, height: 874 } });
+  // The stamp is the literal __BUILD__ locally and the commit id on the LIVE
+  // site (the deploy rewrites it), so the fixture swaps WHICHEVER it finds —
+  // swapping only the literal made this test unable to see a newer build when
+  // verify-live ran it, and it timed out waiting for a reload that was right
+  // not to happen. Service workers are blocked so every fetch goes through
+  // the route (a worker can answer index.html itself).
+  const ctx = await browser.newContext({ viewport: { width: 402, height: 874 }, serviceWorkers: "block" });
+  const STAMP = /(\?v=)(__BUILD__|[0-9a-f]{7,40})(?=["&])/g;
   let served = "aaa", checks = 0;
   await ctx.route(/index\.html|\/(\?.*)?(#.*)?$/, async (route) => {
     const url = route.request().url();
     const res = await route.fetch();
     let body = await res.text();
-    if (/check=/.test(url)) { checks++; body = body.replace(/__BUILD__/g, served); }
-    else body = body.replace(/__BUILD__/g, "aaa");
+    if (/check=/.test(url)) { checks++; body = body.replace(STAMP, "$1" + served); }
+    else body = body.replace(STAMP, "$1aaa");
+    assert.ok(/main\.js\?v=(aaa|bbb)"/.test(body), "fixture: the served page carries the swapped build stamp");
     await route.fulfill({ response: res, body });
   });
   const pg = await ctx.newPage();
@@ -7951,6 +7959,8 @@ test("the owner's new picks play as designed: Story Dice, Hunt at Home and the �
     await said();
     const d0 = await page.evaluate(() => { const s = document.getElementById("screen-story-dice"); s.querySelector(".sdice__end").click(); return { won: !!s.dataset.won, toy: [...s.querySelectorAll("[data-toy]")].map((b) => b.className) }; });
     assert.ok(!d0.won && d0.toy.length === 1 && /sdice__roll/.test(d0.toy[0]), "before a roll only Roll carries the toy flag");
+    const asleep = () => page.evaluate(() => document.querySelector("#screen-story-dice .sdice__end").getAttribute("aria-disabled"));
+    assert.equal(await asleep(), "true", "before a roll The end looks asleep — it can only ask for a roll");
     assert.deepEqual((await said()).map((x) => x[0]), ["Roll the dice first!"], "The end before a roll asks for a roll, it is not a story");
     for (let k = 0; k < 3; k++) {
       await page.evaluate(() => document.querySelector("#screen-story-dice .sdice__roll").click());
@@ -7959,12 +7969,21 @@ test("the owner's new picks play as designed: Story Dice, Hunt at Home and the �
       const faces = await page.evaluate(() => [...document.querySelectorAll("#screen-story-dice .sdice__face")].map((f) => f.textContent.length || f.innerHTML.length));
       assert.ok(faces.every((n) => n > 0), "all three dice show a picture");
       assert.ok(await page.evaluate(() => !!document.querySelector("#screen-story-dice .sdice__end[data-toy]")), "after a roll, The end carries the toy flag");
+      assert.ok(await page.evaluate(() => !!document.querySelector("#screen-story-dice .sdice__roll[data-toy]")), "Roll stays a toy after rolling, so a story can always be re-rolled");
+      assert.equal(await asleep(), "false", "after a roll The end is awake");
       await page.evaluate(() => document.querySelector("#screen-story-dice .sdice__end").click());
       await page.waitForTimeout(150);
     }
     assert.ok(await page.evaluate(() => !!document.getElementById("screen-story-dice").dataset.won), "three stories earn the sticker");
     await page.evaluate(() => document.querySelector("#screen-story-dice .sdice__roll").click());
     assert.ok((await said()).some((x) => /^Once upon a time/.test(x[0])), "after the win the dice still roll");
+    // …and roll AGAIN without telling it: the won board closes whatever is not
+    // a toy, and a Roll that lost its flag after rolling went dead right here.
+    await page.waitForTimeout(400);
+    await page.evaluate(() => document.querySelector("#screen-story-dice .sdice__roll").click());
+    assert.ok((await said()).some((x) => /^Once upon a time/.test(x[0])), "after the win a story can be re-rolled, not only rolled once");
+    await page.evaluate(() => document.querySelector("#screen-story-dice .sdice__end").click());
+    assert.ok((await said()).some((x) => /The end/.test(x[0])), "after the win The end still ends a re-rolled story");
 
     // 🏠 Treasure Hunt: a double tap is one find; five finds win.
     await openGame("home-hunt");
@@ -7984,6 +8003,11 @@ test("the owner's new picks play as designed: Story Dice, Hunt at Home and the �
     // 🐼 China Trip: the right answer says its fact, then its Chinese word in a Chinese voice.
     await openGame("china-trip");
     await said();
+    // a wrong tap names what it was and says it is not from CHINA ("Not here!"
+    // was the old line, and "here" is home, not China)
+    const cw = await page.evaluate(() => { const b = document.querySelector("#screen-china-trip .choice:not([data-correct])"); const n = b.getAttribute("aria-label"); b.click(); return n; });
+    assert.ok((await said()).some((x) => x[0] === cw.charAt(0).toUpperCase() + cw.slice(1) + "? That's not from China!"), `a wrong China Trip tap names it and says it is not from China (${cw})`);
+    await page.waitForTimeout(400);
     await page.evaluate(() => document.querySelector("#screen-china-trip [data-correct]").click());
     const cn = await said();
     assert.ok(cn.some((x) => /China|Chinese/.test(x[0]) && x[1] === ""), "the fact is said in English");
@@ -8011,5 +8035,55 @@ test("the owner's new picks play as designed: Story Dice, Hunt at Home and the �
     assert.ok((await said()).some((x) => "That's " + fl + "." === x[0]), `a wrong flag is named (${fl})`);
   } finally {
     await page.evaluate(() => { window.JoshAudio.say = window.__SAY1; });
+  }
+});
+
+test("🗺️ every map pin sits on its OWN drawn region (Seattle by the water, west of the mountains)", async () => {
+  // A map game teaches where things ARE, so the picture under each place is
+  // part of its truth. Seattle once sat on top of the Cascades, while the game
+  // said "the big city by the water" — Seattle is on Puget Sound, WEST of the
+  // mountains. Each drawn region carries data-region; at every pin's centre the
+  // TOPMOST filled region must be the one it names.
+  const WANT = {
+    "wa-map": { ocean: "ocean", seattle: "land", rainier: "rainier", apples: "dry" },
+    "world-fly": { na: "na", eu: "eu", as: "as", sa: "sa", af: "af", au: "au", an: "an" },
+  };
+  for (const id of Object.keys(WANT)) {
+    await openGame(id);
+    const got = await page.evaluate((id) => {
+      const C = window.JoshContent;
+      const scene = id === "wa-map" ? C.WA_MAP : C.WORLD_MAP;
+      const svg = document.querySelector("#screen-" + id + " .map__art svg");
+      const vb = svg.viewBox.baseVal;
+      const regions = [...svg.querySelectorAll("[data-region]")];
+      const out = {};
+      for (const z of scene.zones) {
+        const pt = svg.createSVGPoint(); pt.x = vb.width * z.x / 100; pt.y = vb.height * z.y / 100;
+        const hit = regions.filter((r) => r.isPointInFill(pt)).map((r) => r.dataset.region);
+        // the last match in document order is the one painted on top
+        let near = Infinity;
+        const sound = svg.querySelector('[data-region="sound"]');
+        if (sound) { const len = sound.getTotalLength(); for (let i = 0; i <= 200; i++) { const p = sound.getPointAtLength(len * i / 200); near = Math.min(near, Math.hypot(p.x - pt.x, p.y - pt.y)); } }
+        // …and the whole 78px pin, not just its centre: a pin that covers a
+        // mountain reads as ON the mountain even when its centre misses it.
+        const bw = vb.width * 78 / scene.box.w / 2, bh = vb.height * 78 / scene.box.h / 2;
+        const under = new Set();
+        for (let i = 0; i <= 8; i++) for (let j = 0; j <= 8; j++) {
+          const q = svg.createSVGPoint(); q.x = pt.x - bw + 2 * bw * i / 8; q.y = pt.y - bh + 2 * bh * j / 8;
+          regions.forEach((r) => { if (r.isPointInFill(q)) under.add(r.dataset.region); });
+        }
+        out[z.id] = { top: hit[hit.length - 1] || null, all: hit, under: [...under], nearSound: Math.round(near) };
+      }
+      return out;
+    }, id);
+    for (const [zid, want] of Object.entries(WANT[id])) {
+      assert.ok(got[zid], `fixture: ${id} has a pin "${zid}"`);
+      assert.equal(got[zid].top, want, `${id}: the pin "${zid}" sits on "${got[zid].top}", not "${want}" (${JSON.stringify(got[zid])})`);
+    }
+    if (id === "wa-map") {
+      assert.ok(!got.seattle.under.includes("cascades"), `the Seattle pin covers the mountains it is west of (${JSON.stringify(got.seattle)})`);
+      assert.ok(!got.apples.under.includes("cascades"), `the apple pin covers the mountains it is east of (${JSON.stringify(got.apples)})`);
+      assert.ok(got.seattle.nearSound <= 30, `Seattle is "by the water" but ${got.seattle.nearSound} map units from Puget Sound`);
+    }
   }
 });

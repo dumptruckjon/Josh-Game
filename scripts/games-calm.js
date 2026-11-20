@@ -1647,10 +1647,14 @@
 
   // ---- 🎲 Story Dice: roll WHO, WHERE and an UH-OH, then tell the story ----
   // His own story, out loud — every story is right, so it is a TOY: three
-  // stories earn the sticker and he can keep rolling. The ROLL and THE END
-  // buttons sit side by side and take turns carrying [data-toy], so the harness
-  // (and a hammering finger) alternates them; a second tap on Roll just rolls
-  // again. With the sound off the three pictures ARE the prompt.
+  // stories earn the sticker and he can keep rolling. ROLL is always a toy (a
+  // second tap just rolls again — a story he does not like is re-rolled), and
+  // THE END becomes one only once there is a story to end. The won board closes
+  // everything that is not a toy at the moment it is tapped, so a Roll that
+  // lost its flag after rolling could re-roll only once after the win. The end
+  // comes FIRST in the DOM (Roll stays on the left by CSS `order`) because the
+  // every-game harness taps the first [data-toy]: before a roll that is Roll,
+  // after one it is The end. With the sound off the three pictures ARE the prompt.
   F.register({
     id: "story-dice",
     icon: "🎲",
@@ -1669,7 +1673,11 @@
       });
       const roll = api.el("button", { class: "btn-big sdice__roll", type: "button", dataset: { toy: "1" }, aria: { label: "Roll the dice" } }, ["🎲 Roll!"]);
       const end = api.el("button", { class: "btn-big sdice__end", type: "button", aria: { label: "The end" } }, ["🎉 The end!"]);
-      const btns = api.el("div", { class: "sdice__btns" }, [roll, end]);
+      // Until there is a story, The end only asks for a roll — so it LOOKS
+      // asleep (aria-disabled, not disabled: a tap still answers "Roll first").
+      const wake = (on) => { end.setAttribute("aria-disabled", on ? "false" : "true"); end.classList.toggle("sdice__end--off", !on); };
+      wake(false);
+      const btns = api.el("div", { class: "sdice__btns" }, [end, roll]);
       api.stage.append(row, btns);
       let rolled = false, stories = 0, won = false;
       const draw = (f) => {
@@ -1693,7 +1701,7 @@
           dice[k].die.classList.remove("sdice__die--roll"); void dice[k].die.offsetWidth; dice[k].die.classList.add("sdice__die--roll");
         });
         rolled = true;
-        delete roll.dataset.toy; end.dataset.toy = "1";
+        end.dataset.toy = "1"; wake(true);
         const story = "Once upon a time, " + pick.who.say + " was " + pick.where.say + ". " + pick.uhoh.say + " What happens next?";
         api.setPrompt("Tell the story — then tap The end!", [pick.who.e || "🧒", pick.where.e, pick.uhoh.e], story);
         api.speak();
@@ -1702,7 +1710,7 @@
         if (!rolled) { api.say("Roll the dice first!"); return; }
         api.tickPlay();
         rolled = false; stories += 1;
-        delete end.dataset.toy; roll.dataset.toy = "1";
+        delete end.dataset.toy; wake(false);
         dice.who.die.classList.remove("pop"); void dice.who.die.offsetWidth; dice.who.die.classList.add("pop");
         api.setPrompt("Roll again for a new story!", ["🎲", "🗣️", "🎉"]);
         if (!won && stories >= 3) { won = true; api.win({ say: "Three stories! You're a real storyteller!" }); }

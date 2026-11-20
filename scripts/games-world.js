@@ -30,7 +30,7 @@
               dataset: ch.correct ? { correct: "1" } : {}, aria: { label: ch.item.name },
             });
             b.addEventListener("click", () => {
-              if (!ch.correct) { api.tryAgain(b); api.say(cap(ch.item.name) + "? Not here!"); return; }
+              if (!ch.correct) { api.tryAgain(b); api.say(cap(ch.item.name) + "? " + cfg.notHere); return; }
               api.say(ch.item.fact);
               if (ch.item.zh) api.say(ch.item.zh, { lang: "zh-CN" });
               round += 1;
@@ -48,6 +48,7 @@
     id: "wa-wonders", icon: "🌲", title: "Washington Wonders", skill: "home state geography [W]",
     own: () => (C.WA_WONDERS || {}).wa || [], far: () => (C.WA_WONDERS || {}).far || [],
     ask: "Which one is in Washington, where we live?", icons: ["🏠", "🌲", "👉"],
+    notHere: "Not in Washington!",
     done: "You know Washington!",
   });
 
@@ -55,6 +56,7 @@
     id: "china-trip", icon: "🐼", title: "China Trip", skill: "China & culture [W]",
     own: () => (C.CHINA_TRIP || {}).china || [], far: () => (C.CHINA_TRIP || {}).far || [],
     ask: "Which one is from China?", icons: ["✈️", "🏮", "👉"],
+    notHere: "That's not from China!",
     done: "What a trip to China!",
   });
 
@@ -79,6 +81,9 @@
         const art = api.el("div", { class: "map__art", aria: { hidden: "true" } });
         art.innerHTML = cfg.svg;
         built.stage.classList.add("map__stage");
+        // Its shape, for the tablet size (styles/main.css): a map that stays
+        // 340px on an iPad is a phone picture in a ten-inch column.
+        built.stage.style.setProperty("--map-r", String(scene.box.h / scene.box.w));
         built.stage.insertBefore(art, built.stage.firstChild);
         built.btns.forEach((b, i) => b.appendChild(api.el("span", { class: "map__pin", aria: { hidden: "true" } }, [zones[i].e])));
         api.stage.append(built.stage);
@@ -99,15 +104,18 @@
   }
 
   // Washington: the Pacific to the west, the long hook of Puget Sound with
-  // Seattle on it, the Cascades running north-south with Mount Rainier, and
-  // the dry east where the apples grow. Stylized, but every side is true.
+  // Seattle on its east shore, the Cascades running north-south EAST of the
+  // city with Mount Rainier at their south end, and the dry east where the
+  // apples grow. Stylized, but every side is true — and each drawn region
+  // carries data-region so a test can check every pin lands on its own region
+  // (Seattle once sat on top of the mountains it is west of).
   const WA_SVG = '<svg viewBox="0 0 280 300" preserveAspectRatio="none" width="100%" height="100%">' +
-    '<rect width="280" height="300" fill="#8fd3ff"/>' +
-    '<path d="M60 30 L272 30 L272 262 L230 262 C200 250 170 270 140 262 C110 255 90 268 70 262 L66 220 C58 190 70 160 58 130 C66 100 52 70 60 30 Z" fill="#7ccf7a" stroke="#3d7a3a" stroke-width="3"/>' +
-    '<path d="M168 30 L272 30 L272 262 L230 262 C200 250 180 262 168 262 Z" fill="#e8d28c"/>' +
-    '<path d="M108 30 C104 60 118 80 108 110 C102 130 116 140 112 160 L122 160 C126 140 114 128 122 108 C130 80 118 58 120 30 Z" fill="#8fd3ff"/>' +
-    '<path d="M150 40 L162 80 L138 80 Z M156 110 L170 150 L142 150 Z M150 170 L166 212 L134 212 Z" fill="#6b7f62"/>' +
-    '<path d="M140 196 L172 262 L108 262 Z" fill="#7d8c86"/><path d="M140 196 L152 222 L128 222 Z" fill="#ffffff"/>' +
+    '<rect data-region="ocean" width="280" height="300" fill="#8fd3ff"/>' +
+    '<path data-region="land" d="M60 30 L272 30 L272 262 L230 262 C200 250 170 270 140 262 C110 255 90 268 70 262 L66 220 C58 190 70 160 58 130 C66 100 52 70 60 30 Z" fill="#7ccf7a" stroke="#3d7a3a" stroke-width="3"/>' +
+    '<path data-region="dry" d="M206 30 L272 30 L272 262 L230 262 C220 256 212 258 206 260 Z" fill="#e8d28c"/>' +
+    '<path data-region="sound" d="M108 30 C104 60 118 80 108 110 C102 130 116 140 112 160 L122 160 C126 140 114 128 122 108 C130 80 118 58 120 30 Z" fill="#8fd3ff"/>' +
+    '<path data-region="cascades" d="M192 40 L206 80 L178 80 Z M182 104 L196 144 L168 144 Z M176 162 L190 200 L162 200 Z" fill="#6b7f62"/>' +
+    '<path data-region="rainier" d="M140 196 L172 262 L108 262 Z" fill="#7d8c86"/><path d="M140 196 L152 222 L128 222 Z" fill="#ffffff"/>' +
     '</svg>';
   mapGame({
     id: "wa-map", icon: "🏔️", title: "Washington Map", skill: "reading a map [W]",
@@ -122,13 +130,13 @@
   // The world: oceans all round, the seven continents where they sit.
   const WORLD_SVG = '<svg viewBox="0 0 280 320" preserveAspectRatio="none" width="100%" height="100%">' +
     '<rect width="280" height="320" fill="#8fd3ff"/>' +
-    '<path d="M8 20 C30 6 70 10 84 26 C92 44 74 70 60 88 C52 96 44 104 38 98 C30 80 10 70 8 48 Z" fill="#7ccf7a"/>' +
-    '<path d="M112 34 C126 22 156 24 166 36 C164 54 146 72 124 76 C112 70 106 50 112 34 Z" fill="#9edc7a"/>' +
-    '<path d="M180 20 C214 4 268 14 276 40 C278 70 258 96 226 100 C204 98 188 78 180 52 Z" fill="#c2d86a"/>' +
-    '<path d="M28 128 C46 116 70 124 70 146 C66 176 52 200 40 214 C30 200 22 170 24 148 Z" fill="#7ccf7a"/>' +
-    '<path d="M112 120 C134 108 164 114 170 136 C170 168 154 194 140 212 C124 196 108 166 108 140 Z" fill="#e8c46a"/>' +
-    '<path d="M210 146 C230 134 262 140 268 160 C266 182 244 194 222 190 C208 182 204 160 210 146 Z" fill="#e8b25a"/>' +
-    '<path d="M50 286 C90 262 190 262 230 286 C200 306 90 308 50 286 Z" fill="#f4f9ff" stroke="#c9dcef" stroke-width="2"/>' +
+    '<path data-region="na" d="M8 20 C30 6 70 10 84 26 C92 44 74 70 60 88 C52 96 44 104 38 98 C30 80 10 70 8 48 Z" fill="#7ccf7a"/>' +
+    '<path data-region="eu" d="M112 34 C126 22 156 24 166 36 C164 54 146 72 124 76 C112 70 106 50 112 34 Z" fill="#9edc7a"/>' +
+    '<path data-region="as" d="M180 20 C214 4 268 14 276 40 C278 70 258 96 226 100 C204 98 188 78 180 52 Z" fill="#c2d86a"/>' +
+    '<path data-region="sa" d="M28 128 C46 116 70 124 70 146 C66 176 52 200 40 214 C30 200 22 170 24 148 Z" fill="#7ccf7a"/>' +
+    '<path data-region="af" d="M112 120 C134 108 164 114 170 136 C170 168 154 194 140 212 C124 196 108 166 108 140 Z" fill="#e8c46a"/>' +
+    '<path data-region="au" d="M210 146 C230 134 262 140 268 160 C266 182 244 194 222 190 C208 182 204 160 210 146 Z" fill="#e8b25a"/>' +
+    '<path data-region="an" d="M50 286 C90 262 190 262 230 286 C200 306 90 308 50 286 Z" fill="#f4f9ff" stroke="#c9dcef" stroke-width="2"/>' +
     '</svg>';
   mapGame({
     id: "world-fly", icon: "✈️", title: "Fly Around the World", skill: "the seven continents [W]",

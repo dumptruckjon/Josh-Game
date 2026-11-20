@@ -10803,6 +10803,32 @@ from 20px in to 20px short of the far end. Measured and NOT changed: nine games
 flagged "small" taps after a few rounds are all spent states (eaten, popped,
 gone, faded to 0-0.4 opacity, most with pointer-events none), which shrink on
 purpose.
+
+**THE SECOND AUDIT OF THE NEW GAMES (2026-11-20) found three things a green suite
+passed, and one of them was a TEST that could only pass locally.** (1) **A toy
+that loses its `[data-toy]` after one use goes dead after the win**: the won
+board closes everything that is not a toy AT THE MOMENT IT IS TAPPED, and Story
+Dice handed the flag from Roll to The end on every roll, so after the third
+story he could re-roll once and then Roll answered nothing. Roll is always a toy
+now; The end is one only once there is a story, and comes first in the DOM (Roll
+stays left by CSS `order`), because the harness taps the first `[data-toy]`.
+Before a roll The end is `aria-disabled` and dimmed (a tap still says "Roll
+first"). (2) **A map game's PICTURE is part of its truth**: the Seattle pin
+covered the drawn Cascades while the game said "the big city by the water". Every
+drawn region carries `data-region`, and a test asks the SVG (`isPointInFill`)
+what lies under each pin. Its first version checked only the pin's CENTRE and
+passed the old drawing, because the centre missed the peak while the 78px pin
+covered it; it samples the whole footprint now. (3) **The stay-current test
+failed verify-live, not because the feature was broken**: it swapped the literal
+`__BUILD__` for a fake build, and on the live site the deploy has already stamped
+the commit id, so it swapped nothing and waited for a reload the app was right
+not to do. It swaps whichever stamp it finds, blocks the service worker, and was
+proven against a local copy stamped the way the deploy stamps it (the old test
+fails there, the new one passes). **A test that rewrites a deploy-time token must
+also handle the deployed value**, since verify-live runs the same file against
+the stamped page. Also: the World maps grow on a tablet (480px, same shape;
+phones and an iPad on its side unchanged), and China Trip's wrong tap says
+"That's not from China!" rather than "Not here!".
 ---
 
 ## Repository Structure
