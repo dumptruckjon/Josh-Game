@@ -128,6 +128,7 @@
       });
 
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -174,6 +175,7 @@
         });
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -220,6 +222,7 @@
         });
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -294,6 +297,7 @@
         row.append(left, right);
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -359,6 +363,7 @@
         newRound();
       });
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -570,6 +575,7 @@
       onesBtn.addEventListener("click", () => { if (target - total >= 1) { total += 1; api.say(String(total)); refresh(); check(); } });
       nextBtn.addEventListener("click", () => { nextBtn.hidden = true; delete nextBtn.dataset.correct; newRound(); });
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -735,6 +741,7 @@
         });
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -788,6 +795,7 @@
         });
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -897,6 +905,7 @@
         cards.append(card(r.a, r.answer === "a"), card(r.b, r.answer === "b"));
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -965,6 +974,7 @@
         }
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -1073,6 +1083,7 @@
         });
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -1108,6 +1119,7 @@
         });
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -1144,6 +1156,7 @@
         });
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -1261,6 +1274,7 @@
         });
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -1437,6 +1451,7 @@
         });
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -1468,6 +1483,7 @@
         });
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 

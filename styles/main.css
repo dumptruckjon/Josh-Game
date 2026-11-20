@@ -560,6 +560,13 @@ body.in-game:not(.td-mode) .game__title { font-size: clamp(1rem, 4.4vw, 1.4rem);
   justify-content: center;
   transition: transform 0.08s ease, box-shadow 0.12s ease;
 }
+/* Josh plays on an iPhone 17 Pro in portrait (402x874): a 96px card row left
+   most of the play area empty in a third of his games. On a TALL phone the
+   cards and their pictures grow with the height; a short or wide screen is
+   unchanged. vh is a minimum here, so Safari 14's missing dvh does not matter. */
+@media (orientation: portrait) and (min-height: 800px) and (max-width: 599px) {
+  .game__stage .choice { min-height: clamp(96px, 15vh, 140px); }
+}
 .choice:active { transform: scale(0.94); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14); } /* deeper squish = better tap feedback */
 
 /* ---------- "Hi, Animals!" toy ---------- */
@@ -678,6 +685,9 @@ body.in-game:not(.td-mode) .game__title { font-size: clamp(1rem, 4.4vw, 1.4rem);
 
 /* ---------- Literacy (first sound, rhyme, build-a-word, sight word) ---------- */
 .big-pic { font-size: clamp(4.5rem, 30vw, 8rem); line-height: 1; }
+/* The ending-sound and missing-middle pictures ARE the question, and shipped
+   with no rule at all, so they drew at body-text size (a 16px cat). */
+.fs__pic { font-size: clamp(4rem, 26vw, 7rem); line-height: 1; text-align: center; margin: 4px 0 18px; }
 .choice--letter { font-weight: 900; color: #2b8a5b; text-transform: uppercase; }
 .choice--word { font-size: clamp(1.5rem, 9vw, 2.4rem); font-weight: 800; color: #333; }
 .choice--used { opacity: 0.3; }

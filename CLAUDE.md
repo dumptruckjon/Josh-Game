@@ -10838,9 +10838,18 @@ screen's height (`.choices--world`, up to 168px), the flag games' picture is
 width at its own shape, never shorter than the box its geometry is tested at.
 On a short screen the buddy steps aside, so a 320x568 phone and a phone on its
 side do not scroll. A mobile test pins all of it; three mutations each red.
-Measured while there and NOT changed (outside the pick): **69 of Josh's 208
-games use under 45% of the play area's height on the 17 Pro**, worst Who Hid?
-at 14%, so this is the house layout and not only the World games.
+The same measurement then found **69 of Josh's 208 games using under 45% of
+the play area's height on the 17 Pro** (worst Who Hid? at 14%), and the owner
+said go: on a tall portrait phone every `.choice` card grows with the height
+(`clamp(96px, 15vh, 140px)`), 40 flat games now carry the buddy, and the
+ending-sound / missing-middle picture got the size it never had (`.fs__pic` had
+NO rule, so the question was a 16px cat). Now 21 under 45% and only Pump the
+Balloon under 30% (it starts small on purpose). **A bigger card must not bring
+a bigger FONT**: the first cut also raised `.choice` font-size and "Mon"/"Sun"
+ran out of the day-train cards, so only the height grows, and an all-games test
+fails any card text that leaves its card. The rule is `.game__stage .choice`
+(0,2,0), not `body.in-game …`: a higher specificity silently beat the World
+games' own taller cards.
 
 ---
 

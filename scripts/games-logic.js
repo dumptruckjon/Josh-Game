@@ -193,6 +193,7 @@
         });
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -696,6 +697,7 @@
         }, 1300);
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -821,6 +823,7 @@
         });
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -872,6 +875,7 @@
         });
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -958,6 +962,7 @@
         }
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 
@@ -1380,6 +1385,7 @@
         showFork();
       }
       newRound();
+      api.mascot(); // the buddy fills the empty phone below the play (iPhone 17 Pro pass)
     },
   });
 

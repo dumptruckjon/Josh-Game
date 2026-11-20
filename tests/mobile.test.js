@@ -2675,6 +2675,64 @@ test("Josh's home grid: the last row of tiles always reaches the edge, even afte
   }
 });
 
+test("📱 iPhone 17 Pro: every game uses its play area — tall cards, the buddy, and no card text spilling", async () => {
+  // Measured on the 17 Pro (402x874, portrait — the only way Josh plays), a
+  // third of his games (69 of 208) drew one thin row in the middle of a 560px
+  // play area, the worst (Who Hid?) using 14% of it. Cards on a tall phone now
+  // grow with the height, the flat games carry the buddy, and the ending-sound
+  // picture got the size it never had. THE CLAIM, over every game: (1) the
+  // play spans at least 30% of the stage's height, (2) a choice card is at
+  // least 125px tall, and (3) no text runs out of its card — a bigger card
+  // must never come with words that do not fit it. Pump the Balloon is exempt
+  // from (1) because it starts small on purpose (the pumping is the game), and
+  // the exemption is asserted to still be needed.
+  const EXEMPT = { balloon: "starts small; every pump grows it" };
+  const { ctx, p } = await ip17Page();
+  try {
+    await p.goto(baseURL, { waitUntil: "load" });
+    const ids = await p.evaluate(() => (window.JoshGames || []).filter((g) => !g.hl).map((g) => g.id));
+    assert.ok(ids.length >= 200, `fixture: only ${ids.length} games found`);
+    const bad = [], seen = {};
+    let cards = 0;
+    for (const id of ids) {
+      await p.evaluate((h) => { location.hash = h; }, "#" + id);
+      await p.waitForFunction((id) => { const s = document.getElementById("screen-" + id); return s && !s.hidden; }, id);
+      await p.waitForTimeout(60);
+      const r = await p.evaluate(() => {
+        const st = document.querySelector(".screen:not([hidden]) .game__stage"), S = st.getBoundingClientRect();
+        let t = 1e9, b = -1e9;
+        for (const c of st.querySelectorAll("*")) {
+          const q = c.getBoundingClientRect();
+          if (!q.width || !q.height || getComputedStyle(c).visibility === "hidden") continue;
+          t = Math.min(t, q.top); b = Math.max(b, q.bottom);
+        }
+        const short = [], spill = [];
+        let n = 0;
+        for (const c of st.querySelectorAll(".choice")) {
+          const C = c.getBoundingClientRect();
+          if (!C.width || c.closest("[hidden]")) continue;
+          n++;
+          if (C.height < 125) short.push(Math.round(C.height));
+          const w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT);
+          for (let x; (x = w.nextNode());) {
+            if (!x.textContent.trim()) continue;
+            const rg = document.createRange(); rg.selectNodeContents(x); const q = rg.getBoundingClientRect();
+            if (q.left < C.left - 1 || q.right > C.right + 1) spill.push(x.textContent.trim().slice(0, 10));
+          }
+        }
+        return { fill: (b - t) / S.height, short, spill, n };
+      });
+      seen[id] = r.fill; cards += r.n;
+      if (r.fill < 0.30 && !EXEMPT[id]) bad.push(`${id}: the play spans ${Math.round(r.fill * 100)}% of its stage`);
+      if (r.short.length) bad.push(`${id}: choice cards only ${r.short.slice(0, 3).join(",")}px tall`);
+      if (r.spill.length) bad.push(`${id}: card text runs out of its card (${r.spill.slice(0, 3).join(", ")})`);
+    }
+    assert.ok(cards >= 300, `fixture: only ${cards} choice cards were measured`);
+    for (const id of Object.keys(EXEMPT)) assert.ok(seen[id] !== undefined && seen[id] < 0.30, `${id} no longer needs its exemption (${Math.round((seen[id] || 0) * 100)}%) — drop it`);
+    assert.deepEqual(bad, [], `on an iPhone 17 Pro:\n${bad.join("\n")}`);
+  } finally { await ctx.close(); }
+});
+
 test("🗺️ the World games FILL a phone: big cards, a big picture, a full-width map — and still fit a small one", async () => {
   // On an iPhone 17 Pro the pick games showed one row of three 96px cards in a
   // 560px play area (17% of it used) and the maps were pinned at 340px on a
