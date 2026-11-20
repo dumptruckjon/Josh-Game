@@ -1200,6 +1200,114 @@
       { emoji: "🐢", name: "a turtle", silhouette: "shell" },
       { emoji: "🦎", name: "a lizard", silhouette: "crawler" },
     ],
+
+    // ---- 🎲 Story Dice (Calm & Friends): roll WHO, WHERE and an UH-OH, then
+    // he tells the story out loud. Every story is right, so it is a toy. Each
+    // face carries the phrase it is SPOKEN as ("a puppy", "at the beach").
+    // A `friend` face is drawn as that friend's portrait.
+    STORY_DICE: {
+      who: [
+        { e: "🐶", say: "a puppy" }, { e: "🦖", say: "a dinosaur" }, { e: "🤖", say: "a robot" },
+        { e: "🐱", say: "a kitty" }, { e: "🦄", say: "a unicorn" }, { e: "🐸", say: "a frog" },
+        { friend: "Raegar", say: "Raegar" }, { friend: "River", say: "River" },
+        { friend: "Viraj", say: "Viraj" }, { friend: "Josh", say: "Josh" },
+      ],
+      where: [
+        { e: "🏖️", say: "at the beach" }, { e: "🪐", say: "in space" }, { e: "🏰", say: "at a castle" },
+        { e: "🌲", say: "in the forest" }, { e: "🌊", say: "under the sea" }, { e: "🏔️", say: "on a big mountain" },
+        { e: "🏫", say: "at school" }, { e: "🎪", say: "at the circus" },
+      ],
+      uhoh: [
+        { e: "🌧️", say: "Then it started to rain!" }, { e: "👟", say: "Then a shoe went missing!" },
+        { e: "🎈", say: "Then the balloon flew away!" }, { e: "🍦", say: "Then the ice cream fell down!" },
+        { e: "🌙", say: "Then it got very dark!" }, { e: "🐉", say: "Then a dragon sneezed!" },
+        { e: "🔑", say: "Then the key got lost!" }, { e: "🌬️", say: "Then a big wind blew!" },
+      ],
+    },
+
+    // ---- 🏠 Treasure Hunt at Home (Find It): find a real thing in the room
+    // and tap ✅. Honour system, no camera, no timer. `say` is spoken after
+    // "Find" and after "You found".
+    HOME_HUNT: [
+      { e: "🔴", say: "something red" }, { e: "🔵", say: "something blue" }, { e: "🟡", say: "something yellow" },
+      { e: "🟢", say: "something green" }, { e: "⚽", say: "something round" }, { e: "🧸", say: "something soft" },
+      { e: "🔔", say: "something that makes a sound" }, { e: "🐜", say: "something tiny" }, { e: "📖", say: "a book" },
+      { e: "🧦", say: "a sock" }, { e: "🥄", say: "a spoon" }, { e: "👟", say: "a shoe" },
+      { e: "🍎", say: "something you can eat" }, { e: "🖍️", say: "something you can draw with" },
+    ],
+
+    // ===== 🗺️ WORLD (geography) — Washington, the USA, China and the world =====
+    // Washington Wonders: one Washington thing among things found far away.
+    // Every `wa` item is really part of Washington; every `far` item is not
+    // (a wild thing, or a landmark somewhere else). Restated in content.test.
+    WA_WONDERS: {
+      wa: [
+        { e: "🏔️", name: "Mount Rainier", fact: "Mount Rainier is a giant snowy mountain in Washington!" },
+        { e: "🍎", name: "apples", fact: "Lots and lots of apples grow in Washington!" },
+        { e: "🐟", name: "salmon", fact: "Salmon swim up Washington's rivers!" },
+        { e: "⛴️", name: "the ferry", fact: "Big ferries carry cars across the water in Washington!" },
+        { e: "🌲", name: "evergreen trees", fact: "Washington is the Evergreen State — tall green trees everywhere!" },
+        { e: "🐋", name: "whales", fact: "Orca whales swim in the sea by Washington!" },
+        { e: "🌧️", name: "rain", fact: "It rains a lot in Washington — that's why it's so green!" },
+      ],
+      far: [
+        { e: "🐪", name: "a camel" }, { e: "🦘", name: "a kangaroo" }, { e: "🐊", name: "a crocodile" },
+        { e: "🦁", name: "a lion" }, { e: "🗽", name: "the Statue of Liberty" }, { e: "🐼", name: "a panda" },
+      ],
+    },
+    // Washington Map: four places on a drawn map of the state, at their real
+    // sides (the ocean west, Seattle on the water, Mount Rainier south-east of
+    // it, apple orchards east of the mountains). Geometry tested like SPY_SCENE.
+    WA_MAP: { box: { w: 340, h: 360, dot: 78, minGap: 14 }, zones: [
+      { id: "ocean", e: "🌊", say: "the ocean", ask: "Tap the ocean — it's on Washington's west side!", x: 15, y: 50 },
+      { id: "seattle", e: "🏙️", say: "Seattle", ask: "Tap Seattle — the big city by the water!", x: 50, y: 22 },
+      { id: "rainier", e: "🏔️", say: "Mount Rainier", ask: "Tap Mount Rainier — the giant mountain!", x: 50, y: 78 },
+      { id: "apples", e: "🍎", say: "the apple orchards", ask: "Tap where the apples grow — over the mountains!", x: 85, y: 50 },
+    ] },
+    // China Trip: one thing from China among things from far away. Each China
+    // thing says its Chinese word too (in a zh-CN voice).
+    CHINA_TRIP: {
+      china: [
+        { e: "🐼", name: "a panda", zh: "熊猫", fact: "Pandas live in the bamboo forests of China!" },
+        { e: "🥟", name: "dumplings", zh: "饺子", fact: "Families in China make dumplings together!" },
+        { e: "🏮", name: "a red lantern", zh: "灯笼", fact: "Red lanterns glow for Chinese New Year!" },
+        { e: "🥢", name: "chopsticks", zh: "筷子", fact: "In China people eat with chopsticks!" },
+        { e: "🧧", name: "a red envelope", zh: "红包", fact: "At New Year, kids in China get red envelopes!" },
+        { e: "🐉", name: "a dragon", zh: "龙", fact: "Dragons dance at festivals in China!" },
+      ],
+      far: [
+        { e: "🦘", name: "a kangaroo" }, { e: "🗽", name: "the Statue of Liberty" }, { e: "🦙", name: "a llama" },
+        { e: "🐧", name: "a penguin" }, { e: "🌮", name: "a taco" },
+      ],
+    },
+    // Flag Friends + Where in the World?: each country's real flag, a picture
+    // it is known for, and how it is spoken.`avoid` names countries whose flag must
+    // never be a WRONG choice for this thing because it is also true there:
+    // wild tigers live in China and Russia too, and maple trees and tacos are
+    // everywhere in the USA.
+    COUNTRIES: [
+      { id: "usa", flag: "🇺🇸", name: "the USA", thing: "🗽", thingName: "the Statue of Liberty" },
+      { id: "china", flag: "🇨🇳", name: "China", thing: "🐼", thingName: "the panda" },
+      { id: "india", flag: "🇮🇳", name: "India", thing: "🐅", thingName: "the tiger", avoid: ["china", "russia"] },
+      { id: "russia", flag: "🇷🇺", name: "Russia", thing: "🪆", thingName: "the nesting dolls" },
+      { id: "canada", flag: "🇨🇦", name: "Canada", thing: "🍁", thingName: "the maple leaf", avoid: ["usa"] },
+      { id: "japan", flag: "🇯🇵", name: "Japan", thing: "🗻", thingName: "Mount Fuji" },
+      { id: "mexico", flag: "🇲🇽", name: "Mexico", thing: "🌮", thingName: "the taco", avoid: ["usa"] },
+      { id: "australia", flag: "🇦🇺", name: "Australia", thing: "🦘", thingName: "the kangaroo" },
+    ],
+    // Fly Around the World: the seven continents on a drawn world map, laid out
+    // where they really are relative to each other (the Americas west, Europe
+    // above Africa, Asia east, Australia south-east, Antarctica at the bottom).
+    // Each wears an animal or landmark so the game plays with the sound off.
+    WORLD_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
+      { id: "na", name: "North America", e: "🗽", hint: "where we live", x: 15, y: 18 },
+      { id: "eu", name: "Europe", e: "🏰", hint: "where the castles are", x: 50, y: 18 },
+      { id: "as", name: "Asia", e: "🐼", hint: "where China is", x: 85, y: 18 },
+      { id: "sa", name: "South America", e: "🦙", hint: "where the llamas live", x: 15, y: 52 },
+      { id: "af", name: "Africa", e: "🦁", hint: "where the lions live", x: 50, y: 52 },
+      { id: "au", name: "Australia", e: "🦘", hint: "where the kangaroos hop", x: 85, y: 52 },
+      { id: "an", name: "Antarctica", e: "🐧", hint: "the icy land of penguins", x: 50, y: 86 },
+    ] },
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = CONTENT;

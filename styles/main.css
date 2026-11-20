@@ -4653,3 +4653,36 @@ button.bn-pickd { cursor: pointer; }
   .bn-spotcard--flip, .bn-twin--hint { animation: none; }
   .bn-apple { transition: none; }
 }
+
+/* ================= 🎲 Story Dice ================= */
+/* Three big dice (who · where · uh-oh) over a Roll / The end row. Grid gap,
+   never flex gap (Safari 14 drops it); the dice are pictures, not buttons. */
+.sdice { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; width: 100%; max-width: 520px; margin: 0 auto; }
+.sdice__die { display: grid; justify-items: center; align-content: center; min-height: 120px; padding: 10px 4px; border-radius: 22px; background: #fff; box-shadow: var(--card-shadow, 0 6px 16px rgba(30,40,80,0.16)); }
+.sdice__face { display: block; width: clamp(64px, 18vw, 110px); height: clamp(64px, 18vw, 110px); font-size: clamp(3rem, 14vw, 5rem); line-height: 1; text-align: center; }
+.sdice__label { margin-top: 6px; font-size: 0.95rem; font-weight: 800; color: #3d4a5c; text-transform: uppercase; letter-spacing: 0.04em; }
+.sdice__die--roll { animation: sdiceRoll 420ms ease-out; }
+@keyframes sdiceRoll { 0% { transform: rotate(-10deg) scale(0.9); } 60% { transform: rotate(6deg) scale(1.04); } 100% { transform: none; } }
+.sdice__btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; width: 100%; max-width: 520px; margin: 0 auto; }
+.sdice__btns .btn-big { min-width: 0; width: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  .sdice__die--roll { animation: none !important; }
+}
+
+/* ================= 🏠 Treasure Hunt at Home ================= */
+.hhunt__card { display: grid; justify-items: center; align-content: center; width: min(100%, 320px); min-height: 200px; margin: 0 auto; padding: 16px; border-radius: 28px; background: #fff; box-shadow: var(--card-shadow, 0 6px 16px rgba(30,40,80,0.16)); }
+.hhunt__pic { font-size: clamp(5rem, 28vw, 8rem); line-height: 1.1; }
+.hhunt__count { min-height: 1.6em; font-size: 1.4rem; letter-spacing: 0.1em; }
+.hhunt__got { display: block; margin: 0 auto; min-width: 220px; }
+
+/* ================= 🗺️ World ================= */
+/* A drawn map under the shared scene zones: the art fills the stage behind
+   the ≥75px place buttons, which wear the place's picture. */
+.map__stage { width: 340px; border-radius: 24px; overflow: hidden; box-shadow: var(--card-shadow, 0 6px 16px rgba(30,40,80,0.16)); }
+.map__art { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+.map__art svg { display: block; width: 100%; height: 100%; }
+.map__stage .scene__zone { background: rgba(255,255,255,0.22); border: 3px solid rgba(255,255,255,0.95); }
+.map__stage .scene__zone--found { background: #eafbe8; border-color: #2c7a3f; box-shadow: 0 0 0 3px #2c7a3f; }
+.map__pin { font-size: 2.3rem; line-height: 1; pointer-events: none; }
+.map__marker { position: absolute; right: -6px; top: -10px; font-size: 1.8rem; line-height: 1; pointer-events: none; }
+.choice--flag { font-size: clamp(3rem, 16vw, 4.6rem); }

@@ -146,7 +146,7 @@ test("shade() is a pure, clamped hex transform (the ONE place a second tone come
   assert.equal(ART.shade("not-a-hex", -0.3), "not-a-hex", "a non-hex passes through rather than throwing mid-draw");
 });
 
-test("the Sticker Book gives every one of Josh's 200 games its OWN sticker", () => {
+test("the Sticker Book gives every one of Josh's games its OWN sticker", () => {
   // It shipped with 73 unique pictures across 200 slots: 160 of 200 games shared
   // a sticker with another, the largest group was 25 games holding a BYTE-
   // IDENTICAL rocket (the one art kind that discarded its colour argument), and
@@ -167,7 +167,7 @@ test("the Sticker Book gives every one of Josh's 200 games its OWN sticker", () 
   const block = main.match(/CATEGORY_OF\s*=\s*\{[\s\S]*?\n {2}\};/);
   assert.ok(block, "found the CATEGORY_OF map that lists every one of Josh's games");
   const ids = [...block[0].matchAll(/"([a-z0-9-]+)":/g)].map((m) => m[1]);
-  assert.equal(ids.length, 200, "Josh has 200 games");
+  assert.equal(ids.length, 208, "Josh has 208 games (200, then Story Dice, the home treasure hunt and six 🗺️ World games)");
   const seen = new Map();
   for (const id of ids) {
     const svg = S.artFor({ id });
@@ -199,7 +199,7 @@ test("the Sticker Book gives every one of Josh's 200 games its OWN sticker", () 
     assert.ok(!dup, `${id} and ${dup} draw the IDENTICAL sticker — every game needs its own prize`);
     seen.set(svg, id);
   }
-  assert.equal(seen.size, 200, "200 games, 200 distinct stickers");
+  assert.equal(seen.size, ids.length, "every game, its own distinct sticker");
 });
 
 test("pup() draws a different DOG per spec, not one dog with a different collar", () => {

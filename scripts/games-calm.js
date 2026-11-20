@@ -1644,4 +1644,70 @@
       newRound();
     },
   });
+
+  // ---- 🎲 Story Dice: roll WHO, WHERE and an UH-OH, then tell the story ----
+  // His own story, out loud — every story is right, so it is a TOY: three
+  // stories earn the sticker and he can keep rolling. The ROLL and THE END
+  // buttons sit side by side and take turns carrying [data-toy], so the harness
+  // (and a hammering finger) alternates them; a second tap on Roll just rolls
+  // again. With the sound off the three pictures ARE the prompt.
+  F.register({
+    id: "story-dice",
+    icon: "🎲",
+    title: "Story Dice",
+    skill: "storytelling / speaking [W]",
+    start(api) {
+      const D = api.C.STORY_DICE || { who: [], where: [], uhoh: [] };
+      const KINDS = [["who", "who"], ["where", "where"], ["uhoh", "uh-oh"]];
+      const dice = {};
+      const row = api.el("div", { class: "sdice", aria: { hidden: "true" } });
+      KINDS.forEach(([k, label]) => {
+        const face = api.el("span", { class: "sdice__face art-fill" }, ["❓"]);
+        const die = api.el("div", { class: "sdice__die" }, [face, api.el("span", { class: "sdice__label", text: label })]);
+        dice[k] = { die, face, last: -1, pick: null };
+        row.appendChild(die);
+      });
+      const roll = api.el("button", { class: "btn-big sdice__roll", type: "button", dataset: { toy: "1" }, aria: { label: "Roll the dice" } }, ["🎲 Roll!"]);
+      const end = api.el("button", { class: "btn-big sdice__end", type: "button", aria: { label: "The end" } }, ["🎉 The end!"]);
+      const btns = api.el("div", { class: "sdice__btns" }, [roll, end]);
+      api.stage.append(row, btns);
+      let rolled = false, stories = 0, won = false;
+      const draw = (f) => {
+        if (f.friend) {
+          const spec = artOf(f.friend);
+          return (window.JoshArt && window.JoshArt.friend && spec) ? window.JoshArt.friend(spec) : "🧒";
+        }
+        return f.e;
+      };
+      api.setPrompt("Roll the dice, then tell the story!", ["🎲", "🗣️", "🎉"]);
+      api.speak();
+      roll.addEventListener("click", () => {
+        api.tickPlay();
+        const pick = {};
+        KINDS.forEach(([k]) => {
+          const list = D[k] || [];
+          let i = api.randInt(0, list.length - 1);
+          if (list.length > 1 && i === dice[k].last) i = (i + 1) % list.length;
+          dice[k].last = i; pick[k] = list[i];
+          dice[k].face.innerHTML = draw(list[i]);
+          dice[k].die.classList.remove("sdice__die--roll"); void dice[k].die.offsetWidth; dice[k].die.classList.add("sdice__die--roll");
+        });
+        rolled = true;
+        delete roll.dataset.toy; end.dataset.toy = "1";
+        const story = "Once upon a time, " + pick.who.say + " was " + pick.where.say + ". " + pick.uhoh.say + " What happens next?";
+        api.setPrompt("Tell the story — then tap The end!", [pick.who.e || "🧒", pick.where.e, pick.uhoh.e], story);
+        api.speak();
+      });
+      end.addEventListener("click", () => {
+        if (!rolled) { api.say("Roll the dice first!"); return; }
+        api.tickPlay();
+        rolled = false; stories += 1;
+        delete end.dataset.toy; roll.dataset.toy = "1";
+        dice.who.die.classList.remove("pop"); void dice.who.die.offsetWidth; dice.who.die.classList.add("pop");
+        api.setPrompt("Roll again for a new story!", ["🎲", "🗣️", "🎉"]);
+        if (!won && stories >= 3) { won = true; api.win({ say: "Three stories! You're a real storyteller!" }); }
+        else api.roundWin({ say: "The end! What a great story!" });
+      });
+    },
+  });
 })();

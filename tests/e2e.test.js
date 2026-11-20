@@ -7940,3 +7940,61 @@ test("an app left open picks up a new version when it comes back — on a menu s
     await ctx.close();
   }
 });
+
+test("the owner's new picks play as designed: Story Dice, Treasure Hunt at Home and the 🗺️ World", async () => {
+  await page.evaluate(() => { const A = window.JoshAudio; window.__SAY1 = A.say; window.__S1 = []; A.say = (t, o) => { window.__S1.push([String(t), (o && o.lang) || ""]); return window.__SAY1.call(A, t, o); }; });
+  const said = () => page.evaluate(() => window.__S1.splice(0));
+  try {
+    // 🎲 Story Dice: The end before a roll is not a story; a roll tells one and
+    // hands the toy flag to The end; three stories win; it keeps playing.
+    await openGame("story-dice");
+    await said();
+    const d0 = await page.evaluate(() => { const s = document.getElementById("screen-story-dice"); s.querySelector(".sdice__end").click(); return { won: !!s.dataset.won, toy: [...s.querySelectorAll("[data-toy]")].map((b) => b.className) }; });
+    assert.ok(!d0.won && d0.toy.length === 1 && /sdice__roll/.test(d0.toy[0]), "before a roll only Roll carries the toy flag");
+    assert.deepEqual((await said()).map((x) => x[0]), ["Roll the dice first!"], "The end before a roll asks for a roll, it is not a story");
+    for (let k = 0; k < 3; k++) {
+      await page.evaluate(() => document.querySelector("#screen-story-dice .sdice__roll").click());
+      const story = (await said()).map((x) => x[0]).find((l) => /^Once upon a time, /.test(l));
+      assert.match(story || "", /^Once upon a time, .+ was (at|in|on|under) .+\. Then .+! What happens next\?$/, "a roll tells the story it rolled");
+      const faces = await page.evaluate(() => [...document.querySelectorAll("#screen-story-dice .sdice__face")].map((f) => f.textContent.length || f.innerHTML.length));
+      assert.ok(faces.every((n) => n > 0), "all three dice show a picture");
+      assert.ok(await page.evaluate(() => !!document.querySelector("#screen-story-dice .sdice__end[data-toy]")), "after a roll, The end carries the toy flag");
+      await page.evaluate(() => document.querySelector("#screen-story-dice .sdice__end").click());
+      await page.waitForTimeout(150);
+    }
+    assert.ok(await page.evaluate(() => !!document.getElementById("screen-story-dice").dataset.won), "three stories earn the sticker");
+    await page.evaluate(() => document.querySelector("#screen-story-dice .sdice__roll").click());
+    assert.ok((await said()).some((x) => /^Once upon a time/.test(x[0])), "after the win the dice still roll");
+
+    // 🏠 Treasure Hunt: a double tap is one find; five finds win.
+    await openGame("home-hunt");
+    await said();
+    await page.evaluate(() => { const b = document.querySelector("#screen-home-hunt .hhunt__got"); b.click(); b.click(); });
+    assert.equal(await page.evaluate(() => document.querySelector("#screen-home-hunt .hhunt__count").textContent), "⭐", "a doubled tap counts ONE find");
+    for (let k = 0; k < 4; k++) { await page.waitForTimeout(850); await page.evaluate(() => document.querySelector("#screen-home-hunt .hhunt__got").click()); }
+    assert.ok(await page.evaluate(() => !!document.getElementById("screen-home-hunt").dataset.won), "five finds earn the sticker");
+    assert.ok((await said()).some((x) => /^You found (something|a|an) .+! Find /.test(x[0])), "each find is named, then the next hunt");
+
+    // 🐼 China Trip: the right answer says its fact, then its Chinese word in a Chinese voice.
+    await openGame("china-trip");
+    await said();
+    await page.evaluate(() => document.querySelector("#screen-china-trip [data-correct]").click());
+    const cn = await said();
+    assert.ok(cn.some((x) => /China|Chinese/.test(x[0]) && x[1] === ""), "the fact is said in English");
+    assert.ok(cn.some((x) => /^[一-鿿]+$/.test(x[0]) && x[1] === "zh-CN"), `the Chinese word is said in a zh-CN voice (${JSON.stringify(cn)})`);
+
+    // ✈️ Fly Around the World: a wrong continent wiggles and no plane lands; the right one gets the plane.
+    await openGame("world-fly");
+    const fly = await page.evaluate(() => {
+      const s = document.getElementById("screen-world-fly");
+      const wrong = s.querySelector(".scene__zone:not([data-correct])"); wrong.click();
+      const after = s.querySelectorAll(".map__marker").length;
+      const right = s.querySelector(".scene__zone[data-correct]"); const name = right.getAttribute("aria-label"); right.click();
+      return { after, landed: !!right.querySelector(".map__marker"), name, prompt: s.querySelector(".game__promptText").textContent };
+    });
+    assert.equal(fly.after, 0, "a wrong continent lands no plane");
+    assert.ok(fly.landed, `the plane lands on ${fly.name}`);
+  } finally {
+    await page.evaluate(() => { window.JoshAudio.say = window.__SAY1; });
+  }
+});

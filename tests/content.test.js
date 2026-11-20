@@ -1266,3 +1266,73 @@ test("spoken phrases: every gear and analogy picture is said with the right arti
   for (const set of content.TIDY_SETS) for (const b of set.bins) { assert.equal(b.put, PUT[b.home], `the ${b.home} bin is said as "${PUT[b.home]}"`); bins++; }
   assert.ok(bins >= 8, "fixture: the tidy bins were read");
 });
+
+// ===== 🗺️ World + Story Dice + Treasure Hunt at Home (owner's picks, 2026-11) =====
+
+test("🗺️ Washington Wonders: every Washington thing is really Washington, every far thing really is not", () => {
+  // Restated truth (a teaching tool): the state's own things, and things that
+  // are found far away (wild animals that do not live wild in Washington, and
+  // landmarks in other places).
+  const WA = { "🏔️": "Mount Rainier", "🍎": "apples", "🐟": "salmon", "⛴️": "the ferry", "🌲": "evergreen trees", "🐋": "whales", "🌧️": "rain" };
+  const FAR = { "🐪": "a camel", "🦘": "a kangaroo", "🐊": "a crocodile", "🦁": "a lion", "🗽": "the Statue of Liberty", "🐼": "a panda" };
+  const W = content.WA_WONDERS;
+  assert.deepEqual(Object.fromEntries(W.wa.map((i) => [i.e, i.name])), WA);
+  assert.deepEqual(Object.fromEntries(W.far.map((i) => [i.e, i.name])), FAR);
+  for (const i of W.wa) assert.ok(/Washington/.test(i.fact) && /!$/.test(i.fact), `${i.name}'s fact names Washington and is a sentence`);
+});
+
+test("🗺️ China Trip: every China thing with its Chinese word; every far thing is not from China", () => {
+  const CHINA = { "🐼": "熊猫", "🥟": "饺子", "🏮": "灯笼", "🥢": "筷子", "🧧": "红包", "🐉": "龙" };
+  const FAR = ["🦘", "🗽", "🦙", "🐧", "🌮"];
+  const T = content.CHINA_TRIP;
+  assert.deepEqual(Object.fromEntries(T.china.map((i) => [i.e, i.zh])), CHINA);
+  assert.deepEqual(T.far.map((i) => i.e), FAR);
+  for (const i of T.china) assert.ok(/China|Chinese/.test(i.fact), `${i.name}'s fact names China`);
+});
+
+test("🗺️ countries: each flag is its own country's, and a thing's `avoid` names every place it is also true", () => {
+  const FLAG = { usa: "🇺🇸", china: "🇨🇳", india: "🇮🇳", russia: "🇷🇺", canada: "🇨🇦", japan: "🇯🇵", mexico: "🇲🇽", australia: "🇦🇺" };
+  const THING = { usa: "🗽", china: "🐼", india: "🐅", russia: "🪆", canada: "🍁", japan: "🗻", mexico: "🌮", australia: "🦘" };
+  // also true elsewhere among these eight, so never a wrong flag for it:
+  const ALSO = { india: ["china", "russia"], canada: ["usa"], mexico: ["usa"] };
+  const C = content.COUNTRIES;
+  assert.deepEqual(Object.fromEntries(C.map((c) => [c.id, c.flag])), FLAG);
+  assert.deepEqual(Object.fromEntries(C.map((c) => [c.id, c.thing])), THING);
+  for (const c of C) assert.deepEqual((c.avoid || []).slice().sort(), (ALSO[c.id] || []).slice().sort(), `${c.id}'s avoid list`);
+  assert.equal(new Set(C.map((c) => c.thing)).size, C.length, "every country has its own picture");
+});
+
+test("🗺️ the two maps: places sit on their real sides, and the tap zones are ≥78px apart at the map's size AND squeezed to a 280px phone", () => {
+  const wa = Object.fromEntries(content.WA_MAP.zones.map((z) => [z.id, z]));
+  assert.ok(wa.ocean.x < wa.seattle.x && wa.seattle.x < wa.apples.x, "Washington: the ocean west, Seattle in between, the apples east");
+  assert.ok(wa.rainier.y > wa.seattle.y, "Mount Rainier is south of Seattle");
+  assert.ok(wa.rainier.x >= wa.seattle.x, "…and not west of it");
+  const w = Object.fromEntries(content.WORLD_MAP.zones.map((z) => [z.id, z]));
+  assert.equal(content.WORLD_MAP.zones.length, 7, "seven continents");
+  assert.ok(w.na.x < w.eu.x && w.eu.x < w.as.x, "the Americas west, Europe, then Asia east");
+  assert.ok(w.sa.y > w.na.y && w.sa.x <= w.na.x + 5, "South America below North America");
+  assert.ok(w.af.y > w.eu.y && Math.abs(w.af.x - w.eu.x) <= 10, "Africa below Europe");
+  assert.ok(w.au.y > w.as.y && w.au.x >= w.as.x - 5, "Australia south-east, below Asia");
+  for (const z of Object.values(w)) if (z.id !== "an") assert.ok(w.an.y > z.y, `Antarctica is at the bottom (below ${z.name})`);
+  for (const [nm, m] of [["wa-map", content.WA_MAP], ["world-fly", content.WORLD_MAP]]) {
+    zoneGeom(nm, m.box, m.zones);
+    zoneGeom(nm + "@280", Object.assign({}, m.box, { w: 280 }), m.zones);
+    for (const z of m.zones) assert.ok(z.e, `${nm}: every place wears a picture, so the game plays with the sound off`);
+  }
+});
+
+test("🎲 Story Dice and 🏠 Treasure Hunt: every face is spoken as a phrase that fits its sentence", () => {
+  const D = content.STORY_DICE;
+  assert.ok(D.who.length >= 8 && D.where.length >= 6 && D.uhoh.length >= 6, "enough faces to vary the stories");
+  const friends = content.FRIENDS.map((f) => f.name);
+  for (const f of D.who) {
+    if (f.friend) assert.ok(friends.includes(f.friend) && f.say === f.friend, `${f.friend} is a real friend and is said by name`);
+    else assert.match(f.say, /^an? [a-z]+$/, `"${f.say}" reads in "Once upon a time, ___ was…"`);
+  }
+  for (const f of D.where) assert.match(f.say, /^(at|in|on|under) /, `"${f.say}" is a place phrase`);
+  for (const f of D.uhoh) assert.match(f.say, /^Then .+!$/, `"${f.say}" is the uh-oh sentence`);
+  const H = content.HOME_HUNT;
+  assert.ok(H.length >= 10, "enough things to hunt");
+  assert.equal(new Set(H.map((h) => h.e)).size, H.length, "every hunt has its own picture");
+  for (const h of H) assert.match(h.say, /^(something|a|an) /, `"${h.say}" reads after "Find"`);
+});

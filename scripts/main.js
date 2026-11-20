@@ -17,6 +17,7 @@
     { id: "science", icon: "🔬", title: "Science", color: "#7be08a" },
     { id: "play", icon: "🎉", title: "Fun & Play", color: "#ffa64d" },
     { id: "friends", icon: "🤝", title: "Calm & Friends", color: "#ff5e7e" },
+    { id: "world", icon: "🗺️", title: "World", color: "#4c8dff" },
   ];
   // Which category each game belongs to. Every registered game MUST appear here
   // (a test fails otherwise, so a new game can't slip in uncategorized).
@@ -79,7 +80,9 @@
     "team-story": "friends", "garden": "friends",
     "team-house": "friends", "world-hello": "friends", "team-pizza": "friends", "grandma-helper": "friends",
     "month-train": "friends", "set-table": "friends", "match-all": "find",
-    "dress-order": "friends",
+    "dress-order": "friends", "story-dice": "friends", "home-hunt": "find",
+    "wa-wonders": "world", "wa-map": "world", "china-trip": "world", "flag-friends": "world",
+    "where-world": "world", "world-fly": "world",
     "team-puzzle": "friends", "team-song": "friends", "team-balance": "friends",
     "team-copy": "friends", "worry-box": "friends", "thank-you": "friends",
     "tidy-up": "friends",

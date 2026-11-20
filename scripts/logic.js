@@ -1069,6 +1069,28 @@
     return { idx, item, choices };
   }
 
+  // 🗺️ World: one `own` thing among two `far` ones (Washington Wonders, China
+  // Trip). The own thing never repeats the last round's.
+  function makeOddPlace(own, far, rng, lastIdx) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * own.length);
+    if (own.length > 1 && idx === lastIdx) idx = (idx + 1) % own.length;
+    const choices = shuffle([{ item: own[idx], correct: true },
+      ...sample(far, Math.min(2, far.length), rng).map((item) => ({ item, correct: false }))], rng);
+    return { idx, choices };
+  }
+  // 🗺️ World: a country and three flags (its own + two others). A country's
+  // `avoid` list is never offered as a wrong flag.
+  function makeFlagPick(countries, rng, lastIdx) {
+    const rnd = rng || Math.random;
+    let idx = Math.floor(rnd() * countries.length);
+    if (countries.length > 1 && idx === lastIdx) idx = (idx + 1) % countries.length;
+    const country = countries[idx];
+    const others = sample(countries.filter((c, i) => i !== idx && !(country.avoid || []).includes(c.id)), 2, rng);
+    const choices = shuffle([{ country, correct: true }, ...others.map((c) => ({ country: c, correct: false }))], rng);
+    return { idx, country, choices };
+  }
+
   // 记菜单: memorize k dishes, then find exactly those k among n cards.
   function makeMenuMemory(dishes, rng, opts) {
     opts = opts || {};
@@ -1796,7 +1818,7 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
-  const TODAY_OTHERS = ["thinking", "find", "science"];
+  const TODAY_OTHERS = ["thinking", "find", "science", "world"];
   function todayPicks(day, byCat, isWon) {
     const rng = dayRng(String(day));
     const won = isWon || (() => false);
@@ -1807,7 +1829,9 @@
       const from = fresh.length ? fresh : list;
       return from[Math.floor(rng() * from.length)];
     };
-    const other = TODAY_OTHERS[Math.floor(rng() * TODAY_OTHERS.length)];
+    // only a shelf that has games can be the third pick
+    const shelves = TODAY_OTHERS.filter((c) => (byCat[c] || []).length);
+    const other = shelves[Math.floor(rng() * shelves.length)];
     return ["numbers", "letters", other].map((cat) => pick(byCat[cat])).filter(Boolean);
   }
 
@@ -1839,7 +1863,7 @@
     makeColorMix, makeSinkFloat, makeMamaBaby, makeFairShare, makeQuickPeek, PEEK_LAYOUTS,
     makeAlphaTrain, ALPHABET, makeLetterHunt,
     makePieceFit, makeWhoHid, makeBeat, makeFeeling, makeKindness, makeDayTrain, makeWeather, makeSeasonItem,
-    makeOrderTrain, makeIdiomFill, makePoemNext, makeMeasureWord, makePairPick,
+    makeOrderTrain, makeIdiomFill, makePoemNext, makeMeasureWord, makePairPick, makeOddPlace, makeFlagPick,
     makeMenuMemory, makeMarket, makeChange, makeCharCrowd, makeMissingAddend, makeSudoku4,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;

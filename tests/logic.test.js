@@ -1938,12 +1938,12 @@ test("makeHideSpots: exactly 4 hiding (with a friend) + 2 empty decoys", () => {
   }
 });
 
-test("🌞 todayPicks: one Numbers, one Letters, one thinking/finding/science game — the same three for a date, new ones first", () => {
+test("🌞 todayPicks: one Numbers, one Letters, one thinking/finding/science/world game — the same three for a date, new ones first", () => {
   const by = {
     numbers: ["n1", "n2", "n3", "n4"], letters: ["l1", "l2", "l3"],
-    thinking: ["t1", "t2"], find: ["f1", "f2"], science: ["s1", "s2"], play: ["p1"], friends: ["c1"],
+    thinking: ["t1", "t2"], find: ["f1", "f2"], science: ["s1", "s2"], world: ["w1", "w2"], play: ["p1"], friends: ["c1"],
   };
-  const others = new Set([...by.thinking, ...by.find, ...by.science]);
+  const others = new Set([...by.thinking, ...by.find, ...by.science, ...by.world]);
   const days = [];
   for (let d = 1; d <= 60; d += 1) days.push("2026-" + String(1 + Math.floor((d - 1) / 28)).padStart(2, "0") + "-" + String(1 + ((d - 1) % 28)).padStart(2, "0"));
   const thirds = new Set(), firsts = new Set();
@@ -1952,13 +1952,16 @@ test("🌞 todayPicks: one Numbers, one Letters, one thinking/finding/science ga
     assert.equal(p.length, 3, day);
     assert.ok(by.numbers.includes(p[0]), `${day}: the first is a Numbers game (${p})`);
     assert.ok(by.letters.includes(p[1]), `${day}: the second is a Letters game (${p})`);
-    assert.ok(others.has(p[2]), `${day}: the third is thinking, finding or science — never play or friends (${p})`);
+    assert.ok(others.has(p[2]), `${day}: the third is thinking, finding, science or world — never play or friends (${p})`);
     assert.deepEqual(L.todayPicks(day, by), p, `${day}: the same date must give the same three`);
     firsts.add(p[0]); thirds.add(p[2]);
   }
   // Over two months every game in a shelf comes up — the day really rotates.
   assert.equal(firsts.size, by.numbers.length, "every Numbers game comes up over the days");
-  assert.equal(thirds.size, others.size, "every thinking/finding/science game comes up over the days");
+  assert.equal(thirds.size, others.size, "every thinking/finding/science/world game comes up over the days");
+  // a shelf with no games is never the one the third pick comes from
+  const noWorld = Object.assign({}, by, { world: [] });
+  for (const day of days) assert.equal(L.todayPicks(day, noWorld).length, 3, `${day}: an empty shelf is skipped, still three picks`);
   // A game he has not beaten comes first; when all are beaten, any will do.
   for (const day of days) {
     const p = L.todayPicks(day, by, (id) => id !== "n3" && id !== "l2");
@@ -1969,4 +1972,36 @@ test("🌞 todayPicks: one Numbers, one Letters, one thinking/finding/science ga
   // The order a shelf is LISTED in must not matter, only what is in it.
   const shuffled = Object.fromEntries(Object.entries(by).map(([k, v]) => [k, v.slice().reverse()]));
   for (const day of days) assert.deepEqual(L.todayPicks(day, shuffled), L.todayPicks(day, by), `${day}: listing order changed the picks`);
+});
+
+test("🗺️ makeFlagPick: three different flags, the country's own among them, never a flag its `avoid` names", () => {
+  const rng = mulberry32(77);
+  let last = -1, sawAvoider = 0;
+  for (let i = 0; i < 4000; i++) {
+    const r = L.makeFlagPick(content.COUNTRIES, rng, last);
+    assert.notEqual(r.idx, last, "never the same country twice running");
+    last = r.idx;
+    const ids = r.choices.map((c) => c.country.id);
+    assert.equal(new Set(ids).size, 3, "three different flags");
+    assert.equal(r.choices.filter((c) => c.correct).length, 1, "exactly one right flag");
+    assert.equal(r.choices.find((c) => c.correct).country.id, r.country.id, "the right flag is the country's own");
+    for (const id of r.country.avoid || []) assert.ok(!ids.includes(id), `${r.country.thingName} is also true in ${id}, so its flag is never a wrong choice`);
+    if ((r.country.avoid || []).length) sawAvoider++;
+  }
+  assert.ok(sawAvoider > 500, "fixture: countries with an avoid list were drawn");
+});
+
+test("🗺️ makeOddPlace: one thing from the place, two from far away, never the same place-thing twice running", () => {
+  const rng = mulberry32(78);
+  for (const [own, far] of [[content.WA_WONDERS.wa, content.WA_WONDERS.far], [content.CHINA_TRIP.china, content.CHINA_TRIP.far]]) {
+    let last = -1;
+    for (let i = 0; i < 2000; i++) {
+      const r = L.makeOddPlace(own, far, rng, last);
+      assert.notEqual(r.idx, last); last = r.idx;
+      assert.equal(r.choices.length, 3);
+      assert.equal(r.choices.filter((c) => c.correct).length, 1);
+      assert.ok(own.includes(r.choices.find((c) => c.correct).item));
+      for (const c of r.choices.filter((c) => !c.correct)) assert.ok(far.includes(c.item), "a wrong answer is always one from far away");
+    }
+  }
 });

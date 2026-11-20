@@ -2436,7 +2436,7 @@ test("guardrail: app-wide deep-audit fixes stay wired (speech gate, confetti cap
   // in e2e/td/offline suites; these keep the load-bearing lines from vanishing).
   const fw = read("scripts/framework.js");
   assert.match(fw, /const live = \(\) => !screen\.hidden;/, "there is ONE 'is this game on screen' predicate");
-  assert.match(fw, /const sayLive = \(t\) => \{ if \(live\(\)\)/, "framework speech is gated on screen visibility");
+  assert.match(fw, /const sayLive = \([^)]*\) => \{ if \(live\(\)\)/, "framework speech is gated on screen visibility");
   // MEASURED 2026-08: winCue/goodCue/bumpCue and every spoken line were gated,
   // and the two lines BETWEEN them — FX.confetti() and FX.stars() — were not, so
   // a game that defers its win behind a raw timer rained confetti over the

@@ -251,7 +251,8 @@
     // on the home screen. A deferred effect needs one predicate and one owner,
     // or the guarded and unguarded paths drift apart.
     const live = () => !screen.hidden;
-    const sayLive = (t) => { if (live()) A.say(t, sayOpts); };
+    // a line may name its own voice (`{ lang: "zh-CN" }` for a Chinese word in an English game)
+    const sayLive = (t, o) => { if (live()) A.say(t, o || sayOpts); };
     // Every visual/audio celebration goes through here, so a game that defers its
     // own round-advance behind a timer cannot land the party on another screen.
     const cue = (fn) => { try { if (live()) fn(); } catch (e) { /* ignore */ } };
@@ -295,7 +296,7 @@
         promptText.textContent = text || "";
         iconsEl.textContent = (icons || []).join(" ");
       },
-      say: (t) => sayLive(t),
+      say: (t, o) => sayLive(t, o),
       // A TONE with the same rule as a spoken line: only while this game is the
       // screen on show. A game's timer that plays a note (a drum demo, a tune
       // played back, a robot's blend) must go through here, or it keeps sounding

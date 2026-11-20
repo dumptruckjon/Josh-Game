@@ -23,6 +23,8 @@
     });
     return { stage, btns };
   }
+  // Shared so the 🗺️ World maps use the ONE implementation (RULE 7).
+  F.sceneZones = sceneZones;
 
   // ---- Find the Heroes: tap every copy of the target hidden in the field ----
   F.register({
@@ -1199,6 +1201,52 @@
         });
       }
       newRound();
+    },
+  });
+
+  // ---- 🏠 Treasure Hunt at Home: find a REAL thing in the room ----
+  // "Find something red!" — he runs off, finds it and taps ✅. Off the screen
+  // and on his feet; honour system, no camera, no timer, no wrong answer, so it
+  // is a TOY: five finds earn the sticker and the hunt goes on. A find that
+  // lands within a moment of the last one is the same tap twice (a toy is
+  // exempt from the framework's echo guard), so it only counts once.
+  F.register({
+    id: "home-hunt",
+    icon: "🏠",
+    title: "Treasure Hunt at Home",
+    skill: "colors, shapes & words in the real world [M]",
+    start(api) {
+      const LIST = api.C.HOME_HUNT || [{ e: "🔴", say: "something red" }];
+      const GOAL = 5, SAME_TAP_MS = 800;
+      const card = api.el("div", { class: "hhunt__card", aria: { hidden: "true" } });
+      const pic = api.el("span", { class: "hhunt__pic" });
+      const count = api.el("div", { class: "hhunt__count" });
+      card.append(pic, count);
+      const got = api.el("button", { class: "btn-big hhunt__got", type: "button", dataset: { toy: "1" }, aria: { label: "Got it!" } }, ["✅ Got it!"]);
+      api.stage.append(card, got);
+      let order = api.shuffle(LIST.slice()), at = 0, finds = 0, won = false, lastAt = -1e9;
+      const now = () => (window.performance && performance.now ? performance.now() : Date.now());
+      const show = (lead) => {
+        const it = order[at % order.length];
+        pic.textContent = it.e;
+        count.textContent = "⭐".repeat(Math.min(finds, GOAL));
+        api.setPrompt("Find " + it.say + "!", ["👀", it.e, "✅"], (lead ? lead + " " : "") + "Find " + it.say + "! Then tap Got it.");
+        api.speak();
+      };
+      got.addEventListener("click", () => {
+        const t = now();
+        if (t - lastAt < SAME_TAP_MS) return;
+        lastAt = t;
+        api.tickPlay();
+        const it = order[at % order.length];
+        finds += 1; at += 1;
+        if (at % order.length === 0) order = api.shuffle(LIST.slice());
+        card.classList.remove("pop"); void card.offsetWidth; card.classList.add("pop");
+        const lead = "You found " + it.say + "!";
+        if (!won && finds >= GOAL) { won = true; show(); api.win({ say: "Five treasures! You're a super finder!" }); }
+        else show(lead);
+      });
+      show();
     },
   });
 })();
