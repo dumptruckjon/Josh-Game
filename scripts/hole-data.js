@@ -2680,6 +2680,241 @@
       ],
       finale: { e: "🕰️", r: 20, at: [0.5, 0.12], say: "the big old clock" },
     },
+    // ---- Hero Night's second six: EVERYDAY HEROES, the people who rescue ----
+    // (the owner, 2026-11-21: "Emergency Day with fire trucks and diggers"; a
+    // seventh land door cannot fit a phone at the 75px tap size, so they join
+    // Hero Night, which then holds twelve like the other lands)
+    {
+      // THE HOSPITAL: the ward behind its door wants THREE keys (one by the
+      // gift shop, two out in the car parks), and ambulances drive the road
+      // across the middle. At the top: the hospital itself.
+      id: "hospital", name: "Hospital", door: "🏥", color: "#e63946",
+      ground: "tiles", hole: "gobble",
+      wear: ["cap", "#ffffff", "#e63946"], air: ["bubbles", "#bfe6ff"],
+      backdrop: ["#eef8ff", "#cfe9ff"],
+      start: [0.5, 0.92], starters: 3,
+      tune: [523.25, 659.25, 783.99, 659.25, 523.25, 659.25],
+      blocks: [
+        { path: [[0.48, 0.3], [0.24, 0.3], [0.24, -0.02]], w: 5, look: "wall" },
+        { path: [[0.52, 0.3], [0.76, 0.3], [0.76, -0.02]], w: 5, look: "wall" },
+      ],
+      tracks: { road: { pts: [[0.06, 0.56], [0.94, 0.56]], speed: 8, look: "road" } },
+      zones: {
+        ward: [[0.28, 0.04, 0.72, 0.26]],
+        westlot: [[0.04, 0.62, 0.3, 0.84]],
+        eastlot: [[0.7, 0.62, 0.96, 0.84]],
+        shop: [[0.04, 0.04, 0.2, 0.4]],
+        garden: [[0.8, 0.04, 0.96, 0.4]],
+      },
+      trails: [{ e: "🍎", to: [0.24, 0.88] }, { e: "🍎", to: [0.76, 0.88] }],
+      decals: [
+        { k: "slab", x0: 0.25, y0: 0.02, x1: 0.75, y1: 0.29 },
+        { k: "lot", x0: 0.03, y0: 0.61, x1: 0.31, y1: 0.85 },
+        { k: "lot", x0: 0.69, y0: 0.61, x1: 0.97, y1: 0.85 },
+        { k: "helipad", x: 0.88, y: 0.2, r: 0.08 },
+        { k: "zebra", x0: 0.44, y0: 0.62, x1: 0.56, y1: 0.68 },
+      ],
+      tiers: [
+        { r: T1, items: [["🍎", 46], ["🩹", 22, null, 2], ["🍬", 18], ["⭐", 16], ["🧃", 14], ["🍊", 14, null, 2], ["🔑", 1, { key: "ward", zone: "shop", glow: true }], ["🔑", 1, { key: "ward", zone: "westlot", glow: true }], ["🔑", 1, { key: "ward", zone: "eastlot", glow: true }]] },
+        { r: T2, items: [["🩺", 12], ["🧸", 12, "shop"], ["💐", 12, "shop"], ["🎈", 12, null, 2], ["🌡️", 10], ["🧦", 10], ["🧴", 10]] },
+        { r: T3, items: [["🦽", 8], ["🪑", 10], ["🛏️", 8, "ward"], ["🧺", 8], ["🪴", 8, "garden"], ["🚪", 1, { at: { pts: [[0.5, 0.3]] }, lock: "ward" }]] },
+        { r: T4, items: [["🚑", 3, { ride: "road" }], ["🚗", 8, "westlot"], ["🚐", 6, "eastlot"], ["🛵", 6], ["🌳", 6, "garden"]] },
+        { r: T5, items: [["🏢", 4], ["🚌", 4], ["🏪", 3], ["🌲", 4]] },
+      ],
+      finale: { e: "🏥", r: 20, at: [0.5, 0.14], say: "the hospital" },
+    },
+    {
+      // THE POLICE STATION, shaped like a badge: count the gold stars, knock
+      // over a row of cones, and chase the balls that roll away. At the top:
+      // the police car.
+      id: "police", name: "Police Station", door: "🚓", color: "#1d4ed8",
+      ground: "street", hole: "gobble",
+      wear: ["cap", "#1d3557", "#ffd24d"], air: ["motes"],
+      backdrop: ["#e6eeff", "#c3d3ff"],
+      start: [0.5, 0.86], starters: 3,
+      tune: [587.33, 783.99, 587.33, 783.99, 880],
+      land: [{ poly: [[0.5, 0.01], [0.97, 0.12], [0.93, 0.62], [0.5, 0.99], [0.07, 0.62], [0.03, 0.12]] }],
+      count: { e: "⭐", by: 1, say: "stars" },
+      zones: {
+        yard: [[0.14, 0.62, 0.4, 0.76]],
+        lot: [[0.6, 0.62, 0.86, 0.76]],
+        desks: [[0.12, 0.2, 0.36, 0.42], [0.64, 0.2, 0.88, 0.42]],
+      },
+      trails: [{ e: "🍩", to: [0.34, 0.8] }, { e: "🍩", to: [0.66, 0.8] }],
+      decals: [
+        { k: "road", x0: 0.44, y0: 0.24, x1: 0.56, y1: 0.9 },
+        { k: "lot", x0: 0.59, y0: 0.61, x1: 0.87, y1: 0.77 },
+        { k: "court", x0: 0.13, y0: 0.61, x1: 0.41, y1: 0.77 },
+        { k: "hazard", x0: 0.3, y0: 0.47, x1: 0.7, y1: 0.53 },
+      ],
+      tiers: [
+        { r: T1, items: [["🍩", 44], ["⭐", 14, { zone: "desks" }], ["🪙", 18], ["🍬", 16, null, 2], ["🔑", 14], ["🧃", 12], ["🔔", 12]] },
+        { r: T2, items: [["🏀", 6, { run: true, zone: "yard" }], ["🔦", 12], ["📻", 10, "desks"], ["🧢", 12], ["📎", 10, "desks"], ["🥤", 10], ["📒", 10]] },
+        { r: T3, items: [["🚧", 9, { at: { line: [[0.3, 0.5], [0.7, 0.5]] }, chain: true }], ["🚦", 8], ["🗄️", 8, "desks"], ["🚲", 6], ["🛴", 6], ["🗑️", 8]] },
+        { r: T4, items: [["🚔", 4, "lot"], ["🚗", 6, "lot"], ["🛵", 6], ["🚐", 4], ["🌳", 6]] },
+        { r: T5, items: [["🏢", 5], ["🚌", 4], ["🏬", 4], ["🏠", 4], ["🏫", 4]] },
+      ],
+      finale: { e: "🚓", r: 20, at: [0.5, 0.14], say: "the police car" },
+    },
+    {
+      // LIFEGUARD BEACH: the sea cuts off the lifeguards' corner of the beach. Piers cross to it, and jet-ski cannons fly him over the
+      // waves; a ⚡ and a 🧲 hide on the sand. On the island: the rescue boat.
+      id: "lifeguard", name: "Lifeguard Beach", door: "🆘", color: "#ff7a1a",
+      ground: "sand", hole: "gobble",
+      wear: ["cap", "#ff3b30", "#ffd24d"], air: ["sparkles", "#fff4c2"],
+      backdrop: ["#fff3d6", "#ffd99a"],
+      world: [460, 620],
+      start: [0.86, 0.93], starters: 3,
+      tune: [659.25, 587.33, 523.25, 587.33, 659.25, 783.99],
+      blocks: [
+        { rect: [0.4, 0.34, 1.02, 0.62], look: "water" },
+        { rect: [0.4, -0.02, 0.52, 0.34], look: "water" },
+      ],
+      bridges: [
+        { path: [[0.34, 0.12], [0.58, 0.12]], w: 12, look: "planks" },
+      ],
+      portals: [
+        { a: [0.2, 0.7], b: [0.8, 0.24], oneway: true, fly: true },
+      ],
+      zones: {
+        towels: [[0.04, 0.72, 0.4, 0.86]],
+        dunes: [[0.04, 0.04, 0.34, 0.3]],
+        isle: [[0.56, 0.18, 0.96, 0.32]],
+        shore: [[0.48, 0.66, 0.96, 0.96]],
+      },
+      trails: [{ e: "🍦", to: [0.64, 0.92] }, { e: "🍦", to: [0.94, 0.76] }],
+      decals: [
+        { k: "towel", x0: 0.08, y0: 0.76, x1: 0.16, y1: 0.81, c: "#ff6b6b" },
+        { k: "towel", x0: 0.24, y0: 0.76, x1: 0.32, y1: 0.81, c: "#5ec8ff" },
+        { k: "footprints", pts: [[0.86, 0.97], [0.8, 0.86], [0.7, 0.76]] },
+        { k: "rockpool", x: 0.9, y: 0.92, r: 0.04 },
+      ],
+      tiers: [
+        { r: T1, items: [["🍦", 48], ["🪙", 21, null, 3], ["⭐", 18], ["🍓", 16, null, 2], ["🧃", 14], ["🍬", 14], ["⚡", 3, { power: "zoom" }], ["🧲", 2, { power: "magnet" }]] },
+        { r: T2, items: [["🩴", 12, null, 2], ["🕶️", 12, "towels"], ["🧴", 10], ["🏐", 10], ["🥥", 10], ["🪁", 10], ["🍉", 8], ["🧢", 10]] },
+        { r: T3, items: [["⛱️", 10, "towels"], ["🪣", 8, "shore"], ["🧺", 8], ["🦺", 8], ["🪵", 8, "dunes"]] },
+        { r: T4, items: [["🛶", 6, "shore"], ["🛥️", 4, "isle"], ["⛵", 4, "shore"], ["🌴", 8, "dunes"]] },
+        { r: T5, items: [["🏖️", 5], ["🛖", 4, "dunes"], ["🚢", 3, "shore"], ["🏠", 4], ["🌳", 5]] },
+      ],
+      finale: { e: "🚤", r: 20, at: [0.76, 0.09], say: "the rescue boat" },
+    },
+    {
+      // MOUNTAIN RESCUE: a snowy mountain of rocks to find the way round, big
+      // snowy boulders that take three bumps to crack (gems inside), and
+      // helicopter rides up to the high ledges. At the top: the helicopter.
+      id: "rescue", name: "Mountain Rescue", door: "⛑️", color: "#e63946",
+      ground: "snow", hole: "gobble",
+      wear: ["bobble", "#e63946", "#ffffff"], air: ["snow"],
+      backdrop: ["#f1f8ff", "#d3e8ff"],
+      world: [420, 680],
+      start: [0.5, 0.93], starters: 3,
+      tune: [440, 523.25, 659.25, 880, 659.25],
+      land: [{ poly: [[0.5, 0.01], [0.99, 0.99], [0.01, 0.99]] }, { rect: [0.12, 0.6, 0.88, 0.99], round: 14 }],
+      blocks: [
+        { path: [[0.22, 0.72], [0.56, 0.72]], w: 10, look: "rock" },
+        { path: [[0.44, 0.52], [0.8, 0.52]], w: 10, look: "rock" },
+        { path: [[0.3, 0.34], [0.6, 0.34]], w: 10, look: "rock" },
+      ],
+      portals: [
+        { a: [0.82, 0.86], b: [0.66, 0.42], oneway: true, fly: true },
+        { a: [0.24, 0.6], b: [0.5, 0.24], oneway: true, fly: true },
+      ],
+      zones: {
+        low: { band: [0, 0.35] },
+        mid: { band: [0.3, 0.7] },
+        high: { band: [0.62, 1] },
+        hut: [[0.66, 0.78, 0.86, 0.94]],
+      },
+      trails: [{ e: "🍫", to: [0.3, 0.88] }, { e: "🍫", to: [0.7, 0.88] }],
+      decals: [
+        { k: "helipad", x: 0.82, y: 0.86, r: 0.06 },
+        { k: "helipad", x: 0.24, y: 0.6, r: 0.06 },
+        { k: "drift", x: 0.3, y: 0.82, r: 0.08 },
+        { k: "drift", x: 0.7, y: 0.62, r: 0.07 },
+      ],
+      tiers: [
+        { r: T1, items: [["🍫", 44], ["❄️", 21, null, 3], ["⭐", 16], ["🍬", 16, null, 2], ["🧃", 12], ["🥜", 12, null, 3], ["🧲", 2, { power: "magnet" }]] },
+        { r: T2, items: [["🧤", 12, null, 2], ["🧣", 12], ["🥾", 10, null, 2], ["🔦", 10], ["🧭", 10], ["☕", 10, "hut"], ["🎒", 10]] },
+        { r: T3, items: [["🪨", 8, { shake: [["💎", 2, 1], ["🪙", 1, 1]], hits: 3, zone: "mid" }], ["🛷", 8], ["🎿", 8], ["⛺", 6, "mid"], ["🪵", 10, null, 2], ["⛑️", 6], ["🧳", 6, "high"]] },
+        { r: T4, items: [["🌲", 12, "high"], ["🚡", 4], ["⛄", 6], ["🛖", 4, "hut"]] },
+        { r: T5, items: [["🏔️", 4, "high"], ["🏠", 5, "low"], ["🚠", 3], ["🏡", 4, "mid"]] },
+      ],
+      finale: { e: "🚁", r: 20, at: [0.5, 0.16], say: "the rescue helicopter" },
+    },
+    {
+      // THE TOW YARD: stacks of crates make its streets, a tow truck train
+      // drives round the middle pulling broken cars, and two big buses are
+      // walls until Gobble is big enough to eat them. At the back: the giant
+      // truck.
+      id: "towyard", name: "Tow Yard", door: "🛻", color: "#f59e0b",
+      ground: "tarmac", hole: "gobble",
+      wear: ["hardhat", "#f59e0b"], air: ["dust"],
+      backdrop: ["#fff6e0", "#ffe0a8"],
+      start: [0.5, 0.92], starters: 3,
+      tune: [392, 523.25, 392, 523.25, 659.25, 523.25],
+      land: [{ rect: [0.02, 0.02, 0.98, 0.98], round: 30, not: { rect: [0.4, 0.42, 0.6, 0.58], round: 10 } }],
+      blocks: [
+        { path: [[0.16, 0.24], [0.16, 0.4]], w: 12, look: "crates" },
+        { path: [[0.84, 0.24], [0.84, 0.4]], w: 12, look: "crates" },
+        { path: [[0.16, 0.62], [0.16, 0.76]], w: 12, look: "crates" },
+        { path: [[0.84, 0.62], [0.84, 0.76]], w: 12, look: "crates" },
+      ],
+      tracks: { loop: { pts: ovalPts(0.5, 0.5, 0.25, 0.17, 30), loop: true, speed: 9, look: "road", train: true } },
+      zones: {
+        north: [[0.24, 0.06, 0.76, 0.24]],
+        south: [[0.26, 0.76, 0.74, 0.86]],
+      },
+      trails: [{ e: "🔩", to: [0.3, 0.88] }, { e: "🔩", to: [0.7, 0.88] }],
+      decals: [
+        { k: "lot", x0: 0.22, y0: 0.05, x1: 0.78, y1: 0.25 },
+        { k: "hazard", x0: 0.3, y0: 0.88, x1: 0.7, y1: 0.92 },
+        { k: "puddle", x: 0.1, y: 0.88, r: 0.04 },
+        { k: "puddle", x: 0.9, y: 0.12, r: 0.04 },
+      ],
+      tiers: [
+        { r: T1, items: [["🔩", 48], ["⚙️", 21, null, 3], ["🪙", 20], ["🔑", 14], ["🍬", 16, null, 2], ["🧃", 14], ["🍪", 12]] },
+        { r: T2, items: [["🔧", 12], ["🪛", 12], ["🧰", 10], ["⛽", 8], ["🔋", 10], ["🧯", 8]] },
+        { r: T3, items: [["🛢️", 10, null, 2], ["🚧", 10], ["🪜", 6], ["🛵", 6], ["🚲", 6], ["🗑️", 6]] },
+        { r: T4, items: [["🛻", 1, { ride: "loop" }], ["🚗", 4, { ride: "loop" }], ["🚕", 6, "south"], ["🚙", 6, "north"], ["🚐", 4]] },
+        { r: T5, items: [["🚌", 3], ["🚚", 4, "north"], ["🏗️", 3], ["🏭", 4], ["🏪", 4], ["🏢", 3]] },
+      ],
+      finale: { e: "🚛", r: 20, at: [0.5, 0.12], say: "the giant truck" },
+    },
+    {
+      // RESCUE BOATS: a river runs down the whole harbour and carries him,
+      // orange buoys bounce him back, and crates on the quay pop open. At the
+      // end of the river: the big lifeboat ship.
+      id: "boats", name: "Rescue Boats", door: "🚤", color: "#0ea5e9",
+      ground: "dock", hole: "gobble",
+      wear: ["cap", "#0ea5e9", "#ffd24d"], air: ["bubbles", "#d4f2ff"],
+      backdrop: ["#e0f6ff", "#aee3fb"],
+      world: [400, 700],
+      start: [0.2, 0.06], starters: 3,
+      tune: [523.25, 440, 523.25, 587.33, 659.25, 587.33],
+      flows: [
+        { pts: [[0.62, -0.02], [0.62, 0.3], [0.38, 0.5], [0.62, 0.72], [0.5, 1.02]], w: 36, v: 20 },
+      ],
+      zones: {
+        early: { band: [0, 0.4] },
+        middle: { band: [0.3, 0.8] },
+        late: { band: [0.55, 1] },
+        quay: [[0.04, 0.3, 0.24, 0.7], [0.78, 0.3, 0.96, 0.7]],
+      },
+      trails: [{ e: "🪙", to: [0.2, 0.2] }, { e: "🪙", to: [0.36, 0.12] }],
+      decals: [
+        { k: "pallet", x0: 0.04, y0: 0.32, x1: 0.22, y1: 0.42 },
+        { k: "pallet", x0: 0.8, y0: 0.56, x1: 0.96, y1: 0.66 },
+        { k: "puddle", x: 0.86, y: 0.16, r: 0.04 },
+      ],
+      tiers: [
+        { r: T1, items: [["🪙", 44], ["⭐", 18], ["🍬", 16, null, 2], ["🧃", 14], ["🍪", 14, null, 2], ["🔔", 12]] },
+        { r: T2, items: [["🧭", 10], ["🪝", 10], ["🧴", 10], ["🎣", 10, "quay"], ["🥾", 10, null, 2], ["🔦", 10], ["🟠", 5, { bounce: true, zone: "middle" }]] },
+        { r: T3, items: [["📦", 12, { pop: [["🪙", 3, 1], ["🧭", 1, 2]], zone: "quay" }], ["🛢️", 10], ["⚓", 8], ["🧺", 8], ["🪵", 10, null, 2], ["🦺", 8]] },
+        { r: T4, items: [["🛶", 8], ["⛵", 6, "late"], ["🚤", 6], ["🟡", 3, { bounce: true, zone: "late" }]] },
+        { r: T5, items: [["🛳️", 4, "late"], ["🏗️", 3], ["🏠", 4, "early"], ["🏢", 3]] },
+      ],
+      finale: { e: "⛴️", r: 20, at: [0.5, 0.92], say: "the big lifeboat" },
+    },
     // ---- 🏮 Lantern Land (PLAN_GOBBLE_LANTERN.md, batch A): six sides of
     // China. Gobble speaks a little Chinese here — the finale's name (zh), a
     // WORD of the place the first time he eats it, a festival greeting, and
@@ -3491,7 +3726,7 @@
       places: ["space", "circus", "cloud", "themepark", "candy", "music", "pinball", "moon", "trainland", "numbers", "chocolate", "beanstalk"] },
     // §19: a web hero's night — rooftops and webs, a villain's lab, and Halloween
     { id: "hero", name: "Hero Night", pic: "🕸️", backdrop: ["#c4202e", "#24318f"], color: "#151a52",
-      places: ["webcity", "web", "lab", "treats", "pumpkins", "haunted"] },
+      places: ["webcity", "web", "lab", "treats", "pumpkins", "haunted", "hospital", "police", "lifeguard", "rescue", "towyard", "boats"] },
     // PLAN_GOBBLE_LANTERN.md: twelve sides of China (batch A, then batch B)
     { id: "lantern", name: "Lantern Land", pic: "🏮", backdrop: ["#fff0c2", "#ffc94d"], color: "#d62828",
       places: ["newyear", "dumplings", "courtyard", "pandas", "teahills", "watertown", "moongarden", "monkeys", "desk", "icecity", "kungfu", "greatwall"] },
@@ -3526,6 +3761,7 @@
     haunted: "m3fiyk",
     newyear: "1nsadmw", dumplings: "1qae29m", courtyard: "1qbcvyu", pandas: "jl9hx0", teahills: "hommkc", watertown: "1ypgtvk",
     moongarden: "jd49o9", monkeys: "1ch89rn", desk: "313lrg", icecity: "iflah7", kungfu: "phk85d", greatwall: "178y9ou",
+    hospital: "69ggqr", police: "htq3qz", lifeguard: "13vbeum", rescue: "tll299", towyard: "nvsvx0", boats: "1gm3b6h",
   };
 
   const HoleData = { RULES, SCENES, SAY, TASTES, tasteOf, LANDS, landOf, PRINTS };

@@ -78,17 +78,18 @@ function makeTop(st) {
 // ...or any level.
 function makeLevel(st, lv) { st.hole.level = lv; st.hole.R = st.hole.r = st.levels.R[lv]; st.hole.xp = st.levels.C[lv]; }
 
-test("the data: SIXTY-SIX places, five tiers each (six in a GIANT place) plus a finale, every door, picture, district, track and trail present", () => {
+test("the data: SEVENTY-TWO places, five tiers each (six in a GIANT place) plus a finale, every door, picture, district, track and trail present", () => {
   // The owner doubled the places three times (2026-10-01: six became twelve;
   // 2026-10-06: twelve became twenty-four; 2026-10-08: twenty-four became
   // forty-eight), then asked for six more, a web hero's and Halloween's
   // (2026-10-14, §19: fifty-four), then Lantern Land's first six (2026-10-21,
-  // §21: sixty), then its second six (batch B: sixty-six). A place quietly
+  // §21: sixty), then its second six (batch B: sixty-six), then Hero Night's
+  // six everyday heroes (2026-11-21: seventy-two). A place quietly
   // dropped from the data would leave a
   // door-less hole in the journey ▶ walks through. (This floor and the test's
   // name stayed at fifty-four for a release after §21 shipped: a floor that is
   // not raised with the data tolerates exactly the drop it is here to catch.)
-  assert.ok(SCENES.length >= 66, "sixty-six places to eat (" + SCENES.length + ")");
+  assert.ok(SCENES.length >= 72, "seventy-two places to eat (" + SCENES.length + ")");
   const ids = new Set();
   for (const def of SCENES) {
     const where = def.id;
@@ -2748,8 +2749,12 @@ test("HERO NIGHT (§19): six places in their own land — a web hero's night and
   const HR = require("../scripts/hole-render.js");
   const hero = DATA.LANDS.find((l) => l.id === "hero");
   assert.ok(hero, "there is a Hero Night land");
-  assert.deepEqual(hero.places, ["webcity", "web", "lab", "treats", "pumpkins", "haunted"], "its six places, in order");
-  for (const id of hero.places) {
+  // its first six are the web hero's; since 2026-11-21 its second six are the
+  // EVERYDAY heroes who rescue (a hospital, the police, lifeguards, mountain
+  // rescue, a tow yard, rescue boats), each in its own rescuer's hat
+  assert.deepEqual(hero.places, ["webcity", "web", "lab", "treats", "pumpkins", "haunted", "hospital", "police", "lifeguard", "rescue", "towyard", "boats"], "its twelve places, in order");
+  for (const id of hero.places.slice(6)) assert.notEqual(L.sceneById(id).wear[0], "mask", id + ": an everyday hero wears a rescuer's hat, not the web hero's mask");
+  for (const id of hero.places.slice(0, 6)) {
     const def = L.sceneById(id);
     assert.equal(def.wear[0], "mask", id + ": Gobble wears a hero's mask");
     assert.equal(HR.WEAR.mask.slot, "face", "a mask is on his face");

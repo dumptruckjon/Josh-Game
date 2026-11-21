@@ -92,7 +92,10 @@ Until the owner says otherwise:
   👂 Hear it, find it, 新字 and 📚 Stories) **and 🕳️ Gobble Hole** (the owner's pick of
   2026-09-30: "a hole eating game like hole.io, Donut County or Hole em All",
   as a new button below the fort — PLAN_GOBBLE.md, `scripts/hole-*.js`).
-  **Where Gobble stands (2026-11-18):** 66 places in six lands. 🏮 Lantern
+  **Where Gobble stands (2026-11-21):** 72 places in six lands (Hero Night
+  grew to twelve: six EVERYDAY-hero rescue places — Hospital, Police Station,
+  Lifeguard Beach, Mountain Rescue, Tow Yard, Rescue Boats — because a seventh
+  land door cannot fit a phone at the 75px tap size). 🏮 Lantern
   Land is complete: batch A (places 1-6) and batch B (Moon Garden, Monkey
   Mountain, Writing Desk, Ice City, Kung Fu School, the Great Wall — the
   owner's go of 2026-11-18, PLAN_GOBBLE_LANTERN.md §13) are both built. Leave
@@ -11358,7 +11361,8 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   CHINESE name after the English, in a zh-CN voice (restated with pinyin in
   content.test.js). Every map game names its `map` on its def, and every zone
   the drawn `region` it must sit on, so the tests find the maps from the
-  registry. Josh is at **211**; the home's tiles fill their last row at
+  registry. Josh is at **213** (Washington Animals and 🌊 Ocean Map joined the
+  🗺️ World category, 2026-11-21); the home's tiles fill their last row at
   every column count (`fillLastRow`), and below 360px wide a game's title steps
   aside (it ran under 👂 on every game at 320).
 - **🤝 Calm & Friends** — Breathing Star, I Did It! (certificate), Follow the
@@ -16511,3 +16515,19 @@ are green.
   forgiveness, correctness, and shippability.
 - Keep this file updated when structure, behavior, or workflow changes.
 - Don't open a pull request unless explicitly asked — push straight to `main`.
+
+**"ANYTHING NEW?" → "ALL" (owner, 2026-11-21): five picks in one pass.** Three
+letter-team books (ng, qu, wh) and three 读一读 books; 🦦 Washington Animals and
+🌊 Ocean Map (213 games); 🔺 Shape Bingo in Game Night (a die of 3-6 dots, a
+card of shapes with that many sides, no numbers on it); and six rescue places
+in Hero Night (72 places). Two things worth keeping. **A page that fits in the
+sandbox's font can still need a third row in CI's DejaVu Sans** — "A duck is on
+it. Quack!" passed every local check and failed the 320x480 DejaVu walk, the
+Chocolate lesson for the fourth time; it reads "A duck! Quack! Quack!" now.
+**A seventh land door does not fit**: four across at 320px is ~60px, under the
+75px floor, so the new places joined the one land still holding six. The
+authoring loop that made six places land in one sitting was
+`tools/hole-check.js` (progress, bot time, twists) then the engine suite, then
+`tools/hole-fuzz.js` (0 stuck in 386 spots), with fingerprints re-pinned from
+`createGame(id).print` after every layout edit.
+
