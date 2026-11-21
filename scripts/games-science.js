@@ -27,8 +27,8 @@
           // harder set kicks in (e.g. a 3-bin variant), so it stops being a 50/50
           // guess — and it eases back to the simple set the moment he stumbles.
           const pool = (api.shouldRamp(2) && cfg.hardSets) ? cfg.hardSets : cfg.sets;
-          const set = api.randItem(pool);
-          const r = L.makeSort(set);
+          // a FRESH item: never the one just sorted (the set may change too)
+          const { set, r } = api.fresh(() => { const set = api.randItem(pool); return { set, r: L.makeSort(set) }; }, (x) => x.r.item);
           // A rotating multi-domain tile (science-sort runs alive/sink-float/
           // plant-animal) names EACH round's question via the set's own prompt,
           // so a sound-off child knows which sort this is; single-domain tiles
@@ -100,7 +100,7 @@
       api.stage.append(solid, label, choices);
 
       function newRound() {
-        const r = L.makeSolidMatch(C.SOLID_SETS);
+        const r = api.fresh(() => L.makeSolidMatch(C.SOLID_SETS), (x) => x.name);
         solid.innerHTML = '<svg viewBox="0 0 100 100">' + r.svg + "</svg>";
         label.textContent = r.name;
         // ONE spoken question that carries the name. It used to be the generic
@@ -216,7 +216,7 @@
       api.stage.append(shapeEl, label, choices);
 
       function newRound() {
-        const r = L.makeSolidMatch(C.PLANE_SHAPES);
+        const r = api.fresh(() => L.makeSolidMatch(C.PLANE_SHAPES), (x) => x.name);
         shapeEl.innerHTML = '<svg viewBox="0 0 100 100" style="fill:#5ec8ff;stroke:#2b6cff;stroke-width:2">' + r.svg + "</svg>";
         label.textContent = r.name;
         // One spoken question carrying the name (see Shape's Real Twin above).
@@ -324,7 +324,7 @@
         mapWrap.innerHTML = '<svg viewBox="0 0 200 112"><rect x="0" y="0" width="200" height="112" rx="8" fill="#bfe9ff"/>' + blobs + "</svg>";
       }
       function newRound() {
-        const r = L.makeContinentMatch(CONTS);
+        const r = api.fresh(() => L.makeContinentMatch(CONTS), (x) => x.animal);
         drawMap(r.targetIndex);
         animalEl.textContent = r.animal;
         api.setPrompt("Where does it live? Tap its home!", ["👀", "🌍", "👆"]);

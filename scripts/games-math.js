@@ -457,7 +457,7 @@
       const BC = C.BLOCK_COLORS || ["#5ec8ff", "#ff9f43", "#ffd24d", "#7be08a", "#3ec7c7", "#5ec8ff", "#8a7bff", "#c77dff", "#ff7ac0", "#a0d468"];
       const nf = (n) => (window.JoshArt && window.JoshArt.numberFriend) ? window.JoshArt.numberFriend(n, BC[(n - 1) % BC.length]) : "🧱";
       function newRound() {
-        const r = L.makeNumberMatch();
+        const r = api.fresh(() => L.makeNumberMatch(), (x) => x.n);
         numEl.textContent = String(r.n);
         api.setPrompt("Tap the friend with this many blocks.", ["👀", "🔢", "👉"], "Tap the friend with this many blocks." + " " + (String(r.n)));
         api.speak();
@@ -506,7 +506,8 @@
       }
       function newRound() {
         // Adaptive: o'clock only until Josh masters it, then add half-past (:30).
-        const r = L.makeClock(undefined, api.shouldRamp(2));
+        const ramp = api.shouldRamp(2);
+        const r = api.fresh(() => L.makeClock(undefined, ramp), (x) => x.hour + ":" + x.min);
         draw(r.hour, r.min);
         api.setPrompt("What time is it?", ["👀", "🕐", "🔢"], "What time is it?" + " " + (r.min === 30 ? ("half past " + r.hour) : (r.hour + " o'clock")));
         api.speak();
@@ -718,7 +719,7 @@
         })();
       }
       function newRound() {
-        const r = L.makeMakeTen();
+        const r = api.fresh(() => L.makeMakeTen(), (x) => x.have);
         api.setPrompt("How many MORE to make ten?", ["👀", "➕", "🔟"]);
         api.speak();
         frame.innerHTML = ""; cells = [];

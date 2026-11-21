@@ -21,7 +21,7 @@
       api.mascot();
 
       function newRound() {
-        const r = L.makeFirstSound(C.FIRST_SOUND_WORDS);
+        const r = api.fresh(() => L.makeFirstSound(C.FIRST_SOUND_WORDS), (x) => x.word);
         api.setPrompt("What sound does it start with?", ["👀", "🔊", "🔤"], "What sound does it start with?" + " " + (r.word));
         api.speak();
         pic.textContent = r.emoji;
@@ -153,7 +153,7 @@
       api.stage.append(target, choices);
 
       function newRound() {
-        const r = L.makeSightWord(C.SIGHT_WORDS);
+        const r = api.fresh(() => L.makeSightWord(C.SIGHT_WORDS), (x) => x.target);
         api.setPrompt("Which word did you hear? Read and find it!", ["👂", "🔤", "👆"], "Which word did you hear? Read and find it!" + " " + (r.target));
         api.speak();
         // Show the target in UPPERCASE while the choices stay lowercase, so it
@@ -230,7 +230,7 @@
       api.stage.append(target, choices);
 
       function newRound() {
-        const r = L.makeLetterMatch();
+        const r = api.fresh(() => L.makeLetterMatch(), (x) => x.upper);
         api.setPrompt("Find the little letter that matches!", ["👀", "🔡", "👉"], "Find the little letter that matches!" + " " + ("Letter " + r.upper));
         api.speak();
         target.textContent = r.upper;
@@ -315,7 +315,7 @@
       api.stage.append(pic, wordEl, choices);
 
       function newRound() {
-        const r = L.makeDigraphFinish(C.DIGRAPH_FINISH);
+        const r = api.fresh(() => L.makeDigraphFinish(C.DIGRAPH_FINISH), (x) => x.word);
         api.setPrompt("Which sound starts the word?", ["👂", "🔡", "❓"], "Which sound starts the word?" + " " + (r.word));
         api.speak();
         pic.textContent = r.emoji;
@@ -533,7 +533,7 @@
       api.mascot();
 
       function newRound() {
-        const r = L.makeWordPicture(api.C.CVC_WORDS);
+        const r = api.fresh(() => L.makeWordPicture(api.C.CVC_WORDS), (x) => x.word);
         api.setPrompt("Read the word — tap its picture!", ["👀", "🔤", "👆"], "Read the word — tap its picture!" + " " + (r.word));
         api.speak();
         word.textContent = r.word;
@@ -575,7 +575,7 @@
       api.stage.append(sentence, choices);
 
       function newRound() {
-        const s = api.randItem(SENTENCES);
+        const s = api.fresh(() => api.randItem(SENTENCES), (x) => x.text);
         api.setPrompt(s.text, ["👂", "📖", "👉"]); // the spoken prompt IS the sentence (👂 replays it)
         api.speak();
         sentence.innerHTML = "";
@@ -618,7 +618,7 @@
       api.stage.append(scene, q, choices);
 
       function newRound() {
-        const r = L.makeListen(STORIES);
+        const r = api.fresh(() => L.makeListen(STORIES), (x) => JSON.stringify(x.pairs) + "?" + JSON.stringify(x.ask || x.q || x.target || ""));
         scene.innerHTML = "";
         r.pairs.forEach((p) => {
           scene.appendChild(api.el("div", { class: "listen__pair", aria: { hidden: "true" } }, [
@@ -789,7 +789,7 @@
       const bins = api.el("div", { class: "choices wf__houses" });
       api.stage.append(card, bins);
       function newRound() {
-        r = L.makeFamilySort(C.WORD_FAMILIES);
+        r = api.fresh(() => L.makeFamilySort(C.WORD_FAMILIES), (x) => x.item.word);
         api.setPrompt("Which house does it live in?", ["🏠", "👂", "👉"], r.item.word + ". Which family?");
         api.speak();
         card.innerHTML = '<span class="wf__emoji">' + r.item.emoji + '</span><span class="wf__word">' + r.item.word + "</span>";

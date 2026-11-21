@@ -272,7 +272,10 @@ test("🎲 Game Night: the shelf, who's playing, both boards and the party fit, 
   // 1112x834 (an iPad on its side) and 360x640 each earned their place by
   // CATCHING something: on the iPad 🧠 and 🏴‍☠️ filled the board's height and
   // sat 12px from a pad; at 360 🐟's wrapped strip put his cards 11px from one
-  for (const [w, h] of [[390, 844], [320, 568], [375, 667], [834, 1112], [844, 390], [667, 375], [1112, 834], [360, 640]]) {
+  // 667x375 (a small phone on its side) was dropped 2026-11-21: Josh plays in
+  // portrait only, landscape just has to keep working, and 844x390 covers that;
+  // 667x375 had caught nothing, and it cost ~19s of every CI run here.
+  for (const [w, h] of [[390, 844], [320, 568], [375, 667], [834, 1112], [844, 390], [1112, 834], [360, 640]]) {
     await page.setViewportSize({ width: w, height: h });
     // the fullest shelf: four boxes (two by two), one with a game waiting on it
     await page.evaluate(() => {
@@ -2263,7 +2266,10 @@ test("🎲 Game Night MID-TURN: the boards whose buttons CHANGE inside a turn st
   // 1112x834 (an iPad on its side) and 360x640 each earned their place by
   // CATCHING something: on the iPad 🧠 and 🏴‍☠️ filled the board's height and
   // sat 12px from a pad; at 360 🐟's wrapped strip put his cards 11px from one
-  for (const [w, h] of [[390, 844], [320, 568], [375, 667], [834, 1112], [844, 390], [667, 375], [1112, 834], [360, 640]]) {
+  // 667x375 (a small phone on its side) was dropped 2026-11-21: Josh plays in
+  // portrait only, landscape just has to keep working, and 844x390 covers that;
+  // 667x375 had caught nothing, and it cost ~19s of every CI run here.
+  for (const [w, h] of [[390, 844], [320, 568], [375, 667], [834, 1112], [844, 390], [1112, 834], [360, 640]]) {
     await page.setViewportSize({ width: w, height: h });
     for (const [box, drive] of BOARD_MIDTURN) {
       const ok = await page.evaluate((a) => {
@@ -2755,6 +2761,18 @@ test("📱 iPhone 17 Pro: every game uses its play area — tall cards, the budd
   } finally { await ctx.close(); }
 });
 
+// Every World game, read off the category table in main.js (a map game is one
+// whose def names its `map`; the rest are pick games) — not a list typed here,
+// or a new World game is never measured.
+async function worldGames(p) {
+  const WORLD = [...fs.readFileSync(path.join(__dirname, "..", "scripts", "main.js"), "utf8").matchAll(/"([a-z0-9-]+)": "world"/g)].map((m) => m[1]);
+  assert.ok(WORLD.length >= 9, `fixture: the World games were read off main.js (${WORLD})`);
+  const mapIds = await p.evaluate(() => window.JoshGames.filter((g) => g.map).map((g) => g.id));
+  const MAPS = WORLD.filter((id) => mapIds.includes(id)), PICKS = WORLD.filter((id) => !mapIds.includes(id));
+  assert.ok(MAPS.length >= 5 && PICKS.length >= 4, `fixture: maps ${MAPS} and picks ${PICKS}`);
+  return { MAPS, PICKS };
+}
+
 test("🗺️ the World games FILL a phone: big cards, a big picture, a full-width map — and still fit a small one", async () => {
   // On an iPhone 17 Pro the pick games showed one row of three 96px cards in a
   // 560px play area (17% of it used) and the maps were pinned at 340px on a
@@ -2762,7 +2780,7 @@ test("🗺️ the World games FILL a phone: big cards, a big picture, a full-wid
   // stage's height, a pick card is a big target (≥140px tall) and a map takes
   // the stage's full width; and on a short phone (and one on its side) the pick
   // games still fit without scrolling — the buddy steps aside there.
-  const PICKS = ["wa-wonders", "china-trip", "flag-friends", "where-world"], MAPS = ["wa-map", "world-fly"];
+  let MAPS = [], PICKS = [];
   const look = (p) => p.evaluate(() => {
     const s = document.querySelector(".screen:not([hidden])");
     const st = s.querySelector(".game__stage"), S = st.getBoundingClientRect();
@@ -2788,6 +2806,7 @@ test("🗺️ the World games FILL a phone: big cards, a big picture, a full-wid
   const { ctx, p } = await ip17Page();
   try {
     await p.goto(baseURL, { waitUntil: "load" });
+    ({ MAPS, PICKS } = await worldGames(p));
     for (const id of PICKS.concat(MAPS)) {
       await p.evaluate((h) => { location.hash = h; }, "#" + id);
       await p.waitForFunction((id) => { const s = document.getElementById("screen-" + id); return s && !s.hidden; }, id);
@@ -2802,6 +2821,7 @@ test("🗺️ the World games FILL a phone: big cards, a big picture, a full-wid
         assert.ok(r.pins.size >= 90, `iPhone 17 Pro ${id}: a map pin is only ${Math.round(r.pins.size)}px`);
         assert.ok(r.pins.gap >= 16, `iPhone 17 Pro ${id}: two pins are only ${Math.round(r.pins.gap)}px apart`);
         assert.equal(r.pins.out, 0, `iPhone 17 Pro ${id}: ${r.pins.out} pin(s) hang off the map`);
+        assert.ok(r.scroll <= 0, `iPhone 17 Pro ${id}: the page scrolls ${r.scroll}px — the map runs past the home bar`);
       }
     }
   } finally { await ctx.close(); }
@@ -2839,11 +2859,13 @@ test("🗺️ the World maps grow on a tablet, keeping their shape, with every p
     return { w: st.width, h: st.height, n: z.length, gap, inside, low: Math.max(...z.map((b) => b.bottom)), vh: innerHeight };
   });
   const sizes = {};
+  let MAPS = [];
   for (const s of [{ w: 402, h: 874 }, { w: 834, h: 1112 }, { w: 768, h: 1024 }, { w: 1024, h: 768 }]) {
     const ctx2 = await browser.newContext({ viewport: { width: s.w, height: s.h }, hasTouch: true, isMobile: true });
     const p2 = await ctx2.newPage();
     try {
-      for (const id of ["wa-map", "world-fly"]) {
+      if (!MAPS.length) { await p2.goto(baseURL, { waitUntil: "load" }); ({ MAPS } = await worldGames(p2)); }
+      for (const id of MAPS) {
         await p2.goto(baseURL + "#" + id, { waitUntil: "load" });
         await p2.waitForSelector("#screen-" + id + ":not([hidden]) .map__stage");
         const r = await measure(p2);
@@ -2855,7 +2877,8 @@ test("🗺️ the World maps grow on a tablet, keeping their shape, with every p
       }
     } finally { await ctx2.close(); }
   }
-  for (const id of ["wa-map", "world-fly"]) {
+  assert.ok(MAPS.length >= 5, `fixture: the tablet test measured the map games (${MAPS})`);
+  for (const id of MAPS) {
     const phone = sizes["402x874 " + id], pad = sizes["834x1112 " + id], side = sizes["1024x768 " + id];
     assert.ok(pad.w >= phone.w * 1.3, `${id}: the map is ${pad.w}px on an iPad against ${phone.w}px on a phone — it must grow`);
     assert.ok(Math.abs(pad.h / pad.w - phone.h / phone.w) < 0.02, `${id}: the tablet map changed shape (${(pad.h / pad.w).toFixed(3)} vs ${(phone.h / phone.w).toFixed(3)})`);

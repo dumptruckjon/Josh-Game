@@ -297,6 +297,20 @@
         iconsEl.textContent = (icons || []).join(" ");
       },
       say: (t, o) => sayLive(t, o),
+      // A FRESH question: never the one he just answered. `make()` builds a
+      // round; `key(round)` names its question. A right answer followed by the
+      // SAME question (the same word, the same animal, the same pup) looks
+      // like the tap did nothing — measured on 20 games, which each drew their
+      // next question with no memory of the last. Draws again (a few times)
+      // until the key differs; the last key lives on the screen, so it holds
+      // across Again too. The keys are logged on the screen for the tests.
+      fresh(make, key) {
+        let r = make();
+        for (let k = 0; k < 24 && screen.__lastFresh !== undefined && key(r) === screen.__lastFresh; k++) r = make();
+        screen.__lastFresh = key(r);
+        (screen.__freshLog = screen.__freshLog || []).push(screen.__lastFresh);
+        return r;
+      },
       // A TONE with the same rule as a spoken line: only while this game is the
       // screen on show. A game's timer that plays a note (a drum demo, a tune
       // played back, a robot's blend) must go through here, or it keeps sounding

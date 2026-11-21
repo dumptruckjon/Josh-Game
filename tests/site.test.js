@@ -7364,3 +7364,47 @@ test("guardrail: no game's own timer calls JoshAudio say/tone directly", () => {
   assert.ok(bodies >= 30, `only ${bodies} timers read — the scan failed open`);
   assert.deepEqual(bad, [], "a game timer makes a sound directly — use api.say / api.tone, which are silent once he has left");
 });
+
+test("guardrail: no SVG arc in the app is too short for its own radius (it would retrace and draw nothing)", () => {
+  // The moon in C.SHAPES was `M66 10 A40 40 0 1 0 66 90 A32 32 0 1 1 66 10 Z`:
+  // the second arc spans an 80-unit chord with a radius of 32, so the browser
+  // scales its radius up to 40 and it retraces the first arc exactly. The
+  // crescent had ZERO area: Match the Shadow and Which Piece Fits? showed a
+  // blank card, sometimes as the right answer. Every literal path in every
+  // script the page loads is walked; an arc whose radius is under half its
+  // chord is a shape the author did not draw.
+  const bad = [];
+  let arcs = 0;
+  for (const f of SCRIPTS) {
+    if (/hanzi-strokes/.test(f)) continue; // generated stroke outlines, no arcs
+    for (const m of read(f).matchAll(/d=\\?"([^"\\]*)/g)) {
+      const d = m[1];
+      if (!/[Aa]/.test(d) || /[^MmLlHhVvCcSsQqTtAaZz0-9.,\s+eE-]/.test(d)) continue;
+      const t = d.match(/[A-Za-z]|-?\d*\.?\d+(?:e-?\d+)?/g);
+      let i = 0, x = 0, y = 0, sx = 0, sy = 0, cmd = "";
+      const n = () => +t[i++];
+      while (i < t.length) {
+        if (/[A-Za-z]/.test(t[i])) cmd = t[i++];
+        const rel = cmd === cmd.toLowerCase(), C = cmd.toUpperCase();
+        const to = (a, b) => { if (rel) { a += x; b += y; } x = a; y = b; };
+        if (C === "Z") { x = sx; y = sy; continue; }
+        if (C === "M" || C === "L" || C === "T") { to(n(), n()); if (C === "M") { sx = x; sy = y; cmd = rel ? "l" : "L"; } continue; }
+        if (C === "H") { const a = n(); x = rel ? x + a : a; continue; }
+        if (C === "V") { const a = n(); y = rel ? y + a : a; continue; }
+        if (C === "C") { n(); n(); n(); n(); to(n(), n()); continue; }
+        if (C === "S" || C === "Q") { n(); n(); to(n(), n()); continue; }
+        if (C === "A") {
+          const rx = n(), ry = n(); n(); n(); n();
+          const fx = x, fy = y; to(n(), n());
+          const half = Math.hypot(x - fx, y - fy) / 2;
+          arcs++;
+          if (rx === ry && rx < half - 0.01) bad.push(`${f}: radius ${rx} under half its ${(half * 2).toFixed(1)} chord in "${d.slice(0, 60)}"`);
+          continue;
+        }
+        break;
+      }
+    }
+  }
+  assert.ok(arcs >= 5, `only ${arcs} arcs were walked — the scan failed open`);
+  assert.deepEqual(bad, []);
+});

@@ -8031,6 +8031,67 @@ test("the owner's new picks play as designed: Story Dice, Hunt at Home and the �
     assert.equal(fly.after, 0, "a wrong continent lands no plane");
     assert.ok(fly.landed, `the plane lands on ${fly.name}`);
 
+    // 🦒 Animal Safari: the question is an animal; the continents carry no
+    // pictures (they would be the answers); a wrong continent is named, the
+    // right one says where it lives, then its Chinese name in a Chinese voice.
+    // the shuffle is pinned to the data's own order (Math.random → 0.999 makes
+    // the Fisher-Yates swap nothing), which puts Africa's three animals side by
+    // side — so the no-repeat rule below is exercised on every run, not by luck
+    await page.evaluate(() => { window.__RND = Math.random; Math.random = () => 0.999; });
+    await openGame("animal-safari");
+    await said();
+    const saf = await page.evaluate(() => {
+      const s = document.getElementById("screen-animal-safari");
+      const pins = s.querySelectorAll(".map__pin").length, zones = s.querySelectorAll(".scene__zone").length;
+      const icon = s.querySelector(".game__icons").textContent;
+      window.__S1.length = 0;
+      const wrong = s.querySelector(".scene__zone:not([data-correct])"); const wn = wrong.getAttribute("aria-label"); wrong.click();
+      const wrongSaid = window.__S1.map((x) => x[0]); window.__S1.length = 0;
+      const right = s.querySelector(".scene__zone[data-correct]"); const rn = right.getAttribute("aria-label"); right.click();
+      return { pins, zones, icon, wn, rn, wrongSaid, rightSaid: window.__S1.slice(), prompt: s.querySelector(".game__promptText").textContent };
+    });
+    assert.equal(saf.zones, 7, "Animal Safari shows the seven continents");
+    assert.equal(saf.pins, 0, "…with no pictures on them (a picture would be the answer)");
+    const safAnimal = (await page.evaluate(() => window.JoshContent.ANIMAL_SAFARI)).find((a) => saf.prompt === "Where does " + a.name + " live?");
+    assert.ok(safAnimal, `the question names an animal (${saf.prompt})`);
+    assert.ok(saf.icon.includes(safAnimal.e), `the icon strip shows the animal, so it plays with the sound off (${saf.icon})`);
+    assert.ok(saf.wrongSaid.includes("That's " + saf.wn + ". Where does " + safAnimal.name + " live?"), `a wrong continent is named (${JSON.stringify(saf.wrongSaid)})`);
+    assert.ok(saf.rightSaid.some((x) => x[0] === safAnimal.name.charAt(0).toUpperCase() + safAnimal.name.slice(1) + " lives in " + saf.rn + "!"), `the right one says where it lives (${JSON.stringify(saf.rightSaid)})`);
+    assert.ok(saf.rightSaid.some((x) => /^[一-鿿]+$/.test(x[0]) && x[1] === "zh-CN"), `…then the continent's Chinese name in a zh-CN voice (${JSON.stringify(saf.rightSaid)})`);
+    // …and never the same continent twice running (the same pin twice is no
+    // question): play the rest of the game, reading each round's home.
+    const homes = [saf.rn];
+    for (let k = 0; k < 5; k++) {
+      await page.waitForFunction((n) => { const s = document.getElementById("screen-animal-safari"); const c = s.querySelector(".scene__zone[data-correct]"); return s.dataset.won || (c && !c.classList.contains("scene__zone--found")); }, null, { timeout: 5000 });
+      const h = await page.evaluate(() => { const c = document.querySelector("#screen-animal-safari .scene__zone[data-correct]"); if (!c) return null; const n = c.getAttribute("aria-label"); c.click(); return n; });
+      if (!h) break;
+      homes.push(h);
+    }
+    assert.equal(homes.length, 6, `fixture: Animal Safari played its six rounds (${homes})`);
+    for (let k = 1; k < homes.length; k++) assert.notEqual(homes[k], homes[k - 1], `Animal Safari asked about ${homes[k]} twice running (${homes})`);
+    assert.ok(await page.evaluate(() => !!document.getElementById("screen-animal-safari").dataset.won), "six right homes win Animal Safari");
+    await page.evaluate(() => { Math.random = window.__RND; });
+
+    // 🇺🇸 USA Map and 🧱 China Map: the right place says its name, then its Chinese name.
+    for (const id of ["usa-map", "china-map", "wa-map", "world-fly"]) {
+      await openGame(id);
+      await said();
+      const m = await page.evaluate((id) => {
+        const s = document.getElementById("screen-" + id); window.__S1.length = 0;
+        const right = s.querySelector(".scene__zone[data-correct]"); right.click();
+        return { said: window.__S1.slice(), label: right.getAttribute("aria-label") };
+      }, id);
+      const zh = await page.evaluate(([id, label]) => {
+        const g = window.JoshGames.find((x) => x.id === id);
+        const z = window.JoshContent[g.map].zones.find((q) => (q.say || q.name) === label);
+        return z && z.zh;
+      }, [id, m.label]);
+      assert.ok(zh, `fixture: ${id}'s ${m.label} has a Chinese name`);
+      const at = m.said.findIndex((x) => x[0] === zh && x[1] === "zh-CN");
+      assert.ok(at > 0, `${id}: ${m.label} is said, then ${zh} in a zh-CN voice (${JSON.stringify(m.said)})`);
+      assert.ok(m.said.slice(0, at).some((x) => x[1] === "" && x[0].includes(m.label)), `${id}: the English name comes first (${JSON.stringify(m.said)})`);
+    }
+
     // 🌍 Where in the World?: a THING big, three FLAGS; a wrong flag says whose flag it is.
     await openGame("where-world");
     await said();
@@ -8057,8 +8118,15 @@ test("the owner's new picks play as designed: Story Dice, Hunt at Home and the �
     assert.equal(ff.flags, 0, "…and no flags");
     assert.ok(/[\u{1F1E6}-\u{1F1FF}]/u.test(ff.big), `its question is a flag (${ff.big})`);
     assert.ok((await said()).some((x) => "That's " + ff.label + ", from " + ff.from + "." === x[0]), `a wrong thing says where it is from (${ff.label})`);
+    // the right answer says the country, then its Chinese name in a Chinese voice
+    await page.waitForTimeout(400);
+    const big = await page.evaluate(() => { const s = document.getElementById("screen-flag-friends"); const f = s.querySelector(".pick__big").textContent; s.querySelector("[data-correct]").click(); return f; });
+    const fc = await page.evaluate((f) => window.JoshContent.COUNTRIES.find((c) => c.flag === f), big);
+    const ffs = await said();
+    const fat = ffs.findIndex((x) => x[0] === fc.zh && x[1] === "zh-CN");
+    assert.ok(fat > 0 && / is known for /.test(ffs[fat - 1][0]), `Flag Friends says ${fc.name} is known for…, then ${fc.zh} in a zh-CN voice (${JSON.stringify(ffs)})`);
   } finally {
-    await page.evaluate(() => { window.JoshAudio.say = window.__SAY1; });
+    await page.evaluate(() => { window.JoshAudio.say = window.__SAY1; if (window.__RND) Math.random = window.__RND; });
   }
 });
 
@@ -8068,15 +8136,19 @@ test("🗺️ every map pin sits on its OWN drawn region (Seattle by the water, 
   // said "the big city by the water" — Seattle is on Puget Sound, WEST of the
   // mountains. Each drawn region carries data-region; at every pin's centre the
   // TOPMOST filled region must be the one it names.
-  const WANT = {
-    "wa-map": { ocean: "ocean", seattle: "land", rainier: "rainier", apples: "dry" },
-    "world-fly": { na: "na", eu: "eu", as: "as", sa: "sa", af: "af", au: "au", an: "an" },
-  };
+  // Every map game, from the registry (a def that names its `map`); each
+  // zone says which drawn region it must sit on (`region`).
+  const MAPGAMES = await page.evaluate(() => window.JoshGames.filter((g) => g.map).map((g) => [g.id, g.map]));
+  assert.ok(MAPGAMES.length >= 5, `fixture: the map games were found (${JSON.stringify(MAPGAMES)})`);
+  const WANT = {};
+  for (const [id, map] of MAPGAMES) WANT[id] = await page.evaluate((m) => Object.fromEntries(window.JoshContent[m].zones.map((z) => [z.id, z.region])), map);
+  const MAPOF = Object.fromEntries(MAPGAMES);
   for (const id of Object.keys(WANT)) {
+    for (const [zid, r] of Object.entries(WANT[id])) assert.ok(r, `${id}: the place "${zid}" names the region it must sit on`);
     await openGame(id);
-    const got = await page.evaluate((id) => {
+    const got = await page.evaluate(([id, map]) => {
       const C = window.JoshContent;
-      const scene = id === "wa-map" ? C.WA_MAP : C.WORLD_MAP;
+      const scene = C[map];
       const svg = document.querySelector("#screen-" + id + " .map__art svg");
       const vb = svg.viewBox.baseVal;
       const regions = [...svg.querySelectorAll("[data-region]")];
@@ -8099,7 +8171,7 @@ test("🗺️ every map pin sits on its OWN drawn region (Seattle by the water, 
         out[z.id] = { top: hit[hit.length - 1] || null, all: hit, under: [...under], nearSound: Math.round(near) };
       }
       return out;
-    }, id);
+    }, [id, MAPOF[id]]);
     for (const [zid, want] of Object.entries(WANT[id])) {
       assert.ok(got[zid], `fixture: ${id} has a pin "${zid}"`);
       assert.equal(got[zid].top, want, `${id}: the pin "${zid}" sits on "${got[zid].top}", not "${want}" (${JSON.stringify(got[zid])})`);
@@ -8110,4 +8182,123 @@ test("🗺️ every map pin sits on its OWN drawn region (Seattle by the water, 
       assert.ok(got.seattle.nearSound <= 30, `Seattle is "by the water" but ${got.seattle.nearSound} map units from Puget Sound`);
     }
   }
+});
+
+test("every shape in C.SHAPES and C.SHAPES_ASYM actually DRAWS — a blank card is no question", async () => {
+  // The moon drew nothing (an arc too short for its radius retraced the other
+  // one), so Match the Shadow and Which Piece Fits? showed an empty white card,
+  // sometimes as the right answer. Each shape is rasterised as its game draws
+  // it (a 100x100 viewBox, one fill) and must ink a real share of its box.
+  const ink = await page.evaluate(async () => {
+    const C = window.JoshContent, out = {};
+    for (const s of [...C.SHAPES, ...(C.SHAPES_ASYM || [])]) {
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100" style="fill:#000">' + s.svg + "</svg>";
+      const img = new Image();
+      await new Promise((ok, no) => { img.onload = ok; img.onerror = no; img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); });
+      const c = document.createElement("canvas"); c.width = 100; c.height = 100;
+      const g = c.getContext("2d"); g.drawImage(img, 0, 0);
+      const px = g.getImageData(0, 0, 100, 100).data;
+      let n = 0; for (let i = 3; i < px.length; i += 4) if (px[i] > 128) n++;
+      out[s.name + (C.SHAPES.includes(s) ? "" : " (asym)")] = n / 10000;
+    }
+    return out;
+  });
+  assert.ok(Object.keys(ink).length >= 12, `fixture: the shapes were drawn (${Object.keys(ink)})`);
+  for (const [name, f] of Object.entries(ink)) assert.ok(f >= 0.12, `the ${name} shape inks only ${(f * 100).toFixed(1)}% of its box — it draws as an empty card`);
+});
+
+test("⚖️ Team Balance: the tilted scale never rises into the turn label above it, at any tilt", async () => {
+  // The beam tips toward the heavy side, and its RAISED end climbs; at 6° a
+  // block a five-block side tipped it 30° and the raised end crossed "Josh's
+  // turn — add a block!". Every round's every tilt is walked, largest first.
+  await openGame("team-balance");
+  const worst = [];
+  for (let r = 0; r < 3; r++) {
+    await page.waitForFunction(() => { const s = document.getElementById("screen-team-balance"); return s.dataset.won || s.querySelector(".bal__add[data-correct]"); }, null, { timeout: 5000 });
+    if (await page.evaluate(() => !!document.getElementById("screen-team-balance").dataset.won)) break;
+    for (let k = 0; k < 8; k++) {
+      const m = await page.evaluate(() => {
+        const s = document.getElementById("screen-team-balance");
+        const t = s.querySelector(".coop__turn").getBoundingClientRect(), b = s.querySelector(".bal__beam").getBoundingClientRect();
+        const add = s.querySelector(".bal__add[data-correct]");
+        return { gap: b.top - t.bottom, blocks: s.querySelectorAll(".bal__pan--l .bal__block").length, more: !!add };
+      });
+      worst.push(m);
+      if (!m.more) break;
+      await page.evaluate(() => document.querySelector("#screen-team-balance .bal__add").click());
+      await page.waitForTimeout(450);
+    }
+  }
+  assert.ok(worst.some((m) => m.blocks >= 3), `fixture: a round with a heavy side was measured (${JSON.stringify(worst)})`);
+  for (const m of worst) assert.ok(m.gap >= 4, `the scale's raised end is ${(-m.gap).toFixed(0)}px into the turn label (${JSON.stringify(m)})`);
+});
+
+test("🐾 Whose Tracks?: every print is big enough to read — the prints ARE the question", async () => {
+  // Each print was ~30px on a phone, smaller than the answer pictures under
+  // it. Every kind of print is drawn and measured on screen.
+  await openGame("whose-tracks");
+  const kinds = await page.evaluate(() => [...new Set(window.JoshContent.TRACKS.map((t) => t.track))]);
+  const sizes = {};
+  for (let k = 0; k < 40 && Object.keys(sizes).length < kinds.length; k++) {
+    const m = await page.evaluate((kinds) => {
+      const s = document.getElementById("screen-whose-tracks");
+      const c = s.querySelector("[data-correct]"), pic = c && c.textContent.trim();
+      const t = window.JoshContent.TRACKS.find((x) => x.animal === pic);
+      const g = [...s.querySelectorAll(".tracks__scene svg > g")].map((e) => e.getBoundingClientRect());
+      return { kind: t && t.track, min: Math.min(...g.map((r) => Math.max(r.width, r.height))), n: g.length };
+    }, kinds);
+    if (m.kind) sizes[m.kind] = m;
+    // next round (or Again after the win), so every kind of print turns up
+    await page.evaluate(() => { const s = document.getElementById("screen-whose-tracks"); if (s.dataset.won) s.querySelector(".game__again").click(); else s.querySelector("[data-correct]").click(); });
+    await page.waitForTimeout(1300);
+  }
+  assert.ok(Object.keys(sizes).length >= 4, `fixture: several kinds of print were drawn (${JSON.stringify(sizes)})`);
+  for (const [k, m] of Object.entries(sizes)) {
+    assert.equal(m.n, 3, `the ${k} track is three prints`);
+    assert.ok(m.min >= 44, `a ${k} print is only ${Math.round(m.min)}px — too small to read`);
+  }
+});
+
+test("a right answer is never followed by the SAME question — every game that draws one, from the registry", async () => {
+  // Read & Zap asked "pig", he tapped the pig, and it asked "pig" again: to a
+  // four-year-old his right answer did nothing. A probe over all of Josh's
+  // games found 20 that drew each question with no memory of the last (the
+  // sorters, Read & Zap, Sight Word, Rescue, Word Family, First Sound…). They
+  // draw through api.fresh(make, key) now, which logs each round's question
+  // key on the screen. Every game whose screen keeps that log is played for
+  // ten rounds or more (Again after a win), on a fast clock, and no two
+  // rounds running may share a key.
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const p = await ctx.newPage();
+  try {
+    await p.clock.install();
+    await p.goto(baseURL, { waitUntil: "load" });
+    const ids = await p.evaluate(() => window.JoshGames.filter((g) => !g.hl).map((g) => g.id));
+    const logs = {};
+    for (const id of ids) {
+      await p.evaluate((h) => { location.hash = h; }, "#" + id);
+      await p.clock.runFor(200);
+      if (!(await p.evaluate((id) => !!document.getElementById("screen-" + id).__freshLog, id))) continue;
+      for (let k = 0; k < 40; k++) {
+        const n = await p.evaluate((id) => {
+          const s = document.getElementById("screen-" + id);
+          if (s.__freshLog.length >= 11) return -1;
+          if (s.dataset.won) s.querySelector(".game__again").click();
+          else { const b = s.querySelector("[data-correct]"); if (b) b.click(); }
+          return s.__freshLog.length;
+        }, id);
+        if (n < 0) break;
+        await p.clock.runFor(2500);
+      }
+      logs[id] = await p.evaluate((id) => document.getElementById("screen-" + id).__freshLog.slice(), id);
+      await p.evaluate(() => { location.hash = "#home"; });
+      await p.clock.runFor(100);
+    }
+    const n = Object.keys(logs).length;
+    assert.ok(n >= 15, `fixture: the games that draw a fresh question were found and played (${n}: ${Object.keys(logs)})`);
+    for (const [id, log] of Object.entries(logs)) {
+      assert.ok(log.length >= 8, `fixture: ${id} was played for only ${log.length} rounds`);
+      for (let k = 1; k < log.length; k++) assert.notEqual(log[k], log[k - 1], `${id} asked "${log[k]}" twice running (${log.join(", ")})`);
+    }
+  } finally { await ctx.close(); }
 });

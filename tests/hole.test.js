@@ -2332,6 +2332,13 @@ test("§20: TWO TABS of the app never wipe each other's ⭐ — a tab left open 
     // folded every old ⭐ straight back in, so a reset in one tab only held
     // until the other tab ate something.
     await page.bringToFront();
+    // Chromium gives each tab its own copy of localStorage and carries the
+    // other tab's write over a moment later, so wait until tab A can SEE the
+    // reset (as the §22 test does), or a busy gate reads the stale copy.
+    await page.waitForFunction(() => {
+      const s = JSON.parse(localStorage.getItem("josh-gobble-v1") || "{}");
+      return s.done && Object.keys(s.done).length === 0;
+    }, null, { timeout: 5000 });
     await page.evaluate(() => window.__HOLE.autoplay(300));
     const after = await page.evaluate(() => JSON.parse(localStorage.getItem("josh-gobble-v1")));
     assert.deepEqual(after.done, {}, "a tab open from before does not undo another tab's reset (its old ⭐ stay gone)");

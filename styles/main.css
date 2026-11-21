@@ -2090,7 +2090,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 .star__field--constellation .star__cell--lit { animation: twinkle 1.2s ease-in-out infinite; }
 
 /* Whose Tracks — the footprint scene. */
-.tracks__scene { width: min(320px, 86vw); height: 96px; margin: 0 auto 8px; }
+.tracks__scene { width: min(320px, 86vw); height: 128px; margin: 0 auto 14px; }
 .tracks__scene svg { width: 100%; height: 100%; display: block; }
 
 /* Opposites — the big prompt emoji. */
@@ -2606,7 +2606,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 .song__note--play { animation: pop 360ms ease-out; }
 
 /* Team Balance — a seesaw scale + shared add button. */
-.bal__scale { display: flex; justify-content: center; margin: 10px 0 6px; min-height: 120px; align-items: flex-start; }
+.bal__scale { display: flex; justify-content: center; margin: 44px 0 6px; min-height: 120px; align-items: flex-start; }
 .bal__beam { display: flex; gap: 44px; padding: 0 10px; border-top: 8px solid #b98a5a; border-radius: 6px; transition: transform 0.4s ease; transform-origin: center; }
 .bal__beam--level { box-shadow: 0 4px 14px rgba(120, 220, 140, 0.5); }
 .bal__pan { min-width: 74px; min-height: 74px; display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 2px; padding: 6px; background: rgba(255, 255, 255, 0.35); border-radius: 0 0 40px 40px; border: 2px solid rgba(120, 170, 255, 0.4); }
@@ -4715,6 +4715,13 @@ button.bn-pickd { cursor: pointer; }
   .map__stage .scene__zone { width: 96px; height: 96px; font-size: 2.6rem; }
 }
 .map__pin { font-size: 2.3rem; line-height: 1; pointer-events: none; }
+/* Animal Safari's question picture, big above the map — only where there is
+   room (a tall screen); a short phone keeps it in the prompt strip, so the map
+   never pushes off the screen. */
+.map__ask { display: none; text-align: center; line-height: 1; }
+@media (min-height: 800px) {
+  .map__ask { display: block; font-size: clamp(4rem, 11vh, 6rem); margin: 0 0 14px; }
+}
 .map__marker { position: absolute; right: -6px; top: -10px; font-size: 1.8rem; line-height: 1; pointer-events: none; }
 .choice--flag, .choice--thing { font-size: clamp(3rem, 16vw, 4.6rem); }
 /* The World pick games: three tall cards and a big picture, sized from the

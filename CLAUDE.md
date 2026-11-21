@@ -10215,6 +10215,33 @@ not fail on "reset forced": the resetting tab had written last, so there was
 nothing to fold either way. The other tab now writes in between, and dropping
 the force goes red.
 
+**THE iPHONE 17 PRO PLAY-THROUGH (2026-11-21): every one of Josh's 211 games
+screenshotted on the phone's real geometry, first screen and after one right
+tap, found four things no test had seen.** (1) **The moon in `C.SHAPES` drew
+NOTHING**: its inner arc, `A32 32 … 66 10`, spans an 80-unit chord, so the
+browser scales the radius up to 40 and the arc retraces the outer one: zero
+area. Match the Shadow and Which Piece Fits? showed a blank white card,
+sometimes as the right answer. Two laws now: `site.test.js` walks every literal
+path in every script and fails an arc whose radius is under half its chord, and
+`e2e.test.js` rasterises every shape and requires real ink. (2) **About 30
+games could ask the same question twice running** (Read & Zap "pig", then "pig";
+every sorter; Sight Word, Rescue, Word Family, Clock…): a right answer that is
+followed by the same question looks like it did nothing. They draw through ONE
+owner now, `api.fresh(make, key)`, which logs each round's key on the screen; an
+e2e test finds every game with that log from the registry and plays it ten
+rounds on a fake clock (8 seconds for all of them). The probe that found it had
+to learn two things: count only a round that was REBUILT (its first version
+counted the steps inside one round), and never let the buddy drawing into the
+signature (it is the same every round). (3) **Whose Tracks? drew its prints at
+~30px** — the prints ARE the question — and the deer's thin crescents, once
+drawn big, read as a row of brackets; 2.2x on a patch of mud, solid hooves, and
+a test that every kind of print is at least 44px. (4) **Team Balance's tilted
+beam rose into the turn label** at 6° a block; 5° a block, never past 18°, room
+above it, and a test that walks every tilt. Who Is It?'s faded cards in round 1
+were checked and are the designed worked example. Landscape: 667x375 left the
+two big Game Night layout tests (it had caught nothing and cost ~19s a run);
+every other landscape size has a recorded catch beside it and stays.
+
 **GOBBLE §21, LANTERN LAND BATCH A (the owner, 2026-10-21: "I defer to your
 highest quality recommendations and judgement") — six Chinese places in a sixth
 land, and Gobble's first Chinese lines; five lessons.** (1) **The word in front
@@ -11037,7 +11064,7 @@ tooling.
 │   ├── games-calm.js           # Self-registering games: breathing, certificate, trace-path, 2 co-op games
 │   ├── games-fun.js            # Self-registering games: bubbles, peekaboo, balloon, music pad
 │   ├── games-find.js           # Self-registering games: find-the-heroes, spot-the-one, count, dot-to-dot, rescue, tic-tac-toe
-│   ├── games-world.js          # Self-registering games: the 🗺️ World category (owner's pick, 2026-11) — Washington Wonders, Washington Map, China Trip, Flag Friends, Where in the World?, Fly Around the World; maps on the shared F.sceneZones
+│   ├── games-world.js          # Self-registering games: the 🗺️ World category (owner's pick, 2026-11) — Washington Wonders, Washington Map, China Trip, Flag Friends, Where in the World?, Fly Around the World, Animal Safari, USA Map, China Map; maps on the shared F.sceneZones, each place and country saying its Chinese name too
 │   ├── hl-content.js           # 华丽 (Grandma Huali) — ALL Chinese content/truth (dual-export: window.HualiContent + module.exports)
 │   ├── games-hl-a.js           # 华丽's games (一): 麻将牌艺 6 · 诗词成语 6 · 记忆锻炼 4 · 心算算术 4
 │   ├── games-hl-b.js           # 华丽's games (二): 记忆 +2 · 心算 +2 · 民俗文化 6 · 眼明手快 5 · 静心时光 5
@@ -11316,7 +11343,17 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   names what was tapped. Two more, the same day: **🎲 Story Dice** (Calm & Friends:
   roll who / where / an uh-oh and tell the story — a toy, three stories win) and
   **🧭 Hunt at Home** (Find It: find something red, soft, a spoon… in the room,
-  then tap Got it). Josh is at **208**; the home's tiles fill their last row at
+  then tap Got it). Three more World maps (2026-11-21): **🇺🇸 USA Map** (seven
+  places: Washington, California, Texas, Florida, New York, and Alaska and Hawaii
+  in their own boxes), **🧱 China Map** (the Great Wall, Beijing, Shanghai, the
+  panda forest, Mount Everest) and **🦒 Animal Safari** (an animal in the
+  question, the continents with NO pictures on them, since a picture would be the
+  answer; every animal is wild on one continent only, and never the same
+  continent twice running). Every map place and every country now says its
+  CHINESE name after the English, in a zh-CN voice (restated with pinyin in
+  content.test.js). Every map game names its `map` on its def, and every zone
+  the drawn `region` it must sit on, so the tests find the maps from the
+  registry. Josh is at **211**; the home's tiles fill their last row at
   every column count (`fillLastRow`), and below 360px wide a game's title steps
   aside (it ran under 👂 on every game at 320).
 - **🤝 Calm & Friends** — Breathing Star, I Did It! (certificate), Follow the
@@ -16110,7 +16147,7 @@ window.JoshFramework.register({
 ```
 
 The `api` gives you: `el`, `stage`, `setPrompt(caption, icons, spoken)/speak/say`,
-`tone(freq, opts)` (a note that only sounds while the game is on screen — a timer's sound goes through say/tone, never JoshAudio directly; a guardrail scans for it), `win/roundWin/tryAgain`,
+`fresh(make, key)` (draw a round that is NOT the question he just answered — `key(round)` names it; use it whenever a game draws its question from a pool), `tone(freq, opts)` (a note that only sounds while the game is on screen — a timer's sound goes through say/tone, never JoshAudio directly; a guardrail scans for it), `win/roundWin/tryAgain`,
 `nextRound(fn, ms)` (the round is over: close its board, run `fn` after a beat — see the test contract),
 `later(fn, ms)` (a timer that dies on navigation — for staggers and animations, never a round's end),
 `shouldRamp(n)`/`streak()` (invisible difficulty adaptivity — true once Josh has

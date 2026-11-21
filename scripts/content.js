@@ -215,7 +215,10 @@
       { name: "star", svg: '<polygon points="50,5 61,38 96,38 68,59 79,92 50,71 21,92 32,59 4,38 39,38"/>' },
       { name: "heart", svg: '<path d="M50 30 C35 8 5 14 5 40 C5 66 35 76 50 92 C65 76 95 66 95 40 C95 14 65 8 50 30 Z"/>' },
       { name: "diamond", svg: '<polygon points="50,6 92,50 50,94 8,50"/>' },
-      { name: "moon", svg: '<path d="M66 10 A40 40 0 1 0 66 90 A32 32 0 1 1 66 10 Z"/>' },
+      // the inner arc's radius must be at least half the 80-unit chord, or the
+      // browser stretches it to 40 and it retraces the outer arc: zero area, a
+      // blank card (it was A32 — the moon shadow and moon piece drew nothing)
+      { name: "moon", svg: '<path d="M66 10 A40 40 0 1 0 66 90 A50 50 0 0 1 66 10 Z"/>' },
       { name: "hexagon", svg: '<polygon points="50,6 88,28 88,72 50,94 12,72 12,28"/>' },
       { name: "arrow", svg: '<polygon points="8,38 58,38 58,18 94,50 58,82 58,62 8,62"/>' },
       { name: "plus", svg: '<polygon points="38,8 62,8 62,38 92,38 92,62 62,62 62,92 38,92 38,62 8,62 8,38 38,38"/>' },
@@ -1259,10 +1262,10 @@
     // sides (the ocean west, Seattle on the water, Mount Rainier south-east of
     // it, apple orchards east of the mountains). Geometry tested like SPY_SCENE.
     WA_MAP: { box: { w: 340, h: 360, dot: 78, minGap: 14 }, zones: [
-      { id: "ocean", e: "🌊", say: "the ocean", ask: "Tap the ocean — it's on Washington's west side!", x: 15, y: 50 },
-      { id: "seattle", e: "🏙️", say: "Seattle", ask: "Tap Seattle — the big city by the water!", x: 50, y: 22 },
-      { id: "rainier", e: "🏔️", say: "Mount Rainier", ask: "Tap Mount Rainier — the giant mountain!", x: 50, y: 78 },
-      { id: "apples", e: "🍎", say: "the apple orchards", ask: "Tap where the apples grow — over the mountains!", x: 85, y: 50 },
+      { id: "ocean", e: "🌊", say: "the ocean", zh: "大海", region: "ocean", ask: "Tap the ocean — it's on Washington's west side!", x: 15, y: 50 },
+      { id: "seattle", e: "🏙️", say: "Seattle", zh: "西雅图", region: "land", ask: "Tap Seattle — the big city by the water!", x: 50, y: 22 },
+      { id: "rainier", e: "🏔️", say: "Mount Rainier", zh: "雷尼尔山", region: "rainier", ask: "Tap Mount Rainier — the giant mountain!", x: 50, y: 78 },
+      { id: "apples", e: "🍎", say: "the apple orchards", zh: "苹果园", region: "dry", ask: "Tap where the apples grow — over the mountains!", x: 85, y: 50 },
     ] },
     // China Trip: one thing from China among things from far away. Each China
     // thing says its Chinese word too (in a zh-CN voice).
@@ -1287,30 +1290,71 @@
     // Japan, China and the UK, tacos are everywhere in the USA, and sloths live in
     // the south of Mexico. The clash goes both ways (logic.js makeFlagPick).
     COUNTRIES: [
-      { id: "usa", flag: "🇺🇸", name: "the USA", thing: "🗽", thingName: "the Statue of Liberty" },
-      { id: "china", flag: "🇨🇳", name: "China", thing: "🐼", thingName: "the panda" },
-      { id: "india", flag: "🇮🇳", name: "India", thing: "🐅", thingName: "the tiger", avoid: ["china", "russia"] },
-      { id: "russia", flag: "🇷🇺", name: "Russia", thing: "🪆", thingName: "the nesting dolls" },
-      { id: "canada", flag: "🇨🇦", name: "Canada", thing: "🍁", thingName: "the maple leaf", avoid: ["usa", "japan", "china", "uk"] },
-      { id: "japan", flag: "🇯🇵", name: "Japan", thing: "🗻", thingName: "Mount Fuji" },
-      { id: "mexico", flag: "🇲🇽", name: "Mexico", thing: "🌮", thingName: "the taco", avoid: ["usa"] },
-      { id: "australia", flag: "🇦🇺", name: "Australia", thing: "🦘", thingName: "the kangaroo" },
-      { id: "uk", flag: "🇬🇧", name: "the UK", thing: "💂", thingName: "the royal guards" },
-      { id: "kenya", flag: "🇰🇪", name: "Kenya", thing: "🦒", thingName: "the giraffe" },
-      { id: "brazil", flag: "🇧🇷", name: "Brazil", thing: "🦥", thingName: "the sloth", avoid: ["mexico"] },
+      { id: "usa", zh: "美国", flag: "🇺🇸", name: "the USA", thing: "🗽", thingName: "the Statue of Liberty" },
+      { id: "china", zh: "中国", flag: "🇨🇳", name: "China", thing: "🐼", thingName: "the panda" },
+      { id: "india", zh: "印度", flag: "🇮🇳", name: "India", thing: "🐅", thingName: "the tiger", avoid: ["china", "russia"] },
+      { id: "russia", zh: "俄罗斯", flag: "🇷🇺", name: "Russia", thing: "🪆", thingName: "the nesting dolls" },
+      { id: "canada", zh: "加拿大", flag: "🇨🇦", name: "Canada", thing: "🍁", thingName: "the maple leaf", avoid: ["usa", "japan", "china", "uk"] },
+      { id: "japan", zh: "日本", flag: "🇯🇵", name: "Japan", thing: "🗻", thingName: "Mount Fuji" },
+      { id: "mexico", zh: "墨西哥", flag: "🇲🇽", name: "Mexico", thing: "🌮", thingName: "the taco", avoid: ["usa"] },
+      { id: "australia", zh: "澳大利亚", flag: "🇦🇺", name: "Australia", thing: "🦘", thingName: "the kangaroo" },
+      { id: "uk", zh: "英国", flag: "🇬🇧", name: "the UK", thing: "💂", thingName: "the royal guards" },
+      { id: "kenya", zh: "肯尼亚", flag: "🇰🇪", name: "Kenya", thing: "🦒", thingName: "the giraffe" },
+      { id: "brazil", zh: "巴西", flag: "🇧🇷", name: "Brazil", thing: "🦥", thingName: "the sloth", avoid: ["mexico"] },
     ],
     // Fly Around the World: the seven continents on a drawn world map, laid out
     // where they really are relative to each other (the Americas west, Europe
     // above Africa, Asia east, Australia south-east, Antarctica at the bottom).
     // Each wears an animal or landmark so the game plays with the sound off.
     WORLD_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
-      { id: "na", name: "North America", e: "🗽", hint: "where we live", x: 15, y: 18 },
-      { id: "eu", name: "Europe", e: "🏰", hint: "where the castles are", x: 50, y: 18 },
-      { id: "as", name: "Asia", e: "🐼", hint: "where China is", x: 85, y: 18 },
-      { id: "sa", name: "South America", e: "🦙", hint: "where the llamas live", x: 15, y: 52 },
-      { id: "af", name: "Africa", e: "🦁", hint: "where the lions live", x: 50, y: 52 },
-      { id: "au", name: "Australia", e: "🦘", hint: "where the kangaroos hop", x: 85, y: 52 },
-      { id: "an", name: "Antarctica", e: "🐧", hint: "the icy land of penguins", x: 50, y: 86 },
+      { id: "na", zh: "北美洲", region: "na", name: "North America", e: "🗽", hint: "where we live", x: 15, y: 18 },
+      { id: "eu", zh: "欧洲", region: "eu", name: "Europe", e: "🏰", hint: "where the castles are", x: 50, y: 18 },
+      { id: "as", zh: "亚洲", region: "as", name: "Asia", e: "🐼", hint: "where China is", x: 85, y: 18 },
+      { id: "sa", zh: "南美洲", region: "sa", name: "South America", e: "🦙", hint: "where the llamas live", x: 15, y: 52 },
+      { id: "af", zh: "非洲", region: "af", name: "Africa", e: "🦁", hint: "where the lions live", x: 50, y: 52 },
+      { id: "au", zh: "澳洲", region: "au", name: "Australia", e: "🦘", hint: "where the kangaroos hop", x: 85, y: 52 },
+      { id: "an", zh: "南极洲", region: "an", name: "Antarctica", e: "🐧", hint: "the icy land of penguins", x: 50, y: 86 },
+    ] },
+    // Animal Safari: an animal in the question, the seven continents on the
+    // same world map with NO pictures on them (the pictures would be the
+    // answers), so he has to know where it lives. Every animal is wild on ONE
+    // continent only — the Animal Homes lesson: a lion also lives wild in
+    // India and a sloth in Central America, so neither is here.
+    ANIMAL_SAFARI: [
+      { e: "🦬", name: "the bison", at: "na" },
+      { e: "🦙", name: "the llama", at: "sa" },
+      { e: "🦔", name: "the hedgehog", at: "eu" },
+      { e: "🦒", name: "the giraffe", at: "af" },
+      { e: "🦓", name: "the zebra", at: "af" },
+      { e: "🦛", name: "the hippo", at: "af" },
+      { e: "🐼", name: "the panda", at: "as" },
+      { e: "🐅", name: "the tiger", at: "as" },
+      { e: "🦘", name: "the kangaroo", at: "au" },
+      { e: "🐨", name: "the koala", at: "au" },
+      { e: "🐧", name: "the penguin", at: "an" },
+    ],
+    // USA Map: five states where they really sit (Washington top-left where we
+    // live, California south of it on the same coast, Texas in the middle of
+    // the south, Florida the south-east corner, New York the north-east) and
+    // Alaska and Hawaii in their own boxes, the way a US map draws them.
+    USA_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
+      { id: "wa", e: "🌲", say: "Washington", zh: "华盛顿州", region: "wa", ask: "Tap Washington — where we live!", x: 16, y: 14 },
+      { id: "ny", e: "🗽", say: "New York", zh: "纽约", region: "ny", ask: "Tap New York — the Statue of Liberty!", x: 85, y: 18 },
+      { id: "ca", e: "🌉", say: "California", zh: "加利福尼亚", region: "ca", ask: "Tap California — the Golden Gate Bridge!", x: 16, y: 44 },
+      { id: "tx", e: "🤠", say: "Texas", zh: "得克萨斯", region: "tx", ask: "Tap Texas — the cowboys!", x: 50, y: 52 },
+      { id: "fl", e: "🐊", say: "Florida", zh: "佛罗里达", region: "fl", ask: "Tap Florida — the alligators!", x: 85, y: 58 },
+      { id: "ak", e: "🐻‍❄️", say: "Alaska", zh: "阿拉斯加", region: "ak", ask: "Tap Alaska — the polar bears!", x: 16, y: 84 },
+      { id: "hi", e: "🌋", say: "Hawaii", zh: "夏威夷", region: "hi", ask: "Tap Hawaii — the islands with volcanoes!", x: 55, y: 86 },
+    ] },
+    // China Map: the Great Wall across the north, Beijing at its east end,
+    // Shanghai south of Beijing on the coast, the panda forests inland in the
+    // west (Sichuan), and Mount Everest on China's far south-west edge.
+    CHINA_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
+      { id: "wall", e: "🧱", say: "the Great Wall", zh: "长城", region: "wall", ask: "Tap the Great Wall — the longest wall in the world!", x: 45, y: 18 },
+      { id: "beijing", e: "🦆", say: "Beijing", zh: "北京", region: "beijing", ask: "Tap Beijing — the big city of Peking duck!", x: 80, y: 38 },
+      { id: "shanghai", e: "🏙️", say: "Shanghai", zh: "上海", region: "shanghai", ask: "Tap Shanghai — the big city by the sea!", x: 85, y: 66 },
+      { id: "pandas", e: "🐼", say: "the panda forest", zh: "熊猫", region: "pandas", ask: "Tap the panda forest — where the pandas live!", x: 50, y: 66 },
+      { id: "everest", e: "🏔️", say: "Mount Everest", zh: "珠穆朗玛峰", region: "everest", ask: "Tap Mount Everest — the tallest mountain in the world!", x: 16, y: 80 },
     ] },
   };
 

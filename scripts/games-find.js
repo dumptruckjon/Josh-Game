@@ -281,7 +281,7 @@
       const pupArt = (p) => (window.JoshArt && window.JoshArt.pup) ? window.JoshArt.pup(p.collar, p.art) : "🐶";
       function newRound() {
         const PUPS = C.PUPS || [{ name: "Pup", job: "🚒", collar: "#e23636" }];
-        const pup = api.randItem(PUPS);
+        const pup = api.fresh(() => api.randItem(PUPS), (p) => p.name);
         const others = PUPS.filter((p) => p.collar !== pup.collar);
         const K = api.randInt(2, 5);
         const total = 12 + round * 2;
@@ -400,7 +400,7 @@
       }
       function newRound() {
         const size = 9 + round * 2;
-        const r = L.makeConjunctionHunt(COLORS.map((c) => c.name), SHAPES.map((s) => s.name), size);
+        const r = api.fresh(() => L.makeConjunctionHunt(COLORS.map((c) => c.name), SHAPES.map((s) => s.name), size), (x) => x.color + " " + x.shape);
         const color = COLORS.find((c) => c.name === r.color);
         const shape = SHAPES.find((s) => s.name === r.shape);
         clue.innerHTML = "";
@@ -665,7 +665,9 @@
       paw: '<g><circle cx="0" cy="14" r="7"/><circle cx="-9" cy="2" r="3.2"/><circle cx="-3" cy="-3" r="3.2"/><circle cx="3" cy="-3" r="3.2"/><circle cx="9" cy="2" r="3.2"/></g>',
       snake: '<path d="M-14 0 Q-7 -12 0 0 T14 0" stroke="#3a2417" stroke-width="4" fill="none" stroke-linecap="round"/>',
       // Deer: a CLOVEN print — two facing crescents (true to a deer, not a horse).
-      hoof: '<g fill="none" stroke="#3a2417" stroke-width="4"><path d="M-9 -8 A8 10 0 0 0 -9 10"/><path d="M9 -8 A8 10 0 0 1 9 10"/></g>',
+      // (Two SOLID halves with a thin split, so three prints read as three
+      // prints — two thin crescents, drawn big, read as a row of brackets.)
+      hoof: '<g fill="#3a2417"><path d="M-2 -11 C-13 -8 -12 9 -2 12 Z"/><path d="M2 -11 C13 -8 12 9 2 12 Z"/></g>',
       // Duck: a WEBBED foot — a filled membrane fans between three toes, so it can
       // never read as a songbird's separate-toed track.
       web: '<g stroke="#3a2417" stroke-width="3" stroke-linecap="round"><polygon points="0,10 -10,-8 0,-11 10,-8" fill="#3a2417" opacity="0.5" stroke="none"/><path d="M0 10 L-10 -8 M0 10 L0 -11 M0 10 L10 -8" fill="none"/></g>',
@@ -674,8 +676,11 @@
       claw: '<g><ellipse cx="0" cy="11" rx="9" ry="7" fill="#3a2417"/><path d="M-9 -1 l-2 -8 M-3 -5 l-1 -9 M3 -5 l1 -9 M9 -1 l2 -8" stroke="#3a2417" stroke-width="3" stroke-linecap="round" fill="none"/></g>',
     };
     const one = stamp[type] || stamp.paw;
-    let out = '<svg viewBox="0 0 300 90" role="img" aria-hidden="true" fill="#5a3a22">';
-    for (let i = 0; i < 3; i++) out += '<g transform="translate(' + (60 + i * 90) + ',' + (30 + i * 8) + ')">' + one + "</g>";
+    // Each print drawn 2.2x (at 1x a print was ~30px on a phone — the whole
+    // question, smaller than the answer pictures), on a patch of mud.
+    let out = '<svg viewBox="0 0 300 120" role="img" aria-hidden="true" fill="#5a3a22">' +
+      '<rect x="4" y="4" width="292" height="112" rx="26" fill="#e9d8b8"/>';
+    for (let i = 0; i < 3; i++) out += '<g transform="translate(' + (62 + i * 88) + ',' + (50 + i * 10) + ') scale(2.2)">' + one + "</g>";
     return out + "</svg>";
   }
   F.register({
@@ -781,7 +786,7 @@
       const grid = api.el("div", { class: "clue__grid choices choices--3" });
       api.stage.append(bar, grid);
       function newRound() {
-        const r = L.makeClueHunt(api.C.CLUE_CARDS);
+        const r = api.fresh(() => L.makeClueHunt(api.C.CLUE_CARDS), (x) => x.clues.map((c) => c.value).join("+"));
         const kind = r.clues[0].value, color = r.clues[1].value;
         bar.innerHTML = "";
         bar.appendChild(api.el("span", { class: "clue__card" }, [KIND_ICON[kind]]));

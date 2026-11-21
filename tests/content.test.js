@@ -1316,11 +1316,90 @@ test("🗺️ the two maps: places sit on their real sides, and the tap zones ar
   assert.ok(w.af.y > w.eu.y && Math.abs(w.af.x - w.eu.x) <= 10, "Africa below Europe");
   assert.ok(w.au.y > w.as.y && w.au.x >= w.as.x - 5, "Australia south-east, below Asia");
   for (const z of Object.values(w)) if (z.id !== "an") assert.ok(w.an.y > z.y, `Antarctica is at the bottom (below ${z.name})`);
-  for (const [nm, m] of [["wa-map", content.WA_MAP], ["world-fly", content.WORLD_MAP]]) {
+  // every map scene in content, not a list: a new map is checked the day it lands
+  const MAPS = Object.keys(content).filter((k) => /_MAP$/.test(k) && content[k] && content[k].zones);
+  assert.ok(MAPS.length >= 4, `fixture: the map scenes were found (${MAPS})`);
+  for (const [nm, m] of MAPS.map((k) => [k, content[k]])) {
     zoneGeom(nm, m.box, m.zones);
     zoneGeom(nm + "@280", Object.assign({}, m.box, { w: 280 }), m.zones);
     for (const z of m.zones) assert.ok(z.e, `${nm}: every place wears a picture, so the game plays with the sound off`);
   }
+});
+
+test("🗺️ USA Map and China Map: every place sits on its real side", () => {
+  const u = Object.fromEntries(content.USA_MAP.zones.map((z) => [z.id, z]));
+  assert.deepEqual(Object.keys(u).sort(), ["ak", "ca", "fl", "hi", "ny", "tx", "wa"], "the seven places on the USA map");
+  assert.ok(u.wa.x < u.tx.x && u.tx.x < u.fl.x, "Washington west, Texas in the middle, Florida east");
+  assert.ok(u.ca.y > u.wa.y && Math.abs(u.ca.x - u.wa.x) <= 5, "California is south of Washington, on the same west coast");
+  assert.ok(u.ny.x > u.tx.x && u.ny.y < u.tx.y && u.ny.y < u.fl.y, "New York is in the north-east");
+  assert.ok(u.fl.y > u.ny.y && u.fl.x >= u.tx.x, "Florida is the south-east corner");
+  for (const k of ["wa", "ny", "ca", "tx", "fl"]) assert.ok(u.ak.y > u[k].y && u.hi.y > u[k].y, `Alaska and Hawaii are in their own boxes below the lower 48 (${k})`);
+  const PIC = { wa: "🌲", ny: "🗽", ca: "🌉", tx: "🤠", fl: "🐊", ak: "🐻‍❄️", hi: "🌋" };
+  assert.deepEqual(Object.fromEntries(Object.values(u).map((z) => [z.id, z.e])), PIC);
+  const c = Object.fromEntries(content.CHINA_MAP.zones.map((z) => [z.id, z]));
+  assert.deepEqual(Object.keys(c).sort(), ["beijing", "everest", "pandas", "shanghai", "wall"], "the five places on the China map");
+  assert.ok(c.wall.y < c.pandas.y && c.wall.y < c.shanghai.y, "the Great Wall runs across the north");
+  assert.ok(c.beijing.x > c.wall.x && c.beijing.x > c.pandas.x, "Beijing is east, at the wall's east end");
+  assert.ok(c.shanghai.y > c.beijing.y && Math.abs(c.shanghai.x - c.beijing.x) <= 10, "Shanghai is south of Beijing on the coast");
+  assert.ok(c.pandas.x < c.shanghai.x, "the panda forests (Sichuan) are inland, west of Shanghai");
+  assert.ok(c.everest.x < c.pandas.x && c.everest.y > c.wall.y, "Mount Everest is on the far south-west edge");
+});
+
+test("🗺️ Animal Safari: every animal is wild on ONE continent, and it is that one", () => {
+  // Restated: the Animal Homes lesson — no animal that also lives wild on
+  // another continent (a lion lives wild in India, a sloth in Central
+  // America), so a right tap is never also a wrong one.
+  const HOME = { "🦬": "na", "🦙": "sa", "🦔": "eu", "🦒": "af", "🦓": "af", "🦛": "af", "🐼": "as", "🐅": "as", "🦘": "au", "🐨": "au", "🐧": "an" };
+  const A = content.ANIMAL_SAFARI;
+  assert.deepEqual(Object.fromEntries(A.map((a) => [a.e, a.at])), HOME);
+  const ids = new Set(content.WORLD_MAP.zones.map((z) => z.id));
+  for (const a of A) {
+    assert.ok(ids.has(a.at), `${a.name} lives on a continent the map has (${a.at})`);
+    assert.match(a.name, /^the [a-z]+$/, `"${a.name}" reads in "Where does ___ live?"`);
+  }
+  for (const banned of ["🦁", "🦥", "🐪", "🦜", "🐘"]) assert.ok(!A.some((a) => a.e === banned), `${banned} lives wild on more than one continent`);
+  // every continent is asked about (the pins carry no pictures, so none gives it away)
+  assert.ok(new Set(A.map((a) => a.at)).size === 7, "every continent is somebody's home");
+});
+
+test("🗺️ every Chinese name in the World games is the real one", () => {
+  // Restated with pinyin (a teaching tool for a child with a Chinese family):
+  // these are said aloud in a zh-CN voice after the English.
+  const ZH = {
+    // Washington Map
+    "the ocean": ["大海", "dàhǎi"], "Seattle": ["西雅图", "Xīyǎtú"], "Mount Rainier": ["雷尼尔山", "Léiní'ěr Shān"], "the apple orchards": ["苹果园", "píngguǒ yuán"],
+    // the continents
+    "North America": ["北美洲", "Běi Měizhōu"], "Europe": ["欧洲", "Ōuzhōu"], "Asia": ["亚洲", "Yàzhōu"], "South America": ["南美洲", "Nán Měizhōu"],
+    "Africa": ["非洲", "Fēizhōu"], "Australia": ["澳洲", "Àozhōu"], "Antarctica": ["南极洲", "Nánjízhōu"],
+    // the USA
+    "Washington": ["华盛顿州", "Huáshèngdùn Zhōu"], "New York": ["纽约", "Niǔyuē"], "California": ["加利福尼亚", "Jiālìfúníyà"], "Texas": ["得克萨斯", "Dékèsàsī"],
+    "Florida": ["佛罗里达", "Fóluólǐdá"], "Alaska": ["阿拉斯加", "Ālāsījiā"], "Hawaii": ["夏威夷", "Xiàwēiyí"],
+    // China
+    "the Great Wall": ["长城", "Chángchéng"], "Beijing": ["北京", "Běijīng"], "Shanghai": ["上海", "Shànghǎi"], "the panda forest": ["熊猫", "xióngmāo"],
+    "Mount Everest": ["珠穆朗玛峰", "Zhūmùlǎngmǎ Fēng"],
+    // the countries
+    "the USA": ["美国", "Měiguó"], "China": ["中国", "Zhōngguó"], "India": ["印度", "Yìndù"], "Russia": ["俄罗斯", "Éluósī"], "Canada": ["加拿大", "Jiānádà"],
+    "Japan": ["日本", "Rìběn"], "Mexico": ["墨西哥", "Mòxīgē"], "the UK": ["英国", "Yīngguó"], "Kenya": ["肯尼亚", "Kěnníyà"], "Brazil": ["巴西", "Bāxī"],
+  };
+  const COUNTRY_AU = ["澳大利亚", "Àodàlìyà"];
+  const seen = {};
+  for (const k of Object.keys(content).filter((k) => /_MAP$/.test(k) && content[k].zones)) {
+    for (const z of content[k].zones) {
+      const n = z.say || z.name;
+      assert.ok(z.zh, `${k}: ${n} has a Chinese name`);
+      assert.ok(ZH[n], `${k}: no restated truth for ${n}`);
+      assert.equal(z.zh, ZH[n][0], `${k}: ${n} is ${ZH[n][0]} (${ZH[n][1]}), not ${z.zh}`);
+      seen[n] = 1;
+    }
+  }
+  for (const c of content.COUNTRIES) {
+    const want = c.id === "australia" ? COUNTRY_AU : ZH[c.name];
+    assert.ok(want, `no restated truth for ${c.name}`);
+    assert.equal(c.zh, want[0], `${c.name} is ${want[0]} (${want[1]}), not ${c.zh}`);
+    seen[c.name] = 1;
+  }
+  for (const n of Object.keys(ZH)) assert.ok(seen[n], `the truth table names ${n}, which no World place or country carries`);
+  for (const v of Object.values(ZH).concat([COUNTRY_AU])) assert.match(v[0], /^[\u4e00-\u9fff]{2,}$/, `${v[0]} is a whole word, never one bare character a voice could misread`);
 });
 
 test("🎲 Story Dice and 🏠 Treasure Hunt: every face is spoken as a phrase that fits its sentence", () => {

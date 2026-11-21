@@ -1,5 +1,5 @@
 // 🗺️ World — geography for Josh: Washington (where he lives), the USA, China
-// (his family's other home) and the world. Six games on the shared framework,
+// (his family's other home) and the world. Nine games on the shared framework,
 // all no-fail, ≥75px, playable with the sound off (every answer is a picture,
 // every place wears one). Content truth lives in content.js and is restated in
 // content.test.js; the two maps' tap geometry is tested like SPY_SCENE.
@@ -66,19 +66,25 @@
 
   // A drawn map with ≥75px place buttons on top (F.sceneZones, the one
   // implementation). Each round names one place; finding it marks it.
+  // `map` names the content scene, so the tests find every map game from the
+  // registry. With `items`, each round asks about an ITEM (an animal) whose
+  // place is one of the zones, and the pins carry no pictures (they would be
+  // the answers). Every place that has a Chinese name (`zh`) says it after the
+  // English, in a Chinese voice, when it is found.
   function mapGame(cfg) {
     F.register({
-      id: cfg.id, icon: cfg.icon, title: cfg.title, skill: cfg.skill,
+      id: cfg.id, icon: cfg.icon, title: cfg.title, skill: cfg.skill, map: cfg.map,
       start(api) {
-        const scene = cfg.scene();
+        const scene = C[cfg.map];
         const zones = scene.zones.map((z) => Object.assign({ label: z.say || z.name }, z));
         const ROUNDS = cfg.rounds || zones.length;
-        let round = 0, order = [], target = null;
+        let round = 0, order = [], target = null, item = null, lastAt = null;
         const built = F.sceneZones(api, scene.box, zones, (z, b) => {
-          if (z !== target) { api.tryAgain(b); api.say(cfg.wrong(z, target)); return; }
+          if (z !== target) { api.tryAgain(b); api.say(cfg.wrong(z, target, item)); return; }
           delete b.dataset.correct; b.classList.add("scene__zone--found");
           if (cfg.marker) { b.appendChild(api.el("span", { class: "map__marker", aria: { hidden: "true" } }, [cfg.marker])); }
-          api.say(cfg.found(z));
+          api.say(cfg.found(z, item));
+          if (z.zh) api.say(z.zh, { lang: "zh-CN" });
           round += 1;
           if (round >= ROUNDS) api.win({ say: cfg.done }); else { api.roundWin(); api.nextRound(newRound, 1200); }
         });
@@ -90,17 +96,29 @@
         built.stage.style.setProperty("--map-r", String(scene.box.h / scene.box.w));
         built.stage.style.setProperty("--map-h", scene.box.h + "px");
         built.stage.insertBefore(art, built.stage.firstChild);
-        built.btns.forEach((b, i) => b.appendChild(api.el("span", { class: "map__pin", aria: { hidden: "true" } }, [zones[i].e])));
+        if (!cfg.items) built.btns.forEach((b, i) => b.appendChild(api.el("span", { class: "map__pin", aria: { hidden: "true" } }, [zones[i].e])));
+        const ask = cfg.items ? api.el("div", { class: "map__ask", aria: { hidden: "true" } }) : null;
+        if (ask) api.stage.append(ask);
         api.stage.append(built.stage);
         function newRound() {
-          if (!order.length) order = api.shuffle(zones.slice());
-          target = order.shift();
+          if (cfg.items) {
+            // never the same continent twice running: the same pin twice is no question
+            if (!order.length) order = api.shuffle(C[cfg.items].slice());
+            let k = order.findIndex((it) => it.at !== lastAt);
+            if (k < 0) { order = api.shuffle(C[cfg.items].filter((it) => it.at !== lastAt)); k = 0; }
+            item = order.splice(k, 1)[0]; lastAt = item.at;
+            target = zones.find((z) => z.id === item.at);
+            ask.textContent = item.e;
+          } else {
+            if (!order.length) order = api.shuffle(zones.slice());
+            target = order.shift();
+          }
           built.btns.forEach((b, i) => {
             b.classList.remove("scene__zone--found");
             const m = b.querySelector(".map__marker"); if (m) m.remove();
             if (zones[i] === target) b.dataset.correct = "1"; else delete b.dataset.correct;
           });
-          api.setPrompt(cfg.caption(target), [cfg.marker || "👀", target.e, "👆"], cfg.ask(target));
+          api.setPrompt(cfg.caption(target, item), [cfg.marker || "👀", item ? item.e : target.e, "👆"], cfg.ask(target, item));
           api.speak();
         }
         newRound();
@@ -124,7 +142,7 @@
     '</svg>';
   mapGame({
     id: "wa-map", icon: "🏔️", title: "Washington Map", skill: "reading a map [W]",
-    scene: () => C.WA_MAP, svg: WA_SVG,
+    map: "WA_MAP", svg: WA_SVG,
     caption: (z) => "Tap " + z.say + "!",
     ask: (z) => z.ask,
     found: (z) => "That's " + z.say + "!",
@@ -145,12 +163,72 @@
     '</svg>';
   mapGame({
     id: "world-fly", icon: "✈️", title: "Fly Around the World", skill: "the seven continents [W]",
-    scene: () => C.WORLD_MAP, svg: WORLD_SVG, marker: "✈️", rounds: 5,
+    map: "WORLD_MAP", svg: WORLD_SVG, marker: "✈️", rounds: 5,
     caption: (z) => "Fly to " + z.name + "!",
     ask: (z) => "Fly the plane to " + z.name + ", " + z.hint + "!",
     found: (z) => "Welcome to " + z.name + "!",
     wrong: (z, t) => "That's " + z.name + ". Fly to " + t.name + "!",
     done: "You flew all around the world!",
+  });
+
+  // Animal Safari: the same world map, an animal in the question, no pictures
+  // on the continents — he has to know where it lives.
+  mapGame({
+    id: "animal-safari", icon: "🦒", title: "Animal Safari", skill: "where animals live in the world [W]",
+    map: "WORLD_MAP", items: "ANIMAL_SAFARI", svg: WORLD_SVG, rounds: 6,
+    caption: (z, it) => "Where does " + it.name + " live?",
+    ask: (z, it) => "Where in the world does " + it.name + " live? Tap its home!",
+    found: (z, it) => cap(it.name) + " lives in " + z.name + "!",
+    wrong: (z, t, it) => "That's " + z.name + ". Where does " + it.name + " live?",
+    done: "You know where the animals live!",
+  });
+
+  // The USA: the lower 48 with five states drawn where they sit, Alaska and
+  // Hawaii in their own boxes at the bottom (the way a US map shows them).
+  const USA_SVG = '<svg viewBox="0 0 280 320" preserveAspectRatio="none" width="100%" height="100%">' +
+    '<rect data-region="sea" width="280" height="320" fill="#8fd3ff"/>' +
+    '<path data-region="land" d="M20 28 L84 28 L210 30 L230 26 L256 30 L262 44 L250 72 L244 110 L232 150 L246 168 L256 200 L250 214 L240 210 L230 180 L206 178 L180 190 L160 196 L150 216 L132 200 L116 178 L96 178 L48 174 C34 150 24 126 22 100 Z" fill="#f2e2b0" stroke="#a88a45" stroke-width="2"/>' +
+    '<path data-region="wa" d="M22 30 L84 30 L84 66 L22 66 Z" fill="#7ccf7a"/>' +
+    '<path data-region="ca" d="M22 100 L58 100 L58 128 L92 162 L86 176 L48 172 C36 150 26 130 22 100 Z" fill="#f4c46a"/>' +
+    '<path data-region="tx" d="M108 128 L138 128 L138 146 L176 150 L178 188 L160 194 L150 214 L134 200 L116 176 L96 176 L100 160 L108 160 Z" fill="#e88f6a"/>' +
+    '<path data-region="fl" d="M206 166 L240 160 L246 168 L256 200 L250 212 L240 208 L232 182 L206 178 Z" fill="#7cc6d8"/>' +
+    '<path data-region="ny" d="M222 44 L256 34 L262 50 L250 70 L226 72 L220 58 Z" fill="#c79ae0"/>' +
+    '<rect x="8" y="234" width="84" height="76" rx="8" fill="#b9e4ff"/>' +
+    '<path data-region="ak" d="M16 246 L70 242 L82 268 L64 296 L42 288 L18 298 Z" fill="#e9f4f9" stroke="#8fb3c8" stroke-width="2"/>' +
+    '<rect x="108" y="234" width="96" height="76" rx="8" fill="#b9e4ff"/>' +
+    '<circle cx="126" cy="258" r="5" fill="#7ccf7a"/><circle cx="138" cy="264" r="6" fill="#7ccf7a"/>' +
+    '<ellipse data-region="hi" cx="158" cy="280" rx="18" ry="15" fill="#7ccf7a"/>' +
+    '</svg>';
+  mapGame({
+    id: "usa-map", icon: "🇺🇸", title: "USA Map", skill: "the states of the USA [W]",
+    map: "USA_MAP", svg: USA_SVG, rounds: 6,
+    caption: (z) => "Tap " + z.say + "!",
+    ask: (z) => z.ask,
+    found: (z) => "That's " + z.say + "!",
+    wrong: (z, t) => "That's " + z.say + ". " + t.ask,
+    done: "You can read the map of the USA!",
+  });
+
+  // China: the Great Wall across the north, Beijing at its east end, Shanghai
+  // on the coast south of it, the panda forests inland to the west, and Mount
+  // Everest on the far south-west edge.
+  const CHINA_SVG = '<svg viewBox="0 0 280 320" preserveAspectRatio="none" width="100%" height="100%">' +
+    '<rect data-region="sea" width="280" height="320" fill="#8fd3ff"/>' +
+    '<path data-region="land" d="M20 120 C40 90 70 70 110 60 C140 40 170 30 200 34 L230 20 L262 40 L256 70 L236 84 L232 104 L246 120 L244 150 L254 190 L240 230 L208 252 L170 262 L130 250 L90 268 L60 286 L24 284 L14 200 L20 160 Z" fill="#f2d98c" stroke="#a88a45" stroke-width="2"/>' +
+    '<path data-region="wall" d="M58 62 L120 46 L200 40 L214 52 L200 58 L120 64 L62 76 Z" fill="#b5835a"/>' +
+    '<ellipse data-region="pandas" cx="140" cy="211" rx="36" ry="28" fill="#6fbf5e"/>' +
+    '<path data-region="everest" d="M45 222 L74 282 L16 282 Z" fill="#8c9aa3"/><path d="M45 222 L55 244 L35 244 Z" fill="#ffffff"/>' +
+    '<circle data-region="beijing" cx="224" cy="122" r="18" fill="#e05a4f"/>' +
+    '<circle data-region="shanghai" cx="238" cy="211" r="17" fill="#e05a4f"/>' +
+    '</svg>';
+  mapGame({
+    id: "china-map", icon: "🧱", title: "China Map", skill: "places in China [W]",
+    map: "CHINA_MAP", svg: CHINA_SVG,
+    caption: (z) => "Tap " + z.say + "!",
+    ask: (z) => z.ask,
+    found: (z) => "That's " + z.say + "!",
+    wrong: (z, t) => "That's " + z.say + ". " + t.ask,
+    done: "You can read the map of China!",
   });
 
   // Flags. Flag Friends: hear a country, tap its flag. Where in the World?:
@@ -183,6 +261,7 @@
             b.addEventListener("click", () => {
               if (!ch.correct) { api.tryAgain(b); api.say(thing ? "That's " + o.thingName + ", from " + o.name + "." : "That's the flag of " + o.name + "."); return; }
               api.say(cfg.found(c));
+              if (c.zh) api.say(c.zh, { lang: "zh-CN" });
               round += 1;
               if (round >= ROUNDS) api.win({ say: cfg.done }); else { api.roundWin(); api.nextRound(newRound, 1100); }
             });

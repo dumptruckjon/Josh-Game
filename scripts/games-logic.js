@@ -122,7 +122,7 @@
         return '<svg viewBox="0 0 100 100" style="fill:' + fill + '" aria-hidden="true">' + shape.svg + "</svg>";
       }
       function newRound() {
-        const r = L.makeShadowMatch(C.SHAPES);
+        const r = api.fresh(() => L.makeShadowMatch(C.SHAPES), (x) => x.target.name);
         api.setPrompt("Which shadow matches?", ["👀", "⬛", "❓"]);
         api.speak();
         target.innerHTML = shapeSvg(r.target, api.randItem(COLORS));
@@ -464,7 +464,7 @@
         return '<span class="be__grid">' + g + "</span>";
       }
       function newRound() {
-        const r = L.makeTopView();
+        const r = api.fresh(() => L.makeTopView(), (x) => JSON.stringify(x.cells));
         drawScene(r.cells);
         api.setPrompt("Which one is the view from above?", ["👀", "🚁", "⬇️"]);
         api.speak();

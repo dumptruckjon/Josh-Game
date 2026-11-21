@@ -1417,7 +1417,9 @@
       function tilt() {
         // negative = left-heavy (right needs more); 0 = balanced
         const diff = right - n;
-        beam.style.transform = "rotate(" + (diff * -6) + "deg)";
+        // 5° a block, never past 18°: at 6° a block a 5-block side tipped the
+        // beam 30° and its raised end rose into the turn label above it
+        beam.style.transform = "rotate(" + Math.max(-18, Math.min(18, diff * -5)) + "deg)";
         beam.classList.toggle("bal__beam--level", diff === 0);
       }
       function newRound() {
