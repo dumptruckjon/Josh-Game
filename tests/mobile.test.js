@@ -2583,11 +2583,16 @@ test("📱 iPhone 17 Pro: the games that GROW still fit in their later rounds", 
       await p.evaluate((h) => { location.hash = h; }, "#" + id);
       await p.waitForFunction((id) => { const s = document.getElementById("screen-" + id); return s && !s.hidden; }, id);
       let tapped = 0;
+      // a round's end closes the board for a beat (api.nextRound), so each tap
+      // waits for the next thing to tap rather than for a fixed time — under a
+      // loaded machine a fixed 1.1s landed inside the beat and missed taps
       for (let k = 0; k < steps; k++) {
+        await p.waitForFunction((id) => { const s = document.getElementById("screen-" + id);
+          return s.dataset.won || s.querySelector("[data-correct]") || s.querySelector("[data-toy]:not([disabled])"); }, id, { timeout: 8000 }).catch(() => {});
         const ok = await p.evaluate((id) => { const s = document.getElementById("screen-" + id);
           const t = s.querySelector("[data-correct]") || s.querySelector("[data-toy]:not([disabled])"); if (t) t.click(); return !!t; }, id);
         if (ok) tapped += 1;
-        await p.waitForTimeout(1100);
+        await p.waitForTimeout(400);
       }
       assert.ok(tapped >= steps - 1, `fixture: ${id} took only ${tapped} of ${steps} taps — the walk did not reach the late round`);
       const r = await p.evaluate(([id, B, H]) => {

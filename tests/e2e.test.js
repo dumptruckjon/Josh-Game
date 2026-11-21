@@ -7700,7 +7700,10 @@ test("🌞 Today: three games for the day — Numbers, Letters and one more — 
     const cats = await pg.evaluate((xs) => xs.map((x) => (window.JoshGames.find((g) => g.id === x) || {}).cat), ids);
     assert.equal(cats[0], "numbers", `the first is a Numbers game (${cats})`);
     assert.equal(cats[1], "letters", `the second is a Letters game (${cats})`);
-    assert.ok(["thinking", "find", "science"].includes(cats[2]), `the third is thinking, finding or science (${cats})`);
+    // the third shelf list is the picker's own (World joined it, 2026-11-20)
+    const others = await pg.evaluate(() => window.JoshLogic.TODAY_OTHERS);
+    assert.ok(others.length >= 3 && others.includes("thinking"), `fixture: the third-pick shelves (${others})`);
+    assert.ok(others.includes(cats[2]), `the third is one of ${others} (${cats})`);
     assert.deepEqual(t.map((x) => x.done), [false, false, false], "nothing is done at the start of the day");
     assert.equal(await party(), false, "no party before anything is played");
     const stored = await pg.evaluate(() => JSON.parse(localStorage.getItem("josh-today")));
