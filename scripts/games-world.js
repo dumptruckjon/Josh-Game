@@ -1,5 +1,5 @@
 // 🗺️ World — geography for Josh: Washington (where he lives), the USA, China
-// (his family's other home) and the world. Nine games on the shared framework,
+// (his family's other home) and the world. Eleven games on the shared framework,
 // all no-fail, ≥75px, playable with the sound off (every answer is a picture,
 // every place wears one). Content truth lives in content.js and is restated in
 // content.test.js; the two maps' tap geometry is tested like SPY_SCENE.
@@ -62,6 +62,14 @@
     ask: "Which one is from China?", icons: ["✈️", "🏮", "👉"],
     notHere: "That's not from China!",
     done: "What a trip to China!",
+  });
+
+  oddPlaceGame({
+    id: "wa-animals", icon: "🦦", title: "Washington Animals", skill: "animals where we live [W]",
+    own: () => (C.WA_ANIMALS || {}).wa || [], far: () => (C.WA_ANIMALS || {}).far || [],
+    ask: "Which animal lives wild in Washington?", icons: ["🏠", "🐾", "👉"],
+    notHere: "Not wild in Washington!",
+    done: "You know Washington's animals!",
   });
 
   // A drawn map with ≥75px place buttons on top (F.sceneZones, the one
@@ -184,6 +192,35 @@
     alsoFound: (z, it) => "Yes! " + cap(it.name) + " lives in " + z.name + " too!",
     wrong: (z, t, it) => "That's " + z.name + ". Where does " + it.name + " live?",
     done: "You know where the animals live!",
+  });
+
+  // The five oceans round a simple world: every sea a drawn region, the
+  // continents (no region) between them where they sit on a map.
+  const OCEAN_SVG = '<svg viewBox="0 0 280 320" preserveAspectRatio="none" width="100%" height="100%">' +
+    // one sea colour: the oceans are named by their pins, not by stripes
+    // (a base sea under the regions, so their shared edges leave no seam)
+    '<rect width="280" height="320" fill="#86cff7"/>' +
+    '<rect data-region="pacific" x="0" y="40" width="74" height="215" fill="#86cff7"/>' +
+    '<rect data-region="atlantic" x="74" y="40" width="98" height="215" fill="#86cff7"/>' +
+    '<rect data-region="indian" x="172" y="40" width="108" height="215" fill="#86cff7"/>' +
+    '<rect data-region="arctic" x="0" y="0" width="280" height="40" fill="#cdeefc"/>' +
+    '<rect data-region="southern" x="0" y="255" width="280" height="65" fill="#a7dcf7"/>' +
+    '<path d="M80 46 C96 40 114 46 112 70 C108 94 98 112 88 124 C80 108 76 78 80 46 Z" fill="#7ccf7a"/>' +
+    '<path d="M92 140 C104 136 110 150 106 172 C102 196 98 212 94 224 C88 204 86 166 92 140 Z" fill="#7ccf7a"/>' +
+    '<path d="M178 48 C188 42 200 46 200 60 C198 76 188 88 180 90 C176 76 174 60 178 48 Z" fill="#9edc7a"/>' +
+    '<path d="M178 104 C190 100 204 106 204 128 C202 158 194 188 186 208 C178 188 174 150 178 104 Z" fill="#e8c46a"/>' +
+    '<path d="M208 44 C236 34 270 42 276 64 C276 94 256 120 230 124 C216 116 208 88 208 44 Z" fill="#c2d86a"/>' +
+    '<path d="M250 228 C260 222 274 226 276 238 C274 250 262 256 254 252 C246 246 246 236 250 228 Z" fill="#e8b25a"/>' +
+    '<path d="M40 300 C90 288 190 288 240 300 C200 316 80 316 40 300 Z" fill="#f4f9ff" stroke="#c9dcef" stroke-width="2"/>' +
+    '</svg>';
+  mapGame({
+    id: "ocean-map", icon: "🌊", title: "Ocean Map", skill: "the five oceans [W]",
+    map: "OCEAN_MAP", svg: OCEAN_SVG,
+    caption: (z) => "Tap " + z.say + "!",
+    ask: (z) => z.ask,
+    found: (z) => "That's " + z.say + "!",
+    wrong: (z, t) => "That's " + z.say + ". " + t.ask,
+    done: "You know the oceans of the world!",
   });
 
   // The USA: the lower 48 with five states drawn where they sit, Alaska and

@@ -2736,7 +2736,7 @@ $("hzTodayBtn").addEventListener("click", () => {
 });
 
 /* ---------- 📚 Stories: the books ----------
-   Eight little books he can READ, not just hear. Every word is either one he
+   Little books he can READ, not just hear. Every word is either one he
    can sound out — a short vowel between consonants he knows, with the blends,
    doubles and letter teams the Sound Teams deck teaches — or one of the sight
    words in the Sight Words deck. A test holds every word to that, so a story
@@ -2859,6 +2859,24 @@ const STORIES = [
     ["🔄", "The cat can turn and turn."],
     ["😿", "Is the cat hurt? No!"],
     ["😺", "The cat curls up."]] },
+  // More letter teams: ng ends a word (king, song), qu and wh start one.
+  { id: "king", team: "ng", cover: "🤴", title: "The King Sings", pages: [
+    ["🤴", "A king can sing."],
+    ["💍", "The king has a ring."],
+    ["🎵", "The king sang a long song."],
+    ["🔔", "Ding, dong! Sing, king!"],
+    ["😄", "Josh and the king sing."]] },
+  { id: "quilt", team: "qu", cover: "🛏️", title: "The Quilt", pages: [
+    ["🛏️", "Mom has a red quilt."],
+    ["😊", "Josh is on the quilt."],
+    ["🦆", "A duck! Quack! Quack!"],
+    ["💨", "Quick, duck! Get off!"],
+    ["😴", "Snug in a quilt. Yes!"]] },
+  { id: "whisk", team: "wh", cover: "🥣", title: "Whisk It!", pages: [
+    ["🥣", "Dad has a whisk."],
+    ["🥚", "Which egg? This egg!"],
+    ["🌀", "Whisk, whisk, whisk!"],
+    ["🥞", "When is it hot? Yum!"]] },
 ];
 /* 📚 读一读: the Chinese shelf. Every character on every page is one of the 120
    on his 中文 cards, so this is reading, not being read to — a test holds that.
@@ -2911,6 +2929,24 @@ const HZ_STORIES = [
     ["🐝", "蜜蜂 飞来了。"],
     ["🦋", "蝴蝶 飞来 飞去。"],
     ["😄", "我 好高兴！"]] },
+  { id: "zh-snow", cover: "❄️", title: "下雪了", pages: [
+    ["🌨️", "下雪了！"],
+    ["☁️", "天上 白白的。"],
+    ["🐶", "小狗 跑出去。"],
+    ["⛄", "我 玩 雪。"],
+    ["❄️", "冬天 来了！"]] },
+  { id: "zh-car", cover: "🚗", title: "爸爸的车", pages: [
+    ["🚗", "爸爸 有 车。"],
+    ["🔴", "车 是 红的。"],
+    ["💺", "我 坐 车。"],
+    ["🏠", "车 开 回家。"],
+    ["❤️", "我 谢谢 爸爸！"]] },
+  { id: "zh-puppy", cover: "🐕", title: "小狗", pages: [
+    ["😢", "小狗 哭了。"],
+    ["🔍", "小狗 找 妈妈。"],
+    ["🐕", "妈妈 回来了！"],
+    ["😄", "小狗 笑了。"],
+    ["😴", "小狗 睡了。"]] },
 ];
 /* The words of a line, as the buttons show them (punctuation stays on its
    word) and as they are SAID (without it). One owner, so the button and the

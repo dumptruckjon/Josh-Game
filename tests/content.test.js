@@ -1281,6 +1281,25 @@ test("🗺️ Washington Wonders: every Washington thing is really Washington, e
   for (const i of W.wa) assert.ok(/Washington/.test(i.fact) && /!$/.test(i.fact), `${i.name}'s fact names Washington and is a sentence`);
 });
 
+test("🗺️ Washington Animals: every Washington animal lives wild in the state, no far animal does", () => {
+  const WA = { "🦅": "a bald eagle", "🐻": "a black bear", "🦦": "a sea otter", "🦌": "a deer", "🐙": "an octopus", "🦭": "a seal", "🦫": "a beaver", "🦉": "an owl" };
+  const FAR = { "🐪": "a camel", "🦘": "a kangaroo", "🦁": "a lion", "🐼": "a panda", "🦒": "a giraffe", "🐧": "a penguin", "🦓": "a zebra", "🐨": "a koala", "🦛": "a hippo" };
+  const W = content.WA_ANIMALS;
+  assert.deepEqual(Object.fromEntries(W.wa.map((i) => [i.e, i.name])), WA);
+  assert.deepEqual(Object.fromEntries(W.far.map((i) => [i.e, i.name])), FAR);
+  for (const i of W.wa) assert.ok(/Washington/.test(i.fact) && /!$/.test(i.fact), `${i.name}'s fact names Washington and is a sentence`);
+  // "a"/"an" by sound, since the wrong tap says the name aloud
+  for (const i of W.wa.concat(W.far)) assert.equal(i.name.split(" ")[0], /^[aeiou]/.test(i.name.split(" ")[1]) ? "an" : "a", i.name);
+});
+
+test("🗺️ Ocean Map: the five oceans, each on its real side", () => {
+  const o = Object.fromEntries(content.OCEAN_MAP.zones.map((z) => [z.id, z]));
+  assert.deepEqual(Object.keys(o).sort(), ["arctic", "atlantic", "indian", "pacific", "southern"], "the five oceans");
+  assert.ok(o.pacific.x < o.atlantic.x && o.atlantic.x < o.indian.x, "the Pacific west of the Americas, the Atlantic, then the Indian east of Africa");
+  for (const k of ["pacific", "atlantic", "indian", "southern"]) assert.ok(o.arctic.y < o[k].y, `the Arctic is at the top (above ${k})`);
+  for (const k of ["pacific", "atlantic", "indian", "arctic"]) assert.ok(o.southern.y > o[k].y, `the Southern Ocean is at the bottom (below ${k})`);
+});
+
 test("🗺️ China Trip: every China thing with its Chinese word; every far thing is not from China", () => {
   const CHINA = { "🐼": "熊猫", "🥟": "饺子", "🏮": "灯笼", "🥢": "筷子", "🧧": "红包", "🐉": "龙" };
   const FAR = ["🦘", "🗽", "🦙", "🐧", "🌮"];
@@ -1386,6 +1405,9 @@ test("🗺️ every Chinese name in the World games is the real one", () => {
     // China
     "the Great Wall": ["长城", "Chángchéng"], "Beijing": ["北京", "Běijīng"], "Shanghai": ["上海", "Shànghǎi"], "the panda forest": ["熊猫森林", "xióngmāo sēnlín"],
     "Mount Everest": ["珠穆朗玛峰", "Zhūmùlǎngmǎ Fēng"],
+    // the oceans
+    "the Arctic Ocean": ["北冰洋", "Běibīng Yáng"], "the Pacific Ocean": ["太平洋", "Tàipíng Yáng"], "the Atlantic Ocean": ["大西洋", "Dàxī Yáng"],
+    "the Indian Ocean": ["印度洋", "Yìndù Yáng"], "the Southern Ocean": ["南大洋", "Nán Dàyáng"],
     // the countries
     "the USA": ["美国", "Měiguó"], "China": ["中国", "Zhōngguó"], "India": ["印度", "Yìndù"], "Russia": ["俄罗斯", "Éluósī"], "Canada": ["加拿大", "Jiānádà"],
     "Japan": ["日本", "Rìběn"], "Mexico": ["墨西哥", "Mòxīgē"], "the UK": ["英国", "Yīngguó"], "Kenya": ["肯尼亚", "Kěnníyà"], "Brazil": ["巴西", "Bāxī"],

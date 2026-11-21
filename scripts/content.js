@@ -1258,6 +1258,38 @@
         { e: "🦁", name: "a lion" }, { e: "🗽", name: "the Statue of Liberty" }, { e: "🐼", name: "a panda" },
       ],
     },
+    // Washington Animals: one animal that lives WILD in Washington among
+    // animals that do not live wild anywhere in the state. Restated in
+    // content.test (no farm or zoo animal on the far list: a llama is farmed
+    // here, so it is not offered).
+    WA_ANIMALS: {
+      wa: [
+        { e: "🦅", name: "a bald eagle", fact: "Bald eagles fly over Washington's rivers!" },
+        { e: "🐻", name: "a black bear", fact: "Black bears live in Washington's forests!" },
+        { e: "🦦", name: "a sea otter", fact: "Sea otters float in the sea by Washington!" },
+        { e: "🦌", name: "a deer", fact: "Deer munch grass all over Washington!" },
+        { e: "🐙", name: "an octopus", fact: "Giant octopuses hide in the water by Washington!" },
+        { e: "🦭", name: "a seal", fact: "Seals rest on the rocks by Washington's beaches!" },
+        { e: "🦫", name: "a beaver", fact: "Beavers build dams in Washington's streams!" },
+        { e: "🦉", name: "an owl", fact: "Owls hoot at night in Washington's woods!" },
+      ],
+      far: [
+        { e: "🐪", name: "a camel" }, { e: "🦘", name: "a kangaroo" }, { e: "🦁", name: "a lion" },
+        { e: "🐼", name: "a panda" }, { e: "🦒", name: "a giraffe" }, { e: "🐧", name: "a penguin" },
+        { e: "🦓", name: "a zebra" }, { e: "🐨", name: "a koala" }, { e: "🦛", name: "a hippo" },
+      ],
+    },
+    // Ocean Map: the five oceans round a drawn world map, each where it really
+    // is (the Pacific west of the Americas, the Atlantic between the Americas
+    // and Africa, the Indian south of Asia, the Arctic at the top and the
+    // Southern Ocean round Antarctica). Geometry tested like the other maps.
+    OCEAN_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
+      { id: "arctic", e: "🧊", say: "the Arctic Ocean", zh: "北冰洋", region: "arctic", ask: "Tap the Arctic Ocean — the icy ocean at the top!", x: 50, y: 11 },
+      { id: "pacific", e: "🐋", say: "the Pacific Ocean", zh: "太平洋", region: "pacific", ask: "Tap the Pacific Ocean — the biggest ocean, by Washington!", x: 15, y: 48 },
+      { id: "atlantic", e: "⛵", say: "the Atlantic Ocean", zh: "大西洋", region: "atlantic", ask: "Tap the Atlantic Ocean — between America and Africa!", x: 50, y: 50 },
+      { id: "indian", e: "🐢", say: "the Indian Ocean", zh: "印度洋", region: "indian", ask: "Tap the Indian Ocean — south of India!", x: 84, y: 62 },
+      { id: "southern", e: "🐧", say: "the Southern Ocean", zh: "南大洋", region: "southern", ask: "Tap the Southern Ocean — all around Antarctica!", x: 50, y: 85 },
+    ] },
     // Washington Map: four places on a drawn map of the state, at their real
     // sides (the ocean west, Seattle on the water, Mount Rainier south-east of
     // it, apple orchards east of the mountains). Geometry tested like SPY_SCENE.
