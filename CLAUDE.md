@@ -11348,8 +11348,13 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   in their own boxes), **🧱 China Map** (the Great Wall, Beijing, Shanghai, the
   panda forest, Mount Everest) and **🦒 Animal Safari** (an animal in the
   question, the continents with NO pictures on them, since a picture would be the
-  answer; every animal is wild on one continent only, and never the same
-  continent twice running). Every map place and every country now says its
+  answer; never the same continent twice running). Each animal has a home
+  (`at`) and every OTHER continent it really lives wild on (`also`: penguins,
+  hedgehogs, the bison), and a tap there is a right answer ("Yes! The bison
+  lives in Europe too!"). It shipped marking those true taps wrong — the
+  also-correct-distractor class again, on a game whose own comment said no
+  animal lived on two continents. The panda forest's Chinese name is 熊猫森林
+  (it had said 熊猫, "panda"). Every map place and every country now says its
   CHINESE name after the English, in a zh-CN voice (restated with pinyin in
   content.test.js). Every map game names its `map` on its def, and every zone
   the drawn `region` it must sit on, so the tests find the maps from the

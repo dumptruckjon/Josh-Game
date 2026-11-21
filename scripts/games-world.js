@@ -80,10 +80,12 @@
         const ROUNDS = cfg.rounds || zones.length;
         let round = 0, order = [], target = null, item = null, lastAt = null;
         const built = F.sceneZones(api, scene.box, zones, (z, b) => {
-          if (z !== target) { api.tryAgain(b); api.say(cfg.wrong(z, target, item)); return; }
-          delete b.dataset.correct; b.classList.add("scene__zone--found");
+          // an animal that ALSO lives wild here: a true answer, never a "try again"
+          const also = !!(item && item.also && item.also.includes(z.id));
+          if (z !== target && !also) { api.tryAgain(b); api.say(cfg.wrong(z, target, item)); return; }
+          built.btns.forEach((x) => delete x.dataset.correct); b.classList.add("scene__zone--found");
           if (cfg.marker) { b.appendChild(api.el("span", { class: "map__marker", aria: { hidden: "true" } }, [cfg.marker])); }
-          api.say(cfg.found(z, item));
+          api.say(z === target ? cfg.found(z, item) : cfg.alsoFound(z, item, target));
           if (z.zh) api.say(z.zh, { lang: "zh-CN" });
           round += 1;
           if (round >= ROUNDS) api.win({ say: cfg.done }); else { api.roundWin(); api.nextRound(newRound, 1200); }
@@ -179,6 +181,7 @@
     caption: (z, it) => "Where does " + it.name + " live?",
     ask: (z, it) => "Where in the world does " + it.name + " live? Tap its home!",
     found: (z, it) => cap(it.name) + " lives in " + z.name + "!",
+    alsoFound: (z, it) => "Yes! " + cap(it.name) + " lives in " + z.name + " too!",
     wrong: (z, t, it) => "That's " + z.name + ". Where does " + it.name + " live?",
     done: "You know where the animals live!",
   });

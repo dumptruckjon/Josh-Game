@@ -8045,7 +8045,11 @@ test("the owner's new picks play as designed: Story Dice, Hunt at Home and the �
       const pins = s.querySelectorAll(".map__pin").length, zones = s.querySelectorAll(".scene__zone").length;
       const icon = s.querySelector(".game__icons").textContent;
       window.__S1.length = 0;
-      const wrong = s.querySelector(".scene__zone:not([data-correct])"); const wn = wrong.getAttribute("aria-label"); wrong.click();
+      // a continent that is neither its home nor one it ALSO lives wild on
+      const it = window.JoshContent.ANIMAL_SAFARI.find((a) => s.querySelector(".game__promptText").textContent === "Where does " + a.name + " live?");
+      const names = Object.fromEntries(window.JoshContent.WORLD_MAP.zones.map((z) => [z.name, z.id]));
+      const wrong = [...s.querySelectorAll(".scene__zone:not([data-correct])")].find((b) => !(it.also || []).includes(names[b.getAttribute("aria-label")]));
+      const wn = wrong.getAttribute("aria-label"); wrong.click();
       const wrongSaid = window.__S1.map((x) => x[0]); window.__S1.length = 0;
       const right = s.querySelector(".scene__zone[data-correct]"); const rn = right.getAttribute("aria-label"); right.click();
       return { pins, zones, icon, wn, rn, wrongSaid, rightSaid: window.__S1.slice(), prompt: s.querySelector(".game__promptText").textContent };
@@ -8070,6 +8074,31 @@ test("the owner's new picks play as designed: Story Dice, Hunt at Home and the �
     assert.equal(homes.length, 6, `fixture: Animal Safari played its six rounds (${homes})`);
     for (let k = 1; k < homes.length; k++) assert.notEqual(homes[k], homes[k - 1], `Animal Safari asked about ${homes[k]} twice running (${homes})`);
     assert.ok(await page.evaluate(() => !!document.getElementById("screen-animal-safari").dataset.won), "six right homes win Animal Safari");
+    // A continent the animal ALSO lives wild on is a RIGHT answer — the bison
+    // (first, with the shuffle pinned) lives wild in Europe too, so a tap there
+    // is no "try again": it is named as true, it is found, and it counts.
+    await page.waitForTimeout(400); // past the echo window: a child who looked, then pressed Again
+    await page.evaluate(() => document.querySelector("#screen-animal-safari .game__again").click());
+    await page.waitForFunction(() => !document.getElementById("screen-animal-safari").dataset.won, null, { timeout: 5000 });
+    await said();
+    const also = await page.evaluate(() => {
+      const s = document.getElementById("screen-animal-safari");
+      const prompt = s.querySelector(".game__promptText").textContent;
+      const eu = [...s.querySelectorAll(".scene__zone")].find((b) => b.getAttribute("aria-label") === "Europe");
+      window.__S1.length = 0; eu.click();
+      return { prompt, said: window.__S1.map((x) => x[0]), found: eu.classList.contains("scene__zone--found"),
+        wiggle: eu.classList.contains("bump"), flags: s.querySelectorAll("[data-correct]").length };
+    });
+    assert.equal(also.prompt, "Where does the bison live?", `fixture: the pinned shuffle opens on the bison (${also.prompt})`);
+    assert.ok(also.said.includes("Yes! The bison lives in Europe too!"), `a true second home is named as true (${JSON.stringify(also.said)})`);
+    assert.ok(!also.said.some((x) => /^That's /.test(x)), `…never as a wrong answer (${JSON.stringify(also.said)})`);
+    assert.ok(also.found && !also.wiggle, "the tapped continent is found, not wiggled");
+    assert.equal(also.flags, 0, "…and the round is over (no answer left flagged)");
+    for (let k = 0; k < 5; k++) {
+      await page.waitForFunction(() => { const s = document.getElementById("screen-animal-safari"); const c = s.querySelector(".scene__zone[data-correct]"); return s.dataset.won || (c && !c.classList.contains("scene__zone--found")); }, null, { timeout: 5000 });
+      if (!(await page.evaluate(() => { const c = document.querySelector("#screen-animal-safari .scene__zone[data-correct]"); if (!c) return false; c.click(); return true; }))) break;
+    }
+    assert.ok(await page.evaluate(() => !!document.getElementById("screen-animal-safari").dataset.won), "the also-home counted as one of the six rounds");
     await page.evaluate(() => { Math.random = window.__RND; });
 
     // 🇺🇸 USA Map and 🧱 China Map: the right place says its name, then its Chinese name.

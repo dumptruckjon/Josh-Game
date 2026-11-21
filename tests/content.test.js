@@ -1345,7 +1345,7 @@ test("🗺️ USA Map and China Map: every place sits on its real side", () => {
   assert.ok(c.everest.x < c.pandas.x && c.everest.y > c.wall.y, "Mount Everest is on the far south-west edge");
 });
 
-test("🗺️ Animal Safari: every animal is wild on ONE continent, and it is that one", () => {
+test("🗺️ Animal Safari: each animal's home, and EVERY other continent it lives wild on", () => {
   // Restated: the Animal Homes lesson — no animal that also lives wild on
   // another continent (a lion lives wild in India, a sloth in Central
   // America), so a right tap is never also a wrong one.
@@ -1356,6 +1356,15 @@ test("🗺️ Animal Safari: every animal is wild on ONE continent, and it is th
   for (const a of A) {
     assert.ok(ids.has(a.at), `${a.name} lives on a continent the map has (${a.at})`);
     assert.match(a.name, /^the [a-z]+$/, `"${a.name}" reads in "Where does ___ live?"`);
+  }
+  // Restated: where else each one REALLY lives wild. A tap on one of these is
+  // a right answer, so it may never be missing (penguins on the coasts of
+  // South America, Africa and Australia; hedgehogs across Africa and Asia; the
+  // European bison). Every other animal here lives wild on its home alone.
+  const ALSO = { "🦬": ["eu"], "🦔": ["af", "as"], "🐧": ["af", "au", "sa"] };
+  assert.deepEqual(Object.fromEntries(A.filter((a) => a.also).map((a) => [a.e, a.also.slice().sort()])), ALSO);
+  for (const a of A) if (a.also) {
+    for (const z of a.also) assert.ok(ids.has(z) && z !== a.at, `${a.name}: "${z}" is another continent on the map`);
   }
   for (const banned of ["🦁", "🦥", "🐪", "🦜", "🐘"]) assert.ok(!A.some((a) => a.e === banned), `${banned} lives wild on more than one continent`);
   // every continent is asked about (the pins carry no pictures, so none gives it away)
@@ -1375,7 +1384,7 @@ test("🗺️ every Chinese name in the World games is the real one", () => {
     "Washington": ["华盛顿州", "Huáshèngdùn Zhōu"], "New York": ["纽约", "Niǔyuē"], "California": ["加利福尼亚", "Jiālìfúníyà"], "Texas": ["得克萨斯", "Dékèsàsī"],
     "Florida": ["佛罗里达", "Fóluólǐdá"], "Alaska": ["阿拉斯加", "Ālāsījiā"], "Hawaii": ["夏威夷", "Xiàwēiyí"],
     // China
-    "the Great Wall": ["长城", "Chángchéng"], "Beijing": ["北京", "Běijīng"], "Shanghai": ["上海", "Shànghǎi"], "the panda forest": ["熊猫", "xióngmāo"],
+    "the Great Wall": ["长城", "Chángchéng"], "Beijing": ["北京", "Běijīng"], "Shanghai": ["上海", "Shànghǎi"], "the panda forest": ["熊猫森林", "xióngmāo sēnlín"],
     "Mount Everest": ["珠穆朗玛峰", "Zhūmùlǎngmǎ Fēng"],
     // the countries
     "the USA": ["美国", "Měiguó"], "China": ["中国", "Zhōngguó"], "India": ["印度", "Yìndù"], "Russia": ["俄罗斯", "Éluósī"], "Canada": ["加拿大", "Jiānádà"],

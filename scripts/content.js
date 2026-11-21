@@ -1317,13 +1317,17 @@
     ] },
     // Animal Safari: an animal in the question, the seven continents on the
     // same world map with NO pictures on them (the pictures would be the
-    // answers), so he has to know where it lives. Every animal is wild on ONE
-    // continent only — the Animal Homes lesson: a lion also lives wild in
-    // India and a sloth in Central America, so neither is here.
+    // answers), so he has to know where it lives. A lion (also wild in India) and
+    // a sloth (Central America) are left out; the three that do live wild on a
+    // second continent say so through `also`.
+    // `at` is the home a child is taught; `also` lists every OTHER continent it
+    // really lives wild on (European bison; hedgehogs in Africa and Asia;
+    // penguins in South America, Africa and Australia), so a true tap there is
+    // a right answer, never a "try again".
     ANIMAL_SAFARI: [
-      { e: "🦬", name: "the bison", at: "na" },
+      { e: "🦬", name: "the bison", at: "na", also: ["eu"] },
       { e: "🦙", name: "the llama", at: "sa" },
-      { e: "🦔", name: "the hedgehog", at: "eu" },
+      { e: "🦔", name: "the hedgehog", at: "eu", also: ["af", "as"] },
       { e: "🦒", name: "the giraffe", at: "af" },
       { e: "🦓", name: "the zebra", at: "af" },
       { e: "🦛", name: "the hippo", at: "af" },
@@ -1331,7 +1335,7 @@
       { e: "🐅", name: "the tiger", at: "as" },
       { e: "🦘", name: "the kangaroo", at: "au" },
       { e: "🐨", name: "the koala", at: "au" },
-      { e: "🐧", name: "the penguin", at: "an" },
+      { e: "🐧", name: "the penguin", at: "an", also: ["sa", "af", "au"] },
     ],
     // USA Map: five states where they really sit (Washington top-left where we
     // live, California south of it on the same coast, Texas in the middle of
@@ -1353,7 +1357,7 @@
       { id: "wall", e: "🧱", say: "the Great Wall", zh: "长城", region: "wall", ask: "Tap the Great Wall — the longest wall in the world!", x: 45, y: 18 },
       { id: "beijing", e: "🦆", say: "Beijing", zh: "北京", region: "beijing", ask: "Tap Beijing — the big city of Peking duck!", x: 80, y: 38 },
       { id: "shanghai", e: "🏙️", say: "Shanghai", zh: "上海", region: "shanghai", ask: "Tap Shanghai — the big city by the sea!", x: 85, y: 66 },
-      { id: "pandas", e: "🐼", say: "the panda forest", zh: "熊猫", region: "pandas", ask: "Tap the panda forest — where the pandas live!", x: 50, y: 66 },
+      { id: "pandas", e: "🐼", say: "the panda forest", zh: "熊猫森林", region: "pandas", ask: "Tap the panda forest — where the pandas live!", x: 50, y: 66 },
       { id: "everest", e: "🏔️", say: "Mount Everest", zh: "珠穆朗玛峰", region: "everest", ask: "Tap Mount Everest — the tallest mountain in the world!", x: 16, y: 80 },
     ] },
   };
