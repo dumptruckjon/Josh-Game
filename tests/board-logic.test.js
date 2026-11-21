@@ -3375,3 +3375,26 @@ test("§18 E: counting in Chinese says the numbers right (一 to 一百二十), 
   // Apple Spin's twenty and the spare apples)
   for (let n = 0; n <= 120; n++) assert.match(DATA.zhNum(n), /^[零一二三四五六七八九十百]+$/u, `${n} has a Chinese numeral`);
 });
+
+test("🔺 Shape Bingo: a die of 3 to 6 dots, cards of 3- to 6-sided shapes (each at least twice), every game ends with both cards full, and a save comes back", () => {
+  const board = DATA.board("shapes");
+  assert.ok(board && board.shapes && board.game === "bingo", "fixture: the shape board");
+  assert.deepEqual(board.faces, [3, 4, 5, 6], "a triangle to a hexagon");
+  for (let seed = 1; seed <= 300; seed++) {
+    const { st, ev, turns } = play("shapes", seed, seed % 2);
+    for (const c of st.cardsB) {
+      assert.equal(c.length, 9, "nine squares");
+      for (const n of [3, 4, 5, 6]) assert.ok(c.filter((x) => x === n).length >= 2, `seed ${seed}: every shape at least twice (${c})`);
+      assert.ok(c.every((n) => n >= 3 && n <= 6), `seed ${seed}: only 3 to 6 sides`);
+    }
+    for (const e of ev) if (e.type === "roll") assert.ok(e.die >= 3 && e.die <= 6, `seed ${seed}: a roll of ${e.die}`);
+    assert.equal(st.phase, "done", `seed ${seed}: the game ends (${turns} turns)`);
+    assert.ok(st.covered.every((c) => c.every(Boolean)), "both cards full");
+  }
+  // a game in progress restores; Number Bingo's card is unchanged by the new branch
+  const st = L.create({ board: "shapes", seats: SEATS, seed: 9 });
+  L.autoTurn(st);
+  assert.ok(L.restore(JSON.parse(JSON.stringify(L.snapshot(st)))), "a Shape Bingo save comes back");
+  const nb = L.create({ board: "bingo", seats: SEATS, seed: 9 });
+  for (const c of nb.cardsB) for (let n = 1; n <= 6; n++) assert.ok(c.includes(n), "Number Bingo still holds 1 to 6");
+});

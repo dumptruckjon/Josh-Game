@@ -536,6 +536,14 @@
       lines: { home: "", end: "Both cards are full! You added it all up! Bingo!" },
     },
     {
+      // 🔺 Shape Bingo: roll a die of three to six dots, count them, and cover
+      // the SHAPE with that many sides (a triangle for three … a hexagon for
+      // six). The card shows shapes, never numbers: counting the corners is his.
+      id: "shapes", box: "shapes", game: "bingo", name: "Shape Bingo", shapes: true, faces: [3, 4, 5, 6],
+      cols: 3, rows: 3, size: 9,
+      lines: { home: "", end: "Both cards are full of shapes! Bingo!" },
+    },
+    {
       // ⛄ Snowman Build (a building game, for a four-year-old: a game of
       // WHAT COMES FIRST). Each snowman starts as a big snowball. A picture
       // die of snowman parts — the tummy, the head, a hat, a carrot nose, a
@@ -647,6 +655,7 @@
     { id: "bingo", board: "bingo", name: "Number Bingo", pic: "🔢", colour: "#0369a1" },
     // adding (§18): Sum Bingo once he has played Number Bingo twice
     { id: "sums", board: "sums", name: "Sum Bingo", pic: "➕", colour: "#0f5f8c", unlockAfter: { box: "bingo", games: 2 } },
+    { id: "shapes", board: "shapes", name: "Shape Bingo", pic: "🔺", colour: "#6d28d9" },
     { id: "snowman", board: "snowman", name: "Snowman Build", pic: "⛄", colour: "#0e7490" },
     // the 🐦 joins from his THIRD Apple game, exactly as the comets do
     { id: "apple", board: "apple", name: "Apple Spin", pic: "🍎", colour: "#d63b3b", birdsAfter: 2 },
@@ -904,6 +913,9 @@
     bingoHelp: "{d}! Find {d} on {n}'s card!",
     bingoNone: "{d}! Not on the card this time.",
     bingoMiss: "Look for {d}!",
+    bingoShapeFind: "{d} dots! Find the shape with {d} sides on your card!",
+    bingoShapeHelp: "{d} dots! Find the shape with {d} sides on {n}'s card!",
+    bingoShapeMiss: "Count the sides! Look for {d}!",
     // ➕ Sum Bingo: the number is never said first — he counts the dots
     bingoSumFind: "{a} and {b}! Count all the dots, and find it on your card!",
     bingoSumHelp: "{a} and {b}! Count all the dots, and find it on {n}'s card!",

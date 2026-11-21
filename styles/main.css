@@ -3929,6 +3929,10 @@ button.bn-bsq { cursor: pointer; }
 .bn-bsq .bn-pips { width: 34%; height: 100%; }
 .bn-bsq__n { font-size: 1em; font-weight: 900; line-height: 1; align-self: end; }
 .bn-bsq--still { opacity: 0.75; }
+/* 🔺 Shape Bingo: the shape fills the square (no number, no dots) */
+.bn-bsq__shape { grid-row: 1 / -1; align-self: center; width: 78%; height: 78%; display: block; }
+.bn-bsq__shape svg { width: 100%; height: 100%; display: block; }
+.bn-bsq--on .bn-bsq__shape { opacity: 0.35; }
 .bn-bsq--on { grid-template-rows: minmax(0, 100%); }
 .bn-bsq--on .bn-bsq__n { align-self: center; opacity: 0.35; }
 .bn-bsq__chip {

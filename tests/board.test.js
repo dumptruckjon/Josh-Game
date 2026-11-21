@@ -4011,6 +4011,59 @@ test("🔢 a whole Number Bingo against the computer: the card shows the mover's
   } finally { await slow(); }
 });
 
+test("🔺 a whole Shape Bingo against the computer: the card shows SHAPES with the engine's numbers of sides (never a number or dots), the goal is the die's dots alone, a wrong shape only wiggles, and both cards fill to one party", async () => {
+  await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
+  await quick();
+  try {
+  assert.ok((await page.evaluate(() => window.BoardData.BOXES.map((b) => b.id))).includes("shapes"), "Shape Bingo is a box on the shelf");
+  await startGame("shapes", "river", true, 7, 0);
+  const dom = () => page.evaluate(() => [...document.querySelectorAll(".bn-bingo__grid .bn-bsq")].map((b) => {
+    const sh = b.querySelector(".bn-bsq__shape polygon");
+    return { sides: sh ? sh.getAttribute("points").trim().split(/\s+/).length : 0, nums: b.querySelectorAll(".bn-bsq__n").length, pips: b.querySelectorAll(".bn-pip:not(.bn-pip--none)").length, button: b.tagName === "BUTTON", label: b.getAttribute("aria-label") };
+  }));
+  let checkedGoal = false, missed = false;
+  for (let guard = 0; guard < 120; guard++) {
+    await untilTap(0);
+    const s = await st();
+    if (s.phase === "done") break;
+    if (s.phase === "roll") {
+      if (s.turn === 1) continue;
+      await page.locator(".bn-pad--0").click();
+      await page.waitForFunction((r) => { const x = window.__BOARD.state(); return x.rolls > r && (x.phase !== "cover" || !window.__BOARD.busy()); }, s.rolls, { timeout: 6000 });
+      continue;
+    }
+    const m = s.mover, spots = await page.evaluate(() => window.BoardLogic.bingoSpots(window.__BOARD.state()));
+    const d = await dom();
+    assert.deepEqual(d.map((c) => c.sides), s.cardsB[m], "each square is the shape with the engine's number of sides");
+    assert.ok(d.every((c) => c.nums === 0 && c.pips === 0), "no number and no dots on a shape card: counting the sides is his");
+    assert.ok(d.every((c) => /^a (triangle|square|pentagon|hexagon), [3-6] sides/.test(c.label)), `each square names its shape (${d[0].label})`);
+    if (!checkedGoal) {
+      checkedGoal = true;
+      const goal = await page.evaluate(() => ({ n: document.querySelectorAll(".bn-bingo__top .bn-goal__n").length, pips: document.querySelectorAll(".bn-bingo__top .bn-pip:not(.bn-pip--none)").length }));
+      assert.equal(goal.n, 0, "the goal shows no number");
+      assert.equal(goal.pips, s.die, "the goal is the die's dots");
+    }
+    if (!missed) {
+      const wrong = d.findIndex((c, k) => c.button && spots.indexOf(k) < 0);
+      if (wrong >= 0) {
+        await page.locator('.bn-bingo__grid button.bn-bsq[data-k="' + wrong + '"]').click();
+        await page.waitForTimeout(350);
+        assert.equal((await st()).phase, "cover", "a wrong shape covers nothing");
+        missed = true;
+      }
+    }
+    await page.locator('.bn-bingo__grid button.bn-bsq[data-k="' + spots[0] + '"]').click();
+    await page.waitForFunction(([mm, kk]) => window.__BOARD.state().covered[mm][kk], [m, spots[0]], { timeout: 5000 });
+  }
+  const end = await st();
+  assert.equal(end.phase, "done", "the game ends");
+  assert.ok(end.covered.every((c) => c.every(Boolean)), "both cards full");
+  assert.ok(checkedGoal && missed, "fixture: the goal and a miss both ran");
+  await page.locator(".bn-party").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => window.__BOARD.save())).done.shapes, 1, "a finished Shape Bingo counts once");
+  } finally { await slow(); }
+});
+
 test("🎴 a whole Colour Match against the computer: the top card and his hand show the engine's cards (that many shapes in that colour); a card that matches neither colour nor number only wiggles (after two, the ones that fit glow); nothing fits: the deck is the button and turns one over; a doubled tap plays once; the computer's cards are not his; three rounds, one party", async () => {
   await page.evaluate(() => window.__BOARD.reset({ introSeen: true }));
   await quick();

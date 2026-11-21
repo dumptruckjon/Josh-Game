@@ -1154,11 +1154,18 @@
   // nine ways two dice can fall (1+1, 1+2 … 3+3) TWICE, so no square waits
   // for ever, yet who fills first is still luck (one set a bag made the
   // starter win every time).
-  function bingoNums(board) { return board.sums ? [2, 3, 4, 5, 6] : [1, 2, 3, 4, 5, 6]; }
+  // 🔺 Shape Bingo (`faces`): a die of 3 to 6 dots, and a card of the shapes
+  // with that many sides — every shape on the card at least twice.
+  function bingoNums(board) { return board.sums ? [2, 3, 4, 5, 6] : facesOf(board).slice(); }
   const SUM_CARD = [2, 3, 3, 4, 4, 4, 5, 5, 6];
   const SUM_BAG = [0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8];
   function bingoCard(s, board) {
     if (board && board.sums) return shuffle(s, SUM_CARD.slice());
+    if (board && board.faces) {
+      const f = board.faces, pool = [];
+      while (pool.length + f.length <= 9) pool.push(...f);
+      return shuffle(s, pool.concat(shuffle(s, f.slice()).slice(0, 9 - pool.length)));
+    }
     const extra = shuffle(s, [1, 2, 3, 4, 5, 6]).slice(0, 3);
     return shuffle(s, [1, 2, 3, 4, 5, 6].concat(extra));
   }

@@ -1416,12 +1416,18 @@
     const lit = new Set([].concat(...v.lines));
     const owner = seatPerson(m);
     let html = "";
+    // 🔺 a shape card shows the SHAPE and never a number or dots: counting
+    // its sides is the game
+    const shapes = !!game.board.shapes;
+    const label = (n) => (shapes ? shapeName(n) + ", " + n + " sides" : String(n));
+    const inner = (n) => (shapes ? '<span class="bn-bsq__shape" data-sides="' + n + '">' + shapeSVG(n) + "</span>" : '<span class="bn-bsq__n">' + n + "</span>" + pipsHTML(n));
+    const faded = (n) => (shapes ? '<span class="bn-bsq__shape" data-sides="' + n + '">' + shapeSVG(n) + "</span>" : '<span class="bn-bsq__n">' + n + "</span>");
     st.cardsB[m].forEach((n, k) => {
       const on = v.covered[m][k];
       const glow = lit.has(k) ? " bn-bsq--line" : "";
-      if (on) html += '<span class="bn-bsq bn-bsq--on' + glow + '" role="img" aria-label="' + n + ', covered"><span class="bn-bsq__n">' + n + '</span><span class="bn-bsq__chip" style="background:' + owner.colour + '">' + R.faceHTML(owner) + "</span></span>";
-      else if (live && !cpu) html += '<button class="tap bn-bsq' + (hint.indexOf(k) >= 0 ? " bn-bsq--hint" : "") + '" type="button" data-k="' + k + '" aria-label="' + n + '"><span class="bn-bsq__n">' + n + "</span>" + pipsHTML(n) + "</button>";
-      else html += '<span class="bn-bsq bn-bsq--still' + glow + '" role="img" aria-label="' + n + '"><span class="bn-bsq__n">' + n + "</span>" + pipsHTML(n) + "</span>";
+      if (on) html += '<span class="bn-bsq bn-bsq--on' + glow + '" role="img" aria-label="' + label(n) + ', covered">' + faded(n) + '<span class="bn-bsq__chip" style="background:' + owner.colour + '">' + R.faceHTML(owner) + "</span></span>";
+      else if (live && !cpu) html += '<button class="tap bn-bsq' + (hint.indexOf(k) >= 0 ? " bn-bsq--hint" : "") + '" type="button" data-k="' + k + '" aria-label="' + label(n) + '">' + inner(n) + "</button>";
+      else html += '<span class="bn-bsq bn-bsq--still' + glow + '" role="img" aria-label="' + label(n) + '">' + inner(n) + "</span>";
     });
     const grid = bingoEl.querySelector(".bn-bingo__grid");
     grid.innerHTML = html;
@@ -1430,7 +1436,7 @@
     grid.style.setProperty("--owner", owner.colour);
     let top = '<span class="bn-bingo__face" aria-hidden="true">' + R.faceHTML(owner) + "</span>";
     if (live && game.board.sums && st.dice && st.dice.length === 2) top += '<span class="bn-goal__op">🎯</span><span class="bn-goal__die">' + pipsHTML(st.dice[0]) + '</span><span class="bn-goal__op">+</span><span class="bn-goal__die">' + pipsHTML(st.dice[1]) + "</span>";
-    else if (live) top += '<span class="bn-goal__op">🎯</span><span class="bn-goal__die">' + pipsHTML(st.die) + '</span><span class="bn-goal__n">' + st.die + "</span>";
+    else if (live) top += '<span class="bn-goal__op">🎯</span><span class="bn-goal__die">' + pipsHTML(st.die) + "</span>" + (game.board.shapes ? "" : '<span class="bn-goal__n">' + st.die + "</span>");
     const row = bingoEl.querySelector(".bn-bingo__top");
     row.innerHTML = top;
     row.setAttribute("aria-label", live ? (game.board.sums && st.dice && st.dice.length === 2 ? "Find " + st.dice[0] + " and " + st.dice[1] + " together" : "Find " + st.die) + " on " + nameOf(m) + "'s card" : nameOf(m) + "'s card");
@@ -1448,7 +1454,7 @@
       paintBingo();
       const again = bingoEl.querySelector('[data-k="' + k + '"]');
       if (again) wiggle(again);
-      sayPlay(fill(SAY.bingoMiss, { d }));
+      sayPlay(fill(game.board.shapes ? SAY.bingoShapeMiss : SAY.bingoMiss, { d }));
       persistGame();
       return;
     }
@@ -1468,6 +1474,7 @@
   function bingoFindLine() {
     const st = game.st, mine = st.mover === st.turn;
     if (game.board.sums) return fill(mine ? SAY.bingoSumFind : SAY.bingoSumHelp, { a: st.dice[0], b: st.dice[1], n: nameOf(st.mover) });
+    if (game.board.shapes) return fill(mine ? SAY.bingoShapeFind : SAY.bingoShapeHelp, { d: st.die, n: nameOf(st.mover) });
     return fill(mine ? SAY.bingoFind : SAY.bingoHelp, { d: st.die, n: nameOf(st.mover) });
   }
   function afterBingoRoll(ev) {
@@ -1537,6 +1544,18 @@
     row.setAttribute("aria-label", live ? (st.held != null ? st.held + " and what make " + st.die : "Make " + st.die) : nameOf(m) + "'s doors");
   }
   // a door's (or the goal's) dots: the die's own pattern, small
+  // 🔺 a shape with n sides, drawn as a regular polygon (a point at the top,
+  // so a square stands on a corner only when it should not: it is turned flat)
+  const SHAPE_NAMES = { 3: "a triangle", 4: "a square", 5: "a pentagon", 6: "a hexagon" };
+  function shapeName(n) { return SHAPE_NAMES[n] || "a shape"; }
+  function shapeSVG(n) {
+    const turn = n === 4 ? Math.PI / 4 : n === 6 ? Math.PI / 6 : 0, pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + turn + (2 * Math.PI * i) / n;
+      pts.push((50 + 42 * Math.cos(a)).toFixed(1) + "," + (54 + 42 * Math.sin(a)).toFixed(1));
+    }
+    return '<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="' + pts.join(" ") + '" fill="#a78bfa" stroke="#3b0764" stroke-width="6" stroke-linejoin="round"/></svg>';
+  }
   function pipsHTML(n) {
     const on = DOTS[n] || [];
     let s = '<span class="bn-pips" aria-hidden="true">';
