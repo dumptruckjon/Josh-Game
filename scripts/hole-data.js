@@ -2811,9 +2811,9 @@
       tune: [440, 523.25, 659.25, 880, 659.25],
       land: [{ poly: [[0.5, 0.01], [0.99, 0.99], [0.01, 0.99]] }, { rect: [0.12, 0.6, 0.88, 0.99], round: 14 }],
       blocks: [
-        { path: [[0.22, 0.72], [0.56, 0.72]], w: 10, look: "rock" },
-        { path: [[0.44, 0.52], [0.8, 0.52]], w: 10, look: "rock" },
-        { path: [[0.3, 0.34], [0.6, 0.34]], w: 10, look: "rock" },
+        { rect: [0.22, 0.705, 0.56, 0.735], round: 6, look: "rock" },
+        { rect: [0.44, 0.505, 0.8, 0.535], round: 6, look: "rock" },
+        { rect: [0.3, 0.325, 0.6, 0.355], round: 6, look: "rock" },
       ],
       portals: [
         { a: [0.82, 0.86], b: [0.66, 0.42], oneway: true, fly: true },
@@ -2854,10 +2854,10 @@
       tune: [392, 523.25, 392, 523.25, 659.25, 523.25],
       land: [{ rect: [0.02, 0.02, 0.98, 0.98], round: 30, not: { rect: [0.4, 0.42, 0.6, 0.58], round: 10 } }],
       blocks: [
-        { path: [[0.16, 0.24], [0.16, 0.4]], w: 12, look: "crates" },
-        { path: [[0.84, 0.24], [0.84, 0.4]], w: 12, look: "crates" },
-        { path: [[0.16, 0.62], [0.16, 0.76]], w: 12, look: "crates" },
-        { path: [[0.84, 0.62], [0.84, 0.76]], w: 12, look: "crates" },
+        { rect: [0.12, 0.24, 0.2, 0.4], round: 2, look: "crates" },
+        { rect: [0.8, 0.24, 0.88, 0.4], round: 2, look: "crates" },
+        { rect: [0.12, 0.62, 0.2, 0.76], round: 2, look: "crates" },
+        { rect: [0.8, 0.62, 0.88, 0.76], round: 2, look: "crates" },
       ],
       tracks: { loop: { pts: ovalPts(0.5, 0.5, 0.25, 0.17, 30), loop: true, speed: 9, look: "road", train: true } },
       zones: {
@@ -3761,7 +3761,7 @@
     haunted: "m3fiyk",
     newyear: "1nsadmw", dumplings: "1qae29m", courtyard: "1qbcvyu", pandas: "jl9hx0", teahills: "hommkc", watertown: "1ypgtvk",
     moongarden: "jd49o9", monkeys: "1ch89rn", desk: "313lrg", icecity: "iflah7", kungfu: "phk85d", greatwall: "178y9ou",
-    hospital: "69ggqr", police: "htq3qz", lifeguard: "13vbeum", rescue: "tll299", towyard: "nvsvx0", boats: "1gm3b6h",
+    hospital: "69ggqr", police: "htq3qz", lifeguard: "13vbeum", rescue: "14ceumb", towyard: "10bwv0j", boats: "1gm3b6h",
   };
 
   const HoleData = { RULES, SCENES, SAY, TASTES, tasteOf, LANDS, landOf, PRINTS };
