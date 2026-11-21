@@ -7149,6 +7149,9 @@ test("tools: every research tool still RUNS against today's data", () => {
     // place the way a child steers and probes the bot from every few seconds.
     // A run that checked NO spot proves nothing, so the count must be
     // non-zero — and a working run on a shipped place finds nothing stuck.
+    // 🗺️ the World maps' builder: with no data dir it CHECKS the shipped
+    // map-shapes.js (every place pinned, every map still has its outlines).
+    "map-gen.js": { args: [], env: {}, must: /[1-9] maps · [1-9]\d* places, all pinned/ },
     "hole-fuzz.js": { args: ["toyroom"], env: { SEEDS: "1", SECS: "10" }, must: /toyroom: [1-9]\d* spots checked, 0 stuck/ },
   };
   // …and the FLAG arms, which are separate code paths and are where most of the

@@ -21,7 +21,26 @@
 const fs = require("fs");
 const path = require("path");
 const DIR = process.argv[2];
-if (!DIR) { console.error("usage: node tools/map-gen.js <dir with d3-geo and the Natural Earth geojson>"); process.exit(1); }
+if (!DIR) {
+  // with no data dir: CHECK the shipped file against content.js instead of
+  // rebuilding it — every map place has a pin and a true spot, and no map
+  // lost its outlines. This is what the tools smoke test runs.
+  global.window = global;
+  const C0 = require("../scripts/content.js"), M = require("../scripts/map-shapes.js");
+  let maps = 0, places = 0;
+  for (const [name, m] of Object.entries(M)) {
+    const scene = C0[name];
+    if (!scene) { console.error(name + ": not in content.js"); process.exit(1); }
+    if ((m.svg.match(/<path /g) || []).length < 3) { console.error(name + ": lost its outlines"); process.exit(1); }
+    for (const z of scene.zones) {
+      if (!m.pins[z.id] || !m.spots[z.id]) { console.error(name + ": " + z.id + " has no pin"); process.exit(1); }
+      places++;
+    }
+    maps++;
+  }
+  console.log(maps + " maps · " + places + " places, all pinned (usage to rebuild: node tools/map-gen.js <dir with d3-geo and the Natural Earth geojson>)");
+  process.exit(0);
+}
 const d3 = require(path.join(path.resolve(DIR), "node_modules", "d3-geo"));
 const ROOT = path.join(__dirname, "..");
 global.window = global;
@@ -245,15 +264,22 @@ function pathOf(pg, geom) {
 // placing ORDER is tried (≤7 places), and the layout kept is the one that
 // moves the pins least, with a heavy cost for two lines that cross.
 function placePins(zones, spots, box) {
-  const d = box.dot, gap = box.minGap, R = d / 2;
+  const d = box.dot, R = d / 2;
+  // every size the map is really drawn at (main.css .map__stage): the box, a
+  // small phone (78px pins), and a tall phone (370 wide, 96px pins). A pin
+  // layout that fits the box alone put two pins 10px apart on the 17 Pro.
+  const sizes = [[box.w, box.h, d], [280, box.h, d], [288, box.h, d],
+    [370, Math.max(box.h, 370 * box.h / box.w), d], [370, Math.max(box.h, 370 * box.h / box.w), 96]];
   const fits = (p, placed) => {
-    for (const w of [box.w, 280]) {
-      const x = (p[0] / 100) * w, y = (p[1] / 100) * box.h;
-      if (x - R < 0 || x + R > w || y - R < 0 || y + R > box.h) return false;
+    for (const [w, h, dd] of sizes) {
+      const gap = 16, RR = dd / 2;
+      const x = (p[0] / 100) * w, y = (p[1] / 100) * h;
+      if (x - RR < 0 || x + RR > w || y - RR < 0 || y + RR > h) return false;
       for (const q of placed) {
-        const qx = (q[0] / 100) * w, qy = (q[1] / 100) * box.h, dx = Math.abs(x - qx), dy = Math.abs(y - qy);
-        const oX = dx < d, oY = dy < d;
-        if ((oX && oY) || (oX && dy - d < gap) || (oY && dx - d < gap)) return false;
+        const qx = (q[0] / 100) * w, qy = (q[1] / 100) * h, dx = Math.abs(x - qx), dy = Math.abs(y - qy), d = dd;
+        // the space between two square pins is the LARGER of their gaps across
+        // and down: a diagonal neighbour 5px off on both axes is only 5px away
+        if (Math.max(dx, dy) - d < gap) return false;
       }
     }
     return true;
