@@ -2600,7 +2600,11 @@ test("📱 iPhone 17 Pro: the games that GROW still fit in their later rounds", 
         if (ok) tapped += 1;
         await p.waitForTimeout(400);
       }
-      assert.ok(tapped >= steps - 1, `fixture: ${id} took only ${tapped} of ${steps} taps — the walk did not reach the late round`);
+      // a game whose rounds are random sizes (find-hero asks for 2 to 4
+      // heroes a round) can be WON in fewer taps than the typical walk — a won
+      // game has played its last round, which is what this walk is for
+      const won = await p.evaluate((id) => !!document.getElementById("screen-" + id).dataset.won, id);
+      assert.ok(tapped >= steps - 1 || won, `fixture: ${id} took only ${tapped} of ${steps} taps and is not won — the walk did not reach the late round`);
       const r = await p.evaluate(([id, B, H]) => {
         const s = document.getElementById("screen-" + id), out = [];
         for (const e of s.querySelectorAll("button, [data-correct]")) {
