@@ -2452,9 +2452,16 @@ test("§22: a reset in one tab holds against a tab left open from before — eve
     // 240 steps can eat nothing on a slow runner, and then no toy-room run is
     // ever stored and the "kept too" clause below fails on working code — CI
     // run #524 did exactly that)
+    // tab A's own frame loop must not write while tab B writes: a write A
+    // makes before it can SEE B's arrives in B's copy afterwards and drops
+    // B's toy room (failed 1 run in ~10 locally), so A's frames stop here
+    // and it carries on only once B's write has reached it
+    await page.evaluate(() => { window.__rafReal = window.requestAnimationFrame; window.requestAnimationFrame = () => 0; });
     await B.evaluate(() => window.__HOLE.start("toyroom"));
     assert.ok((await eatMore(B)) > 0, "fixture: tab B ate in the toy room");
     assert.ok((await disk(B)).runs.toyroom, "fixture: tab B's toy room is stored before tab A writes again");
+    await page.waitForFunction((k) => { try { return !!JSON.parse(localStorage.getItem(k)).runs.toyroom; } catch (e) { return false; } }, KEY);
+    await page.evaluate(() => { window.requestAnimationFrame = window.__rafReal; delete window.__rafReal; });
     const mine = await page.evaluate(() => window.__HOLE.state().eaten);
     await page.bringToFront();
     const mine2 = await eatMore(page);

@@ -1245,7 +1245,11 @@
         api.tickPlay();
         const it = order[at % order.length];
         finds += 1; at += 1;
-        if (at % order.length === 0) order = api.shuffle(LIST.slice());
+        if (at % order.length === 0) {
+          // a fresh shuffle never opens on the thing he just found
+          order = api.shuffle(LIST.slice());
+          if (order.length > 1 && order[0] === it) order.push(order.shift());
+        }
         card.classList.remove("pop"); void card.offsetWidth; card.classList.add("pop");
         const lead = "You found " + it.say + "!";
         // the praise first; the next find waits on screen (👂 says it)

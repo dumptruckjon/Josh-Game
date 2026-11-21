@@ -8002,6 +8002,24 @@ test("the owner's new picks play as designed: Story Dice, Hunt at Home and the ð
     for (let k = 0; k < 4; k++) { await page.waitForTimeout(850); await page.evaluate(() => document.querySelector("#screen-home-hunt .hhunt__got").click()); }
     assert.ok(await page.evaluate(() => !!document.getElementById("screen-home-hunt").dataset.won), "five finds earn the sticker");
     const hunt = (await said()).map((x) => x[0]);
+    // It keeps playing after the sticker, through many reshuffles of its 14
+    // finds â€” and a fresh shuffle never opens on the thing he just found (it
+    // used to, about one reshuffle in fourteen). A fake clock skips the 800ms
+    // double-tap guard so ~70 reshuffles run in one go.
+    const repeats = await page.evaluate(() => {
+      const realNow = performance.now.bind(performance);
+      let t = realNow() + 1e6;
+      performance.now = () => (t += 1000);
+      try {
+        const b = document.querySelector("#screen-home-hunt .hhunt__got");
+        const cap = () => document.querySelector("#screen-home-hunt .game__prompt").textContent;
+        let prev = cap(), n = 0, taps = 0;
+        for (; taps < 1000; taps++) { b.click(); const c = cap(); if (c === prev) n += 1; prev = c; }
+        return { n, taps };
+      } finally { performance.now = realNow; }
+    });
+    assert.equal(repeats.taps, 1000, "fixture: the taps ran");
+    assert.equal(repeats.n, 0, "no find is asked for twice in a row, even across a reshuffle (" + repeats.n + " repeats in 1000 finds)");
     assert.ok(hunt.some((l) => /^You found (something|a|an) .+! Find /.test(l)), "each find is named, then the next hunt");
     const praise = hunt.indexOf("Five treasures! You're a super finder!");
     assert.ok(praise >= 0, "the fifth find is praised");
