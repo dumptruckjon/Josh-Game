@@ -1364,6 +1364,26 @@ test("🗺️ USA Map and China Map: every place sits on its real side", () => {
   assert.ok(c.everest.x < c.pandas.x && c.everest.y > c.wall.y, "Mount Everest is on the far south-west edge");
 });
 
+test("🗺️ Europe, South America and Australia up close: every place sits on its real side", () => {
+  const e = Object.fromEntries(content.EUROPE_MAP.zones.map((z) => [z.id, z]));
+  assert.deepEqual(Object.keys(e).sort(), ["france", "italy", "norway", "russia", "spain", "uk"], "six places in Europe");
+  assert.ok(e.uk.x < e.france.x && e.uk.y < e.france.y, "the UK is north-west of France");
+  assert.ok(e.spain.x < e.france.x && e.spain.y > e.france.y, "Spain is south-west of France");
+  assert.ok(e.italy.x > e.france.x && e.italy.y > e.france.y, "Italy is south-east of France");
+  assert.ok(e.norway.y < e.france.y && e.norway.y < e.uk.y, "Norway is in the north");
+  for (const k of ["uk", "france", "spain", "italy", "norway"]) assert.ok(e.russia.x > e[k].x, `Russia is east of ${k}`);
+  const a = Object.fromEntries(content.SOUTH_AMERICA_MAP.zones.map((z) => [z.id, z]));
+  assert.deepEqual(Object.keys(a).sort(), ["amazon", "argentina", "colombia", "peru"], "four places in South America");
+  for (const k of ["amazon", "argentina", "peru"]) assert.ok(a.colombia.y < a[k].y, `Colombia is at the top (above ${k})`);
+  for (const k of ["amazon", "colombia", "peru"]) assert.ok(a.argentina.y > a[k].y, `Argentina is at the bottom (below ${k})`);
+  assert.ok(a.peru.x < a.amazon.x, "Peru is on the west coast, the Amazon east of it");
+  const u = Object.fromEntries(content.AUSTRALIA_MAP.zones.map((z) => [z.id, z]));
+  assert.deepEqual(Object.keys(u).sort(), ["perth", "reef", "sydney", "uluru"], "four places in Australia");
+  assert.ok(u.perth.x < u.uluru.x && u.uluru.x < u.sydney.x, "Perth west, Uluru in the middle, Sydney east");
+  assert.ok(u.reef.x > u.uluru.x && u.reef.y < u.uluru.y, "the reef is north-east");
+  assert.ok(u.sydney.y > u.reef.y, "Sydney is south of the reef");
+});
+
 test("🗺️ Animal Safari: each animal's home, and EVERY other continent it lives wild on", () => {
   // Restated: the Animal Homes lesson — no animal that also lives wild on
   // another continent (a lion lives wild in India, a sloth in Central
@@ -1408,6 +1428,10 @@ test("🗺️ every Chinese name in the World games is the real one", () => {
     // the oceans
     "the Arctic Ocean": ["北冰洋", "Běibīng Yáng"], "the Pacific Ocean": ["太平洋", "Tàipíng Yáng"], "the Atlantic Ocean": ["大西洋", "Dàxī Yáng"],
     "the Indian Ocean": ["印度洋", "Yìndù Yáng"], "the Southern Ocean": ["南大洋", "Nán Dàyáng"],
+    // Europe, South America and Australia up close
+    "France": ["法国", "Fǎguó"], "Spain": ["西班牙", "Xībānyá"], "Italy": ["意大利", "Yìdàlì"], "Norway": ["挪威", "Nuówēi"],
+    "Colombia": ["哥伦比亚", "Gēlúnbǐyà"], "the Amazon rainforest": ["亚马孙雨林", "Yàmǎsūn yǔlín"], "Peru": ["秘鲁", "Bìlǔ"], "Argentina": ["阿根廷", "Āgēntíng"],
+    "Perth": ["珀斯", "Pòsī"], "Uluru": ["乌鲁鲁", "Wūlǔlǔ"], "the Great Barrier Reef": ["大堡礁", "Dàbǎojiāo"], "Sydney": ["悉尼", "Xīní"],
     // the countries
     "the USA": ["美国", "Měiguó"], "China": ["中国", "Zhōngguó"], "India": ["印度", "Yìndù"], "Russia": ["俄罗斯", "Éluósī"], "Canada": ["加拿大", "Jiānádà"],
     "Japan": ["日本", "Rìběn"], "Mexico": ["墨西哥", "Mòxīgē"], "the UK": ["英国", "Yīngguó"], "Kenya": ["肯尼亚", "Kěnníyà"], "Brazil": ["巴西", "Bāxī"],

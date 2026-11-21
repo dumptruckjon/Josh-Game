@@ -1,5 +1,5 @@
 // 🗺️ World — geography for Josh: Washington (where he lives), the USA, China
-// (his family's other home) and the world. Eleven games on the shared framework,
+// (his family's other home) and the world. Fourteen games on the shared framework,
 // all no-fail, ≥75px, playable with the sound off (every answer is a picture,
 // every place wears one). Content truth lives in content.js and is restated in
 // content.test.js; the two maps' tap geometry is tested like SPY_SCENE.
@@ -221,6 +221,62 @@
     found: (z) => "That's " + z.say + "!",
     wrong: (z, t) => "That's " + z.say + ". " + t.ask,
     done: "You know the oceans of the world!",
+  });
+
+  // The continents up close: each one stylized, every place on its real side,
+  // and each pin on its own drawn region (the map test checks it).
+  const EUROPE_SVG = '<svg viewBox="0 0 280 320" preserveAspectRatio="none" width="100%" height="100%">' +
+    '<rect data-region="sea" width="280" height="320" fill="#8fd3ff"/>' +
+    '<path data-region="land" d="M95 40 L190 15 L278 15 L278 210 L205 232 L200 300 L165 305 L150 240 L120 240 L108 305 L28 305 L26 236 L78 226 L78 160 L100 118 Z" fill="#cfe8a8" stroke="#7a9a5a" stroke-width="2"/>' +
+    '<path data-region="norway" d="M108 14 L152 8 L164 58 L142 96 L116 80 Z" fill="#a9d8f0"/>' +
+    '<path data-region="russia" d="M190 18 L278 18 L278 200 L196 200 Z" fill="#e8a8a8"/>' +
+    '<path data-region="france" d="M80 165 L150 160 L156 226 L95 236 L80 200 Z" fill="#a8b8f0"/>' +
+    '<path data-region="spain" d="M28 244 L100 240 L106 305 L32 305 Z" fill="#f4cf6a"/>' +
+    '<path data-region="italy" d="M160 235 L185 230 L200 290 L186 312 L170 302 L178 275 Z" fill="#9edc7a"/>' +
+    '<ellipse data-region="uk" cx="60" cy="118" rx="22" ry="36" fill="#c9a8e8"/>' +
+    '</svg>';
+  mapGame({
+    id: "europe-map", icon: "🗼", title: "Europe Map", skill: "the map of Europe [W]",
+    map: "EUROPE_MAP", svg: EUROPE_SVG,
+    caption: (z) => "Tap " + z.say + "!",
+    ask: (z) => z.ask,
+    found: (z) => "That's " + z.say + "!",
+    wrong: (z, t) => "That's " + z.say + ". " + t.ask,
+    done: "You can read the map of Europe!",
+  });
+  const SOUTH_AMERICA_SVG = '<svg viewBox="0 0 280 320" preserveAspectRatio="none" width="100%" height="100%">' +
+    '<rect data-region="sea" width="280" height="320" fill="#8fd3ff"/>' +
+    '<path data-region="land" d="M70 8 L150 6 L200 40 L252 90 L240 150 L190 200 L150 250 L132 312 L108 314 L95 260 L70 190 L42 130 L38 70 Z" fill="#cfe8a8" stroke="#7a9a5a" stroke-width="2"/>' +
+    '<path data-region="colombia" d="M70 10 L140 8 L136 56 L80 56 Z" fill="#f4cf6a"/>' +
+    '<ellipse data-region="amazon" cx="174" cy="112" rx="50" ry="35" fill="#4fa84a"/>' +
+    '<path data-region="peru" d="M42 108 L90 108 L96 182 L60 182 Z" fill="#e8a8a8"/>' +
+    '<path data-region="argentina" d="M95 225 L150 225 L132 310 L110 310 Z" fill="#a9d8f0"/>' +
+    '</svg>';
+  mapGame({
+    id: "south-america-map", icon: "🦜", title: "South America Map", skill: "the map of South America [W]",
+    map: "SOUTH_AMERICA_MAP", svg: SOUTH_AMERICA_SVG,
+    caption: (z) => "Tap " + z.say + "!",
+    ask: (z) => z.ask,
+    found: (z) => "That's " + z.say + "!",
+    wrong: (z, t) => "That's " + z.say + ". " + t.ask,
+    done: "You can read the map of South America!",
+  });
+  const AUSTRALIA_SVG = '<svg viewBox="0 0 280 320" preserveAspectRatio="none" width="100%" height="100%">' +
+    '<rect data-region="sea" width="280" height="320" fill="#8fd3ff"/>' +
+    '<path data-region="land" d="M14 122 L60 82 L110 72 L150 42 L180 62 L200 22 L230 62 L266 140 L262 232 L222 272 L170 262 L130 242 L90 252 L40 232 L12 180 Z" fill="#e8b25a" stroke="#a8722a" stroke-width="2"/>' +
+    '<path data-region="reef" d="M205 40 L240 50 L250 100 L225 100 Z" fill="#5fd0c8"/>' +
+    '<ellipse data-region="perth" cx="40" cy="176" rx="22" ry="28" fill="#f4cf6a"/>' +
+    '<path data-region="uluru" d="M108 172 L160 172 L154 148 L116 148 Z" fill="#c8552a"/>' +
+    '<circle data-region="sydney" cx="224" cy="224" r="18" fill="#e05a4f"/>' +
+    '</svg>';
+  mapGame({
+    id: "australia-map", icon: "🦘", title: "Australia Map", skill: "the map of Australia [W]",
+    map: "AUSTRALIA_MAP", svg: AUSTRALIA_SVG,
+    caption: (z) => "Tap " + z.say + "!",
+    ask: (z) => z.ask,
+    found: (z) => "That's " + z.say + "!",
+    wrong: (z, t) => "That's " + z.say + ". " + t.ask,
+    done: "You can read the map of Australia!",
   });
 
   // The USA: the lower 48 with five states drawn where they sit, Alaska and

@@ -110,7 +110,7 @@
     "month-train": "friends", "set-table": "friends", "match-all": "find",
     "dress-order": "friends", "story-dice": "friends", "home-hunt": "find",
     "wa-wonders": "world", "wa-map": "world", "china-trip": "world", "flag-friends": "world",
-    "where-world": "world", "world-fly": "world", "animal-safari": "world", "usa-map": "world", "china-map": "world", "wa-animals": "world", "ocean-map": "world",
+    "where-world": "world", "world-fly": "world", "animal-safari": "world", "usa-map": "world", "china-map": "world", "wa-animals": "world", "ocean-map": "world", "europe-map": "world", "south-america-map": "world", "australia-map": "world",
     "team-puzzle": "friends", "team-song": "friends", "team-balance": "friends",
     "team-copy": "friends", "worry-box": "friends", "thank-you": "friends",
     "tidy-up": "friends",

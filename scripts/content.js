@@ -1279,6 +1279,29 @@
         { e: "🦓", name: "a zebra" }, { e: "🐨", name: "a koala" }, { e: "🦛", name: "a hippo" },
       ],
     },
+    // The continents up close (JOSH_PROFILE: the individual continent maps are
+    // his working edge). Each place sits on its real side of its continent,
+    // restated in content.test; a picture on each pin plays it muted.
+    EUROPE_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
+      { id: "uk", e: "💂", say: "the UK", zh: "英国", region: "uk", ask: "Tap the UK — the island in the north-west!", x: 21, y: 37 },
+      { id: "norway", e: "❄️", say: "Norway", zh: "挪威", region: "norway", ask: "Tap Norway — the snowy north!", x: 45, y: 12 },
+      { id: "russia", e: "🪆", say: "Russia", zh: "俄罗斯", region: "russia", ask: "Tap Russia — the big land in the east!", x: 85, y: 30 },
+      { id: "france", e: "🗼", say: "France", zh: "法国", region: "france", ask: "Tap France — where the Eiffel Tower stands!", x: 38, y: 60 },
+      { id: "spain", e: "💃", say: "Spain", zh: "西班牙", region: "spain", ask: "Tap Spain — in the sunny south-west!", x: 18, y: 86 },
+      { id: "italy", e: "🍕", say: "Italy", zh: "意大利", region: "italy", ask: "Tap Italy — the boot, where pizza comes from!", x: 64, y: 84 },
+    ] },
+    SOUTH_AMERICA_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
+      { id: "colombia", e: "☕", say: "Colombia", zh: "哥伦比亚", region: "colombia", ask: "Tap Colombia — at the very top!", x: 35, y: 10 },
+      { id: "amazon", e: "🌳", say: "the Amazon rainforest", zh: "亚马孙雨林", region: "amazon", ask: "Tap the Amazon rainforest — the giant jungle!", x: 62, y: 35 },
+      { id: "peru", e: "🦙", say: "Peru", zh: "秘鲁", region: "peru", ask: "Tap Peru — where the llamas live, by the sea in the west!", x: 22, y: 45 },
+      { id: "argentina", e: "🐧", say: "Argentina", zh: "阿根廷", region: "argentina", ask: "Tap Argentina — down at the bottom, where penguins live!", x: 40, y: 82 },
+    ] },
+    AUSTRALIA_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
+      { id: "perth", e: "🌅", say: "Perth", zh: "珀斯", region: "perth", ask: "Tap Perth — the city on the west coast!", x: 14, y: 55 },
+      { id: "uluru", e: "🪨", say: "Uluru", zh: "乌鲁鲁", region: "uluru", ask: "Tap Uluru — the giant red rock in the middle!", x: 48, y: 50 },
+      { id: "reef", e: "🐠", say: "the Great Barrier Reef", zh: "大堡礁", region: "reef", ask: "Tap the Great Barrier Reef — in the sea in the north-east!", x: 78, y: 22 },
+      { id: "sydney", e: "🏙️", say: "Sydney", zh: "悉尼", region: "sydney", ask: "Tap Sydney — the big city on the south-east coast!", x: 80, y: 70 },
+    ] },
     // Ocean Map: the five oceans round a drawn world map, each where it really
     // is (the Pacific west of the Americas, the Atlantic between the Americas
     // and Africa, the Indian south of Asia, the Arctic at the top and the
