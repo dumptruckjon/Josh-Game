@@ -7272,6 +7272,12 @@ test("📊 Grown-ups: the progress page reads every world's own save, writes not
     assert.deepEqual(lasts, ["Last played: today", "Last opened: yesterday",
       "🕳️ Gobble Hole last played: 3 days ago", "🎲 Game Night last played: not yet"],
       "each area says when it was last opened, in calendar days, and a time from the future is not trusted");
+    // Every bar on a card lines up: the count beside it ("0 / 9", "1 / 66")
+    // must not change how long the bar is.
+    const bars = await pg.evaluate(() => [...document.querySelectorAll("#screen-progress .progress__card")].map((c) =>
+      [...c.querySelectorAll(".progress__track")].map((t) => { const b = t.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.right)]; })));
+    bars.forEach((card, i) => card.forEach((b) => assert.deepEqual(b, card[0], "card " + i + ": every bar starts and ends in line — saw " + JSON.stringify(card))));
+    assert.ok(bars.flat().length >= 9, "the bars were measured");
     assert.deepEqual(await dump(), before, "the page must write nothing");
 
     // Junk in every save shows smaller numbers, never a broken page.

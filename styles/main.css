@@ -349,7 +349,10 @@ body {
 .progress__label { font-size: 0.95rem; color: #33445a; font-weight: 700; overflow-wrap: anywhere; }
 .progress__track { display: block; height: 14px; border-radius: 999px; background: #e3e8ef; overflow: hidden; }
 .progress__fill { display: block; height: 100%; background: #2c7a3f; border-radius: 999px; }
-.progress__num { font-size: 0.95rem; color: #2b2340; font-weight: 800; font-variant-numeric: tabular-nums; }
+/* The number column is a fixed width so every bar on the card starts and
+   ends at the same place — "0 / 9" and "0 / 34" must not get bars of
+   different lengths. Fits "66 / 66", the widest count on the page. */
+.progress__num { min-width: 4.6em; text-align: right; font-size: 0.95rem; color: #2b2340; font-weight: 800; font-variant-numeric: tabular-nums; }
 .progress__chips { display: block; margin: 4px 0 6px; }
 .progress__chip { display: inline-block; margin: 0 8px 8px 0; padding: 4px 12px; border-radius: 999px; background: #fff3c4; color: #4a3500; font-size: 1.05rem; font-weight: 700; }
 
