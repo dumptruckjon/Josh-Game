@@ -304,6 +304,8 @@ const BOARD_MIDTURN = [
   ["dicerun", (L, st) => { L.rollMatch(st); return st.phase === "keep"; }],
   // ➕ two dice over the card while he covers; 🔭 three numbers to call
   ["sums", (L, st) => { for (let g = 0; g < 80 && !(st.phase === "cover" && st.turn === 0); g++) { if (st.turn !== 0) L.autoTurn(st); else L.roll(st); } return st.phase === "cover" && st.turn === 0; }],
+  // 🔺 a card of shapes, covering: the shapes are what he taps
+  ["shapes", (L, st) => { for (let g = 0; g < 80 && !(st.phase === "cover" && st.turn === 0); g++) { if (st.turn !== 0) L.autoTurn(st); else L.roll(st); } return st.phase === "cover" && st.turn === 0; }],
   ["rainbow2", (L, st) => { for (let g = 0; g < 40 && !(st.phase === "twocards" && st.turn === 0); g++) { if (st.turn !== 0) L.autoTurn(st); else L.drawCard(st); } return st.phase === "twocards" && st.turn === 0; }],
   ["call", (L, st) => { for (let g = 0; g < 80 && !(st.phase === "call" && st.turn === 0); g++) { if (st.turn !== 0 || st.phase === "hop") L.autoTurn(st); else L.roll(st); } return st.phase === "call" && st.turn === 0; }],
 ];
