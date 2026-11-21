@@ -1292,8 +1292,15 @@ test("🗺️ Washington Animals: every Washington animal lives wild in the stat
   for (const i of W.wa.concat(W.far)) assert.equal(i.name.split(" ")[0], /^[aeiou]/.test(i.name.split(" ")[1]) ? "an" : "a", i.name);
 });
 
+// A map place's TRUE spot is its latitude and longitude (`at`): x grows east,
+// y grows south, so "west of" is x < x and "north of" is y < y. The pin a
+// child taps may sit beside its spot (tools/map-gen.js draws a line to it);
+// where the pins go is checked below, from the generated scripts/map-shapes.js.
+const geo = (scene) => Object.fromEntries(scene.zones.map((z) => [z.id, Object.assign({}, z, { x: z.at[0], y: -z.at[1] })]));
+const MAPSHAPES = require("../scripts/map-shapes.js");
+
 test("🗺️ Ocean Map: the five oceans, each on its real side", () => {
-  const o = Object.fromEntries(content.OCEAN_MAP.zones.map((z) => [z.id, z]));
+  const o = geo(content.OCEAN_MAP);
   assert.deepEqual(Object.keys(o).sort(), ["arctic", "atlantic", "indian", "pacific", "southern"], "the five oceans");
   assert.ok(o.pacific.x < o.atlantic.x && o.atlantic.x < o.indian.x, "the Pacific west of the Americas, the Atlantic, then the Indian east of Africa");
   for (const k of ["pacific", "atlantic", "indian", "southern"]) assert.ok(o.arctic.y < o[k].y, `the Arctic is at the top (above ${k})`);
@@ -1324,14 +1331,14 @@ test("🗺️ countries: each flag is its own country's, and a thing's `avoid` n
 });
 
 test("🗺️ the two maps: places sit on their real sides, and the tap zones are ≥78px apart at the map's size AND squeezed to a 280px phone", () => {
-  const wa = Object.fromEntries(content.WA_MAP.zones.map((z) => [z.id, z]));
+  const wa = geo(content.WA_MAP);
   assert.ok(wa.ocean.x < wa.seattle.x && wa.seattle.x < wa.apples.x, "Washington: the ocean west, Seattle in between, the apples east");
   assert.ok(wa.rainier.y > wa.seattle.y, "Mount Rainier is south of Seattle");
   assert.ok(wa.rainier.x >= wa.seattle.x, "…and not west of it");
-  const w = Object.fromEntries(content.WORLD_MAP.zones.map((z) => [z.id, z]));
+  const w = geo(content.WORLD_MAP);
   assert.equal(content.WORLD_MAP.zones.length, 7, "seven continents");
   assert.ok(w.na.x < w.eu.x && w.eu.x < w.as.x, "the Americas west, Europe, then Asia east");
-  assert.ok(w.sa.y > w.na.y && w.sa.x <= w.na.x + 5, "South America below North America");
+  assert.ok(w.sa.y > w.na.y && Math.abs(w.sa.x - w.na.x) <= 50, "South America below North America");
   assert.ok(w.af.y > w.eu.y && Math.abs(w.af.x - w.eu.x) <= 10, "Africa below Europe");
   assert.ok(w.au.y > w.as.y && w.au.x >= w.as.x - 5, "Australia south-east, below Asia");
   for (const z of Object.values(w)) if (z.id !== "an") assert.ok(w.an.y > z.y, `Antarctica is at the bottom (below ${z.name})`);
@@ -1339,23 +1346,34 @@ test("🗺️ the two maps: places sit on their real sides, and the tap zones ar
   const MAPS = Object.keys(content).filter((k) => /_MAP$/.test(k) && content[k] && content[k].zones);
   assert.ok(MAPS.length >= 4, `fixture: the map scenes were found (${MAPS})`);
   for (const [nm, m] of MAPS.map((k) => [k, content[k]])) {
-    zoneGeom(nm, m.box, m.zones);
-    zoneGeom(nm + "@280", Object.assign({}, m.box, { w: 280 }), m.zones);
+    // the pins as the game places them: from the generated map, one per place
+    const shape = MAPSHAPES[nm];
+    assert.ok(shape, `${nm}: tools/map-gen.js has drawn this map`);
+    assert.deepEqual(Object.keys(shape.pins).sort(), m.zones.map((z) => z.id).sort(), `${nm}: one pin per place, and none for a place that is gone`);
+    const pinned = m.zones.map((z) => Object.assign({}, z, { x: shape.pins[z.id][0], y: shape.pins[z.id][1] }));
+    zoneGeom(nm, m.box, pinned);
+    zoneGeom(nm + "@280", Object.assign({}, m.box, { w: 280 }), pinned);
+    for (const z of m.zones) assert.ok(Array.isArray(z.at) && z.at.length === 2, `${nm}: ${z.id} has its true spot (lon, lat)`);
     for (const z of m.zones) assert.ok(z.e, `${nm}: every place wears a picture, so the game plays with the sound off`);
   }
 });
 
 test("🗺️ USA Map and China Map: every place sits on its real side", () => {
-  const u = Object.fromEntries(content.USA_MAP.zones.map((z) => [z.id, z]));
+  const u = geo(content.USA_MAP);
   assert.deepEqual(Object.keys(u).sort(), ["ak", "ca", "fl", "hi", "ny", "tx", "wa"], "the seven places on the USA map");
   assert.ok(u.wa.x < u.tx.x && u.tx.x < u.fl.x, "Washington west, Texas in the middle, Florida east");
   assert.ok(u.ca.y > u.wa.y && Math.abs(u.ca.x - u.wa.x) <= 5, "California is south of Washington, on the same west coast");
   assert.ok(u.ny.x > u.tx.x && u.ny.y < u.tx.y && u.ny.y < u.fl.y, "New York is in the north-east");
   assert.ok(u.fl.y > u.ny.y && u.fl.x >= u.tx.x, "Florida is the south-east corner");
-  for (const k of ["wa", "ny", "ca", "tx", "fl"]) assert.ok(u.ak.y > u[k].y && u.hi.y > u[k].y, `Alaska and Hawaii are in their own boxes below the lower 48 (${k})`);
+  // Alaska is truly north-west of the lower 48 and Hawaii far out in the
+  // Pacific; the map shows both in their own corner below (the AlbersUsa way)
+  assert.ok(u.ak.y < u.wa.y && u.ak.x < u.wa.x, "Alaska is north-west of Washington");
+  assert.ok(u.hi.y > u.fl.y && u.hi.x < u.ca.x, "Hawaii is south-west, out in the Pacific");
+  const sp = MAPSHAPES.USA_MAP.spots;
+  for (const k of ["wa", "ny", "ca"]) assert.ok(sp.ak[1] > sp[k][1] && sp.hi[1] > sp[k][1], `on the map, Alaska and Hawaii sit below the lower 48 (${k})`);
   const PIC = { wa: "🌲", ny: "🗽", ca: "🌉", tx: "🤠", fl: "🐊", ak: "🐻‍❄️", hi: "🌋" };
   assert.deepEqual(Object.fromEntries(Object.values(u).map((z) => [z.id, z.e])), PIC);
-  const c = Object.fromEntries(content.CHINA_MAP.zones.map((z) => [z.id, z]));
+  const c = geo(content.CHINA_MAP);
   assert.deepEqual(Object.keys(c).sort(), ["beijing", "everest", "pandas", "shanghai", "wall"], "the five places on the China map");
   assert.ok(c.wall.y < c.pandas.y && c.wall.y < c.shanghai.y, "the Great Wall runs across the north");
   assert.ok(c.beijing.x > c.wall.x && c.beijing.x > c.pandas.x, "Beijing is east, at the wall's east end");
@@ -1365,19 +1383,19 @@ test("🗺️ USA Map and China Map: every place sits on its real side", () => {
 });
 
 test("🗺️ Europe, South America and Australia up close: every place sits on its real side", () => {
-  const e = Object.fromEntries(content.EUROPE_MAP.zones.map((z) => [z.id, z]));
+  const e = geo(content.EUROPE_MAP);
   assert.deepEqual(Object.keys(e).sort(), ["france", "italy", "norway", "russia", "spain", "uk"], "six places in Europe");
   assert.ok(e.uk.x < e.france.x && e.uk.y < e.france.y, "the UK is north-west of France");
   assert.ok(e.spain.x < e.france.x && e.spain.y > e.france.y, "Spain is south-west of France");
   assert.ok(e.italy.x > e.france.x && e.italy.y > e.france.y, "Italy is south-east of France");
   assert.ok(e.norway.y < e.france.y && e.norway.y < e.uk.y, "Norway is in the north");
   for (const k of ["uk", "france", "spain", "italy", "norway"]) assert.ok(e.russia.x > e[k].x, `Russia is east of ${k}`);
-  const a = Object.fromEntries(content.SOUTH_AMERICA_MAP.zones.map((z) => [z.id, z]));
+  const a = geo(content.SOUTH_AMERICA_MAP);
   assert.deepEqual(Object.keys(a).sort(), ["amazon", "argentina", "colombia", "peru"], "four places in South America");
   for (const k of ["amazon", "argentina", "peru"]) assert.ok(a.colombia.y < a[k].y, `Colombia is at the top (above ${k})`);
   for (const k of ["amazon", "colombia", "peru"]) assert.ok(a.argentina.y > a[k].y, `Argentina is at the bottom (below ${k})`);
   assert.ok(a.peru.x < a.amazon.x, "Peru is on the west coast, the Amazon east of it");
-  const u = Object.fromEntries(content.AUSTRALIA_MAP.zones.map((z) => [z.id, z]));
+  const u = geo(content.AUSTRALIA_MAP);
   assert.deepEqual(Object.keys(u).sort(), ["perth", "reef", "sydney", "uluru"], "four places in Australia");
   assert.ok(u.perth.x < u.uluru.x && u.uluru.x < u.sydney.x, "Perth west, Uluru in the middle, Sydney east");
   assert.ok(u.reef.x > u.uluru.x && u.reef.y < u.uluru.y, "the reef is north-east");

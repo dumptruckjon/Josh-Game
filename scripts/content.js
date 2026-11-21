@@ -1283,44 +1283,44 @@
     // his working edge). Each place sits on its real side of its continent,
     // restated in content.test; a picture on each pin plays it muted.
     EUROPE_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
-      { id: "uk", e: "💂", say: "the UK", zh: "英国", region: "uk", ask: "Tap the UK — the island in the north-west!", x: 21, y: 37 },
-      { id: "norway", e: "❄️", say: "Norway", zh: "挪威", region: "norway", ask: "Tap Norway — the snowy north!", x: 45, y: 12 },
-      { id: "russia", e: "🪆", say: "Russia", zh: "俄罗斯", region: "russia", ask: "Tap Russia — the big land in the east!", x: 85, y: 30 },
-      { id: "france", e: "🗼", say: "France", zh: "法国", region: "france", ask: "Tap France — where the Eiffel Tower stands!", x: 38, y: 60 },
-      { id: "spain", e: "💃", say: "Spain", zh: "西班牙", region: "spain", ask: "Tap Spain — in the sunny south-west!", x: 18, y: 86 },
-      { id: "italy", e: "🍕", say: "Italy", zh: "意大利", region: "italy", ask: "Tap Italy — the boot, where pizza comes from!", x: 64, y: 84 },
+      { id: "uk", e: "💂", say: "the UK", zh: "英国", region: "uk", ask: "Tap the UK — the island in the north-west!", at: [-1.8, 53.0] },
+      { id: "norway", e: "❄️", say: "Norway", zh: "挪威", region: "norway", ask: "Tap Norway — the snowy north!", at: [9.5, 61.5] },
+      { id: "russia", e: "🪆", say: "Russia", zh: "俄罗斯", region: "russia", ask: "Tap Russia — the big land in the east!", at: [33, 58] },
+      { id: "france", e: "🗼", say: "France", zh: "法国", region: "france", ask: "Tap France — where the Eiffel Tower stands!", at: [2.4, 46.6] },
+      { id: "spain", e: "💃", say: "Spain", zh: "西班牙", region: "spain", ask: "Tap Spain — in the sunny south-west!", at: [-3.7, 40.2] },
+      { id: "italy", e: "🍕", say: "Italy", zh: "意大利", region: "italy", ask: "Tap Italy — the boot, where pizza comes from!", at: [12.6, 42.8] },
     ] },
     SOUTH_AMERICA_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
-      { id: "colombia", e: "☕", say: "Colombia", zh: "哥伦比亚", region: "colombia", ask: "Tap Colombia — at the very top!", x: 35, y: 10 },
-      { id: "amazon", e: "🌳", say: "the Amazon rainforest", zh: "亚马孙雨林", region: "amazon", ask: "Tap the Amazon rainforest — the giant jungle!", x: 62, y: 35 },
-      { id: "peru", e: "🦙", say: "Peru", zh: "秘鲁", region: "peru", ask: "Tap Peru — where the llamas live, by the sea in the west!", x: 22, y: 45 },
-      { id: "argentina", e: "🐧", say: "Argentina", zh: "阿根廷", region: "argentina", ask: "Tap Argentina — down at the bottom, where penguins live!", x: 40, y: 82 },
+      { id: "colombia", e: "☕", say: "Colombia", zh: "哥伦比亚", region: "colombia", ask: "Tap Colombia — at the very top!", at: [-73.5, 4.2] },
+      { id: "amazon", e: "🌳", say: "the Amazon rainforest", zh: "亚马孙雨林", region: "amazon", ask: "Tap the Amazon rainforest — the giant jungle!", at: [-62, -4] },
+      { id: "peru", e: "🦙", say: "Peru", zh: "秘鲁", region: "peru", ask: "Tap Peru — where the llamas live, by the sea in the west!", at: [-75.5, -9.6] },
+      { id: "argentina", e: "🐧", say: "Argentina", zh: "阿根廷", region: "argentina", ask: "Tap Argentina — down at the bottom, where penguins live!", at: [-65, -35] },
     ] },
     AUSTRALIA_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
-      { id: "perth", e: "🌅", say: "Perth", zh: "珀斯", region: "perth", ask: "Tap Perth — the city on the west coast!", x: 14, y: 55 },
-      { id: "uluru", e: "🪨", say: "Uluru", zh: "乌鲁鲁", region: "uluru", ask: "Tap Uluru — the giant red rock in the middle!", x: 48, y: 50 },
-      { id: "reef", e: "🐠", say: "the Great Barrier Reef", zh: "大堡礁", region: "reef", ask: "Tap the Great Barrier Reef — in the sea in the north-east!", x: 78, y: 22 },
-      { id: "sydney", e: "🏙️", say: "Sydney", zh: "悉尼", region: "sydney", ask: "Tap Sydney — the big city on the south-east coast!", x: 80, y: 70 },
+      { id: "perth", e: "🌅", say: "Perth", zh: "珀斯", region: "perth", ask: "Tap Perth — the city on the west coast!", at: [115.86, -31.95] },
+      { id: "uluru", e: "🪨", say: "Uluru", zh: "乌鲁鲁", region: "uluru", ask: "Tap Uluru — the giant red rock in the middle!", at: [131.04, -25.34] },
+      { id: "reef", e: "🐠", say: "the Great Barrier Reef", zh: "大堡礁", region: "reef", ask: "Tap the Great Barrier Reef — in the sea in the north-east!", at: [150.4, -19.6] },
+      { id: "sydney", e: "🏙️", say: "Sydney", zh: "悉尼", region: "sydney", ask: "Tap Sydney — the big city on the south-east coast!", at: [151.21, -33.87] },
     ] },
     // Ocean Map: the five oceans round a drawn world map, each where it really
     // is (the Pacific west of the Americas, the Atlantic between the Americas
     // and Africa, the Indian south of Asia, the Arctic at the top and the
     // Southern Ocean round Antarctica). Geometry tested like the other maps.
     OCEAN_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
-      { id: "arctic", e: "🧊", say: "the Arctic Ocean", zh: "北冰洋", region: "arctic", ask: "Tap the Arctic Ocean — the icy ocean at the top!", x: 50, y: 11 },
-      { id: "pacific", e: "🐋", say: "the Pacific Ocean", zh: "太平洋", region: "pacific", ask: "Tap the Pacific Ocean — the biggest ocean, by Washington!", x: 15, y: 48 },
-      { id: "atlantic", e: "⛵", say: "the Atlantic Ocean", zh: "大西洋", region: "atlantic", ask: "Tap the Atlantic Ocean — between America and Africa!", x: 50, y: 50 },
-      { id: "indian", e: "🐢", say: "the Indian Ocean", zh: "印度洋", region: "indian", ask: "Tap the Indian Ocean — south of India!", x: 84, y: 62 },
-      { id: "southern", e: "🐧", say: "the Southern Ocean", zh: "南大洋", region: "southern", ask: "Tap the Southern Ocean — all around Antarctica!", x: 50, y: 85 },
+      { id: "arctic", e: "🧊", say: "the Arctic Ocean", zh: "北冰洋", region: "arctic", ask: "Tap the Arctic Ocean — the icy ocean at the top!", at: [10, 82] },
+      { id: "pacific", e: "🐋", say: "the Pacific Ocean", zh: "太平洋", region: "pacific", ask: "Tap the Pacific Ocean — the biggest ocean, by Washington!", at: [-140, 0] },
+      { id: "atlantic", e: "⛵", say: "the Atlantic Ocean", zh: "大西洋", region: "atlantic", ask: "Tap the Atlantic Ocean — between America and Africa!", at: [-35, 5] },
+      { id: "indian", e: "🐢", say: "the Indian Ocean", zh: "印度洋", region: "indian", ask: "Tap the Indian Ocean — south of India!", at: [75, -20] },
+      { id: "southern", e: "🐧", say: "the Southern Ocean", zh: "南大洋", region: "southern", ask: "Tap the Southern Ocean — all around Antarctica!", at: [20, -62] },
     ] },
     // Washington Map: four places on a drawn map of the state, at their real
     // sides (the ocean west, Seattle on the water, Mount Rainier south-east of
     // it, apple orchards east of the mountains). Geometry tested like SPY_SCENE.
     WA_MAP: { box: { w: 340, h: 360, dot: 78, minGap: 14 }, zones: [
-      { id: "ocean", e: "🌊", say: "the ocean", zh: "大海", region: "ocean", ask: "Tap the ocean — it's on Washington's west side!", x: 15, y: 50 },
-      { id: "seattle", e: "🏙️", say: "Seattle", zh: "西雅图", region: "land", ask: "Tap Seattle — the big city by the water!", x: 50, y: 22 },
-      { id: "rainier", e: "🏔️", say: "Mount Rainier", zh: "雷尼尔山", region: "rainier", ask: "Tap Mount Rainier — the giant mountain!", x: 50, y: 78 },
-      { id: "apples", e: "🍎", say: "the apple orchards", zh: "苹果园", region: "dry", ask: "Tap where the apples grow — over the mountains!", x: 85, y: 50 },
+      { id: "ocean", e: "🌊", say: "the ocean", zh: "大海", region: "sea", ask: "Tap the ocean — it's on Washington's west side!", at: [-125.2, 47.2] },
+      { id: "seattle", e: "🏙️", say: "Seattle", zh: "西雅图", region: "seattle", ask: "Tap Seattle — the big city by the water!", at: [-122.33, 47.61] },
+      { id: "rainier", e: "🏔️", say: "Mount Rainier", zh: "雷尼尔山", region: "rainier", ask: "Tap Mount Rainier — the giant mountain!", at: [-121.76, 46.85] },
+      { id: "apples", e: "🍎", say: "the apple orchards", zh: "苹果园", region: "dry", ask: "Tap where the apples grow — over the mountains!", at: [-119.6, 47.25] },
     ] },
     // China Trip: one thing from China among things from far away. Each China
     // thing says its Chinese word too (in a zh-CN voice).
@@ -1362,13 +1362,13 @@
     // above Africa, Asia east, Australia south-east, Antarctica at the bottom).
     // Each wears an animal or landmark so the game plays with the sound off.
     WORLD_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
-      { id: "na", zh: "北美洲", region: "na", name: "North America", e: "🗽", hint: "where we live", x: 15, y: 18 },
-      { id: "eu", zh: "欧洲", region: "eu", name: "Europe", e: "🏰", hint: "where the castles are", x: 50, y: 18 },
-      { id: "as", zh: "亚洲", region: "as", name: "Asia", e: "🐼", hint: "where China is", x: 85, y: 18 },
-      { id: "sa", zh: "南美洲", region: "sa", name: "South America", e: "🦙", hint: "where the llamas live", x: 15, y: 52 },
-      { id: "af", zh: "非洲", region: "af", name: "Africa", e: "🦁", hint: "where the lions live", x: 50, y: 52 },
-      { id: "au", zh: "澳洲", region: "au", name: "Australia", e: "🦘", hint: "where the kangaroos hop", x: 85, y: 52 },
-      { id: "an", zh: "南极洲", region: "an", name: "Antarctica", e: "🐧", hint: "the icy land of penguins", x: 50, y: 86 },
+      { id: "na", zh: "北美洲", region: "na", name: "North America", e: "🗽", hint: "where we live", at: [-100, 45] },
+      { id: "eu", zh: "欧洲", region: "eu", name: "Europe", e: "🏰", hint: "where the castles are", at: [15, 50] },
+      { id: "as", zh: "亚洲", region: "as", name: "Asia", e: "🐼", hint: "where China is", at: [95, 45] },
+      { id: "sa", zh: "南美洲", region: "sa", name: "South America", e: "🦙", hint: "where the llamas live", at: [-60, -12] },
+      { id: "af", zh: "非洲", region: "af", name: "Africa", e: "🦁", hint: "where the lions live", at: [20, 5] },
+      { id: "au", zh: "澳洲", region: "au", name: "Australia", e: "🦘", hint: "where the kangaroos hop", at: [134, -25] },
+      { id: "an", zh: "南极洲", region: "an", name: "Antarctica", e: "🐧", hint: "the icy land of penguins", at: [30, -74] },
     ] },
     // Animal Safari: an animal in the question, the seven continents on the
     // same world map with NO pictures on them (the pictures would be the
@@ -1397,23 +1397,23 @@
     // the south, Florida the south-east corner, New York the north-east) and
     // Alaska and Hawaii in their own boxes, the way a US map draws them.
     USA_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
-      { id: "wa", e: "🌲", say: "Washington", zh: "华盛顿州", region: "wa", ask: "Tap Washington — where we live!", x: 16, y: 14 },
-      { id: "ny", e: "🗽", say: "New York", zh: "纽约", region: "ny", ask: "Tap New York — the Statue of Liberty!", x: 85, y: 18 },
-      { id: "ca", e: "🌉", say: "California", zh: "加利福尼亚", region: "ca", ask: "Tap California — the Golden Gate Bridge!", x: 16, y: 44 },
-      { id: "tx", e: "🤠", say: "Texas", zh: "得克萨斯", region: "tx", ask: "Tap Texas — the cowboys!", x: 50, y: 52 },
-      { id: "fl", e: "🐊", say: "Florida", zh: "佛罗里达", region: "fl", ask: "Tap Florida — the alligators!", x: 85, y: 58 },
-      { id: "ak", e: "🐻‍❄️", say: "Alaska", zh: "阿拉斯加", region: "ak", ask: "Tap Alaska — the polar bears!", x: 16, y: 84 },
-      { id: "hi", e: "🌋", say: "Hawaii", zh: "夏威夷", region: "hi", ask: "Tap Hawaii — the islands with volcanoes!", x: 55, y: 86 },
+      { id: "wa", e: "🌲", say: "Washington", zh: "华盛顿州", region: "wa", ask: "Tap Washington — where we live!", at: [-120.5, 47.4] },
+      { id: "ny", e: "🗽", say: "New York", zh: "纽约", region: "ny", ask: "Tap New York — the Statue of Liberty!", at: [-75.5, 42.9] },
+      { id: "ca", e: "🌉", say: "California", zh: "加利福尼亚", region: "ca", ask: "Tap California — the Golden Gate Bridge!", at: [-119.6, 37.2] },
+      { id: "tx", e: "🤠", say: "Texas", zh: "得克萨斯", region: "tx", ask: "Tap Texas — the cowboys!", at: [-99.3, 31.3] },
+      { id: "fl", e: "🐊", say: "Florida", zh: "佛罗里达", region: "fl", ask: "Tap Florida — the alligators!", at: [-81.7, 28.3] },
+      { id: "ak", e: "🐻‍❄️", say: "Alaska", zh: "阿拉斯加", region: "ak", ask: "Tap Alaska — the polar bears!", at: [-152, 63.5] },
+      { id: "hi", e: "🌋", say: "Hawaii", zh: "夏威夷", region: "hi", ask: "Tap Hawaii — the islands with volcanoes!", at: [-155.5, 19.6] },
     ] },
     // China Map: the Great Wall across the north, Beijing at its east end,
     // Shanghai south of Beijing on the coast, the panda forests inland in the
     // west (Sichuan), and Mount Everest on China's far south-west edge.
     CHINA_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
-      { id: "wall", e: "🧱", say: "the Great Wall", zh: "长城", region: "wall", ask: "Tap the Great Wall — the longest wall in the world!", x: 45, y: 18 },
-      { id: "beijing", e: "🦆", say: "Beijing", zh: "北京", region: "beijing", ask: "Tap Beijing — the big city of Peking duck!", x: 80, y: 38 },
-      { id: "shanghai", e: "🏙️", say: "Shanghai", zh: "上海", region: "shanghai", ask: "Tap Shanghai — the big city by the sea!", x: 85, y: 66 },
-      { id: "pandas", e: "🐼", say: "the panda forest", zh: "熊猫森林", region: "pandas", ask: "Tap the panda forest — where the pandas live!", x: 50, y: 66 },
-      { id: "everest", e: "🏔️", say: "Mount Everest", zh: "珠穆朗玛峰", region: "everest", ask: "Tap Mount Everest — the tallest mountain in the world!", x: 16, y: 80 },
+      { id: "wall", e: "🧱", say: "the Great Wall", zh: "长城", region: "wall", ask: "Tap the Great Wall — the longest wall in the world!", at: [110.5, 40.3] },
+      { id: "beijing", e: "🦆", say: "Beijing", zh: "北京", region: "beijing", ask: "Tap Beijing — the big city of Peking duck!", at: [116.4, 39.9] },
+      { id: "shanghai", e: "🏙️", say: "Shanghai", zh: "上海", region: "shanghai", ask: "Tap Shanghai — the big city by the sea!", at: [121.47, 31.23] },
+      { id: "pandas", e: "🐼", say: "the panda forest", zh: "熊猫森林", region: "pandas", ask: "Tap the panda forest — where the pandas live!", at: [103.4, 30.9] },
+      { id: "everest", e: "🏔️", say: "Mount Everest", zh: "珠穆朗玛峰", region: "everest", ask: "Tap Mount Everest — the tallest mountain in the world!", at: [86.925, 27.99] },
     ] },
   };
 

@@ -8183,56 +8183,47 @@ test("the owner's new picks play as designed: Story Dice, Hunt at Home and the �
   }
 });
 
-test("🗺️ every map pin sits on its OWN drawn region (Seattle by the water, west of the mountains)", async () => {
+test("🗺️ every map place's TRUE spot sits on its OWN drawn region, on real outlines (Seattle by the water, west of the mountains)", async () => {
   // A map game teaches where things ARE, so the picture under each place is
-  // part of its truth. Seattle once sat on top of the Cascades, while the game
-  // said "the big city by the water" — Seattle is on Puget Sound, WEST of the
-  // mountains. Each drawn region carries data-region; at every pin's centre the
-  // TOPMOST filled region must be the one it names.
-  // Every map game, from the registry (a def that names its `map`); each
-  // zone says which drawn region it must sit on (`region`).
+  // part of its truth. The maps are real (Natural Earth outlines projected by
+  // tools/map-gen.js) and each place has its true spot (lon, lat); a pin that
+  // could not fit there sits beside it with a line to a dot on the spot. At
+  // every TRUE spot the TOPMOST drawn region must be the one the place names.
+  // Every map game, from the registry (a def that names its `map`).
   const MAPGAMES = await page.evaluate(() => window.JoshGames.filter((g) => g.map).map((g) => [g.id, g.map]));
-  assert.ok(MAPGAMES.length >= 5, `fixture: the map games were found (${JSON.stringify(MAPGAMES)})`);
-  const WANT = {};
-  for (const [id, map] of MAPGAMES) WANT[id] = await page.evaluate((m) => Object.fromEntries(window.JoshContent[m].zones.map((z) => [z.id, z.region])), map);
-  const MAPOF = Object.fromEntries(MAPGAMES);
-  for (const id of Object.keys(WANT)) {
-    for (const [zid, r] of Object.entries(WANT[id])) assert.ok(r, `${id}: the place "${zid}" names the region it must sit on`);
+  assert.ok(MAPGAMES.length >= 8, `fixture: the map games were found (${JSON.stringify(MAPGAMES)})`);
+  for (const [id, map] of MAPGAMES) {
     await openGame(id);
     const got = await page.evaluate(([id, map]) => {
-      const C = window.JoshContent;
-      const scene = C[map];
+      const scene = window.JoshContent[map], shape = window.JoshMaps[map];
       const svg = document.querySelector("#screen-" + id + " .map__art svg");
       const vb = svg.viewBox.baseVal;
       const regions = [...svg.querySelectorAll("[data-region]")];
-      const out = {};
+      const topAt = (x, y) => { const q = svg.createSVGPoint(); q.x = x; q.y = y; const h = regions.filter((r) => r.isPointInFill(q)); return h.length ? h[h.length - 1].dataset.region : null; };
+      const out = { paths: svg.querySelectorAll("path[data-region]").length, len: svg.outerHTML.length, places: {} };
       for (const z of scene.zones) {
-        const pt = svg.createSVGPoint(); pt.x = vb.width * z.x / 100; pt.y = vb.height * z.y / 100;
-        const hit = regions.filter((r) => r.isPointInFill(pt)).map((r) => r.dataset.region);
-        // the last match in document order is the one painted on top
-        let near = Infinity;
-        const sound = svg.querySelector('[data-region="sound"]');
-        if (sound) { const len = sound.getTotalLength(); for (let i = 0; i <= 200; i++) { const p = sound.getPointAtLength(len * i / 200); near = Math.min(near, Math.hypot(p.x - pt.x, p.y - pt.y)); } }
-        // …and the whole 78px pin, not just its centre: a pin that covers a
-        // mountain reads as ON the mountain even when its centre misses it.
-        const bw = vb.width * 78 / scene.box.w / 2, bh = vb.height * 78 / scene.box.h / 2;
-        const under = new Set();
-        for (let i = 0; i <= 8; i++) for (let j = 0; j <= 8; j++) {
-          const q = svg.createSVGPoint(); q.x = pt.x - bw + 2 * bw * i / 8; q.y = pt.y - bh + 2 * bh * j / 8;
-          regions.forEach((r) => { if (r.isPointInFill(q)) under.add(r.dataset.region); });
+        const s = shape.spots[z.id], x = vb.width * s[0] / 100, y = vb.height * s[1] / 100;
+        // the water nearest the spot (for "by the water"), searched outwards
+        let sea = Infinity;
+        for (let r = 1; r <= 40 && sea === Infinity; r++) for (let k = 0; k < 24; k++) {
+          const a = (2 * Math.PI * k) / 24;
+          if (topAt(x + r * Math.cos(a), y + r * Math.sin(a)) === "sea") { sea = r; break; }
         }
-        out[z.id] = { top: hit[hit.length - 1] || null, all: hit, under: [...under], nearSound: Math.round(near) };
+        // the pin a child taps: on the page, and the line from it reaches the spot
+        const btn = [...document.querySelectorAll("#screen-" + id + " .scene__zone")].find((b) => b.getAttribute("aria-label") === (z.say || z.name));
+        out.places[z.id] = { top: topAt(x, y), sea, pinned: !!btn, region: z.region };
       }
       return out;
-    }, [id, MAPOF[id]]);
-    for (const [zid, want] of Object.entries(WANT[id])) {
-      assert.ok(got[zid], `fixture: ${id} has a pin "${zid}"`);
-      assert.equal(got[zid].top, want, `${id}: the pin "${zid}" sits on "${got[zid].top}", not "${want}" (${JSON.stringify(got[zid])})`);
+    }, [id, map]);
+    // a real outline, not a blob: many shapes and real detail
+    assert.ok(got.paths >= 3 && got.len > 5000, `${id}: the map is drawn from real outlines (${got.paths} shapes, ${got.len} bytes)`);
+    for (const [zid, g] of Object.entries(got.places)) {
+      assert.ok(g.pinned, `${id}: ${zid} has a pin to tap`);
+      assert.equal(g.top, g.region, `${id}: the true spot of "${zid}" lies on "${g.top}", not "${g.region}"`);
     }
     if (id === "wa-map") {
-      assert.ok(!got.seattle.under.includes("cascades"), `the Seattle pin covers the mountains it is west of (${JSON.stringify(got.seattle)})`);
-      assert.ok(!got.apples.under.includes("cascades"), `the apple pin covers the mountains it is east of (${JSON.stringify(got.apples)})`);
-      assert.ok(got.seattle.nearSound <= 30, `Seattle is "by the water" but ${got.seattle.nearSound} map units from Puget Sound`);
+      assert.notEqual(got.places.seattle.top, "cascades", "Seattle is west of the Cascades, not on them");
+      assert.ok(got.places.seattle.sea <= 12, `Seattle is "by the water" but ${got.places.seattle.sea} map units from the sea`);
     }
   }
 });
