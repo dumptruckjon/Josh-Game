@@ -1402,6 +1402,21 @@ test("🗺️ Europe, South America and Australia up close: every place sits on 
   assert.ok(u.sydney.y > u.reef.y, "Sydney is south of the reef");
 });
 
+test("🗺️ Asia and Africa up close: every place sits on its real side", () => {
+  const a = geo(content.ASIA_MAP);
+  assert.deepEqual(Object.keys(a).sort(), ["arabia", "china", "india", "japan", "russia"], "five places in Asia");
+  for (const k of ["china", "india", "japan", "arabia"]) assert.ok(a.russia.y < a[k].y, `Russia is at the top (above ${k})`);
+  assert.ok(a.india.y > a.china.y && a.india.x < a.china.x, "India is south-west of China");
+  for (const k of ["china", "india", "arabia", "russia"]) assert.ok(a.japan.x > a[k].x, `Japan is in the far east (east of ${k})`);
+  for (const k of ["china", "india", "japan", "russia"]) assert.ok(a.arabia.x < a[k].x, `Saudi Arabia is in the west (west of ${k})`);
+  const f = geo(content.AFRICA_MAP);
+  assert.deepEqual(Object.keys(f).sort(), ["egypt", "kenya", "madagascar", "sahara", "southafrica"], "five places in Africa");
+  assert.ok(f.egypt.x > f.sahara.x && f.egypt.y <= f.kenya.y, "Egypt is north-east, the Sahara west of it");
+  for (const k of ["egypt", "sahara", "kenya", "madagascar"]) assert.ok(f.southafrica.y > f[k].y, `South Africa is at the bottom (below ${k})`);
+  assert.ok(f.kenya.x > f.sahara.x && f.kenya.y > f.egypt.y, "Kenya is in the east, south of Egypt");
+  assert.ok(f.madagascar.x > f.southafrica.x && f.madagascar.x > f.kenya.x, "Madagascar is the island off the east coast");
+});
+
 test("🗺️ Animal Safari: each animal's home, and EVERY other continent it lives wild on", () => {
   // Restated: the Animal Homes lesson — no animal that also lives wild on
   // another continent (a lion lives wild in India, a sloth in Central
@@ -1449,6 +1464,8 @@ test("🗺️ every Chinese name in the World games is the real one", () => {
     // Europe, South America and Australia up close
     "France": ["法国", "Fǎguó"], "Spain": ["西班牙", "Xībānyá"], "Italy": ["意大利", "Yìdàlì"], "Norway": ["挪威", "Nuówēi"],
     "Colombia": ["哥伦比亚", "Gēlúnbǐyà"], "the Amazon rainforest": ["亚马孙雨林", "Yàmǎsūn yǔlín"], "Peru": ["秘鲁", "Bìlǔ"], "Argentina": ["阿根廷", "Āgēntíng"],
+    "Saudi Arabia": ["沙特阿拉伯", "Shātè Ālābó"], "Egypt": ["埃及", "Āijí"], "the Sahara Desert": ["撒哈拉沙漠", "Sāhālā shāmò"],
+    "Madagascar": ["马达加斯加", "Mǎdájiāsījiā"], "South Africa": ["南非", "Nánfēi"],
     "Perth": ["珀斯", "Pòsī"], "Uluru": ["乌鲁鲁", "Wūlǔlǔ"], "the Great Barrier Reef": ["大堡礁", "Dàbǎojiāo"], "Sydney": ["悉尼", "Xīní"],
     // the countries
     "the USA": ["美国", "Měiguó"], "China": ["中国", "Zhōngguó"], "India": ["印度", "Yìndù"], "Russia": ["俄罗斯", "Éluósī"], "Canada": ["加拿大", "Jiānádà"],

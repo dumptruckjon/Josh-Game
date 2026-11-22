@@ -95,7 +95,10 @@
           const also = !!(item && item.also && item.also.includes(z.id));
           if (z !== target && !also) { api.tryAgain(b); api.say(cfg.wrong(z, target, item)); return; }
           built.btns.forEach((x) => delete x.dataset.correct); b.classList.add("scene__zone--found");
-          if (cfg.marker) { b.appendChild(api.el("span", { class: "map__marker", aria: { hidden: "true" } }, [cfg.marker])); }
+          // the plane lands there; on Animal Safari the animal moves in (its
+          // pin has no picture, so a found pin was an empty green box)
+          const mark = cfg.marker || (item && item.e);
+          if (mark) { b.appendChild(api.el("span", { class: "map__marker" + (cfg.marker ? "" : " map__marker--home"), aria: { hidden: "true" } }, [mark])); }
           api.say(z === target ? cfg.found(z, item) : cfg.alsoFound(z, item, target));
           if (z.zh) api.say(z.zh, { lang: "zh-CN" });
           round += 1;
@@ -210,6 +213,24 @@
     found: (z) => "That's " + z.say + "!",
     wrong: (z, t) => "That's " + z.say + ". " + t.ask,
     done: "You can read the map of South America!",
+  });
+  mapGame({
+    id: "asia-map", icon: "🏯", title: "Asia Map", skill: "the map of Asia [W]",
+    map: "ASIA_MAP",
+    caption: (z) => "Tap " + z.say + "!",
+    ask: (z) => z.ask,
+    found: (z) => "That's " + z.say + "!",
+    wrong: (z, t) => "That's " + z.say + ". " + t.ask,
+    done: "You can read the map of Asia!",
+  });
+  mapGame({
+    id: "africa-map", icon: "🦓", title: "Africa Map", skill: "the map of Africa [W]",
+    map: "AFRICA_MAP",
+    caption: (z) => "Tap " + z.say + "!",
+    ask: (z) => z.ask,
+    found: (z) => "That's " + z.say + "!",
+    wrong: (z, t) => "That's " + z.say + ". " + t.ask,
+    done: "You can read the map of Africa!",
   });
   mapGame({
     id: "australia-map", icon: "🦘", title: "Australia Map", skill: "the map of Australia [W]",

@@ -11363,7 +11363,8 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   CHINESE name after the English, in a zh-CN voice (restated with pinyin in
   content.test.js). Every map game names its `map` on its def, and every zone
   the drawn `region` it must sit on, so the tests find the maps from the
-  registry. Josh is at **216** (Washington Animals, 🌊 Ocean Map and three
+  registry. Josh is at **218** (🏯 Asia Map and 🦓 Africa Map joined
+  2026-11-22; before them Washington Animals, 🌊 Ocean Map and three
   continent close-ups — Europe, South America, Australia — joined the 🗺️ World
   category, 2026-11-21; the individual continent maps are his working edge); the home's tiles fill their last row at
   every column count (`fillLastRow`), and below 360px wide a game's title steps
@@ -16545,3 +16546,14 @@ Antarctica's whole coast: split the ring at its farthest point first. And a hand
 region must actually contain its spot: the reef's spot sat a cell west of its own
 polygon, so the topmost thing there was the sea. The e2e test asks the browser what is
 on top at every place's TRUE spot, and that is the law.
+
+**A ROUND'S ANSWER MUST BE SEEN (2026-11-22).** The twelve sorters and Simon
+Says rebuilt the board in the same tap as the right answer, so the green ring on
+it painted only on the final win. They end a round through `api.nextRound` now
+(a 650ms beat, the board closed), and an e2e test fails if the lit answer is
+gone the moment it was tapped. Same pass: Asia and Africa maps (10 maps, 52
+places); a found continent on Animal Safari shows its animal; and the Asia box
+had to grow to 340x360, because at 300 tall the pins crowded and China's pin
+was pushed down over Indonesia. A pin's distance from its own spot is the
+number to check after `tools/map-gen.js`, not only that it was placed.
+

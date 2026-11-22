@@ -1302,6 +1302,23 @@
       { id: "reef", e: "🐠", say: "the Great Barrier Reef", zh: "大堡礁", region: "reef", ask: "Tap the Great Barrier Reef — in the sea in the north-east!", at: [150.4, -19.6] },
       { id: "sydney", e: "🏙️", say: "Sydney", zh: "悉尼", region: "sydney", ask: "Tap Sydney — the big city on the south-east coast!", at: [151.21, -33.87] },
     ] },
+    // Asia and Africa up close: the biggest continent, wide, so its box is
+    // wide too, and Africa from the Sahara to the Cape. Each place on its real
+    // side (restated in content.test), each pin a picture so it plays muted.
+    ASIA_MAP: { box: { w: 340, h: 360, dot: 78, minGap: 14 }, zones: [
+      { id: "russia", e: "🐻", say: "Russia", zh: "俄罗斯", region: "russia", ask: "Tap Russia — the big cold land at the top!", at: [97, 60] },
+      { id: "china", e: "🐼", say: "China", zh: "中国", region: "china", ask: "Tap China — where the pandas live!", at: [104, 34] },
+      { id: "india", e: "🐘", say: "India", zh: "印度", region: "india", ask: "Tap India — where the elephants walk, in the south!", at: [79, 22] },
+      { id: "japan", e: "🗻", say: "Japan", zh: "日本", region: "japan", ask: "Tap Japan — the islands far in the east!", at: [138.5, 36.5] },
+      { id: "arabia", e: "🐪", say: "Saudi Arabia", zh: "沙特阿拉伯", region: "arabia", ask: "Tap Saudi Arabia — the desert in the west, where camels walk!", at: [45, 24] },
+    ] },
+    AFRICA_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
+      { id: "egypt", e: "🐫", say: "Egypt", zh: "埃及", region: "egypt", ask: "Tap Egypt — the pyramids by the river, at the top!", at: [30, 26.5] },
+      { id: "sahara", e: "🏜️", say: "the Sahara Desert", zh: "撒哈拉沙漠", region: "sahara", ask: "Tap the Sahara — the giant sandy desert!", at: [2, 23] },
+      { id: "kenya", e: "🦒", say: "Kenya", zh: "肯尼亚", region: "kenya", ask: "Tap Kenya — where the giraffes roam, in the east!", at: [37.9, 0.5] },
+      { id: "madagascar", e: "🦎", say: "Madagascar", zh: "马达加斯加", region: "madagascar", ask: "Tap Madagascar — the big island where chameleons live!", at: [46.8, -19.5] },
+      { id: "southafrica", e: "🐧", say: "South Africa", zh: "南非", region: "southafrica", ask: "Tap South Africa — at the very bottom, where penguins live!", at: [24, -29.5] },
+    ] },
     // Ocean Map: the five oceans round a drawn world map, each where it really
     // is (the Pacific west of the Americas, the Atlantic between the Americas
     // and Africa, the Indian south of Asia, the Arctic at the top and the

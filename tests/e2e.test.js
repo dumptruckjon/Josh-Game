@@ -8076,13 +8076,15 @@ test("the owner's new picks play as designed: Story Dice, Hunt at Home and the �
       const wn = wrong.getAttribute("aria-label"); wrong.click();
       const wrongSaid = window.__S1.map((x) => x[0]); window.__S1.length = 0;
       const right = s.querySelector(".scene__zone[data-correct]"); const rn = right.getAttribute("aria-label"); right.click();
-      return { pins, zones, icon, wn, rn, wrongSaid, rightSaid: window.__S1.slice(), prompt: s.querySelector(".game__promptText").textContent };
+      const home = (right.querySelector(".map__marker") || {}).textContent || "";
+      return { pins, zones, icon, wn, rn, home, wrongSaid, rightSaid: window.__S1.slice(), prompt: s.querySelector(".game__promptText").textContent };
     });
     assert.equal(saf.zones, 7, "Animal Safari shows the seven continents");
     assert.equal(saf.pins, 0, "…with no pictures on them (a picture would be the answer)");
     const safAnimal = (await page.evaluate(() => window.JoshContent.ANIMAL_SAFARI)).find((a) => saf.prompt === "Where does " + a.name + " live?");
     assert.ok(safAnimal, `the question names an animal (${saf.prompt})`);
     assert.ok(saf.icon.includes(safAnimal.e), `the icon strip shows the animal, so it plays with the sound off (${saf.icon})`);
+    assert.equal(saf.home, safAnimal.e, "the found continent shows the animal that lives there, not an empty green box");
     assert.ok(saf.wrongSaid.includes("That's " + saf.wn + ". Where does " + safAnimal.name + " live?"), `a wrong continent is named (${JSON.stringify(saf.wrongSaid)})`);
     assert.ok(saf.rightSaid.some((x) => x[0] === safAnimal.name.charAt(0).toUpperCase() + safAnimal.name.slice(1) + " lives in " + saf.rn + "!"), `the right one says where it lives (${JSON.stringify(saf.rightSaid)})`);
     assert.ok(saf.rightSaid.some((x) => /^[一-鿿]+$/.test(x[0]) && x[1] === "zh-CN"), `…then the continent's Chinese name in a zh-CN voice (${JSON.stringify(saf.rightSaid)})`);
@@ -8180,6 +8182,24 @@ test("the owner's new picks play as designed: Story Dice, Hunt at Home and the �
     assert.ok(fat > 0 && / is known for /.test(ffs[fat - 1][0]), `Flag Friends says ${fc.name} is known for…, then ${fc.zh} in a zh-CN voice (${JSON.stringify(ffs)})`);
   } finally {
     await page.evaluate(() => { window.JoshAudio.say = window.__SAY1; if (window.__RND) Math.random = window.__RND; });
+  }
+});
+
+test("a right answer is SEEN before the next round: the sort bin and Simon's zone light up for a beat", async () => {
+  // The sorters (12 games) and Simon Says rebuilt the board in the same tap as
+  // the right answer, so the green ring and pop on the answer never painted
+  // except on the final win. A round now ends through api.nextRound: the lit
+  // answer stays on screen for a beat, closed, then the next question comes.
+  for (const [id, sel, hit] of [["hot-cold", ".sort__bin", "sort__bin--hit"], ["body-parts", ".body__zone", "body__zone--hit"]]) {
+    await openGame(id);
+    const r = await page.evaluate(([id, sel, hit]) => {
+      const s = document.getElementById("screen-" + id);
+      const b = s.querySelector(sel + "[data-correct]"); b.click();
+      return { lit: b.isConnected && b.classList.contains(hit) && b.getClientRects().length > 0, flags: s.querySelectorAll("[data-correct]").length };
+    }, [id, sel, hit]);
+    assert.ok(r.lit, `${id}: the right answer is still on screen, lit, after the tap`);
+    assert.equal(r.flags, 0, `${id}: the answered board is closed (no flag left up) during the beat`);
+    await page.waitForFunction(([id, sel]) => !!document.querySelector("#screen-" + id + " " + sel + "[data-correct]"), [id, sel], { timeout: 4000 });
   }
 });
 

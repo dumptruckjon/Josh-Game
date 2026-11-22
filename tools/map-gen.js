@@ -206,6 +206,32 @@ const MAPS = {
       ["amazon", "#4fa84a", poly([[-77.5, -2], [-72, 1.5], [-66, 2.5], [-58, 3.5], [-52, 2], [-48, -2], [-49.5, -7.5], [-55, -11], [-63, -12], [-70, -10.5], [-74.5, -7.5], [-77, -4.5]])],
     ],
   },
+  ASIA_MAP: {
+    proj: d3.geoMercator(),
+    fit: lonBox(30, -10, 148, 62),
+    layers: [
+      ["sea", col.sea, "rect"],
+      ["land", col.land, merged(ne(C50, (x) => ["Asia", "Europe", "Africa", "Oceania"].includes(x.properties.CONTINENT)))],
+      ["russia", "#e8a8a8", merged(named(C50, "ADMIN", "Russia"))],
+      ["china", "#f2d98c", merged(named(C50, "ADMIN", "China"))],
+      ["india", "#f4b26a", merged(named(C50, "ADMIN", "India"))],
+      ["japan", "#c9a8e8", merged(named(C50, "ADMIN", "Japan"))],
+      ["arabia", "#e8d28c", merged(named(C50, "ADMIN", "Saudi Arabia"))],
+    ],
+  },
+  AFRICA_MAP: {
+    proj: d3.geoMercator(),
+    fit: lonBox(-18, -36, 52, 38),
+    layers: [
+      ["sea", col.sea, "rect"],
+      ["land", col.land, merged(ne(C50, (x) => ["Africa", "Asia", "Europe"].includes(x.properties.CONTINENT)))],
+      ["sahara", "#f0d48a", poly([[-13, 21], [-12, 27], [-6, 30], [4, 31.5], [12, 31], [20, 30.5], [23.5, 29], [23.5, 20], [20, 16.5], [10, 16], [0, 16], [-8, 16.5], [-13, 18]])],
+      ["egypt", "#e8b25a", merged(named(C50, "ADMIN", "Egypt"))],
+      ["kenya", "#9edc7a", merged(named(C50, "ADMIN", "Kenya"))],
+      ["madagascar", "#7cc6d8", merged(named(C50, "ADMIN", "Madagascar"))],
+      ["southafrica", "#c9a8e8", merged(named(C50, "ADMIN", "South Africa"))],
+    ],
+  },
   AUSTRALIA_MAP: {
     proj: d3.geoMercator(),
     fit: lonBox(112, -44, 155, -10),

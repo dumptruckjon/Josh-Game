@@ -4730,6 +4730,8 @@ button.bn-pickd { cursor: pointer; }
   .map__ask { display: block; font-size: clamp(4rem, 11vh, 6rem); margin: 0 0 14px; }
 }
 .map__marker { position: absolute; right: -6px; top: -10px; font-size: 1.8rem; line-height: 1; pointer-events: none; }
+/* Animal Safari: the animal moves into the empty pin it was found on */
+.map__marker--home { position: static; font-size: 2.3rem; }
 .choice--flag, .choice--thing { font-size: clamp(3rem, 16vw, 4.6rem); }
 /* The World pick games: three tall cards and a big picture, sized from the
    screen's height, so the play fills a phone instead of sitting as one thin row

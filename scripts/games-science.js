@@ -57,8 +57,10 @@
                 const why = set.bins[r.correctIndex] && set.bins[r.correctIndex].why;
                 if (why) api.say(why);
                 round += 1;
+                // a beat to SEE the right bin light up: rebuilt in the same
+                // tap, its green ring and pop never painted except on the win
                 if (round >= ROUNDS) api.win();
-                else { api.roundWin(); newRound(); }
+                else { api.roundWin(); api.nextRound(newRound, 650); }
               } else api.tryAgain(btn);
             });
             bins.appendChild(btn);
@@ -646,7 +648,7 @@
             api.say("You found your " + r.part.label + "!");
             round += 1;
             if (round >= ROUNDS) api.win({ say: "You know all your body parts!" });
-            else { api.roundWin(); newRound(); }
+            else { api.roundWin(); api.nextRound(newRound, 650); }
           };
         });
       }
