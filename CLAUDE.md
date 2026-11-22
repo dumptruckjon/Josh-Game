@@ -11363,8 +11363,9 @@ peek then answer], **path-choice** [tap a whole route], **pictograph/representat
   CHINESE name after the English, in a zh-CN voice (restated with pinyin in
   content.test.js). Every map game names its `map` on its def, and every zone
   the drawn `region` it must sit on, so the tests find the maps from the
-  registry. Josh is at **218** (🏯 Asia Map and 🦓 Africa Map joined
-  2026-11-22; before them Washington Animals, 🌊 Ocean Map and three
+  registry. Josh is at **220** (🍁 North America Map and 🐘 India Map
+  joined 2026-11-22 after 🏯 Asia Map and 🦓 Africa Map;
+  before them Washington Animals, 🌊 Ocean Map and three
   continent close-ups — Europe, South America, Australia — joined the 🗺️ World
   category, 2026-11-21; the individual continent maps are his working edge); the home's tiles fill their last row at
   every column count (`fillLastRow`), and below 360px wide a game's title steps

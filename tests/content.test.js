@@ -1417,6 +1417,20 @@ test("🗺️ Asia and Africa up close: every place sits on its real side", () =
   assert.ok(f.madagascar.x > f.southafrica.x && f.madagascar.x > f.kenya.x, "Madagascar is the island off the east coast");
 });
 
+test("🗺️ North America and India up close: every place sits on its real side", () => {
+  const n = geo(content.NORTH_AMERICA_MAP);
+  assert.deepEqual(Object.keys(n).sort(), ["canada", "cuba", "greenland", "mexico", "usa"], "five places in North America");
+  assert.ok(n.canada.y < n.usa.y && n.usa.y < n.mexico.y, "Canada, then the United States, then Mexico, top to bottom");
+  for (const k of ["canada", "usa", "mexico", "cuba"]) assert.ok(n.greenland.y < n[k].y && n.greenland.x > n[k].x, `Greenland is up in the north-east (beyond ${k})`);
+  assert.ok(n.cuba.x > n.mexico.x && n.cuba.y > n.usa.y, "Cuba is east of Mexico and south of the United States");
+  const i = geo(content.INDIA_MAP);
+  assert.deepEqual(Object.keys(i).sort(), ["delhi", "desert", "kerala", "mountains", "mumbai"], "five places in India");
+  for (const k of ["delhi", "desert", "kerala", "mumbai"]) assert.ok(i.mountains.y < i[k].y, `the Himalayas are at the top (above ${k})`);
+  for (const k of ["delhi", "desert", "mountains", "mumbai"]) assert.ok(i.kerala.y > i[k].y, `Kerala is at the very bottom (below ${k})`);
+  assert.ok(i.desert.x < i.delhi.x && i.mumbai.x < i.kerala.x, "the desert and Mumbai are on the west side");
+  assert.ok(i.mumbai.y > i.delhi.y && i.mumbai.y < i.kerala.y, "Mumbai is between Delhi and Kerala");
+});
+
 test("🗺️ Animal Safari: each animal's home, and EVERY other continent it lives wild on", () => {
   // Restated: the Animal Homes lesson — no animal that also lives wild on
   // another continent (a lion lives wild in India, a sloth in Central
@@ -1466,6 +1480,9 @@ test("🗺️ every Chinese name in the World games is the real one", () => {
     "Colombia": ["哥伦比亚", "Gēlúnbǐyà"], "the Amazon rainforest": ["亚马孙雨林", "Yàmǎsūn yǔlín"], "Peru": ["秘鲁", "Bìlǔ"], "Argentina": ["阿根廷", "Āgēntíng"],
     "Saudi Arabia": ["沙特阿拉伯", "Shātè Ālābó"], "Egypt": ["埃及", "Āijí"], "the Sahara Desert": ["撒哈拉沙漠", "Sāhālā shāmò"],
     "Madagascar": ["马达加斯加", "Mǎdájiāsījiā"], "South Africa": ["南非", "Nánfēi"],
+    "the United States": ["美国", "Měiguó"], "Greenland": ["格陵兰", "Gélínglán"], "Cuba": ["古巴", "Gǔbā"],
+    "the Himalaya Mountains": ["喜马拉雅山", "Xǐmǎlāyǎ Shān"], "Delhi": ["德里", "Délǐ"], "the Thar Desert": ["塔尔沙漠", "Tǎ'ěr shāmò"],
+    "Mumbai": ["孟买", "Mèngmǎi"], "Kerala": ["喀拉拉", "Kālālā"],
     "Perth": ["珀斯", "Pòsī"], "Uluru": ["乌鲁鲁", "Wūlǔlǔ"], "the Great Barrier Reef": ["大堡礁", "Dàbǎojiāo"], "Sydney": ["悉尼", "Xīní"],
     // the countries
     "the USA": ["美国", "Měiguó"], "China": ["中国", "Zhōngguó"], "India": ["印度", "Yìndù"], "Russia": ["俄罗斯", "Éluósī"], "Canada": ["加拿大", "Jiānádà"],

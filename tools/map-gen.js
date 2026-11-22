@@ -232,6 +232,33 @@ const MAPS = {
       ["southafrica", "#c9a8e8", merged(named(C50, "ADMIN", "South Africa"))],
     ],
   },
+  NORTH_AMERICA_MAP: {
+    proj: d3.geoConicConformal().parallels([25, 60]).rotate([95, 0]),
+    fit: lonBox(-128, 12, -50, 80),
+    layers: [
+      ["sea", col.sea, "rect"],
+      ["land", col.land, merged(ne(C50, (x) => ["North America", "South America", "Europe"].includes(x.properties.CONTINENT)))],
+      ["canada", "#e8a8a8", merged(named(C50, "ADMIN", "Canada"))],
+      ["usa", "#a8b8f0", merged(named(C50, "ADMIN", "United States of America"))],
+      ["mexico", "#9edc7a", merged(named(C50, "ADMIN", "Mexico"))],
+      ["greenland", "#e9f4f9", merged(named(C50, "ADMIN", "Greenland"))],
+      ["cuba", "#f4cf6a", merged(named(C50, "ADMIN", "Cuba"))],
+    ],
+  },
+  INDIA_MAP: {
+    proj: d3.geoMercator(),
+    fit: lonBox(67, 6, 98, 37),
+    layers: [
+      ["sea", col.sea, "rect"],
+      ["land", col.land, merged(ne(C50, (x) => x.properties.CONTINENT === "Asia" && x.properties.ADMIN !== "India"))],
+      ["land", "#f4d9a8", merged(named(C50, "ADMIN", "India"))],
+      ["mountains", "#e9f4f9", merged(state("IN-LA").concat(state("IN-HP"), state("IN-UT"), state("IN-SK")))],
+      ["desert", "#f0d48a", merged(state("IN-RJ"))],
+      ["kerala", "#4fa84a", merged(state("IN-KL"))],
+      ["delhi", "#e05a4f", circle(77.2, 28.6, 0.8)],
+      ["mumbai", "#e05a4f", circle(72.88, 19.08, 0.8)],
+    ],
+  },
   AUSTRALIA_MAP: {
     proj: d3.geoMercator(),
     fit: lonBox(112, -44, 155, -10),

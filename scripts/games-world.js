@@ -233,6 +233,24 @@
     done: "You can read the map of Africa!",
   });
   mapGame({
+    id: "north-america-map", icon: "🍁", title: "North America Map", skill: "the map of North America [W]",
+    map: "NORTH_AMERICA_MAP",
+    caption: (z) => "Tap " + z.say + "!",
+    ask: (z) => z.ask,
+    found: (z) => "That's " + z.say + "!",
+    wrong: (z, t) => "That's " + z.say + ". " + t.ask,
+    done: "You can read the map of North America!",
+  });
+  mapGame({
+    id: "india-map", icon: "🐘", title: "India Map", skill: "the map of India [W]",
+    map: "INDIA_MAP",
+    caption: (z) => "Tap " + z.say + "!",
+    ask: (z) => z.ask,
+    found: (z) => "That's " + z.say + "!",
+    wrong: (z, t) => "That's " + z.say + ". " + t.ask,
+    done: "You can read the map of India!",
+  });
+  mapGame({
     id: "australia-map", icon: "🦘", title: "Australia Map", skill: "the map of Australia [W]",
     map: "AUSTRALIA_MAP",
     caption: (z) => "Tap " + z.say + "!",

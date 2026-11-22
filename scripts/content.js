@@ -1319,6 +1319,23 @@
       { id: "madagascar", e: "🦎", say: "Madagascar", zh: "马达加斯加", region: "madagascar", ask: "Tap Madagascar — the big island where chameleons live!", at: [46.8, -19.5] },
       { id: "southafrica", e: "🐧", say: "South Africa", zh: "南非", region: "southafrica", ask: "Tap South Africa — at the very bottom, where penguins live!", at: [24, -29.5] },
     ] },
+    // North America and India up close. North America from Greenland's ice to
+    // Cuba's beaches; India for Viraj's family: the mountains in the north,
+    // Delhi, the desert, Mumbai on the west coast and Kerala in the far south.
+    NORTH_AMERICA_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
+      { id: "canada", e: "🍁", say: "Canada", zh: "加拿大", region: "canada", ask: "Tap Canada — the big land in the north, with the maple leaf!", at: [-105, 57] },
+      { id: "usa", e: "🗽", say: "the United States", zh: "美国", region: "usa", ask: "Tap the United States — where we live, in the middle!", at: [-98, 39] },
+      { id: "mexico", e: "🌮", say: "Mexico", zh: "墨西哥", region: "mexico", ask: "Tap Mexico — south of the United States, where tacos come from!", at: [-102, 23.5] },
+      { id: "greenland", e: "🐻‍❄️", say: "Greenland", zh: "格陵兰", region: "greenland", ask: "Tap Greenland — the icy island at the top, where polar bears live!", at: [-41, 73] },
+      { id: "cuba", e: "🏝️", say: "Cuba", zh: "古巴", region: "cuba", ask: "Tap Cuba — the warm island in the sea, south of Florida!", at: [-79, 21.8] },
+    ] },
+    INDIA_MAP: { box: { w: 340, h: 400, dot: 78, minGap: 14 }, zones: [
+      { id: "mountains", e: "🏔️", say: "the Himalaya Mountains", zh: "喜马拉雅山", region: "mountains", ask: "Tap the Himalayas — the giant snowy mountains at the top!", at: [77.6, 34.0] },
+      { id: "delhi", e: "🏛️", say: "Delhi", zh: "德里", region: "delhi", ask: "Tap Delhi — the big capital city in the north!", at: [77.2, 28.6] },
+      { id: "desert", e: "🐪", say: "the Thar Desert", zh: "塔尔沙漠", region: "desert", ask: "Tap the Thar Desert — the sandy land in the west, where camels walk!", at: [72.5, 26.8] },
+      { id: "mumbai", e: "🌊", say: "Mumbai", zh: "孟买", region: "mumbai", ask: "Tap Mumbai — the big city by the sea on the west coast!", at: [72.88, 19.08] },
+      { id: "kerala", e: "🥥", say: "Kerala", zh: "喀拉拉", region: "kerala", ask: "Tap Kerala — the green coconut land at the very bottom!", at: [76.4, 10.2] },
+    ] },
     // Ocean Map: the five oceans round a drawn world map, each where it really
     // is (the Pacific west of the Americas, the Atlantic between the Americas
     // and Africa, the Indian south of Asia, the Arctic at the top and the
