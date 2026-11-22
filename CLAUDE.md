@@ -108,12 +108,12 @@ Until the owner says otherwise:
   full: ship to `main`, test, verify live, the link in every reply, the touch
   laws and the guardrails.
 - **Plain, readable updates.** A few short lines, not a long report.
-- **Parked: one known bug, found and NOT fixed. Do not start it unless the
-  owner asks.** In Robot Talk (`scripts/games-literacy.js`, `play()`): **it says
-  letter NAMES ("see-ay-tee"), not letter SOUNDS ("c-a-t").** `api.say(ch)`
-  speaks a bare letter, and a voice reads a bare letter as its name. That is
-  wrong for an oral-blending game, and the fix needs recorded sounds from the
-  owner. (Its other parked bug — the replay saying the NEXT round's word, and
+- **Declined (owner, 2026-11-22): recorded letter sounds for Robot Talk.** In
+  Robot Talk (`scripts/games-literacy.js`, `play()`) the voice says letter
+  NAMES ("see-ay-tee"), not letter SOUNDS ("c-a-t"), because `api.say(ch)`
+  speaks a bare letter. The only real fix is recorded sounds, and the owner
+  will not record them ("I'll never spend time recording"). Do not list it as
+  open, suggest it, or ask for recordings again. (Its other parked bug — the replay saying the NEXT round's word, and
   game timers sounding after he left — was fixed 2026-11-18: the next round
   waits for the blend, each step checks it is still its round, and every game
   timer sounds through `api.say`/`api.tone`, which a guardrail enforces.)
