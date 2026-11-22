@@ -1993,6 +1993,26 @@ test("🗺️ makeFlagPick: three different flags, the country's own among them,
   assert.ok(sawAvoider > 500, "fixture: countries with an avoid list were drawn");
 });
 
+test("🗺️ a World game never asks the same thing twice in one game while a fresh one is left", () => {
+  // Measured before: with only the last round excluded, Washington Animals
+  // asked about the beaver twice in four rounds, Where in the World? the
+  // Statue of Liberty twice in five.
+  for (let seed = 1; seed <= 300; seed++) {
+    const rng = mulberry32(seed);
+    for (const [make, n, rounds] of [
+      [(seen) => L.makeOddPlace(content.WA_ANIMALS.wa, content.WA_ANIMALS.far, rng, seen), content.WA_ANIMALS.wa.length, 4],
+      [(seen) => L.makeOddPlace(content.CHINA_TRIP.china, content.CHINA_TRIP.far, rng, seen), content.CHINA_TRIP.china.length, 4],
+      [(seen) => L.makeFlagPick(content.COUNTRIES, rng, seen), content.COUNTRIES.length, 5],
+    ]) {
+      const seen = [];
+      for (let r = 0; r < rounds; r++) { const x = make(seen); assert.ok(!seen.includes(x.idx), `seed ${seed}: index ${x.idx} asked twice`); seen.push(x.idx); }
+      // once every one is used, it still never repeats the last
+      while (seen.length < n) seen.push(make(seen).idx);
+      for (let r = 0; r < 20; r++) { const x = make(seen); assert.notEqual(x.idx, seen[seen.length - 1]); seen.push(x.idx); }
+    }
+  }
+});
+
 test("🗺️ makeOddPlace: one thing from the place, two from far away, never the same place-thing twice running", () => {
   const rng = mulberry32(78);
   for (const [own, far] of [[content.WA_WONDERS.wa, content.WA_WONDERS.far], [content.CHINA_TRIP.china, content.CHINA_TRIP.far]]) {

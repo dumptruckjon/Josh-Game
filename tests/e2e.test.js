@@ -8366,3 +8366,53 @@ test("a right answer is never followed by the SAME question — every game that 
     }
   } finally { await ctx.close(); }
 });
+
+test("a wrong tap's shake never MOVES the button — in every game, with motion and with reduced motion", async () => {
+  // Measured 2026-11-22: 22 games (every map, the trace games, Simon Says,
+  // Shape Spy, Hide & Seek) centre a button on its spot with
+  // transform: translate(-50%, -50%), and the shared bump keyframe REPLACED
+  // that transform, so a wrong tap threw the pin half its own size down and
+  // right — and under reduced motion `.bump { transform: none !important }`
+  // left it there, on the wrong place of the map. The cues now compose onto
+  // --center. Derived from the registry, so a new game is checked too.
+  // A FRESH context per setting, as a device has: switching the media query
+  // on a page that has already played a mode left the old state behind, and
+  // the reduced-motion half then could not fail (measured: a mutation of the
+  // reduced-motion rule stayed green).
+  const moved = [];
+  let measured = 0, centred = 0;
+  for (const motion of ["no-preference", "reduce"]) {
+    const ctx = await browser.newContext({ viewport: { width: 402, height: 874 }, reducedMotion: motion });
+    const pg = await ctx.newPage();
+    try {
+      await pg.goto(baseURL + "#home");
+      const ids = await pg.evaluate(() => window.JoshGames.map((g) => g.id));
+      for (const id of ids) {
+        await pg.goto(baseURL + "#home"); await pg.goto(baseURL + "#" + id);
+        await pg.waitForSelector("#screen-" + id + ":not([hidden])", { timeout: 5000 }).catch(() => {});
+        const r = await pg.evaluate(() => {
+          const s = document.querySelector(".screen.game:not([hidden])"); if (!s) return null;
+          const b = [...s.querySelectorAll(".game__stage button")].find((x) => !x.dataset.correct && !x.dataset.toy && !x.disabled && x.getClientRects().length && !x.closest("[data-correct]"));
+          if (!b) return null;
+          const c = getComputedStyle(b).getPropertyValue("--center").trim() !== "";
+          const a = b.getBoundingClientRect();
+          b.click();
+          // seek the shake to its far left (25%), where a replaced transform shows most
+          for (const an of b.getAnimations()) { an.pause(); an.currentTime = (an.effect.getComputedTiming().duration || 0) * 0.25; }
+          const z = b.getBoundingClientRect();
+          // only a "try again" shake is judged: a tap that does something on
+          // purpose (Mix It!'s pot tips to pour) is meant to move
+          if (!b.classList.contains("bump")) return null;
+          return { cls: b.className, c, dx: z.left - a.left, dy: z.top - a.top };
+        });
+        if (!r) continue;
+        measured++; if (r.c) centred++;
+        // the shake is 8px side to side; a lost centring is half the button (38-48px)
+        if (Math.abs(r.dy) > 1 || Math.abs(r.dx) > (motion === "reduce" ? 1 : 9)) moved.push(`${motion} ${id} [${r.cls}] moved ${r.dx.toFixed(0)},${r.dy.toFixed(0)}px`);
+      }
+    } finally { await ctx.close(); }
+  }
+  assert.deepEqual(moved, [], "a wrong tap moved the button off its spot:\n" + moved.join("\n"));
+  assert.ok(measured >= 300, `fixture: wrong taps measured in both motion settings (saw ${measured})`);
+  assert.ok(centred >= 40, `fixture: transform-centred buttons were among them (saw ${centred})`);
+});

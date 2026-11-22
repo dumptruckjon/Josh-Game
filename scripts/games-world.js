@@ -16,7 +16,7 @@
       id: cfg.id, icon: cfg.icon, title: cfg.title, skill: cfg.skill,
       start(api) {
         const ROUNDS = 4;
-        let round = 0, last = -1;
+        let round = 0; const seen = [];
         // Three BIG cards and the buddy below: three 96px cards alone left
         // most of a phone's play area empty (measured on an iPhone 17 Pro).
         const chips = api.el("div", { class: "choices choices--3 choices--world" });
@@ -24,7 +24,7 @@
         api.mascot();
         api.stage.classList.add("world-pick");
         function newRound() {
-          const r = L.makeOddPlace(cfg.own(), cfg.far(), undefined, last); last = r.idx;
+          const r = L.makeOddPlace(cfg.own(), cfg.far(), undefined, seen); seen.push(r.idx);
           api.setPrompt(cfg.ask, cfg.icons, cfg.ask);
           api.speak();
           chips.innerHTML = "";
@@ -292,14 +292,14 @@
       id: cfg.id, icon: cfg.icon, title: cfg.title, skill: cfg.skill,
       start(api) {
         const ROUNDS = 5;
-        let round = 0, last = -1;
+        let round = 0; const seen = [];
         const big = api.el("div", { class: "pick__big pick__big--world", aria: { hidden: "true" } });
         const chips = api.el("div", { class: "choices choices--3 choices--world" });
         api.stage.append(big, chips);
         api.mascot();
         api.stage.classList.add("world-pick");
         function newRound() {
-          const r = L.makeFlagPick(C.COUNTRIES || [], undefined, last); last = r.idx;
+          const r = L.makeFlagPick(C.COUNTRIES || [], undefined, seen); seen.push(r.idx);
           const c = r.country;
           big.textContent = cfg.big(c);
           api.setPrompt(cfg.caption(c), cfg.icons(c), cfg.ask(c));
@@ -313,7 +313,7 @@
               dataset: ch.correct ? { correct: "1" } : {}, aria: { label: thing ? o.thingName : "the flag of " + o.name },
             });
             b.addEventListener("click", () => {
-              if (!ch.correct) { api.tryAgain(b); api.say(thing ? "That's " + o.thingName + ", from " + o.name + "." : "That's the flag of " + o.name + "."); return; }
+              if (!ch.correct) { api.tryAgain(b); api.say(thing ? (o.plural ? "Those are " : "That's ") + o.thingName + ", from " + o.name + "." : "That's the flag of " + o.name + "."); return; }
               api.say(cfg.found(c));
               if (c.zh) api.say(c.zh, { lang: "zh-CN" });
               round += 1;

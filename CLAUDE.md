@@ -16558,3 +16558,20 @@ had to grow to 340x360, because at 300 tall the pins crowded and China's pin
 was pushed down over Indonesia. A pin's distance from its own spot is the
 number to check after `tools/map-gen.js`, not only that it was placed.
 
+
+**THE WORLD TRUTH AUDIT (2026-11-22) found three wrong facts and one bug in 23
+games.** All 18 World games were played with every wrong and right answer
+tapped and every spoken line recorded. Facts: "a lion" was a WRONG answer in
+both Washington games, but mountain lions live wild all over Washington; Kerala
+is not India's southern tip (Tamil Nadu is); maples also grow wild in Russia,
+India and Mexico, so their flags may not be wrong answers for 🍁. Two small
+ones: a game could ask the same thing twice (it now uses each item once before
+any repeats, `freshIndex` in logic.js), and "That's the royal guards" is now
+"Those are" (`plural`). The bug: a wrong tap's shake (`bump`) REPLACED the
+`translate(-50%, -50%)` that centres a map pin, trace dot or body zone, so the
+button jumped half its size, and under reduced motion `.bump { transform:
+none !important }` left it there — 23 games. The shared cues now compose onto
+`--center`, and an e2e test taps a wrong answer in every game, in a FRESH
+context per motion setting: switching the media query on a page already used
+left the reduced half unable to fail. A recorded keyframe lesson, applied to
+the one cue nobody had checked: the shake.

@@ -1274,7 +1274,7 @@ test("🗺️ Washington Wonders: every Washington thing is really Washington, e
   // are found far away (wild animals that do not live wild in Washington, and
   // landmarks in other places).
   const WA = { "🏔️": "Mount Rainier", "🍎": "apples", "🐟": "salmon", "⛴️": "the ferry", "🌲": "evergreen trees", "🐋": "whales", "🌧️": "rain" };
-  const FAR = { "🐪": "a camel", "🦘": "a kangaroo", "🐊": "a crocodile", "🦁": "a lion", "🗽": "the Statue of Liberty", "🐼": "a panda" };
+  const FAR = { "🐪": "a camel", "🦘": "a kangaroo", "🐊": "a crocodile", "🗽": "the Statue of Liberty", "🐼": "a panda" };
   const W = content.WA_WONDERS;
   assert.deepEqual(Object.fromEntries(W.wa.map((i) => [i.e, i.name])), WA);
   assert.deepEqual(Object.fromEntries(W.far.map((i) => [i.e, i.name])), FAR);
@@ -1283,7 +1283,7 @@ test("🗺️ Washington Wonders: every Washington thing is really Washington, e
 
 test("🗺️ Washington Animals: every Washington animal lives wild in the state, no far animal does", () => {
   const WA = { "🦅": "a bald eagle", "🐻": "a black bear", "🦦": "a sea otter", "🦌": "a deer", "🐙": "an octopus", "🦭": "a seal", "🦫": "a beaver", "🦉": "an owl" };
-  const FAR = { "🐪": "a camel", "🦘": "a kangaroo", "🦁": "a lion", "🐼": "a panda", "🦒": "a giraffe", "🐧": "a penguin", "🦓": "a zebra", "🐨": "a koala", "🦛": "a hippo" };
+  const FAR = { "🐪": "a camel", "🦘": "a kangaroo", "🐼": "a panda", "🦒": "a giraffe", "🐧": "a penguin", "🦓": "a zebra", "🐨": "a koala", "🦛": "a hippo" };
   const W = content.WA_ANIMALS;
   assert.deepEqual(Object.fromEntries(W.wa.map((i) => [i.e, i.name])), WA);
   assert.deepEqual(Object.fromEntries(W.far.map((i) => [i.e, i.name])), FAR);
@@ -1320,14 +1320,17 @@ test("🗺️ countries: each flag is its own country's, and a thing's `avoid` n
   const FLAG = { usa: "🇺🇸", china: "🇨🇳", india: "🇮🇳", russia: "🇷🇺", canada: "🇨🇦", japan: "🇯🇵", mexico: "🇲🇽", australia: "🇦🇺", uk: "🇬🇧", kenya: "🇰🇪", brazil: "🇧🇷" };
   const THING = { usa: "🗽", china: "🐼", india: "🐅", russia: "🪆", canada: "🍁", japan: "🗻", mexico: "🌮", australia: "🦘", uk: "💂", kenya: "🦒", brazil: "🦥" };
   // also true elsewhere among these eleven, so never offered against it either
-  // way: wild tigers in China and Russia; maples wild in the USA, Japan, China
-  // and the UK; tacos all over the USA; sloths in the south of Mexico.
-  const ALSO = { india: ["china", "russia"], canada: ["usa", "japan", "china", "uk"], mexico: ["usa"], brazil: ["mexico"] };
+  // way: wild tigers in China and Russia; maples wild in the USA, Japan, China,
+  // the UK, Russia (Norway maple), India (the Himalayas) and Mexico (its
+  // mountain sugar maple); tacos all over the USA; sloths in the south of Mexico.
+  const ALSO = { india: ["china", "russia"], canada: ["usa", "japan", "china", "uk", "russia", "india", "mexico"], mexico: ["usa"], brazil: ["mexico"] };
   const C = content.COUNTRIES;
   assert.deepEqual(Object.fromEntries(C.map((c) => [c.id, c.flag])), FLAG);
   assert.deepEqual(Object.fromEntries(C.map((c) => [c.id, c.thing])), THING);
   for (const c of C) assert.deepEqual((c.avoid || []).slice().sort(), (ALSO[c.id] || []).slice().sort(), `${c.id}'s avoid list`);
   assert.equal(new Set(C.map((c) => c.thing)).size, C.length, "every country has its own picture");
+  // a wrong tap says "That's X" or "Those are X", so a plural thing says so
+  for (const c of C) assert.equal(!!c.plural, /s$/.test(c.thingName) && !/ss$/.test(c.thingName), `${c.thingName}: plural flag`);
 });
 
 test("🗺️ the two maps: places sit on their real sides, and the tap zones are ≥78px apart at the map's size AND squeezed to a 280px phone", () => {
@@ -1426,7 +1429,7 @@ test("🗺️ North America and India up close: every place sits on its real sid
   const i = geo(content.INDIA_MAP);
   assert.deepEqual(Object.keys(i).sort(), ["delhi", "desert", "kerala", "mountains", "mumbai"], "five places in India");
   for (const k of ["delhi", "desert", "kerala", "mumbai"]) assert.ok(i.mountains.y < i[k].y, `the Himalayas are at the top (above ${k})`);
-  for (const k of ["delhi", "desert", "mountains", "mumbai"]) assert.ok(i.kerala.y > i[k].y, `Kerala is at the very bottom (below ${k})`);
+  for (const k of ["delhi", "desert", "mountains", "mumbai"]) assert.ok(i.kerala.y > i[k].y, `Kerala is the southernmost of the five (below ${k})`);
   assert.ok(i.desert.x < i.delhi.x && i.mumbai.x < i.kerala.x, "the desert and Mumbai are on the west side");
   assert.ok(i.mumbai.y > i.delhi.y && i.mumbai.y < i.kerala.y, "Mumbai is between Delhi and Kerala");
 });

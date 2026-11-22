@@ -799,7 +799,7 @@ body.in-game:not(.td-mode) .game__title { font-size: clamp(1rem, 4.4vw, 1.4rem);
 .trace__stage { position: relative; width: 100%; max-width: 420px; height: 520px; margin: 0 auto; }
 .trace__line { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; }
 .trace__dot {
-  position: absolute; transform: translate(-50%, -50%);
+  position: absolute; --center: translate(-50%, -50%); transform: translate(-50%, -50%);
   width: var(--tap); height: var(--tap); border-radius: 50%;
   background: #fff; box-shadow: 0 5px 14px rgba(0, 0, 0, 0.15);
   font-size: 1.6rem; font-weight: 800; color: #456;
@@ -1609,19 +1609,24 @@ body.in-game:not(.td-mode) .game__title { font-size: clamp(1rem, 4.4vw, 1.4rem);
 .sw__collected { min-height: 26px; font-size: 21px; letter-spacing: 2px; }
 
 /* ---------- Animations (small elements only, never the background) ---------- */
-@keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+/* The shared cues COMPOSE onto an element that is centred on its spot by a
+   transform (a map pin, a trace dot, a body zone declare --center): a
+   keyframe's transform REPLACES the element's own, so without the prefix a
+   wrong tap's shake moved a pin half its size, and under reduced motion the
+   rule below left it there (22 games, measured 2026-11-22). */
+@keyframes pop { 0% { transform: var(--center, translate(0, 0)) scale(0.7); } 60% { transform: var(--center, translate(0, 0)) scale(1.08); } 100% { transform: var(--center, translate(0, 0)) scale(1); } }
 .pop { animation: pop 320ms ease-out; }
 
-@keyframes bump { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+@keyframes bump { 0%,100% { transform: var(--center, translate(0, 0)) translateX(0); } 25% { transform: var(--center, translate(0, 0)) translateX(-8px); } 75% { transform: var(--center, translate(0, 0)) translateX(8px); } }
 .bump { animation: bump 300ms ease-in-out; }
 
-@keyframes chomp { 0%,100% { transform: scale(1); } 50% { transform: scale(1.18) rotate(-4deg); } }
+@keyframes chomp { 0%,100% { transform: var(--center, translate(0, 0)) scale(1); } 50% { transform: var(--center, translate(0, 0)) scale(1.18) rotate(-4deg); } }
 .chomp { animation: chomp 260ms ease-out; }
 
 @media (prefers-reduced-motion: reduce) {
   .pop, .bump, .chomp, .tile:active, .choice:active, .btn-big:active, .btn-round:active, .animal-card:active {
     animation: none !important;
-    transform: none !important;
+    transform: var(--center, none) !important;
   }
   .breathe__star, .coop__token, .balloon, .bub, .bridge__hero, .wi__card, .add__group, .add__plus, .race__token { transition: none !important; }
   .add__scene--merge .add__group { transform: none !important; }
@@ -2013,7 +2018,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 }
 .hl-fumark--done { color: rgba(255, 233, 176, 0.85); text-shadow: 0 4px 14px rgba(80, 0, 0, 0.5); }
 .hl-fudot {
-  position: absolute; transform: translate(-50%, -50%);
+  position: absolute; --center: translate(-50%, -50%); transform: translate(-50%, -50%);
   width: var(--tap); height: var(--tap); border-radius: 50%;
   background: #fff8ec; border: 3px solid #d4a437;
   font-size: 1.5rem; font-weight: 900; color: #b71c1c;
@@ -2280,7 +2285,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 .body__fig { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center; }
 .body__fig svg { width: 100%; height: 100%; }
 .body__zone {
-  position: absolute; width: 80px; height: 80px; transform: translate(-50%, -50%);
+  position: absolute; width: 80px; height: 80px; --center: translate(-50%, -50%); transform: translate(-50%, -50%);
   border-radius: 50%; border: 3px solid rgba(91, 63, 214, 0.5);
   background: rgba(255, 255, 255, 0.72); font-size: 2rem; display: flex; align-items: center; justify-content: center;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
@@ -2482,7 +2487,7 @@ body.hl-mode .brand { color: #ffe9b0; }
 
 /* Splat Studio — a canvas that fills with color blobs + a wipe sponge. */
 .splat__canvas { width: 100%; min-height: 300px; flex: 1 1 auto; position: relative; overflow: hidden; border-radius: 22px; border: 3px solid rgba(120,170,255,0.3); background: #fffdf8; }
-.splat__blob { position: absolute; border-radius: 48% 52% 55% 45%; transform: translate(-50%, -50%); box-shadow: 0 3px 8px rgba(0,0,0,0.12); animation: pop 300ms ease-out; }
+.splat__blob { position: absolute; border-radius: 48% 52% 55% 45%; --center: translate(-50%, -50%); transform: translate(-50%, -50%); box-shadow: 0 3px 8px rgba(0,0,0,0.12); animation: pop 300ms ease-out; }
 .splat__sponge { display: block; margin: 12px auto 0; width: 120px; min-height: 78px; font-size: 2.2rem; border-radius: 18px; border: 2px solid rgba(120,170,255,0.3); background: linear-gradient(180deg,#ffffff,#eef4ff); }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2739,7 +2744,7 @@ body.hl-mode .brand { color: #ffe9b0; }
    zone buttons inside a stated content box. The stage takes an EXPLICIT block
    width (a flex item would collapse to 0 since every child is absolute). */
 .scene__stage { position: relative; width: 280px; max-width: 100%; margin: 0 auto; }
-.scene__zone { position: absolute; width: 78px; height: 78px; transform: translate(-50%, -50%); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 2rem; background: rgba(255,255,255,0.55); border: 2px solid rgba(120,170,255,0.3); line-height: 1; }
+.scene__zone { position: absolute; width: 78px; height: 78px; --center: translate(-50%, -50%); transform: translate(-50%, -50%); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 2rem; background: rgba(255,255,255,0.55); border: 2px solid rgba(120,170,255,0.3); line-height: 1; }
 .spy__wrap, .hide__wrap { margin: 8px 0; }
 .scene__zone--found { background: #eafbe8; border-color: #7be08a; box-shadow: 0 0 0 3px rgba(123,224,138,0.5); }
 .hide__wrap .scene__zone { background: linear-gradient(180deg, #dcefd6, #c7e6bf); }

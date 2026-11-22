@@ -1071,10 +1071,19 @@
 
   // 🗺️ World: one `own` thing among two `far` ones (Washington Wonders, China
   // Trip). The own thing never repeats the last round's.
+  // `seen` is the last index, or every index used so far this game: a fresh
+  // one is drawn while any is left, so a game of four rounds never asks the
+  // same thing twice (with only the last one excluded, beavers came up twice).
+  function freshIndex(n, rnd, seen) {
+    const used = Array.isArray(seen) ? seen : [seen];
+    let pool = [];
+    for (let i = 0; i < n; i++) if (!used.includes(i)) pool.push(i);
+    if (!pool.length) { const last = used[used.length - 1]; for (let i = 0; i < n; i++) if (i !== last || n === 1) pool.push(i); }
+    return pool[Math.floor(rnd() * pool.length)];
+  }
   function makeOddPlace(own, far, rng, lastIdx) {
     const rnd = rng || Math.random;
-    let idx = Math.floor(rnd() * own.length);
-    if (own.length > 1 && idx === lastIdx) idx = (idx + 1) % own.length;
+    const idx = freshIndex(own.length, rnd, lastIdx);
     const choices = shuffle([{ item: own[idx], correct: true },
       ...sample(far, Math.min(2, far.length), rng).map((item) => ({ item, correct: false }))], rng);
     return { idx, choices };
@@ -1083,8 +1092,7 @@
   // `avoid` list is never offered as a wrong flag.
   function makeFlagPick(countries, rng, lastIdx) {
     const rnd = rng || Math.random;
-    let idx = Math.floor(rnd() * countries.length);
-    if (countries.length > 1 && idx === lastIdx) idx = (idx + 1) % countries.length;
+    const idx = freshIndex(countries.length, rnd, lastIdx);
     const country = countries[idx];
     // A clash goes BOTH ways: Where in the World? asks for the country of a
     // thing (a wrong flag must not be a place the thing is also true), and Flag

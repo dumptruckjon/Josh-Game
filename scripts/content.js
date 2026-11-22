@@ -1242,7 +1242,8 @@
     // ===== 🗺️ WORLD (geography) — Washington, the USA, China and the world =====
     // Washington Wonders: one Washington thing among things found far away.
     // Every `wa` item is really part of Washington; every `far` item is not
-    // (a wild thing, or a landmark somewhere else). Restated in content.test.
+    // (a wild thing, or a landmark somewhere else; never a lion, since
+    // mountain lions live wild in Washington). Restated in content.test.
     WA_WONDERS: {
       wa: [
         { e: "🏔️", name: "Mount Rainier", fact: "Mount Rainier is a giant snowy mountain in Washington!" },
@@ -1255,13 +1256,14 @@
       ],
       far: [
         { e: "🐪", name: "a camel" }, { e: "🦘", name: "a kangaroo" }, { e: "🐊", name: "a crocodile" },
-        { e: "🦁", name: "a lion" }, { e: "🗽", name: "the Statue of Liberty" }, { e: "🐼", name: "a panda" },
+        { e: "🗽", name: "the Statue of Liberty" }, { e: "🐼", name: "a panda" },
       ],
     },
     // Washington Animals: one animal that lives WILD in Washington among
     // animals that do not live wild anywhere in the state. Restated in
     // content.test (no farm or zoo animal on the far list: a llama is farmed
-    // here, so it is not offered).
+    // here, so it is not offered; nor a lion: mountain lions, cougars, live wild
+    // all over Washington, so "a lion" is a true answer).
     WA_ANIMALS: {
       wa: [
         { e: "🦅", name: "a bald eagle", fact: "Bald eagles fly over Washington's rivers!" },
@@ -1274,7 +1276,7 @@
         { e: "🦉", name: "an owl", fact: "Owls hoot at night in Washington's woods!" },
       ],
       far: [
-        { e: "🐪", name: "a camel" }, { e: "🦘", name: "a kangaroo" }, { e: "🦁", name: "a lion" },
+        { e: "🐪", name: "a camel" }, { e: "🦘", name: "a kangaroo" },
         { e: "🐼", name: "a panda" }, { e: "🦒", name: "a giraffe" }, { e: "🐧", name: "a penguin" },
         { e: "🦓", name: "a zebra" }, { e: "🐨", name: "a koala" }, { e: "🦛", name: "a hippo" },
       ],
@@ -1334,7 +1336,7 @@
       { id: "delhi", e: "🏛️", say: "Delhi", zh: "德里", region: "delhi", ask: "Tap Delhi — the big capital city in the north!", at: [77.2, 28.6] },
       { id: "desert", e: "🐪", say: "the Thar Desert", zh: "塔尔沙漠", region: "desert", ask: "Tap the Thar Desert — the sandy land in the west, where camels walk!", at: [72.5, 26.8] },
       { id: "mumbai", e: "🌊", say: "Mumbai", zh: "孟买", region: "mumbai", ask: "Tap Mumbai — the big city by the sea on the west coast!", at: [72.88, 19.08] },
-      { id: "kerala", e: "🥥", say: "Kerala", zh: "喀拉拉", region: "kerala", ask: "Tap Kerala — the green coconut land at the very bottom!", at: [76.4, 10.2] },
+      { id: "kerala", e: "🥥", say: "Kerala", zh: "喀拉拉", region: "kerala", ask: "Tap Kerala — the green coconut land by the sea, far in the south!", at: [76.4, 10.2] },
     ] },
     // Ocean Map: the five oceans round a drawn world map, each where it really
     // is (the Pacific west of the Americas, the Atlantic between the Americas
@@ -1376,18 +1378,18 @@
     // it is known for, and how it is spoken.`avoid` names countries whose flag must
     // never be a WRONG choice for this thing because it is also true there:
     // wild tigers live in China and Russia too, maple trees grow wild in the USA,
-    // Japan, China and the UK, tacos are everywhere in the USA, and sloths live in
+    // Japan, China, the UK, Russia, the Himalayas of India and the mountains of Mexico, tacos are everywhere in the USA, and sloths live in
     // the south of Mexico. The clash goes both ways (logic.js makeFlagPick).
     COUNTRIES: [
       { id: "usa", zh: "美国", flag: "🇺🇸", name: "the USA", thing: "🗽", thingName: "the Statue of Liberty" },
       { id: "china", zh: "中国", flag: "🇨🇳", name: "China", thing: "🐼", thingName: "the panda" },
       { id: "india", zh: "印度", flag: "🇮🇳", name: "India", thing: "🐅", thingName: "the tiger", avoid: ["china", "russia"] },
-      { id: "russia", zh: "俄罗斯", flag: "🇷🇺", name: "Russia", thing: "🪆", thingName: "the nesting dolls" },
-      { id: "canada", zh: "加拿大", flag: "🇨🇦", name: "Canada", thing: "🍁", thingName: "the maple leaf", avoid: ["usa", "japan", "china", "uk"] },
+      { id: "russia", zh: "俄罗斯", flag: "🇷🇺", name: "Russia", thing: "🪆", thingName: "the nesting dolls", plural: true },
+      { id: "canada", zh: "加拿大", flag: "🇨🇦", name: "Canada", thing: "🍁", thingName: "the maple leaf", avoid: ["usa", "japan", "china", "uk", "russia", "india", "mexico"] },
       { id: "japan", zh: "日本", flag: "🇯🇵", name: "Japan", thing: "🗻", thingName: "Mount Fuji" },
       { id: "mexico", zh: "墨西哥", flag: "🇲🇽", name: "Mexico", thing: "🌮", thingName: "the taco", avoid: ["usa"] },
       { id: "australia", zh: "澳大利亚", flag: "🇦🇺", name: "Australia", thing: "🦘", thingName: "the kangaroo" },
-      { id: "uk", zh: "英国", flag: "🇬🇧", name: "the UK", thing: "💂", thingName: "the royal guards" },
+      { id: "uk", zh: "英国", flag: "🇬🇧", name: "the UK", thing: "💂", thingName: "the royal guards", plural: true },
       { id: "kenya", zh: "肯尼亚", flag: "🇰🇪", name: "Kenya", thing: "🦒", thingName: "the giraffe" },
       { id: "brazil", zh: "巴西", flag: "🇧🇷", name: "Brazil", thing: "🦥", thingName: "the sloth", avoid: ["mexico"] },
     ],
