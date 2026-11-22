@@ -167,7 +167,7 @@ test("the Sticker Book gives every one of Josh's games its OWN sticker", () => {
   const block = main.match(/CATEGORY_OF\s*=\s*\{[\s\S]*?\n {2}\};/);
   assert.ok(block, "found the CATEGORY_OF map that lists every one of Josh's games");
   const ids = [...block[0].matchAll(/"([a-z0-9-]+)":/g)].map((m) => m[1]);
-  assert.equal(ids.length, 216, "Josh has 216 games (200, then Story Dice, the home treasure hunt and fourteen 🗺️ World games)");
+  assert.equal(ids.length, 218, "Josh has 218 games (200, then Story Dice, the home treasure hunt and sixteen 🗺️ World games)");
   const seen = new Map();
   for (const id of ids) {
     const svg = S.artFor({ id });

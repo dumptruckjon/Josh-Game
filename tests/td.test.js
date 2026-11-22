@@ -1825,7 +1825,7 @@ test("kid-world isolation: the registry, home grid and 华丽 are untouched by t
     total: (window.JoshGames || []).length,
     tdLeaks: (window.JoshGames || []).filter((g) => /td/.test(g.id)).length,
   }));
-  assert.equal(reg.total, 256, "registry still exactly 256 (216 Josh + 40 华丽)");
+  assert.equal(reg.total, 258, "registry still exactly 258 (218 Josh + 40 华丽)");
   assert.equal(reg.tdLeaks, 0, "no fort entries leak into the kid registry");
   await page.evaluate(() => { location.hash = "#home"; });
   await page.locator("#screen-home").waitFor({ state: "visible" });
