@@ -29,7 +29,7 @@
   // A run carries the layout version it was laid out under: change how the
   // engine places things and an old half-found picture would mark the wrong
   // things, so it is dropped (its ⭐ stay).
-  const LAYOUT = 1;
+  const LAYOUT = 2;
   const ECHO_MS = 350;       // the second tap of a double tap
   const HINT_AFTER_MS = 20000; // a list card shows WHERE only after he has looked this long
   const TOL_PX = 22;         // a finger just beside a small picture still gets it
@@ -75,7 +75,11 @@
   // ---- Pictures ------------------------------------------------------------------
   const URL_CACHE = {};
   function picUrl(name) {
-    if (!URL_CACHE[name]) URL_CACHE[name] = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(ART[name] || "");
+    if (!URL_CACHE[name]) {
+      const [base, shirt] = String(name).split("~");
+      const svg = shirt ? L.recolor(ART[base] || "", +shirt) : ART[base] || "";
+      URL_CACHE[name] = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    }
     return URL_CACHE[name];
   }
   function img(name, cls) {

@@ -47,6 +47,7 @@ const CORE = [
   "./scripts/board-render.js",
   "./scripts/board-main.js",
   "./scripts/seek-data.js",
+  "./scripts/seek-scenery.js",
   "./scripts/seek-logic.js",
   "./scripts/seek-art.js",
   "./scripts/seek-main.js",

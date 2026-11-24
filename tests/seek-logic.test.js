@@ -207,6 +207,68 @@ test("the ground: one flat svg per picture — no ids, no filters, no gradients 
   }
 });
 
+test("a WORLD, not a backdrop (the owner, 2026-11-24): every place is built from set pieces — paths, ponds, buildings, benches, beds, stalls, rails — with detail scattered over it, and its things are a crowd of small ones", () => {
+  const S = require("../scripts/seek-scenery.js");
+  const FLAT = new Set(["rect", "ellipse", "path"]);
+  for (const p of D.PLACES) {
+    const pieces = p.ground.filter((g) => !FLAT.has(g[0]));
+    for (const g of p.ground) assert.ok(S.kinds.indexOf(g[0]) >= 0, p.id + ": unknown set piece " + g[0]);
+    assert.ok(pieces.length >= 5, p.id + ": at least five set pieces build its world (" + pieces.length + ")");
+    assert.ok(new Set(pieces.map((g) => g[0])).size >= 3, p.id + ": of at least three kinds");
+    const svg = L.groundSvg(p.id, 5);
+    const shapes = (svg.match(/<(rect|circle|ellipse|path|polygon|line) /g) || []).length;
+    assert.ok(shapes >= 200, p.id + ": the world is DETAILED — " + shapes + " shapes, not a few flat bands");
+    for (const g of pieces) assert.ok(S.draw(g, L.rng(1)).length > 0, p.id + ": " + g[0] + " draws something");
+    const n = SEEDS.slice(0, 4).reduce((a, seed) => a + L.layout(p.id, { seed, level: 0 }).items.length, 0) / 4;
+    assert.ok(n >= 110, p.id + ": a crowd of things (" + n.toFixed(0) + " on level 0)");
+  }
+  // every set piece the library offers is used somewhere (none dead)
+  const used = new Set();
+  for (const p of D.PLACES) for (const g of p.ground) used.add(g[0]);
+  for (const k of S.kinds) if (!FLAT.has(k)) assert.ok(used.has(k), "set piece " + k + " is used by some place");
+});
+
+test("things stand IN the world: what lives on a road, rails or a runway stands on a lane line; a little scene is set where the world is built for it", () => {
+  let laned = 0;
+  for (const p of D.PLACES) {
+    for (const seed of SEEDS.slice(0, 4)) {
+      const o = L.layout(p.id, { seed, level: 2 });
+      const want = new Set(o.list.map((e) => L.groupOf(e.kind)));
+      for (const z of p.zones) {
+        if (z.lanes) {
+          for (const it of o.items) {
+            if (it.role === "prop" || !L.inZone(z, it.x, it.y) || !z.kinds[it.kind]) continue;
+            const feet = it.y + it.size / 2;
+            const d = Math.min(...z.lanes.map((ly) => Math.abs(feet - (ly + it.size * 0.1))));
+            assert.ok(d <= it.size * 0.3, p.id + "/" + z.id + ": " + it.kind + " stands on a lane (" + d.toFixed(1) + " off)");
+            laned++;
+          }
+        }
+        for (const v of z.at || []) {
+          const here = o.items.some((it) => it.fixed && it.kind === v[0] && it.x === v[1] && it.y === v[2]);
+          assert.equal(here, !want.has(L.groupOf(v[0])), p.id + ": the " + v[0] + " of a little scene is in place unless the list asks for its group");
+        }
+      }
+    }
+  }
+  assert.ok(laned >= 50, "lanes are really used (" + laned + ")");
+});
+
+test("a crowd wears every colour: a person's orange clothes are recoloured to one of the shirts, skin and hair never touched", () => {
+  const ART = require("../scripts/seek-art.js");
+  const svg = ART["person-walking-medium-skin-tone"];
+  assert.equal(L.recolor(svg, 0), svg, "shirt 0 is Noto's own orange");
+  const blue = L.recolor(svg, 2);
+  assert.notEqual(blue, svg, "another shirt changes the picture");
+  assert.ok(!/#ed6d23/i.test(blue), "the orange shirt is gone");
+  for (const skin of ["#ba8d68", "#a47b62", "#6d4c41"]) assert.ok(blue.indexOf(skin) >= 0, "skin and hair " + skin + " stay");
+  // a real picture's people wear several shirts
+  const o = L.layout("park", { seed: 11, level: 2 });
+  const shirts = new Set(o.items.filter((it) => (D.KINDS[it.kind] || {}).tone).map((it) => (it.art.split("~")[1] || "0")));
+  assert.ok(shirts.size >= 4, "a crowd in several colours (" + [...shirts].join(",") + ")");
+  for (const it of o.items) if (it.role !== "buddy") assert.ok(ART[L.artBase(it.art)], it.art + " has a picture");
+});
+
 test("every line the world says is words, never a picture", () => {
   const lines = [D.SAY.pick, D.SAY.win, D.SAY.look, D.SAY.find("x"), D.SAY.found("x"), D.SAY.foundAll(3, "x"), D.SAY.buddy("x"), D.SAY.that("a x"), D.SAY.album(2, 9), D.SAY.albumEmpty, D.SAY.sticker("x"), D.SAY.ghost("x")];
   for (const k of Object.keys(D.KINDS)) { lines.push(D.KINDS[k].say); if (D.KINDS[k].many) lines.push(D.KINDS[k].many); }

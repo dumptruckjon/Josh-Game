@@ -20,6 +20,12 @@
 (function (global) {
   "use strict";
   const D = global.SeekData || (typeof require !== "undefined" ? require("./seek-data.js") : null);
+  const S = global.SeekScenery || (typeof require !== "undefined" ? require("./seek-scenery.js") : null);
+  // A picture's things are drawn this much smaller than their kind's size, and
+  // there are this many times more of them: a look-and-find page is a crowd of
+  // small things in a world, not a few big stickers on a colour.
+  const SCALE = D.SCALE || 1, DENSE = D.DENSE || 1;
+  const sizeOf = (kind) => D.KINDS[kind].size * SCALE;
 
   // mulberry32: the one random source. Same seed, same picture.
   function rng(seed) {
@@ -73,7 +79,9 @@
   function spot(r, z, size, H) {
     const [zx, zy, zw, zh] = z.rect, half = size / 2;
     for (let i = 0; i < 30; i++) {
-      const x = zx + r() * zw, y = zy + r() * zh;
+      // a zone with LANES (a road, rails, a runway) puts what stands in it on
+      // one: its feet on the lane line, so a car drives along the road
+      const x = zx + r() * zw, y = z.lanes ? pick(r, z.lanes) - half * 0.8 : zy + r() * zh;
       if (x < half || x > D.W - half || y < half || y > H - half) continue;
       if (inZone(z, x, y)) return { x, y };
     }
@@ -96,8 +104,37 @@
     return best;
   }
 
+  // A crowd wears every colour: Noto dresses all its people in one orange, so
+  // a person's picture carries a SHIRT ("~n"), and the page recolours that
+  // orange to shirt n (recolor below). Shirt 0 is Noto's own orange.
+  const SHIRTS = [null, 0, 210, 130, 280, 50, 330, 175];
   function personArt(r, k) {
-    return k.tone ? k.art + "-" + pick(r, D.TONES) + "-skin-tone" : k.art;
+    if (!k.tone) return k.art;
+    const base = k.art + "-" + pick(r, D.TONES) + "-skin-tone";
+    const sh = Math.floor(r() * SHIRTS.length);
+    return sh ? base + "~" + sh : base;
+  }
+  // The picture a drawn name stands for (its art, without the shirt).
+  const artBase = (name) => String(name).split("~")[0];
+  // Recolour a person's orange clothes to shirt n's hue. Orange here is a
+  // strongly saturated colour of hue 15-40 (skin and hair are never that
+  // saturated); its lightness is kept, so the folds and shading survive.
+  function recolor(svg, n) {
+    const hue = SHIRTS[n];
+    if (hue == null) return svg;
+    return svg.replace(/#([0-9a-fA-F]{6})\b/g, (m, h) => {
+      const R = parseInt(h.slice(0, 2), 16) / 255, G = parseInt(h.slice(2, 4), 16) / 255, B = parseInt(h.slice(4, 6), 16) / 255;
+      const mx = Math.max(R, G, B), mn = Math.min(R, G, B), l = (mx + mn) / 2, d = mx - mn;
+      if (d === 0) return m;
+      const sat = d / (1 - Math.abs(2 * l - 1));
+      let hh = mx === R ? ((G - B) / d) % 6 : mx === G ? (B - R) / d + 2 : (R - G) / d + 4;
+      hh = (hh * 60 + 360) % 360;
+      if (sat < 0.72 || hh < 12 || hh > 42 || l < 0.3 || l > 0.75) return m;
+      const c = (1 - Math.abs(2 * l - 1)) * Math.min(sat, 0.8), x = c * (1 - Math.abs(((hue / 60) % 2) - 1)), o = l - c / 2;
+      const [r1, g1, b1] = hue < 60 ? [c, x, 0] : hue < 120 ? [x, c, 0] : hue < 180 ? [0, c, x] : hue < 240 ? [0, x, c] : hue < 300 ? [x, 0, c] : [c, 0, x];
+      const to = (v) => ("0" + Math.round((v + o) * 255).toString(16)).slice(-2);
+      return "#" + to(r1) + to(g1) + to(b1);
+    });
   }
 
   // How much of item i shows: the share of points over its body that nothing
@@ -166,7 +203,7 @@
     const add = (kind, at, role, artName) => {
       const k = D.KINDS[kind];
       const it = {
-        kind, art: artName || personArt(r, k), x: at.x, y: at.y, size: k.size, role,
+        kind, art: artName || personArt(r, k), x: at.x, y: at.y, size: sizeOf(kind), role,
         rot: k.prop || k.sky ? 0 : Math.round((r() - 0.5) * 16), flip: !k.prop && r() < 0.5,
       };
       it.z = bottomOf(it);
@@ -186,11 +223,17 @@
       for (const f of z.fixed || []) add(f, { x: D.W - 90, y: z.rect[1] + 70 }, "prop");
       const ps = z.props || [];
       ps.forEach((p, i) => {
-        const k = D.KINDS[p], slot = D.W / ps.length;
-        const x = Math.max(k.size / 2, Math.min(D.W - k.size / 2, slot * (i + 0.5) + (r() - 0.5) * slot * 0.35));
-        const y = Math.max(z.rect[1] + k.size * 0.35, Math.min(z.rect[1] + z.rect[3] - k.size / 2, z.rect[1] + z.rect[3] * (0.25 + r() * 0.45)));
+        const sz = sizeOf(p), slot = D.W / ps.length;
+        const x = Math.max(sz / 2, Math.min(D.W - sz / 2, slot * (i + 0.5) + (r() - 0.5) * slot * 0.35));
+        const y = Math.max(z.rect[1] + sz * 0.35, Math.min(z.rect[1] + z.rect[3] - sz / 2, z.rect[1] + z.rect[3] * (0.25 + r() * 0.45)));
         add(p, { x, y }, "prop");
       });
+    }
+    // little scenes the world is set up for (the kite flier at the end of the
+    // drawn string, the dog on the leash): fixed fillers, never of a group the
+    // list asks for, so a vignette can never hold a second right answer
+    for (const z of place.zones) for (const v of z.at || []) {
+      if (!want.has(groupOf(v[0]))) add(v[0], { x: v[1], y: v[2] }, "fill").fixed = true;
     }
 
     // 2. the buddy, peeking out from behind one of the hiding props: its body
@@ -198,7 +241,7 @@
     //    only part of it shows — the share the level asks for.
     const hiders = items.filter((it) => it.role === "prop" && place.hide.indexOf(it.kind) >= 0);
     const props = items.slice();
-    const BS = 104;
+    const BS = 104 * SCALE;
     let buddy = null;
     {
       const [vlo, vhi] = lvl.buddy, mid = (vlo + vhi) / 2;
@@ -231,7 +274,7 @@
     for (const l of list) {
       for (let i = 0; i < l.n; i++) {
         const z = zoneFor(l.kind);
-        const at = bestSpot(r, z, D.KINDS[l.kind].size, items, H, 16);
+        const at = bestSpot(r, z, sizeOf(l.kind), items, H, 16);
         const it = add(l.kind, at, "find");
         if (!l.art) l.art = it.art;
         else if (D.KINDS[l.kind].tone) { it.art = l.art; }   // a counted crowd is the SAME picture
@@ -250,7 +293,7 @@
           const near = homes.filter((z) => z.kinds[l.kind]);
           for (let i = 0; i < lvl.like; i++) {
             const z = pick(r, near.length ? near : homes);
-            const it = add(lk, bestSpot(r, z, D.KINDS[lk].size, items, H, 8), "fill");
+            const it = add(lk, bestSpot(r, z, sizeOf(lk), items, H, 8), "fill");
             it.like = l.kind;
           }
         }
@@ -262,10 +305,11 @@
       const table = {};
       for (const k of Object.keys(z.kinds || {})) if (!want.has(groupOf(k))) table[k] = z.kinds[k];
       if (!Object.keys(table).length) continue;
-      const n = Math.round(z.n * lvl.fill);
+      // a lane holds a row, not a crowd: about four things to a lane
+      const n = z.lanes ? Math.min(z.lanes.length * 4, Math.round(z.n * lvl.fill)) : Math.round(z.n * lvl.fill * DENSE);
       for (let i = 0; i < n; i++) {
         const kind = weighted(r, table);
-        const at = bestSpot(r, z, D.KINDS[kind].size, items, H, 8);
+        const at = bestSpot(r, z, sizeOf(kind), items, H, 8);
         add(kind, at, "fill");
       }
     }
@@ -359,11 +403,7 @@
     const p = placeOf(placeId);
     const r = rng(((seed >>> 0) ^ hash(placeId + "/ground")) >>> 0);
     let s = "";
-    for (const g of p.ground) {
-      if (g[0] === "rect") s += '<rect x="' + g[1] + '" y="' + g[2] + '" width="' + g[3] + '" height="' + g[4] + '" fill="' + g[5] + '"/>';
-      else if (g[0] === "ellipse") s += '<ellipse cx="' + g[1] + '" cy="' + g[2] + '" rx="' + g[3] + '" ry="' + g[4] + '" fill="' + g[5] + '"/>';
-      else if (g[0] === "path") s += '<path d="' + g[1] + '" fill="none" stroke="' + g[2] + '" stroke-width="' + g[3] + '" stroke-linecap="round"/>';
-    }
+    for (const g of p.ground) s += S.draw(g, r);
     for (const m of p.marks || []) {
       const [kind, x, y, w, h, c, n] = m;
       if (kind === "stripes") {
@@ -379,7 +419,7 @@
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + D.W + " " + p.h + '" preserveAspectRatio="none" aria-hidden="true" focusable="false">' + s + "</svg>";
   }
 
-  const SeekLogic = { groundSvg, MARK, rng, hash, layout, hitTest, visibleFrac, groupOf, placeOf, levelOf, inZone, artNames, rOf, BODY };
+  const SeekLogic = { recolor, artBase, SHIRTS, groundSvg, MARK, rng, hash, layout, hitTest, visibleFrac, groupOf, placeOf, levelOf, inZone, artNames, rOf, BODY };
   if (typeof module !== "undefined" && module.exports) module.exports = SeekLogic;
   global.SeekLogic = SeekLogic;
 })(typeof window !== "undefined" ? window : globalThis);
