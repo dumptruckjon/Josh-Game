@@ -169,7 +169,7 @@ test("the viewport meta opts into safe areas", async () => {
   assert.match(content, /viewport-fit=cover/);
 });
 
-test("the front door: five giant world tiles, all ABOVE THE FOLD, marks equally weighted", async () => {
+test("the front door: six giant world tiles, all ABOVE THE FOLD, marks equally weighted", async () => {
   // This test ran at a fixed 780px height, which is exactly why it never saw
   // the defect: measured on the shipped build, the THIRD door was 152px below
   // the fold at 320x568, 42px at 360x640, 15px at 375x667 and 63px in
@@ -181,12 +181,14 @@ test("the front door: five giant world tiles, all ABOVE THE FOLD, marks equally 
   // five measured 42-134px past the fold on phones, so the layout changed
   // rather than the doors shrinking; 360x640, 667x375 and 834x1112 joined
   // the list because they are where that measurement was taken.
+  // 🔍 Seek & Find made it SIX (2026-11): three full rows of two, the same
+  // three rows five took, and six across in landscape.
   for (const [w, h] of [[390, 780], [320, 780], [320, 568], [360, 640], [375, 667], [844, 390], [667, 375], [810, 1080], [834, 1112], [1024, 768]]) {
     await page.setViewportSize({ width: w, height: h });
     await showScreen(page, "#start", "#screen-start");
     // 🕳️ Gobble Hole joined as the fourth door (2026-09): four tiles, not
     // three, must now fit above the fold at every size in this list.
-    assert.equal(await page.locator(".start-tile").count(), 5, "five world tiles");
+    assert.equal(await page.locator(".start-tile").count(), 6, "six world tiles (🔍 Seek & Find made the third row full)");
     await noOverflow(page, `start@${w}x${h}`);
     await auditActiveScreen(page, `start@${w}x${h}`);
     const m = await page.evaluate(() => {
@@ -220,11 +222,52 @@ test("the front door: five giant world tiles, all ABOVE THE FOLD, marks equally 
       };
     });
     assert.ok(m.last <= m.vh,
-      `all five doors must be reachable without scrolling at ${w}x${h} — the last one ends ${Math.round(m.last - m.vh)}px past the fold`);
+      `all six doors must be reachable without scrolling at ${w}x${h} — the last one ends ${Math.round(m.last - m.vh)}px past the fold`);
     assert.ok(m.room.px >= 3,
       `every door's name must fit on one line with room at ${w}x${h} — "${m.room.name}" has ${m.room.px}px to spare`);
     assert.ok(Math.max(...m.offsets) - Math.min(...m.offsets) <= 4,
       `the doors must carry equally-weighted marks at ${w}x${h} — label offsets ${m.offsets.join("/")}`);
+  }
+});
+
+test("🔍 Seek & Find fits every screen: its doors, the picture with its list, and the party — big taps, 16px apart, no sideways scroll, the picture never squeezed away", async () => {
+  // The list of things to find is four 75px+ cards in a row from 376px up and
+  // two by two below; a phone on its side puts it beside the picture. Each size
+  // here is where one of those layouts is tightest.
+  try {
+    for (const [w, h] of [[320, 568], [360, 640], [375, 667], [402, 874], [390, 844], [834, 1112], [844, 390], [667, 375]]) {
+      await page.setViewportSize({ width: w, height: h });
+      await showScreen(page, "#seek-home", "#screen-seek-home");
+      await page.waitForTimeout(150);
+      await noOverflow(page, `seek home@${w}x${h}`);
+      await auditActiveScreen(page, `seek home@${w}x${h}`);
+      await page.evaluate(() => { window.__SEEK.reset(); location.hash = "#seek-play"; window.__SEEK.start("park", {}); });
+      await page.locator("#screen-seek-play").waitFor({ state: "visible" });
+      await page.waitForTimeout(200);
+      await noOverflow(page, `seek play@${w}x${h}`);
+      await auditActiveScreen(page, `seek play@${w}x${h}`);
+      const m = await page.evaluate(() => {
+        const v = document.querySelector(".seek-view").getBoundingClientRect();
+        const cards = [...document.querySelectorAll(".seek-card")].map((c) => c.getBoundingClientRect());
+        return { view: v.height, cardsBottom: Math.max(...cards.map((c) => c.bottom)), vh: innerHeight, doc: document.documentElement.scrollHeight };
+      });
+      assert.ok(m.view >= 180, `the picture keeps room to look at (${Math.round(m.view)}px) at ${w}x${h}`);
+      if (h >= 500) {
+        assert.ok(m.cardsBottom <= m.vh + 1, `the list is on screen at ${w}x${h} (ends at ${Math.round(m.cardsBottom)})`);
+        assert.ok(m.doc <= m.vh + 1, `only the picture scrolls, never the page, at ${w}x${h} (${m.doc} in ${m.vh})`);
+      }
+      // the party
+      await page.evaluate(() => { for (const [it, i] of window.__SEEK.items().map((x, i) => [x, i])) if (it.role === "find" || it.role === "buddy") window.__SEEK.markForTest(i); });
+      await page.locator(".seek-win").waitFor({ state: "visible", timeout: 4000 });
+      await page.waitForTimeout(450);
+      await auditActiveScreen(page, `seek party@${w}x${h}`);
+      for (const sel of [".seek-again", ".seek-next"]) {
+        const b = await page.locator(sel).boundingBox();
+        assert.ok(b && b.y >= 0 && b.y + b.height <= h + 1, `${sel} is on screen with no scrolling at ${w}x${h}`);
+      }
+    }
+  } finally {
+    await page.setViewportSize({ width: 390, height: 844 });
   }
 });
 
@@ -2576,7 +2619,7 @@ test("📱 Josh's iPhone 17 Pro: every one of his games fits the screen, under t
 // Inside an inner scroller a control below the scroller's edge is not "off the
 // screen", it is the next thing to scroll to — so the scroller is scrolled to
 // its end and its LAST control must come to rest above the home bar.
-test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, Gobble, Game Night, Word Cards", async () => {
+test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, Gobble, Game Night, Seek & Find, Word Cards", async () => {
   const { ctx, p } = await ip17Page();
   const errs = []; p.on("pageerror", (e) => errs.push(e.message));
   const check = (label) => p.evaluate(([T, B, Hh, label]) => {
@@ -2607,7 +2650,7 @@ test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, G
     if (ovf > 1) out.push("scrolls sideways " + ovf + "px");
     return out.length ? label + ": " + out.slice(0, 3).join("; ") : "";
   }, [IP17.top, IP17.bottom, IP17.h, label]);
-  const bad = [], seen = { nav: 0, hole: 0, board: 0, mid: 0, wc: 0, pages: 0 };
+  const bad = [], seen = { nav: 0, hole: 0, board: 0, mid: 0, seek: 0, wc: 0, pages: 0 };
   const note = (r) => { if (r) bad.push(r); };
   try {
     await p.goto(baseURL, { waitUntil: "load" });
@@ -2646,6 +2689,15 @@ test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, G
       assert.ok(ok, `fixture: ${box}'s mid-turn state loads`);
       await p.waitForTimeout(250); seen.mid++; note(await check("board " + box + " mid-turn"));
     }
+    // 3b. Seek & Find: every place, and the party
+    await p.evaluate(() => window.__SEEK.reset());
+    for (const id of await p.evaluate(() => SeekData.PLACES.map((x) => x.id))) {
+      await p.evaluate((id) => { location.hash = "#seek-play"; window.__SEEK.start(id, {}); }, id);
+      await p.waitForTimeout(120); seen.seek++; note(await check("seek " + id));
+    }
+    await p.evaluate(() => { const r = window.__SEEK; for (const it of r.items().map((x, i) => [x, i])) if (it[0].role === "find" || it[0].role === "buddy") window.__SEEK.markForTest(it[1]); });
+    await p.locator(".seek-win").waitFor({ state: "visible", timeout: 4000 });
+    seen.seek++; note(await check("seek party"));
     // 4. Word Cards: the menu, every button on it, and every page of every book
     const wc = async () => { await p.goto(baseURL + "wordcards.html", { waitUntil: "load" }); await p.waitForTimeout(80); };
     await wc(); note(await check("word cards menu"));
@@ -2670,7 +2722,7 @@ test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, G
       }
     }
     // a walk that silently skipped a section would pass on nothing
-    assert.ok(seen.nav >= 25 && seen.hole >= 70 && seen.board >= 40 && seen.mid >= 10 && seen.wc >= 40 && seen.pages >= 140,
+    assert.ok(seen.nav >= 25 && seen.hole >= 70 && seen.board >= 40 && seen.mid >= 10 && seen.seek >= 7 && seen.wc >= 40 && seen.pages >= 140,
       `fixture: too little was measured ${JSON.stringify(seen)}`);
     assert.deepEqual(bad, [], `on an iPhone 17 Pro:\n${bad.join("\n")}`);
     assert.deepEqual(errs, [], "no page errors");

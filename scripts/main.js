@@ -151,6 +151,7 @@
     wire("start-td", "#td-home");
     wire("start-hole", "#hole-home");
     wire("start-board", "#board-home");
+    wire("start-seek", "#seek-home");
     wire("home-door", ""); // 🚪 on Josh's home returns to the front door
   }
 
@@ -187,7 +188,7 @@
   })();
   let awayAt = 0, newerBuild = false;
   function updateSafeHere() {
-    return !location.hash || /^#(home|cat-|stickers|today|progress|hole-home|hole-land-|board-home|hl-home|td-home)/.test(location.hash);
+    return !location.hash || /^#(home|cat-|stickers|today|progress|hole-home|hole-land-|board-home|seek-home|hl-home|td-home)/.test(location.hash);
   }
   function reloadIfNewer() {
     if (newerBuild && !document.hidden && updateSafeHere()) location.reload();
@@ -654,6 +655,7 @@
       stories: progStrings("wc-story-done").length,
       gobble: null,
       night: null,
+      seek: null,
     };
     try {
       const HD = window.HoleData;
@@ -671,6 +673,14 @@
         let n = 0;
         BD.BOXES.forEach((box) => { const k = done[box.id]; if (typeof k === "number" && isFinite(k) && k > 0) n += Math.floor(k); });
         out.night = n;
+      }
+    } catch (e) { /* the page still shows the rest */ }
+    try {
+      const SD = window.SeekData;
+      if (SD && SD.PLACES) {
+        const k = progRead("josh-seek-v1");
+        const st = k && k.stars && typeof k.stars === "object" ? k.stars : {};
+        out.seek = { won: SD.PLACES.filter((p) => typeof st[p.id] === "number" && st[p.id] > 0).length, total: SD.PLACES.length };
       }
     } catch (e) { /* the page still shows the rest */ }
     return out;
@@ -770,6 +780,8 @@
       line(o, "🕳️ Gobble Hole last played: " + lastSeen("gobble", now), "progress__last");
       if (d.night !== null) line(o, "🎲 Game Night: " + d.night + (d.night === 1 ? " game" : " games") + " finished");
       line(o, "🎲 Game Night last played: " + lastSeen("night", now), "progress__last");
+      if (d.seek) bar2(o, "🔍 Seek & Find places", d.seek.won, d.seek.total);
+      line(o, "🔍 Seek & Find last played: " + lastSeen("seek", now), "progress__last");
       bar2(o, "👵🏻 华丽's games", d.huali.won, d.huali.total);
       screen.dataset.won = String(d.josh.won);
     };
@@ -867,6 +879,11 @@
       try { if (window.GameNight && window.GameNight.onLeave) window.GameNight.onLeave(); } catch (e) { /* ignore */ }
     }
 
+    // …and 🔍 Seek & Find: leaving parks its half-found picture.
+    if (id.indexOf("seek-") !== 0) {
+      try { if (window.SeekFind && window.SeekFind.onLeave) window.SeekFind.onLeave(); } catch (e) { /* ignore */ }
+    }
+
     // 🏰 the fort (Dad's TD world, opened from the front door — no gate).
     // JonTD.route handles every known td-* hash; an unknown one falls through
     // to the front door. Leaving the fort pauses its game loop and drops the
@@ -901,6 +918,18 @@
       try {
         if (window.GameNight && window.GameNight.route && window.GameNight.route(id)) return;
       } catch (e) { /* a Game Night failure must never break Josh's site */ }
+      location.hash = "";
+      return;
+    }
+
+    // 🔍 Seek & Find (a look-and-find world): SeekFind.route handles every
+    // known seek-* hash; an unknown one falls through to the front door.
+    // Isolated: its failure can never break Josh's site.
+    if (id.indexOf("seek-") === 0) {
+      markLast("seek");
+      try {
+        if (window.SeekFind && window.SeekFind.route && window.SeekFind.route(id)) return;
+      } catch (e) { /* a Seek & Find failure must never break Josh's site */ }
       location.hash = "";
       return;
     }

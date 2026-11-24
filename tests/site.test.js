@@ -1367,7 +1367,7 @@ test("guardrail: Look From Above's top-down map stays aligned with the isometric
 });
 
 // ---------- 华丽 (the hidden grandma world) guardrails ----------
-test("the front door: five world tiles open Josh's / 华丽's / the fort / Gobble Hole / Game Night DIRECTLY (no gates)", () => {
+test("the front door: six world tiles open Josh's / 华丽's / the fort / Gobble Hole / Game Night / Seek & Find DIRECTLY (no gates)", () => {
   // By request (2026-07) the name gates are gone: the app opens on a start page
   // whose tiles navigate straight to each world. Lock both halves — the start
   // page exists AND no gate machinery remains to re-lock a world. 🕳️ Gobble
@@ -1375,11 +1375,12 @@ test("the front door: five world tiles open Josh's / 华丽's / the fort / Gobbl
   // and 🎲 Game Night as the fifth (2026-10), right after Gobble Hole's.
   const html = read("index.html");
   assert.match(html, /id="screen-start"/, "index.html carries the front-door screen");
-  for (const tile of ["start-josh", "start-hl", "start-td", "start-hole", "start-board"]) {
+  for (const tile of ["start-josh", "start-hl", "start-td", "start-hole", "start-board", "start-seek"]) {
     assert.ok(html.includes('id="' + tile + '"'), "the front door has the " + tile + " tile");
   }
   assert.ok(html.indexOf('id="start-hole"') > html.indexOf('id="start-td"'), "the Gobble Hole door comes after the fort's");
   assert.ok(html.indexOf('id="start-board"') > html.indexOf('id="start-hole"'), "the Game Night door comes after Gobble Hole's");
+  assert.ok(html.indexOf('id="start-seek"') > html.indexOf('id="start-board"'), "the Seek & Find door comes after Game Night's");
   assert.match(html, /id="home-door"/, "Josh's home carries the 🚪 back-to-front-door button");
   const mainjs = read("scripts/main.js");
   assert.match(mainjs, /wire\("start-josh", "#home"\)/, "the Josh tile opens his launcher");
@@ -1387,6 +1388,7 @@ test("the front door: five world tiles open Josh's / 华丽's / the fort / Gobbl
   assert.match(mainjs, /wire\("start-td", "#td-home"\)/, "the 🏰 tile opens the fort directly");
   assert.match(mainjs, /wire\("start-hole", "#hole-home"\)/, "the 🕳️ tile opens Gobble Hole directly");
   assert.match(mainjs, /wire\("start-board", "#board-home"\)/, "the 🎲 tile opens Game Night directly");
+  assert.match(mainjs, /wire\("start-seek", "#seek-home"\)/, "the 🔍 tile opens Seek & Find directly");
   const hm = read("scripts/hl-main.js");
   assert.ok(!/hl-ok/.test(hm) && !/sessionStorage/.test(hm), "no hl-ok session flag / gate remains in her shell");
   assert.ok(!/hl-gate/.test(hm) && !/hl-door/.test(hm), "her name gate + top-bar door are removed");

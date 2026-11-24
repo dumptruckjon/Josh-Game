@@ -1,0 +1,269 @@
+// 🔍 Seek & Find — browser tests (Chromium; mobile.test.js runs it on the
+// iPhone 17 Pro geometry and on real WebKit in CI). They drive the REAL
+// screens with REAL taps at screen coordinates, because a tap here is judged by
+// GEOMETRY over the things' round bodies (SeekLogic.hitTest) — a test that
+// called a function could not see that judgement break. The layout's fairness
+// is proven headless in seek-logic.test.js; window.__SEEK (the __HOLE /
+// __BOARD precedent) only tells a test WHERE a thing is, so it can tap it.
+
+const { test, before, after } = require("node:test");
+const assert = require("node:assert");
+const { startServer, launchBrowser } = require("./helpers");
+
+let server, browser, context, page, baseURL;
+const pageErrors = [];
+const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
+
+before(async () => {
+  ({ server, baseURL } = await startServer());
+  browser = await launchBrowser();
+  context = await browser.newContext({ viewport: { width: 402, height: 874 }, hasTouch: true, isMobile: true });
+  page = await context.newPage();
+  page.on("pageerror", (e) => pageErrors.push(String(e)));
+  // every line the voice is handed, with sound on
+  await page.addInitScript(() => {
+    window.__said = [];
+    try { localStorage.setItem("josh-muted", "0"); } catch (e) { /* ignore */ }
+  });
+  await page.goto(baseURL, { waitUntil: "load" });
+});
+
+// The voice spy: installed on the live JoshAudio, and again after a reload
+// (a reload builds a new JoshAudio, and a spy that is quietly gone reads
+// exactly like a feature that stopped speaking).
+async function spy() {
+  await page.evaluate(() => {
+    const A = window.JoshAudio;
+    if (A.__spied) return;
+    const say = A.say;
+    A.say = function (t, o) { window.__said.push(String(t)); return say.call(this, t, o); };
+    A.__spied = true;
+  });
+}
+
+after(async () => {
+  if (browser) await browser.close();
+  if (server) await new Promise((r) => server.close(r));
+});
+
+async function go(hash, sel) {
+  await page.evaluate(() => { location.hash = "#__renav"; });
+  await page.waitForTimeout(40);
+  await page.evaluate((h) => { location.hash = h; }, hash);
+  await page.locator(sel).waitFor({ state: "visible", timeout: 8000 });
+  await page.waitForTimeout(400);           // the echo guard: a child looks first
+}
+const run = () => page.evaluate(() => window.__SEEK.run());
+const items = () => page.evaluate(() => window.__SEEK.items());
+
+// Tap item i like a finger: bring it into view, then click on a point of its
+// body that shows (for a peeking buddy, its top — the part out from behind).
+async function tapItem(i, where) {
+  await page.evaluate((k) => window.__SEEK.reveal(k), i);
+  await page.waitForTimeout(80);
+  const p = await page.evaluate((k) => {
+    const el = document.querySelector('.seek-it[data-i="' + k + '"]');
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2, h: r.height };
+  }, i);
+  const y = where === "top" ? p.y - p.h * 0.28 : p.y;
+  await page.mouse.click(p.x, y);
+  await page.waitForTimeout(400);           // past the echo window: a new tap
+}
+
+async function freshPlace(id) {
+  await spy();
+  await page.evaluate(() => window.__SEEK.reset());
+  await go("#seek-home", "#screen-seek-home");
+  await page.locator('.seek-door[data-place="' + id + '"]').click();
+  await page.locator("#screen-seek-play").waitFor({ state: "visible" });
+  await page.waitForFunction((p) => { const r = window.__SEEK.run(); return r && r.place === p; }, id);
+  await page.waitForTimeout(400);
+}
+
+test("the front door's SIXTH door opens Seek & Find, with a door per place, and 🚪 comes back", async () => {
+  await page.evaluate(() => { location.hash = ""; });
+  await page.locator("#screen-start").waitFor({ state: "visible" });
+  const order = await page.evaluate(() => [...document.querySelectorAll(".start-tile")].map((t) => t.id));
+  assert.equal(order[order.length - 1], "start-seek", "Seek & Find is the last door");
+  assert.equal(await page.locator("#start-seek .start-tile__art img").count(), 1, "the door wears the world's Noto magnifying glass");
+  await page.waitForTimeout(400);
+  await page.locator("#start-seek").click();
+  await page.locator("#screen-seek-home").waitFor({ state: "visible" });
+  assert.ok(await page.evaluate(() => document.body.classList.contains("seek-mode")), "the world's theme is on");
+  const places = await page.evaluate(() => window.SeekData.PLACES.map((p) => p.id));
+  assert.equal(await page.locator(".seek-door").count(), places.length, "one door per place");
+  const imgs = await page.evaluate(() => [...document.querySelectorAll(".seek-door img")].map((i) => i.complete && i.naturalWidth > 0));
+  assert.ok(imgs.length === places.length && imgs.every(Boolean), "every door's picture loads");
+  await page.waitForTimeout(400);
+  await page.locator(".seek-exit").click();
+  await page.locator("#screen-start").waitFor({ state: "visible" });
+  assert.ok(!(await page.evaluate(() => document.body.classList.contains("seek-mode"))), "leaving drops the theme");
+});
+
+test("a whole picture, played by tapping: a wrong thing names itself and marks nothing, every find is marked on the picture AND its card, the counting card counts, the buddy peeking out is found by its top, and the party gives a ⭐", async () => {
+  await freshPlace("park");
+  await page.evaluate(() => { window.__said.length = 0; });
+  const its = await items();
+  const r0 = await run();
+  assert.equal(r0.list.length, 4, "four things on the list");
+  assert.equal(await page.locator(".seek-card").count(), 4, "a card for each");
+
+  // a wrong tap: a filler nobody asked for
+  const wrong = its.findIndex((it) => it.role === "fill" && !window_unlisted(r0, it));
+  await tapItem(wrong);
+  let r = await run();
+  assert.equal(r.found.length, 0, "a wrong tap marks nothing");
+  const said = await page.evaluate(() => window.__said.slice());
+  assert.ok(said.some((s) => /^That's an? /.test(s)), "…and the thing says what it is: " + said.join(" | "));
+  assert.ok(await page.locator('.seek-it[data-i="' + wrong + '"].seek-it--wig').count() === 1, "…and wiggles (no buzz, no fail)");
+
+  // every find
+  const counted = r0.list.find((e) => e.n > 1);
+  for (let i = 0; i < its.length; i++) {
+    const it = its[i];
+    if (it.role === "find") await tapItem(i);
+    if (it.role === "find" && it.kind === counted.kind) {
+      const c = await page.evaluate((k) => {
+        const li = window.__SEEK.run().list.findIndex((e) => e.kind === k);
+        return document.querySelectorAll(".seek-card")[li].querySelector(".seek-card__count").textContent;
+      }, counted.kind);
+      assert.match(c, /^\d+\/\d+$/, "the counting card shows how many of how many");
+    }
+  }
+  r = await run();
+  for (const e of r.list) if (e.kind !== "buddy") assert.ok(e.done, e.kind + " found");
+  assert.equal(await page.locator(".seek-it--found").count(), its.filter((it) => it.role === "find").length, "every find wears the found ring");
+  assert.equal(await page.locator(".seek-win").isHidden(), true, "no party before the buddy is found");
+
+  const b = its.findIndex((it) => it.role === "buddy");
+  await tapItem(b, "top");
+  await page.locator(".seek-win").waitFor({ state: "visible", timeout: 4000 });
+  r = await run();
+  assert.ok(r.list.every((e) => e.done), "the whole list is done");
+  assert.equal(await page.locator(".seek-card--done").count(), 4, "every card is ticked");
+  const save = await page.evaluate(() => window.__SEEK.save());
+  assert.equal(save.stars.park, 1, "a ⭐ for the park");
+  assert.ok(!save.runs.park, "a finished picture is not parked");
+  const words = await page.evaluate(() => window.__said.slice());
+  assert.ok(words.some((s) => /^You found the /.test(s)), "a find is said");
+  assert.ok(words.some((s) => s === "You found everything!"), "the party is said");
+  assert.ok(words.every((s) => !EMOJI.test(s)), "no line reads a picture: " + words.filter((s) => EMOJI.test(s)).join(" | "));
+  // the party's buttons are on screen with no scrolling
+  for (const sel of [".seek-again", ".seek-next"]) {
+    const box = await page.locator(sel).boundingBox();
+    assert.ok(box && box.width >= 75 && box.height >= 75 && box.y + box.height <= 874, sel + " is big and on screen");
+  }
+  // ▶ goes to the next place without a ⭐
+  await page.waitForTimeout(400);
+  await page.locator(".seek-next").click();
+  await page.waitForFunction(() => { const r = window.__SEEK.run(); return r && r.place !== "park"; });
+  assert.equal((await run()).place, "beach", "▶ opens the next place");
+  await go("#seek-home", "#screen-seek-home");
+  assert.match(await page.locator('.seek-door[data-place="park"] .seek-door__stars').textContent(), /⭐ 1/, "the park's door wears its ⭐");
+  assert.equal(pageErrors.length, 0, pageErrors.join(" | "));
+});
+
+function window_unlisted(r, it) { return r.list.some((e) => e.kind === it.kind); }
+
+test("a double tap is ONE tap: the echo of a wrong tap does not name the thing twice, and a find is never counted twice", async () => {
+  // (A find cannot count twice anyway — each one is marked once, by the found
+  // set — so the clause that needs the ECHO guard is the wrong tap: without it
+  // the second tap of a double tap says "That's a goat." over the first.)
+  await freshPlace("beach");
+  await spy();
+  const r0 = await run();
+  const its = await items();
+  const dbl = async (i) => {
+    await page.evaluate((k) => window.__SEEK.reveal(k), i);
+    await page.waitForTimeout(80);
+    const p = await page.evaluate((k) => { const r = document.querySelector('.seek-it[data-i="' + k + '"]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, i);
+    await page.mouse.click(p.x, p.y);
+    await page.waitForTimeout(120);
+    await page.mouse.click(p.x, p.y);
+    await page.waitForTimeout(300);
+  };
+  const wrong = its.findIndex((it) => it.role === "fill" && !r0.list.some((e) => e.kind === it.kind));
+  await page.evaluate(() => { window.__said.length = 0; });
+  await dbl(wrong);
+  const named = (await page.evaluate(() => window.__said.slice())).filter((s) => /^That's /.test(s));
+  assert.equal(named.length, 1, "a double tap names the thing once: " + named.join(" | "));
+  const counted = r0.list.find((e) => e.n > 1);
+  const i = its.findIndex((it) => it.role === "find" && it.kind === counted.kind);
+  await dbl(i);
+  const e = (await run()).list.find((x) => x.kind === counted.kind);
+  assert.equal(e.got, 1, "one find, one count");
+});
+
+test("leaving mid-picture keeps what he found: the same picture comes back with the same finds marked", async () => {
+  await freshPlace("farm");
+  const its = await items();
+  const i = its.findIndex((it) => it.role === "find");
+  await tapItem(i);
+  const before = await run();
+  assert.equal(before.found.length, 1);
+  await go("#seek-home", "#screen-seek-home");
+  await page.reload({ waitUntil: "load" });
+  await go("#seek-home", "#screen-seek-home");
+  await page.locator('.seek-door[data-place="farm"]').click();
+  await page.waitForFunction(() => { const r = window.__SEEK.run(); return r && r.place === "farm"; });
+  const after = await run();
+  assert.equal(after.seed, before.seed, "the same picture");
+  assert.deepEqual(after.found, before.found, "the same finds");
+  assert.equal(await page.locator(".seek-it--found").count(), 1, "…marked on the picture");
+});
+
+test("a list card says what to find; only after he has looked a while does it also SHOW where (a quiet hint, never a countdown)", async () => {
+  await freshPlace("zoo");
+  await page.evaluate(() => { window.__said.length = 0; });
+  const view = page.locator(".seek-view");
+  await page.locator(".seek-card").first().click();
+  await page.waitForTimeout(500);
+  assert.equal(await page.locator(".seek-it--hint").count(), 0, "a quick tap on the card does not give the answer away");
+  const said = await page.evaluate(() => window.__said.slice());
+  assert.ok(said.some((s) => /^Can you find /.test(s)), "…it says what to find: " + said.join(" | "));
+  const top0 = await view.evaluate((v) => v.scrollTop);
+  await page.evaluate(() => window.__SEEK.ageHint());
+  // the last card is the buddy: it hides lowest or highest, so scrolling shows
+  await page.locator(".seek-card").nth(3).click();
+  await page.waitForTimeout(900);
+  assert.equal(await page.locator(".seek-it--hint").count(), 1, "after a long look, the card shows where one is");
+  const hinted = await page.evaluate(() => {
+    const el = document.querySelector(".seek-it--hint"), v = document.querySelector(".seek-view");
+    const a = el.getBoundingClientRect(), b = v.getBoundingClientRect();
+    return a.bottom > b.top && a.top < b.bottom;
+  });
+  assert.ok(hinted, "…and scrolls it into view");
+  assert.ok(top0 >= 0);
+});
+
+test("every place opens, draws its ground and every picture in it loads", async () => {
+  const places = await page.evaluate(() => window.SeekData.PLACES.map((p) => p.id));
+  for (const id of places) {
+    await page.evaluate((p) => window.__SEEK.start(p, { fresh: true }), id);
+    await page.waitForTimeout(200);
+    const m = await page.evaluate(() => ({
+      ground: !!document.querySelector(".seek-ground svg"),
+      n: document.querySelectorAll(".seek-it").length,
+      broken: [...document.querySelectorAll(".seek-it img, .seek-card img")].filter((i) => !(i.complete && i.naturalWidth > 0)).length,
+      sceneH: document.querySelector(".seek-scene").getBoundingClientRect().height,
+      sceneW: document.querySelector(".seek-scene").getBoundingClientRect().width,
+    }));
+    assert.ok(m.ground, id + ": the ground is drawn");
+    assert.ok(m.n > 50, id + ": a busy picture (" + m.n + ")");
+    assert.equal(m.broken, 0, id + ": every picture loads");
+    const P = await page.evaluate((p) => window.SeekData.PLACES.find((x) => x.id === p).h / window.SeekData.W, id);
+    assert.ok(Math.abs(m.sceneH / m.sceneW - P) < 0.01, id + ": the picture keeps its shape (" + (m.sceneH / m.sceneW).toFixed(3) + ")");
+  }
+  assert.equal(pageErrors.length, 0, pageErrors.join(" | "));
+});
+
+test("leaving the world stops it: no timer outlives the screen, and the page never scrolls behind the picture", async () => {
+  await freshPlace("space");
+  const sc = await page.evaluate(() => ({ doc: document.documentElement.scrollHeight, vh: innerHeight }));
+  assert.ok(sc.doc <= sc.vh + 1, "only the picture scrolls, never the page (" + sc.doc + " in " + sc.vh + ")");
+  await page.evaluate(() => { location.hash = "#home"; });
+  await page.waitForTimeout(200);
+  assert.equal(await page.evaluate(() => window.__SEEK.timers()), 0, "no timer left running");
+  assert.equal(await page.evaluate(() => window.__SEEK.run()), null, "nothing reports a picture on screen");
+});

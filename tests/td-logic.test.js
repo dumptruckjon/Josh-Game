@@ -7153,6 +7153,9 @@ test("tools: every research tool still RUNS against today's data", () => {
     // map-shapes.js (every place pinned, every map still has its outlines).
     "map-gen.js": { args: [], env: {}, must: /[1-9]\d* maps · [1-9]\d* places, all pinned/ },
     "hole-fuzz.js": { args: ["toyroom"], env: { SEEDS: "1", SECS: "10" }, must: /toyroom: [1-9]\d* spots checked, 0 stuck/ },
+    // 🔍 Seek & Find's art bundler: with no source folder it CHECKS the
+    // shipped seek-art.js (every picture a place can draw is a whole svg).
+    "seek-art.js": { args: [], env: {}, must: /[1-9]\d* pictures, all present/ },
   };
   // …and the FLAG arms, which are separate code paths and are where most of the
   // findings in CLAUDE.md came from. Running only a tool's default arm is the

@@ -3478,6 +3478,12 @@ test("CONTRAST: every ACTIVE text run in Josh's and 华丽's worlds clears AA", 
       window.__BOARD.load("moon", s);
     });
     await look("#board-play", "#screen-board-play", "game night moon");
+    // 🔍 Seek & Find (the sixth world): its doors, then a picture with one
+    // find done, so a ticked card and a count are on screen to be scored
+    await pg.evaluate(() => window.__SEEK.reset());
+    await look("#seek-home", "#screen-seek-home", "seek home");
+    await pg.evaluate(() => { location.hash = "#seek-play"; window.__SEEK.start("park", {}); const it = window.__SEEK.items(); const i = it.findIndex((x) => x.role === "find"); window.__SEEK.markForTest(i); });
+    await look("#seek-play", "#screen-seek-play", "seek play");
     assert.ok(await pg.evaluate(() => /⭐ 1/.test(document.querySelector(".bn-pad--1 .bn-pad__stars").textContent)), "fixture: the waiting pad shows its ⭐ count");
     await pg.evaluate(() => window.__BOARD.start("rainbow", "mom", false, 3, 0));
     await look("#board-play", "#screen-board-play", "game night rainbow");
@@ -7258,19 +7264,24 @@ test("📊 Grown-ups: the progress page reads every world's own save, writes not
     // passes this clause too (measured) — the per-category sum below is what
     // ties every row to the registry, and a 201st game moves both.
     assert.ok(r.text.includes("2 of " + want.josh + " games won"), "the total must be the registry's own count — saw: " + r.text.slice(0, 200));
-    const catSum = r.rows.slice(0, -2).reduce((n, [, v]) => n + Number(v.split(" / ")[1]), 0);
+    // the category rows are his; the other worlds' bars (Gobble, Seek & Find,
+    // 华丽) are named, so they are left out by NAME — a position from the end
+    // went stale the day a sixth world added its bar
+    const catSum = r.rows.filter(([l]) => !/Gobble|Seek|华丽/.test(l)).reduce((n, [, v]) => n + Number(v.split(" / ")[1]), 0);
     assert.equal(catSum, want.josh, "the category rows must add up to every game he has");
-    assert.equal(r.rows.slice(0, -2).reduce((n, [, v]) => n + Number(v.split(" / ")[0]), 0), 2, "the category rows must add up to his two wins");
+    assert.equal(r.rows.filter(([l]) => !/Gobble|Seek|华丽/.test(l)).reduce((n, [, v]) => n + Number(v.split(" / ")[0]), 0), 2, "the category rows must add up to his two wins");
     assert.deepEqual(r.chips, [["cat", ""], ["ship", ""], ["大", "zh-CN"]], "the piles must be shown once each, junk dropped, Chinese marked as Chinese");
     assert.ok(r.text.includes("Stories read to The End: 2"), "a story finished twice is one story");
     const gob = r.rows.find(([l]) => l.includes("Gobble"));
     assert.deepEqual(gob && gob[1], "1 / " + want.scenes, "only a real place counts, out of every place there is");
     assert.ok(r.text.includes("Game Night: 3 games finished"), "only a real box's games count");
+    const sk = r.rows.find(([l]) => l.includes("Seek"));
+    assert.deepEqual(sk && sk[1], "0 / " + (await pg.evaluate(() => window.SeekData.PLACES.length)), "Seek & Find's places are counted out of every place");
     const hl = r.rows.find(([l]) => l.includes("华丽"));
     assert.deepEqual(hl && hl[1], "0 / " + want.hl, "her games are counted out of her own total");
     const lasts = await pg.evaluate(() => [...document.querySelectorAll("#screen-progress .progress__last")].map((p) => p.textContent));
     assert.deepEqual(lasts, ["Last played: today", "Last opened: yesterday",
-      "🕳️ Gobble Hole last played: 3 days ago", "🎲 Game Night last played: not yet"],
+      "🕳️ Gobble Hole last played: 3 days ago", "🎲 Game Night last played: not yet", "🔍 Seek & Find last played: not yet"],
       "each area says when it was last opened, in calendar days, and a time from the future is not trusted");
     // Every bar on a card lines up: the count beside it ("0 / 9", "1 / 66")
     // must not change how long the bar is.
@@ -7632,7 +7643,7 @@ test("Word Cards ✍️ 写今天的字: today's six on the writing pad, easiest
 test("📊 last played: each area stamps only its own key when it is opened", async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
   const pg = await ctx.newPage();
-  const lasts = () => pg.evaluate(() => Object.fromEntries(["games", "words", "gobble", "night"].map((k) => [k, localStorage.getItem("josh-last-" + k)])));
+  const lasts = () => pg.evaluate(() => Object.fromEntries(["games", "words", "gobble", "night", "seek"].map((k) => [k, localStorage.getItem("josh-last-" + k)])));
   const go = async (h, sel) => { await pg.evaluate((x) => { location.hash = x; }, h); await pg.waitForSelector(sel + ":not([hidden])"); };
   try {
     await pg.goto(baseURL + "#home", { waitUntil: "load" });
@@ -7641,7 +7652,7 @@ test("📊 last played: each area stamps only its own key when it is opened", as
     await go("#home", "#screen-home");
     await go("#progress", "#screen-progress");
     await go("#stickers", "#screen-stickers");
-    assert.deepEqual(await lasts(), { games: null, words: null, gobble: null, night: null }, "home, progress and the sticker book open no area");
+    assert.deepEqual(await lasts(), { games: null, words: null, gobble: null, night: null, seek: null }, "home, progress and the sticker book open no area");
     const id = await pg.evaluate(() => window.JoshGames.find((g) => !g.hl).id);
     await go("#" + id, "#screen-" + id);
     let l = await lasts();
@@ -7652,6 +7663,9 @@ test("📊 last played: each area stamps only its own key when it is opened", as
     await go("#board-home", "#screen-board-home");
     l = await lasts();
     assert.ok(Number(l.night) > 0 && !l.words, "Game Night stamps night");
+    await go("#seek-home", "#screen-seek-home");
+    l = await lasts();
+    assert.ok(Number(l.seek) > 0 && !l.words, "Seek & Find stamps seek");
     await pg.evaluate(() => { location.hash = "#hl-home"; });
     await pg.waitForSelector("#screen-hl-home:not([hidden])");
     const before = await lasts();

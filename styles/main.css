@@ -207,14 +207,14 @@ body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--pad);
 }
-/* FIVE doors (🎲 Game Night joined below 🕳️ Gobble Hole, 2026-10). Two
-   columns everywhere in portrait — Josh | 华丽, the fort | Gobble Hole — and
-   Game Night as a WIDE door across the bottom, so no row is ragged. Measured
-   before choosing: a fifth door in the old single column ran 42-134px past the
-   fold on every phone, and shrinking five doors to fit made them 69px tall on
-   a 320x568 phone, under the 75px floor; two columns leave every row 125px+ at
-   320x568. Landscape (below) puts all five in one row. */
-.start-tile--board { grid-column: 1 / -1; }
+/* SIX doors (🔍 Seek & Find joined beside 🎲 Game Night, 2026-11). Two
+   columns everywhere in portrait — Josh | 华丽, the fort | Gobble Hole, Game
+   Night | Seek & Find — so every row is full. It is still three rows, the
+   height five doors already took (Game Night was a wide door across the
+   bottom), so no phone loses a pixel to the sixth door. Measured before the
+   fifth: a single column ran 42-134px past the fold on every phone, and two
+   columns leave every row 125px+ at 320x568. Landscape (below) puts all six in
+   one row. */
 .start-tile {
   position: relative;
   min-height: 136px;
@@ -264,6 +264,9 @@ body {
 .start-tile--hole .start-tile__label { color: #4b2a86; }
 .start-tile--board { background: linear-gradient(135deg, #fff0d6, #ffd2a6); }
 .start-tile--board .start-tile__label { color: #7a2e10; }
+.start-tile--seek { background: linear-gradient(135deg, #e3fbe6, #b9ecc4); }
+.start-tile--seek .start-tile__label { color: #1d5e33; }
+.start-tile__art img { width: 100%; height: 100%; display: block; }
 
 /* ---------- Home launcher ---------- */
 .home__title {
@@ -2821,7 +2824,7 @@ body.hl-mode .brand { color: #ffe9b0; }
      40-card grid could only ever be two stretched columns or four cards
      NARROWER than a phone's, which is the "a tablet must never be stingier"
      law it was caught breaking. */
-  .screen:not(.start):not(.home):not(.hl-home):not(.category):not(.stickers):not(.td-home):not(.hole-home):not(.hole-landpage):not(.hole-play) {
+  .screen:not(.start):not(.home):not(.hl-home):not(.category):not(.stickers):not(.td-home):not(.hole-home):not(.hole-landpage):not(.hole-play):not(.seek-home) {
     /* `width: 100%` is load-bearing, not decoration: `#screens` becomes a
        COLUMN FLEX container in a game (main.css `body.in-game #screens`), and
        an auto cross-axis margin on a flex item cancels the stretch and
@@ -2842,16 +2845,15 @@ body.hl-mode .brand { color: #ffe9b0; }
   .tile--cat .tile__label { font-size: 1.25rem; }
   .tile__badge { font-size: 1.9rem; }
   .sticker-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-  /* Five doors: 2x2 plus Game Night's wide door in portrait, one row of five
-     in landscape, where the height is what runs out. */
+  /* Six doors: three rows of two in portrait, one row of six in landscape,
+     where the height is what runs out. */
   .start-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .start-tile { display: grid; min-height: 260px; padding: 16px 12px; gap: 8px; }
   .start-tile__icon, .start-tile__art { width: 148px; height: 148px; font-size: 6rem; }
   .start-tile__label { font-size: 1.4rem; }
 }
 @media (min-width: 600px) and (orientation: landscape) {
-  .start-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .start-tile--board { grid-column: auto; }
+  .start-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 
 /* ---------- Short screens: every door above the fold ----------
@@ -2872,13 +2874,13 @@ body.hl-mode .brand { color: #ffe9b0; }
   .start-tile { min-height: 88px; padding: 6px 12px; }
   .start-tile__icon, .start-tile__art { width: 52px; height: 52px; font-size: 2.4rem; }
 }
-/* Five doors in ONE row (landscape): each door is (100vw - 96px) / 5 wide, so
-   the label follows THAT width — a phone on its side leaves a door only ~90px
-   of room, where a flat 1rem "Josh's Games" ran 28px past its edge. After the
+/* Six doors in ONE row (landscape): each door is (100vw - 112px) / 6 wide, so
+   the label follows THAT width — a phone on its side leaves a door only ~75px
+   of room, where a flat 1rem "Josh's Games" ran far past its edge. After the
    short-screen block on purpose, so it wins on a short landscape screen too. */
 @media (min-width: 600px) and (orientation: landscape) {
-  .start-tile { padding-left: 6px; padding-right: 6px; }
-  .start-tile__label { font-size: clamp(0.7rem, calc((100vw - 96px) * 0.02), 1.4rem); }
+  .start-tile { padding-left: 4px; padding-right: 4px; }
+  .start-tile__label { font-size: clamp(0.62rem, calc((100vw - 112px) * 0.0165), 1.3rem); }
 }
 
 /* ---------- 🕳️ Gobble Hole (PLAN_GOBBLE.md) ----------
@@ -4758,4 +4760,284 @@ button.bn-pickd { cursor: pointer; }
 @media (min-width: 600px) and (min-height: 800px) {
   .map__stage { width: 520px !important; max-width: 100% !important; height: calc(520px * var(--map-r, 1.06)) !important; }
   .map__pin { font-size: 3rem; }
+}
+
+/* ---------- 🔍 Seek & Find ----------
+   A busy picture he scrolls, a list of things to find along the bottom, and
+   Josh's own buddy peeking out from behind something in every picture. Kid
+   laws fully ON (every control >= 75px and 16px apart; grid gap only, never
+   flex gap — iOS 14.0 drops it; no aspect-ratio — 14.0 has none). The play
+   screen is a column: the bar, a field that takes what is left, the list. */
+body.seek-mode { background: linear-gradient(165deg, #dcf7e2 0%, #f4fff0 55%, #fff6d6 100%); background-attachment: fixed; }
+.seek-bar { margin-bottom: 12px; }
+.seek-home .seek-bar { margin-bottom: var(--pad); }
+.seek-doors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.seek-door {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 100%);
+  justify-items: center;
+  align-content: center;
+  gap: 6px;
+  min-height: 150px;
+  padding: 12px 8px;
+  border-radius: 24px;
+  background: linear-gradient(160deg, #ffffff, #e7f7ea);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+.seek-door:active { transform: scale(0.97); }
+.seek-door__pic { width: 84px; height: 84px; display: block; }
+.seek-door__label { font-size: clamp(0.95rem, 4.6vw, 1.2rem); font-weight: 800; color: #1d5e33; text-align: center; }
+.seek-door__stars { position: absolute; top: 8px; right: 10px; font-weight: 800; color: #5b4300; font-size: 0.95rem; }
+/* a dark gold ring (#b26a00, the buddy chooser's): a pale gold one was 1.30:1
+   on the door's near-white card, which the state-ring law measured */
+.seek-door--done { box-shadow: 0 0 0 4px #b26a00, 0 8px 20px rgba(0, 0, 0, 0.12); }
+@media (min-width: 600px) {
+  .seek-doors { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .seek-door { min-height: 240px; }
+  .seek-door__pic { width: 140px; height: 140px; }
+  .seek-door__label { font-size: 1.35rem; }
+}
+
+body.in-game .screen.seek-play { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.seek-field {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 200px;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.7), 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+/* The scroller is positioned, so the picture's height can never feed back
+   into the field's (the page itself never scrolls); a drag scrolls it, a tap
+   is judged by the picture. */
+.seek-view {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+/* As tall as the place is, for any width: height 0 and a padding set from the
+   place's own proportions (the iOS 14 stand-in for aspect-ratio). Things are
+   placed by percentages of this box, so nothing needs a resize. */
+.seek-scene {
+  position: relative;
+  width: 100%;
+  height: 0;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  cursor: pointer;
+}
+.seek-ground, .seek-ground svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+/* A thing: placed by its centre (margins in % of the WIDTH, which is what
+   makes a square box from one number). It takes no pointer events: a tap is
+   judged by geometry over the things' round bodies, never by which box the
+   browser hit, so a picture's empty corner cannot steal a tap. */
+.seek-it {
+  position: absolute;
+  pointer-events: none;
+}
+.seek-it__pic { position: relative; display: block; width: 100%; height: auto; }
+.seek-it__buddy { height: 0; padding-bottom: 100%; }
+.seek-it__buddy svg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+/* a soft contact shadow under what stands on the ground (a gradient, never a
+   filter: there are a hundred of them); a thing in the sky has none */
+.seek-it::before {
+  content: "";
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  bottom: -3%;
+  height: 15%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0));
+}
+.seek-it--sky::before { content: none; }
+/* Found: a gold ring with a dark outer edge (it reads on a pale sand floor and
+   a dark space sky alike) — the mark that a find is done even with the sound
+   off. A ring, never a scale, so the picture does not move. */
+/* the ring's box (shown only by a state below) */
+.seek-it::after {
+  content: none;
+  position: absolute;
+  left: -8%;
+  top: -8%;
+  right: -8%;
+  bottom: -8%;
+  border-radius: 50%;
+}
+.seek-it--found::after { content: ""; box-shadow: 0 0 0 5px #ffd24d, 0 0 0 8px #4a3500; }
+.seek-it__num {
+  position: absolute;
+  right: -10%;
+  top: -12%;
+  z-index: 1;
+  min-width: 34%;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #4a3500;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: clamp(0.85rem, 3.4vw, 1.2rem);
+  text-align: center;
+  line-height: 1.5;
+}
+.seek-it--hint::after {
+  content: "";
+  left: -18%;
+  top: -18%;
+  right: -18%;
+  bottom: -18%;
+  box-shadow: 0 0 0 6px #ffffff, 0 0 0 10px #ff7a00;
+  animation: seekHint 0.9s ease-in-out infinite alternate;
+}
+@keyframes seekHint { from { opacity: 0.45; } to { opacity: 1; } }
+.seek-it--pop .seek-it__pic { animation: seekPop 0.5s ease; }
+@keyframes seekPop { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
+.seek-it--wig .seek-it__pic { animation: seekWig 0.45s ease; }
+@keyframes seekWig { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-9deg); } 75% { transform: rotate(9deg); } }
+.seek-it--again .seek-it__pic { animation: seekPop 0.4s ease; }
+
+/* The list: a card per thing to find, ≥75px, 16px apart. Four across from
+   376px up (an iPhone 17 Pro fits four with room), two by two below. */
+.seek-tray {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+@media (max-width: 375px) {
+  .seek-tray { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.seek-card {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 80px;
+  padding: 6px;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14);
+}
+.seek-card__pic { width: 56px; height: 56px; display: block; }
+.seek-card__buddy { position: relative; }
+.seek-card__buddy svg { width: 100%; height: 100%; display: block; }
+.seek-card__count {
+  position: absolute;
+  left: 6px;
+  bottom: 4px;
+  font-weight: 900;
+  font-size: 0.95rem;
+  color: #12507a;
+  font-variant-numeric: tabular-nums;
+}
+.seek-card__tick {
+  position: absolute;
+  right: 6px;
+  top: 4px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #2c7a3f;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 1rem;
+  line-height: 26px;
+  text-align: center;
+  visibility: hidden;
+}
+/* Done: a green ring AND a tick (a shape, not only a colour) */
+.seek-card--done { background: #e3f6e8; box-shadow: 0 0 0 4px #2c7a3f, 0 6px 14px rgba(0, 0, 0, 0.14); }
+.seek-card--done .seek-card__tick { visibility: visible; }
+.seek-card--pop .seek-card__pic { animation: seekPop 0.5s ease; }
+/* an iPad's cards grow with its picture (a tablet is never stingier) */
+@media (min-width: 600px) and (min-height: 600px) {
+  .seek-card { min-height: 112px; }
+  .seek-card__pic { width: 84px; height: 84px; }
+  .seek-card__count { font-size: 1.15rem; }
+}
+
+/* The party: over the picture, so the bar stays where it was. Buttons come
+   before the row of finds, so on a short screen what he taps next is never
+   the part that scrolled away. */
+.seek-win {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: rgba(20, 40, 30, 0.42);
+}
+.seek-win__box {
+  display: grid;
+  grid-template-columns: minmax(0, 100%);
+  justify-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
+  border-radius: 24px;
+  background: #fffdf6;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+.seek-win__cheer { display: grid; grid-auto-flow: column; align-items: center; gap: 10px; }
+.seek-win__buddy { width: 84px; height: 84px; display: block; }
+.seek-win__buddy svg { width: 100%; height: 100%; display: block; }
+.seek-win__star { font-size: 3rem; line-height: 1; }
+.seek-win__line { margin: 0; font-size: 1.3rem; font-weight: 900; color: #1d5e33; text-align: center; }
+.seek-win__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; width: 100%; }
+.seek-win__row .btn-big { min-width: 0; width: 100%; display: grid; grid-auto-flow: column; justify-content: center; align-items: center; }
+.seek-next__pic { width: 44px; height: 44px; display: block; }
+.seek-win__found { display: grid; grid-auto-flow: column; justify-content: center; gap: 8px; }
+.seek-win__pic { width: 44px; height: 44px; display: block; }
+@media (max-height: 600px) {
+  .seek-win__box { display: grid; padding: 10px; gap: 6px; }
+  .seek-win__buddy { width: 56px; height: 56px; }
+  .seek-win__star { font-size: 2rem; }
+  .seek-win__line { font-size: 1.05rem; }
+  .seek-win__found { display: none; }
+}
+
+/* A phone on its side: the list stands to the right of the picture, two by
+   two, so the picture keeps the height (the one thing a landscape screen is
+   short of). */
+@media (orientation: landscape) and (max-height: 500px) {
+  body.in-game .screen.seek-play {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 190px;
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: 16px;
+  }
+  .seek-play .seek-bar { grid-column: 1 / -1; margin-bottom: 16px; } /* the list sits right under 👂 here */
+  .seek-play .seek-tray { grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; margin-top: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seek-it--hint::after { animation: none; }
+  .seek-it--pop .seek-it__pic, .seek-it--wig .seek-it__pic, .seek-it--again .seek-it__pic, .seek-card--pop .seek-card__pic { animation: none; }
 }

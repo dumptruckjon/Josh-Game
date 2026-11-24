@@ -66,13 +66,12 @@ async function startGame(box, friend, cpu, seed, first) {
   await page.waitForTimeout(400);
 }
 
-test("the front door's FIFTH door opens Game Night, and 🚪 comes back", async () => {
+test("the front door's Game Night door opens it, and 🚪 comes back", async () => {
   await page.evaluate(() => { location.hash = ""; });
   await page.locator("#screen-start").waitFor({ state: "visible" });
-  assert.equal(await page.locator(".start-tile").count(), 5, "five world doors");
+  assert.equal(await page.locator(".start-tile").count(), 6, "six world doors (🔍 Seek & Find joined after Game Night)");
   const order = await page.evaluate(() => [...document.querySelectorAll(".start-tile")].map((t) => t.id));
   assert.equal(order.indexOf("start-board"), order.indexOf("start-hole") + 1, "Game Night comes right after Gobble Hole");
-  assert.equal(order[order.length - 1], "start-board", "…and is the last door");
   const box = await page.locator("#start-board").boundingBox();
   assert.ok(box.width >= 75 && box.height >= 75, "a giant tap target");
   await page.waitForTimeout(400);
