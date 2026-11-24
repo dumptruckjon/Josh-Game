@@ -622,10 +622,10 @@
       marks: [["tufts", 0, 490, 540, 1900, "#86c56f", 60], ["dots", 0, 1960, 540, 430, "#ff9ac4", 50], ["waves", 0, 880, 540, 60, "#ffffff", 8]],
       zones: [
         { id: "sky", rect: [0, 30, 540, 400], n: 8, kinds: { rainbow: 1, bird: 2, butterfly: 2, cloud: 2 }, fixed: ["sun"] },
-        { id: "castle", rect: [0, 460, 540, 400], n: 8, props: ["castle", "tree", "pine"], kinds: { dragon: 1, unicorn: 1, owl: 1, bird: 1, wizard: 1, crown: 1 } },
+        { id: "castle", rect: [0, 460, 540, 400], n: 7, props: ["castle", "tree", "pine"], kinds: { dragon: 1, unicorn: 1, owl: 2, bird: 3, wizard: 1, crown: 1, butterfly: 1 } },
         { id: "meadow", rect: [0, 980, 540, 520], n: 12, kinds: { prince: 1, princess: 1, horse: 1, unicorn: 1, elf: 1, fairy: 2, frog: 1, rose: 2, mushroom: 2 } },
         { id: "pond", rect: [20, 1520, 240, 180], oval: true, n: 4, kinds: { swan: 3, duck: 1, frog: 1 } },
-        { id: "garden", rect: [0, 1720, 540, 660], n: 16, props: ["tree", "pine"], kinds: { fairy: 2, rose: 3, mushroom: 2, butterfly: 2, crystal: 1, wand: 1, crown: 1, wizard: 1, rabbit: 1, snail: 1, dragon: 1 } },
+        { id: "garden", rect: [0, 1720, 540, 660], n: 16, props: ["tree", "pine"], kinds: { fairy: 2, rose: 3, mushroom: 2, butterfly: 2, crystal: 1, wand: 1, crown: 1, wizard: 1, rabbit: 1, snail: 1, frog: 1 } },
       ],
       hide: ["castle", "tree", "pine"],
       finds: { dragon: 1, unicorn: 1, crown: 1, wizard: 1, prince: 1, princess: 1, elf: 1, horse: 1, frog: 1, crystal: 1, wand: 1, rainbow: 1, owl: 1,
