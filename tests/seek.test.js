@@ -267,3 +267,87 @@ test("leaving the world stops it: no timer outlives the screen, and the page nev
   assert.equal(await page.evaluate(() => window.__SEEK.timers()), 0, "no timer left running");
   assert.equal(await page.evaluate(() => window.__SEEK.run()), null, "nothing reports a picture on screen");
 });
+
+test("the fun layer: 🎲 Surprise opens a place he has not finished, a find FLIES to its card, the buddy says peekaboo, the picture moves (and is still under reduced motion), and 📒 My Finds collects every thing he has found", async () => {
+  await freshPlace("sea");
+  // the living picture: what swims sways, what flies floats
+  const live = await page.evaluate(() => {
+    const sw = document.querySelector(".seek-it--swim"), fl = document.querySelector(".seek-it--float");
+    return { swim: !!sw && getComputedStyle(sw).animationName, float: !!fl && getComputedStyle(fl).animationName };
+  });
+  assert.equal(live.swim, "seekSwim", "a fish sways");
+  const its = await items();
+  const r0 = await run();
+  // a find flies to its card, and the flight is gone after
+  const i = its.findIndex((it) => it.role === "find");
+  await tapItem(i);
+  // tapItem waits 400ms: the flight (650ms) is still up or just gone; check it was made
+  await page.waitForTimeout(500);
+  assert.equal(await page.evaluate(() => window.__SEEK.flying()), 0, "the flight lands and is cleared");
+  const kind = its[i].kind;
+  let sv = await page.evaluate(() => window.__SEEK.save());
+  assert.ok(sv.seen[kind] >= 1, "the find goes into the album (" + kind + ")");
+  // leaving mid-flight leaves nothing hanging over the next screen
+  const j = its.findIndex((it, k) => k !== i && it.role === "find" && it.kind !== kind);
+  await page.evaluate((k) => window.__SEEK.reveal(k), j);
+  await page.waitForTimeout(80);
+  await page.evaluate((k) => window.__SEEK.markForTest(k), j);
+  assert.equal(await page.evaluate(() => window.__SEEK.flying()), 1, "a find makes one flight");
+  await page.evaluate(() => { location.hash = "#seek-home"; });
+  await page.locator("#screen-seek-home").waitFor({ state: "visible" });
+  assert.equal(await page.evaluate(() => window.__SEEK.flying()), 0, "leaving clears a flight still in the air");
+  // the buddy: peekaboo
+  await page.waitForTimeout(400);           // the echo guard: a child looks first
+  await page.locator('.seek-door[data-place="sea"]').click();
+  await page.waitForFunction(() => { const r = window.__SEEK.run(); return r && r.place === "sea"; });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => { window.__said.length = 0; });
+  const b = (await items()).findIndex((it) => it.role === "buddy");
+  await tapItem(b, "top");
+  const said = await page.evaluate(() => window.__said.slice());
+  assert.ok(said.some((x) => /^Peekaboo! You found /.test(x)), "the buddy says peekaboo: " + said.join(" | "));
+  // 📒 My Finds: found stickers are full, the rest ghosts that say where to look
+  await go("#seek-home", "#screen-seek-home");
+  const total = await page.evaluate(() => window.__SEEK.albumKinds().length);
+  assert.ok(total >= 150, "a big collection (" + total + ")");
+  assert.match(await page.locator(".seek-albumcount").textContent(), new RegExp("^2/" + total + "$"), "the home counts what he has found");
+  await page.locator(".seek-albumbtn").click();
+  await page.locator("#screen-seek-album").waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  assert.equal(await page.locator(".seek-albumsec").count(), await page.evaluate(() => SeekData.PLACES.length), "a section per place");
+  sv = await page.evaluate(() => window.__SEEK.save());
+  const got = await page.evaluate(() => [...new Set([...document.querySelectorAll(".seek-sticker--got")].map((b) => b.dataset.kind))].sort());
+  assert.deepEqual(got, Object.keys(sv.seen).filter((k) => sv.seen[k] > 0).sort(), "a full sticker exactly for each thing found");
+  const ghost = page.locator(".seek-sticker:not(.seek-sticker--got)").first();
+  assert.ok(Number(await ghost.locator("img").evaluate((im) => getComputedStyle(im).opacity)) < 0.5, "the rest are ghosts");
+  await page.evaluate(() => { window.__said.length = 0; });
+  await ghost.click();
+  await page.waitForTimeout(200);
+  assert.ok((await page.evaluate(() => window.__said.slice())).some((x) => /^Not found yet\. Look in /.test(x)), "a ghost says where to look");
+  // 🎲 Surprise: a place without a ⭐
+  await page.evaluate(() => { const s = window.__SEEK; s.reset(); });
+  await go("#seek-home", "#screen-seek-home");
+  const picks = new Set();
+  for (let k = 0; k < 12; k++) picks.add(await page.evaluate(() => window.__SEEK.surprise()));
+  assert.ok(picks.size > 1, "a surprise is not always the same place");
+  await page.locator(".seek-surprise").click();
+  await page.locator("#screen-seek-play").waitFor({ state: "visible" });
+  await page.waitForFunction(() => !!window.__SEEK.run());
+  assert.ok((await page.evaluate(() => SeekData.PLACES.map((p) => p.id))).includes((await run()).place), "…and it opens a picture");
+  assert.equal(pageErrors.length, 0, pageErrors.join(" | "));
+});
+
+test("reduced motion: the picture holds still and nothing flies", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 402, height: 874 }, reducedMotion: "reduce" });
+  const p = await ctx.newPage();
+  try {
+    await p.goto(baseURL + "#seek-home", { waitUntil: "load" });
+    await p.evaluate(() => { window.__SEEK.reset(); location.hash = "#seek-play"; window.__SEEK.start("sea", {}); });
+    await p.locator("#screen-seek-play").waitFor({ state: "visible" });
+    const names = await p.evaluate(() => [...document.querySelectorAll(".seek-it--swim, .seek-it--float")].map((e) => getComputedStyle(e).animationName));
+    assert.ok(names.length > 3 && names.every((n) => n === "none"), "nothing sways: " + names.join(","));
+    const i = (await p.evaluate(() => window.__SEEK.items())).findIndex((it) => it.role === "find");
+    await p.evaluate((k) => window.__SEEK.markForTest(k), i);
+    assert.equal(await p.evaluate(() => window.__SEEK.flying()), 0, "nothing flies");
+  } finally { await ctx.close(); }
+});

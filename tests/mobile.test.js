@@ -241,6 +241,10 @@ test("🔍 Seek & Find fits every screen: its doors, the picture with its list, 
       await page.waitForTimeout(150);
       await noOverflow(page, `seek home@${w}x${h}`);
       await auditActiveScreen(page, `seek home@${w}x${h}`);
+      await showScreen(page, "#seek-album", "#screen-seek-album");
+      await page.waitForTimeout(150);
+      await noOverflow(page, `seek album@${w}x${h}`);
+      await auditActiveScreen(page, `seek album@${w}x${h}`);
       await page.evaluate(() => { window.__SEEK.reset(); location.hash = "#seek-play"; window.__SEEK.start("park", {}); });
       await page.locator("#screen-seek-play").waitFor({ state: "visible" });
       await page.waitForTimeout(200);
@@ -2698,6 +2702,9 @@ test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, G
     await p.evaluate(() => { const r = window.__SEEK; for (const it of r.items().map((x, i) => [x, i])) if (it[0].role === "find" || it[0].role === "buddy") window.__SEEK.markForTest(it[1]); });
     await p.locator(".seek-win").waitFor({ state: "visible", timeout: 4000 });
     seen.seek++; note(await check("seek party"));
+    await p.evaluate(() => { location.hash = "#seek-album"; });
+    await p.locator("#screen-seek-album").waitFor({ state: "visible" });
+    await p.waitForTimeout(120); seen.seek++; note(await check("seek album"));
     // 4. Word Cards: the menu, every button on it, and every page of every book
     const wc = async () => { await p.goto(baseURL + "wordcards.html", { waitUntil: "load" }); await p.waitForTimeout(80); };
     await wc(); note(await check("word cards menu"));

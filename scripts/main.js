@@ -188,7 +188,7 @@
   })();
   let awayAt = 0, newerBuild = false;
   function updateSafeHere() {
-    return !location.hash || /^#(home|cat-|stickers|today|progress|hole-home|hole-land-|board-home|seek-home|hl-home|td-home)/.test(location.hash);
+    return !location.hash || /^#(home|cat-|stickers|today|progress|hole-home|hole-land-|board-home|seek-home|seek-album|hl-home|td-home)/.test(location.hash);
   }
   function reloadIfNewer() {
     if (newerBuild && !document.hidden && updateSafeHere()) location.reload();

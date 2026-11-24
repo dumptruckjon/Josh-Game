@@ -2824,7 +2824,7 @@ body.hl-mode .brand { color: #ffe9b0; }
      40-card grid could only ever be two stretched columns or four cards
      NARROWER than a phone's, which is the "a tablet must never be stingier"
      law it was caught breaking. */
-  .screen:not(.start):not(.home):not(.hl-home):not(.category):not(.stickers):not(.td-home):not(.hole-home):not(.hole-landpage):not(.hole-play):not(.seek-home) {
+  .screen:not(.start):not(.home):not(.hl-home):not(.category):not(.stickers):not(.td-home):not(.hole-home):not(.hole-landpage):not(.hole-play):not(.seek-home):not(.seek-album) {
     /* `width: 100%` is load-bearing, not decoration: `#screens` becomes a
        COLUMN FLEX container in a game (main.css `body.in-game #screens`), and
        an auto cross-axis margin on a flex item cancels the stretch and
@@ -5037,7 +5037,98 @@ body.in-game .screen.seek-play { flex: 1 1 auto; display: flex; flex-direction: 
   .seek-play .seek-tray { grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; margin-top: 0; }
 }
 
+/* A living picture: what flies floats and what swims sways, each out of step
+   with the next (a negative delay per thing), by a few pixels only — a tap is
+   judged by geometry with a finger's reach to spare, so a sway never steals
+   one. Transform on the THING, not its picture: the picture keeps its own
+   tilt and flip. */
+.seek-it--float { animation: seekFloat 3s ease-in-out infinite alternate; }
+.seek-it--swim { animation: seekSwim 3.4s ease-in-out infinite alternate; }
+@keyframes seekFloat { from { transform: translateY(-5px); } to { transform: translateY(5px); } }
+@keyframes seekSwim { from { transform: translateX(-7px); } to { transform: translateX(7px); } }
+/* the buddy, found: jumps out from behind its hiding place */
+.seek-it--peekaboo .seek-it__pic { animation: seekPeek 0.6s ease; }
+@keyframes seekPeek { 0% { transform: translateY(0) scale(1); } 45% { transform: translateY(-30%) scale(1.2); } 100% { transform: translateY(0) scale(1); } }
+/* a find flying from the picture to its card on the list */
+.seek-fly {
+  position: fixed;
+  z-index: 60;
+  display: block;
+  pointer-events: none;
+  transition: transform 0.65s cubic-bezier(0.3, 0.7, 0.3, 1), opacity 0.65s ease-in;
+}
+.seek-fly svg { width: 100%; height: 100%; display: block; }
+
+/* 🎲 Surprise and 📒 My Finds, above the doors */
+.seek-extras {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.seek-extra {
+  display: grid;
+  grid-auto-flow: column;
+  justify-content: center;
+  align-items: center;
+  column-gap: 8px;
+  min-height: 84px;
+  padding: 8px;
+  border-radius: 22px;
+  background: linear-gradient(160deg, #fff7d6, #ffe7a3);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+.seek-extra:active { transform: scale(0.97); }
+.seek-extra__pic { font-size: 2.2rem; line-height: 1; }
+.seek-extra__label { font-size: clamp(0.95rem, 4.4vw, 1.2rem); font-weight: 900; color: #5b3a00; }
+.seek-albumcount { display: block; font-size: 0.85em; }
+
+/* 📒 My Finds: a section per place, a sticker per thing it can ask for. An
+   unfound sticker is a faint GHOST of itself (opacity, never a filter: a
+   filter on a hundred pictures is the WebKit cliff), so the page reads as a
+   collection to fill. */
+.seek-albumbody { display: grid; gap: 20px; padding-bottom: 24px; }
+.seek-albumsec {
+  padding: 12px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+.seek-albumsec__head {
+  display: grid;
+  grid-auto-flow: column;
+  justify-content: start;
+  align-items: center;
+  column-gap: 10px;
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #1d5e33;
+}
+.seek-albumsec__pic { width: 40px; height: 40px; display: block; }
+.seek-albumgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.seek-sticker {
+  display: grid;
+  place-items: center;
+  min-height: 80px;
+  padding: 6px;
+  border-radius: 18px;
+  background: #f1f4f1;
+}
+.seek-sticker__pic { width: 60px; height: 60px; display: block; opacity: 0.22; }
+.seek-sticker--got { background: #fff6cf; box-shadow: 0 0 0 3px #b26a00; }
+.seek-sticker--got .seek-sticker__pic { opacity: 1; }
+.seek-sticker--pop .seek-sticker__pic { animation: seekPop 0.5s ease; }
+@media (min-width: 420px) { .seek-albumgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 600px) {
+  .seek-albumgrid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .seek-sticker__pic { width: 72px; height: 72px; }
+  .seek-extra { min-height: 100px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .seek-it--hint::after { animation: none; }
   .seek-it--pop .seek-it__pic, .seek-it--wig .seek-it__pic, .seek-it--again .seek-it__pic, .seek-card--pop .seek-card__pic { animation: none; }
+  .seek-it--float, .seek-it--swim, .seek-it--peekaboo .seek-it__pic, .seek-sticker--pop .seek-sticker__pic { animation: none; }
+  .seek-fly { transition: none; }
 }

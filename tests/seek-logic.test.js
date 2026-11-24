@@ -17,7 +17,7 @@ function each(fn) {
 }
 
 test("the content is whole: every place's kinds exist, every find lives in a zone, every count kind can be said in the plural", () => {
-  assert.ok(D.PLACES.length >= 6, "six places at least");
+  assert.ok(D.PLACES.length >= 18, "eighteen places at least (the owner's minimum)");
   const ids = new Set();
   for (const p of D.PLACES) {
     assert.ok(!ids.has(p.id), "unique place id " + p.id);
@@ -170,7 +170,13 @@ test("the ground: one flat svg per picture — no ids, no filters, no gradients 
 });
 
 test("every line the world says is words, never a picture", () => {
-  const lines = [D.SAY.pick, D.SAY.win, D.SAY.look, D.SAY.find("x"), D.SAY.found("x"), D.SAY.foundAll(3, "x"), D.SAY.buddy("x"), D.SAY.that("a x")];
+  const lines = [D.SAY.pick, D.SAY.win, D.SAY.look, D.SAY.find("x"), D.SAY.found("x"), D.SAY.foundAll(3, "x"), D.SAY.buddy("x"), D.SAY.that("a x"), D.SAY.album(2, 9), D.SAY.albumEmpty, D.SAY.sticker("x"), D.SAY.ghost("x")];
   for (const k of Object.keys(D.KINDS)) { lines.push(D.KINDS[k].say); if (D.KINDS[k].many) lines.push(D.KINDS[k].many); }
   for (const l of lines) assert.ok(!EMOJI.test(l), "no picture in: " + l);
+});
+
+test("every door wears its own picture, and every place has its own name", () => {
+  const doors = D.PLACES.map((p) => p.door), names = D.PLACES.map((p) => p.name);
+  assert.equal(new Set(doors).size, doors.length, "no two doors share a picture");
+  assert.equal(new Set(names).size, names.length, "no two places share a name");
 });
