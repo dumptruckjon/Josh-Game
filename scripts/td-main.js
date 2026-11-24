@@ -2258,6 +2258,35 @@
       UI.hud(e.state);
       return e.state.phase;
     },
+    // The winnability oracle's build loop (tests/td-logic.test.js), run in the
+    // page: fill every pad in `plan` order, then upgrade the lowest tier to 3,
+    // call each wave as soon as the board is built. No gold is granted, so a
+    // win it reaches is an honest one and awards exactly what a player's would.
+    playPlan: (levelId, plan, opts) => {
+      global.__TD.newGame(levelId, opts || {});
+      const e = cur.engine, s = global.__TD.script;
+      const cost = (line, tier) => DATA.TOWERS[line].tiers[tier].cost;
+      const pads = e.levelDef ? e.levelDef.pads : (DATA.LEVELS.find((l) => l.id === levelId) || {}).pads || [];
+      let idx = 0, guard = 0;
+      while (e.state.phase !== "won" && e.state.phase !== "lost" && guard++ < 80) {
+        let spent = true;
+        while (spent) {
+          spent = false;
+          for (const p of pads) {
+            if (!e.state.towers.find((t) => t.padId === p.id)) {
+              const line = plan[idx % plan.length];
+              if (e.state.gold >= cost(line, 0) && s([["place", line, p.id]]) && e.state.towers.find((t) => t.padId === p.id)) { idx++; spent = true; }
+              break;
+            }
+          }
+          if (spent) continue;
+          const ups = e.state.towers.filter((t) => t.tier < 3).sort((a, b) => a.tier - b.tier);
+          for (const t of ups) { if (e.state.gold >= cost(t.lineId, t.tier)) { if (e.upgrade(t.id).ok) spent = true; break; } }
+        }
+        s([["call"], ["untilPhase", "build", 400000]]);
+      }
+      return e.state.phase;
+    },
     // The exact CI winning plan from tests/td-logic.test.js, reproducible in-browser.
     winL1: (seed, opts) => {
       // opts passes through (chips, meta, …) so a fixture can win under a

@@ -184,7 +184,10 @@ The touch laws:
   landscape.** 402x874 CSS px opened from the home screen, the Dynamic Island
   taking 62px at the top and the home bar 34px at the bottom. Audit on THAT
   geometry first (`mobile.test.js` "📱 Josh's iPhone 17 Pro" rewrites every
-  `env(safe-area-inset-*)` to those values); landscape only has to not break.
+  `env(safe-area-inset-*)` to those values; a sibling test walks everything
+  that is not a registered game — the launcher's screens, every Gobble place,
+  every Game Night box and mid-turn state, and every Word Cards mode and book
+  page); landscape only has to not break.
 - **Tap targets ≥ 75px**, generous spacing (≥ 16px); whole-card tap zones, not
   small buttons. (Adults get 44px; a preschooler needs much bigger.)
 - **Zero reading required.** Icons, emoji, color, and (gesture-gated) audio
@@ -2166,14 +2169,17 @@ sample-size entry at the end of this block. The seed is pinned now.** Its wiring
 is also unlike
 every other badge: it is awarded when the run ENDS or when you LEAVE, never on a
 win, so the test has to walk out of the arena to collect it.
-**All SIX earnAch wirings are now driven, and the seven badges still named in no
-test are a deliberate stop, not a gap**: `windeddown/toolsdown/notleaving/
-gooddog/scrapped/pressed/unwrapped` are the level-id siblings for the L12-L40
-boss finales, and that wiring is already driven twice (`doorman` on L1,
-`bossbonker` on L4). Driving each would mean legitimately winning eight more
-finales for a shape already proven, while the declaration scan separately
-guarantees every badge has a call site. Cover a WIRING, not each of its
-instances.
+**All SIX earnAch wirings are now driven, and since 2026-11 so is every boss
+badge.** The seven finale badges (`windeddown` … `unwrapped`) were left as "a
+deliberate stop" on the grounds that winning eight more finales would be
+expensive. Measured, it is not: `__TD.playPlan(level, plan, opts)` runs the
+winnability oracle's own build loop in the page with no gold granted, and the
+mixed plan wins all ten finales on casual in about 7 seconds. `AUDIT badges:
+EVERY boss finale` derives the finales (a level with a boss wave) and each
+one's badge (the one whose description names that boss), wins each honestly
+and requires exactly that badge — a wrong level number reports `got []`, a
+swapped id reports the other badge. A cost estimate is a claim like any other;
+this one had never been measured.
 
 **THE FORT NEVER TOLD YOU WHAT A LEVEL DOES TO YOU UNTIL YOU WERE INSIDE IT —
 and the loadout is chosen on the screen that stayed silent.** `levelGimmicks`

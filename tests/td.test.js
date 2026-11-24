@@ -937,6 +937,47 @@ test("AUDIT badges: the three cheap UNDRIVEN wiring shapes actually award", asyn
     `one star short must NOT earn Full Fort — if it does, the ceiling is a stale literal rather than LEVELS.length * 3 (seeded ${short.seeded}, cap ${cap})`);
 });
 
+test("AUDIT badges: EVERY boss finale, won honestly, earns its OWN badge", async () => {
+  // The level-id wiring was driven twice (doorman on L1, bossbonker on L4) and
+  // the eight finales from L8 to L40 never: a typo'd id, a wrong level number or
+  // a badge left off a new finale would ship green, because the structural scan
+  // only proves an earnAch("id") line EXISTS. playPlan is the winnability
+  // oracle's own build loop with no gold granted (a cheated run awards nothing),
+  // so each badge here is earned exactly the way a player earns it. Measured
+  // first: the mixed plan wins all ten on casual, about 7s for the lot.
+  //
+  // The finales and their badges are DERIVED: a finale is a level with a boss
+  // wave, and its badge is the one whose description names that boss — so an
+  // eleventh world's finale is covered the day it lands, and a finale with no
+  // badge (World 4 once shipped like that) fails here by name.
+  const r = await page.evaluate(() => {
+    const D = window.TDData;
+    const norm = (t) => t.toLowerCase().replace(/^the /, "");
+    const bossBadges = new Set();
+    const finales = D.LEVELS.filter((l) => l.waves.some((w) => w.boss)).map((l) => {
+      const type = l.waves.filter((w) => w.boss).flatMap((w) => w.groups).map((g) => g.type).find((t) => D.ENEMIES[t] && D.ENEMIES[t].boss);
+      const name = D.ENEMIES[type].name;
+      const badge = D.ACHIEVEMENTS.find((a) => norm(a.desc).includes(norm(name)));
+      if (badge) bossBadges.add(badge.id);
+      return { id: l.id, name, badge: badge && badge.id };
+    });
+    const MIX = ["fan", "mortar", "dart", "dart", "fan", "mortar", "dart", "dart", "dart", "dart", "dart", "dart"];
+    for (const f of finales) {
+      window.__TD.resetSave();
+      f.phase = window.__TD.playPlan(f.id, MIX, { seed: 7, difficulty: "casual" });
+      f.earned = window.__TD.ach().filter((a) => bossBadges.has(a));
+      window.__TD.leaveToHome();
+    }
+    return finales;
+  });
+  assert.ok(r.length >= 10, `expected a finale per world, found ${r.length}`);
+  for (const f of r) {
+    assert.ok(f.badge, `L${f.id}'s boss ${f.name} has no badge that names it`);
+    assert.equal(f.phase, "won", `fixture precondition: the oracle plan must WIN L${f.id} on casual (got ${f.phase})`);
+    assert.deepEqual(f.earned, [f.badge], `winning L${f.id} must earn exactly its own boss badge "${f.badge}" — got ${JSON.stringify(f.earned)}`);
+  }
+});
+
 test("the victory screen says what the NEXT star would have taken", async () => {
   // Nothing in the fort has ever named RULES.stars, so a 2-star finish left you
   // guessing what the bar was — the same gap the ⬆ preview closed for upgrades,

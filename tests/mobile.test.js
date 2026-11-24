@@ -2567,6 +2567,118 @@ test("📱 Josh's iPhone 17 Pro: every one of his games fits the screen, under t
   }
 });
 
+// The test above walks Josh's registered games; everything that is NOT a
+// registered game — the launcher's own screens, every Gobble place, every Game
+// Night box (fresh and mid-turn) and Word Cards (its menu, every mode and every
+// page of every book) — had been measured on phones without the island and the
+// home bar, never on the phone he holds. Measured clean when written (2026-11):
+// this is coverage, not a fix, and it exists so the next screen inherits it.
+// Inside an inner scroller a control below the scroller's edge is not "off the
+// screen", it is the next thing to scroll to — so the scroller is scrolled to
+// its end and its LAST control must come to rest above the home bar.
+test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, Gobble, Game Night, Word Cards", async () => {
+  const { ctx, p } = await ip17Page();
+  const errs = []; p.on("pageerror", (e) => errs.push(e.message));
+  const check = (label) => p.evaluate(([T, B, Hh, label]) => {
+    const out = [];
+    const scroller = (el) => { let s = el.parentElement; while (s && !(s.scrollHeight > s.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(s).overflowY))) s = s.parentElement; return s; };
+    const fits = document.documentElement.scrollHeight <= Hh + 1;
+    for (const e of document.querySelectorAll("button, a[href], [role=button], [data-correct], [data-toy]")) {
+      if (e.closest("[hidden]") || e.closest("[data-adult]")) continue;
+      const cs = getComputedStyle(e); if (cs.visibility === "hidden" || cs.display === "none") continue;
+      const q = e.getBoundingClientRect(); if (!q.width || !q.height) continue;
+      const k = ((e.id || e.className || e.tagName) + "").slice(0, 28);
+      if (q.top + scrollY < T - 1) out.push(k + " under the island (" + Math.round(q.top + scrollY) + ")");
+      const sc = scroller(e);
+      if (sc) { const sq = sc.getBoundingClientRect(); if (q.top < sq.top - 1 || q.bottom > sq.bottom + 1) continue; }
+      if (fits && q.bottom > Hh + 1) out.push(k + " off the bottom (" + Math.round(q.bottom) + ")");
+      else if (fits && (q.top + q.bottom) / 2 > Hh - B) out.push(k + " centred in the home bar (" + Math.round((q.top + q.bottom) / 2) + ")");
+    }
+    let scrollers = 0;
+    for (const sc of document.querySelectorAll("*")) {
+      if (!sc.offsetParent || !(sc.scrollHeight > sc.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(sc).overflowY))) continue;
+      scrollers++;
+      const prev = sc.scrollTop; sc.scrollTop = 1e6;
+      const last = [...sc.querySelectorAll("button")].filter((b) => b.offsetParent).pop();
+      if (last) { const q = last.getBoundingClientRect(); if ((q.top + q.bottom) / 2 > Hh - B) out.push("the last control in " + (sc.id || sc.className) + " rests in the home bar (" + Math.round((q.top + q.bottom) / 2) + ")"); }
+      sc.scrollTop = prev;
+    }
+    const ovf = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+    if (ovf > 1) out.push("scrolls sideways " + ovf + "px");
+    return out.length ? label + ": " + out.slice(0, 3).join("; ") : "";
+  }, [IP17.top, IP17.bottom, IP17.h, label]);
+  const bad = [], seen = { nav: 0, hole: 0, board: 0, mid: 0, wc: 0, pages: 0 };
+  const note = (r) => { if (r) bad.push(r); };
+  try {
+    await p.goto(baseURL, { waitUntil: "load" });
+    // 1. the launcher's own screens (derived: every screen that is not a game)
+    const screens = await p.evaluate(() => [...document.querySelectorAll(".screen")].map((s) => s.id.replace(/^screen-/, ""))
+      .filter((id) => id !== "start" && !(window.JoshGames || []).some((g) => g.id === id)));
+    for (const h of screens) {
+      await p.evaluate((h) => { location.hash = h; }, "#" + h);
+      await p.waitForTimeout(80);
+      if (!(await p.evaluate((h) => { const s = document.getElementById("screen-" + h); return s && !s.hidden; }, h))) continue;
+      seen.nav++; note(await check(h));
+    }
+    // 2. Gobble: every land page and every place
+    for (const ld of await p.evaluate(() => HoleData.LANDS.map((l) => l.id))) {
+      await p.evaluate((h) => { location.hash = h; }, "#hole-land-" + ld);
+      await p.waitForTimeout(80); seen.nav++; note(await check("hole-land-" + ld));
+    }
+    await p.evaluate(() => window.__HOLE.reset({ demoSeen: true }));
+    for (const id of await p.evaluate(() => HoleData.SCENES.map((s) => s.id))) {
+      await p.evaluate((id) => { location.hash = "#hole-play"; window.__HOLE.start(id, {}); }, id);
+      await p.waitForTimeout(40); seen.hole++; note(await check("gobble " + id));
+    }
+    // 3. Game Night: every box fresh against the computer, then every mid-turn state
+    for (const id of await p.evaluate(() => BoardData.BOXES.map((b) => b.id))) {
+      await p.evaluate((id) => { window.__BOARD.reset({ introSeen: true }); location.hash = "#board-play"; window.__BOARD.start(id, "river", true, 7); }, id);
+      await p.waitForTimeout(150); seen.board++; note(await check("board " + id));
+    }
+    for (const [box, drive] of BOARD_MIDTURN) {
+      const ok = await p.evaluate((a) => {
+        window.__BOARD.reset({ introSeen: true });
+        const L = window.BoardLogic;
+        const st = L.create({ board: a[0], seats: [{ who: "josh" }, { who: "river", cpu: true }], seed: 5, first: a[0] === "gofish" ? 1 : 0 });
+        if (!(0, eval)("(" + a[1] + ")")(L, st)) return false;
+        return window.__BOARD.load(a[0], st);
+      }, [box, drive.toString()]);
+      assert.ok(ok, `fixture: ${box}'s mid-turn state loads`);
+      await p.waitForTimeout(250); seen.mid++; note(await check("board " + box + " mid-turn"));
+    }
+    // 4. Word Cards: the menu, every button on it, and every page of every book
+    const wc = async () => { await p.goto(baseURL + "wordcards.html", { waitUntil: "load" }); await p.waitForTimeout(80); };
+    await wc(); note(await check("word cards menu"));
+    const n = await p.evaluate(() => document.querySelectorAll("#menu button").length);
+    for (let i = 0; i < n; i++) {
+      await wc();
+      const b = await p.evaluate((i) => { const b = document.querySelectorAll("#menu button")[i]; if (!b || !b.offsetParent) return null; b.click(); return { id: b.id, t: b.textContent.trim().slice(0, 24) }; }, i);
+      if (!b) continue;
+      await p.waitForTimeout(250); seen.wc++; note(await check("word cards " + b.t));
+      if (b.id !== "storyBtn" && b.id !== "hzStoryBtn") continue;
+      for (const book of await p.evaluate(() => [...document.querySelectorAll(".book")].filter((x) => x.offsetParent).map((x) => x.dataset.book))) {
+        await p.evaluate((id) => [...document.querySelectorAll(".book")].find((x) => x.dataset.book === id).click(), book);
+        await p.waitForTimeout(250);
+        for (let g = 0; g < 20; g++) {
+          seen.pages++; note(await check("book " + book + " page " + (g + 1)));
+          const more = await p.evaluate(() => { const m = /(\d+)\s*\/\s*(\d+)/.exec(document.getElementById("scount").textContent); if (!m || +m[1] >= +m[2]) return false; document.getElementById("snext").click(); return true; });
+          if (!more) break;
+          await p.waitForTimeout(250);
+        }
+        await p.evaluate(() => document.getElementById("sback").click());
+        await p.waitForTimeout(250);
+      }
+    }
+    // a walk that silently skipped a section would pass on nothing
+    assert.ok(seen.nav >= 25 && seen.hole >= 70 && seen.board >= 40 && seen.mid >= 10 && seen.wc >= 40 && seen.pages >= 140,
+      `fixture: too little was measured ${JSON.stringify(seen)}`);
+    assert.deepEqual(bad, [], `on an iPhone 17 Pro:\n${bad.join("\n")}`);
+    assert.deepEqual(errs, [], "no page errors");
+  } finally {
+    await ctx.close();
+  }
+});
+
 test("📱 iPhone 17 Pro: the games that GROW still fit in their later rounds", async () => {
   // A first-round audit cannot see a game that grows. Walking all 200 games
   // round by round on the 17 Pro found four that outgrew the screen: Find the
