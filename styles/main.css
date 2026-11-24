@@ -4965,6 +4965,7 @@ body.in-game .screen.seek-play { flex: 1 1 auto; display: flex; flex-direction: 
   visibility: hidden;
 }
 /* Done: a green ring AND a tick (a shape, not only a colour) */
+.seek-card--shadow .seek-card__pic { filter: brightness(0); opacity: 0.82; }
 .seek-card--done { background: #e3f6e8; box-shadow: 0 0 0 4px #2c7a3f, 0 6px 14px rgba(0, 0, 0, 0.14); }
 .seek-card--done .seek-card__tick { visibility: visible; }
 .seek-card--pop .seek-card__pic { animation: seekPop 0.5s ease; }

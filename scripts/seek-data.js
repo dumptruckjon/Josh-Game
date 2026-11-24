@@ -722,11 +722,50 @@
 
   // How hard a picture grows with the stars a place has (0, 1, 2+):
   // more things around the finds, and the buddy hides further behind.
+  // From the fourth picture of a place it gets TRICKY, for the child who is
+  // good at this: the list shows each thing's SHADOW until he finds it (shape
+  // matching, never reading), and from the fifth, look-alikes crowd round the
+  // things he is after (the swan beside the duck, the tomato among the apples).
+  //   shadow  the list's pictures are silhouettes until found
+  //   like    how many look-alikes join each thing on the list (LIKE below)
   const LEVELS = [
     { fill: 1.5, buddy: [0.62, 0.78], count: [2, 3] },
     { fill: 1.8, buddy: [0.5, 0.66], count: [3, 4] },
     { fill: 2.1, buddy: [0.42, 0.56], count: [3, 5] },
+    { fill: 2.3, buddy: [0.38, 0.52], count: [4, 5], shadow: true },
+    { fill: 2.4, buddy: [0.34, 0.48], count: [4, 6], shadow: true, like: 2 },
   ];
+
+  // Look-alikes: things of a DIFFERENT name that a quick look could mix up.
+  // Never the same group (that would make a wrong answer right), and a
+  // look-alike only joins a picture whose place already has it somewhere.
+  const LIKE = {
+    duck: ["swan", "dodo"], swan: ["duck"], dodo: ["duck"], owl: ["bird", "bat"], bat: ["owl"],
+    ladybug: ["beetle"], beetle: ["ladybug", "cricket"], cricket: ["beetle", "ant"], ant: ["spider"], spider: ["ant"],
+    frog: ["turtle", "lizard"], turtle: ["frog"], lizard: ["crocodile"], crocodile: ["lizard", "snake"], snake: ["crocodile"],
+    dog: ["cat"], cat: ["dog"], rabbit: ["mouse"], mouse: ["rabbit"], chipmunk: ["hedgehog"], hedgehog: ["chipmunk"],
+    sheep: ["goat"], goat: ["sheep"], horse: ["unicorn", "cow"], cow: ["horse"],
+    lion: ["tiger"], tiger: ["lion"], zebra: ["giraffe"], giraffe: ["zebra"], rhino: ["hippo"], hippo: ["rhino"], elephant: ["rhino"],
+    monkey: ["gorilla"], gorilla: ["monkey"], parrot: ["flamingo"], flamingo: ["parrot"], penguin: ["seal"], seal: ["penguin"], polarbear: ["seal"],
+    dolphin: ["shark"], shark: ["dolphin"], whale: ["dolphin"], squid: ["octopus"], octopus: ["squid"], jellyfish: ["squid"],
+    lobster: ["crab", "shrimp"], crab: ["lobster"], shrimp: ["lobster"], shell: ["oyster"], oyster: ["shell"], fish: ["blowfish"], blowfish: ["fish"],
+    tulip: ["rose"], rose: ["tulip"], blossom: ["cherryblossom"], cherryblossom: ["blossom"],
+    apple: ["tomato"], tomato: ["apple"], cherries: ["strawberry"], strawberry: ["cherries"], lemon: ["banana"], banana: ["lemon"],
+    cake: ["cupcake"], cupcake: ["cake"], cookie: ["doughnut"], doughnut: ["cookie"], candy: ["lollipop"], lollipop: ["candy"], popper: ["confetti"], confetti: ["popper"],
+    car: ["taxi"], taxi: ["car"], bus: ["truck"], truck: ["bus"], policecar: ["car"], ambulance: ["fireengine"], fireengine: ["ambulance"],
+    tram: ["fasttrain"], fasttrain: ["tram"], steamtrain: ["mountaintrain"], mountaintrain: ["steamtrain"],
+    deer: ["fox"], fox: ["raccoon"], raccoon: ["fox"], bear: ["raccoon"],
+    skier: ["snowboarder"], snowboarder: ["skier"], scarf: ["gloves"], gloves: ["scarf"],
+    longneck: ["trex"], trex: ["longneck"], mammoth: ["longneck"],
+    prince: ["elf"], elf: ["prince", "wizard"], wizard: ["elf"], princess: ["fairy"], fairy: ["princess"],
+    alien: ["monster"], monster: ["alien"], robot: ["astronaut"], astronaut: ["robot"], comet: ["star"], star: ["comet"], moon: ["planet"], planet: ["moon"], ufo: ["satellite"], satellite: ["ufo"],
+    teddy: ["dolls"], dolls: ["teddy"], guitar: ["trumpet"], trumpet: ["guitar"], drum: ["guitar"], die: ["puzzle"], puzzle: ["die"], skateboard: ["scooter"], scooter: ["skateboard"],
+    hammer: ["wrench"], wrench: ["hammer"], pick: ["hammer"], tractor: ["lorry"],
+    helicopter: ["airplane"], sailboat: ["speedboat"], speedboat: ["sailboat"], surfer: ["swimmer"], rower: ["swimmer"], swimmer: ["surfer"],
+    watermelon: ["coconut"], coconut: ["watermelon"], pilot: ["stander"], ladder: ["logs"], logs: ["brick"], brick: ["logs"],
+    crown: ["crystal"], crystal: ["crown"], unicorn: ["horse"],
+    police: ["firefighter"], firefighter: ["police"], doctor: ["teacher"], teacher: ["doctor"], biker: ["runner"], runner: ["biker"],
+  };
 
   // Every line the world says. A line never reads a picture: it names things
   // by their `say` / `many`.
@@ -742,13 +781,15 @@
     ghost: (place) => "Not found yet. Look in " + place + "!",
     that: (phrase) => "That's " + phrase + ".",
     win: "You found everything!",
+    shadows: "Tricky! Find the shadows!",
+    trickier: "Next time, a trickier picture!",
     look: "Look here!",
   };
 
   // The world's own mark: on the front door and its home.
   const LOGO = "magnifying-glass-tilted-left";
 
-  const SeekData = { W, TONES, KINDS, PLACES, LEVELS, SAY, LOGO };
+  const SeekData = { W, TONES, KINDS, PLACES, LEVELS, LIKE, SAY, LOGO };
   if (typeof module !== "undefined" && module.exports) module.exports = SeekData;
   global.SeekData = SeekData;
 })(typeof window !== "undefined" ? window : globalThis);

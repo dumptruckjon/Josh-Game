@@ -118,6 +118,44 @@ test("a picture is BUSY: the levels add things, and the same seed always gives t
   }
 });
 
+test("TRICKY levels: shadows from the fourth picture, look-alikes from the fifth — every look-alike a real thing of ANOTHER name, from its own place, crowding round what he is after", () => {
+  const shadowAt = D.LEVELS.findIndex((l) => l.shadow);
+  const likeAt = D.LEVELS.findIndex((l) => l.like);
+  assert.ok(shadowAt >= 3 && likeAt > shadowAt, "the easy levels stay easy; shadows come first, then look-alikes");
+  // the pairs: real kinds, never scenery, never the same group (a look-alike
+  // of the same group would be a second right answer)
+  for (const [k, likes] of Object.entries(D.LIKE)) {
+    assert.ok(D.KINDS[k] && !D.KINDS[k].prop, "LIKE: " + k + " is a findable kind");
+    for (const x of likes) {
+      assert.ok(D.KINDS[x] && !D.KINDS[x].prop, "LIKE: " + k + " -> " + x + " is a kind");
+      assert.notEqual(L.groupOf(x), L.groupOf(k), "LIKE: " + k + " and " + x + " share a group, so " + x + " would also be right");
+    }
+  }
+  let pics = 0, withLikes = 0;
+  for (const p of D.PLACES) {
+    const has = new Set();
+    for (const z of p.zones) for (const k of Object.keys(z.kinds || {})) has.add(k);
+    let mine = 0;
+    for (const seed of SEEDS) {
+      const o = L.layout(p.id, { seed, level: likeAt });
+      const want = new Set(o.list.map((e) => L.groupOf(e.kind)));
+      const likes = o.items.filter((it) => it.like);
+      pics++;
+      if (likes.length) withLikes++;
+      mine += likes.length;
+      for (const it of likes) {
+        assert.ok(has.has(it.kind), p.id + ": a look-alike " + it.kind + " belongs to this place");
+        assert.ok(!want.has(L.groupOf(it.kind)), p.id + ": a look-alike is never of a group the list asks for");
+        assert.ok((D.LIKE[it.like] || []).indexOf(it.kind) >= 0, p.id + ": " + it.kind + " is a look-alike of " + it.like);
+      }
+      // and on the levels below, none
+      assert.equal(L.layout(p.id, { seed, level: likeAt - 1 }).items.filter((it) => it.like).length, 0, p.id + ": no look-alikes before their level");
+    }
+    assert.ok(mine / SEEDS.length >= 1.2, p.id + ": look-alikes really turn up (" + (mine / SEEDS.length).toFixed(1) + " a picture)");
+  }
+  assert.ok(withLikes / pics >= 0.8, "most tricky pictures have look-alikes (" + withLikes + "/" + pics + ")");
+});
+
 test("a tap: the topmost body under the finger, else the nearest within reach, else nothing", () => {
   const items = [
     { kind: "a", x: 100, y: 100, size: 100 },

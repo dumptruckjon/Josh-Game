@@ -238,6 +238,25 @@
       }
     }
 
+    // 3b. tricky pictures: look-alikes crowd round what he is after (the swan
+    //     beside the duck). Only a kind this place already has, never of a
+    //     group the list asks for, in a zone that holds the find where it can.
+    if (lvl.like) {
+      for (const l of list) {
+        for (const lk of (D.LIKE && D.LIKE[l.kind]) || []) {
+          if (!D.KINDS[lk] || D.KINDS[lk].prop || want.has(groupOf(lk))) continue;
+          const homes = place.zones.filter((z) => z.kinds && z.kinds[lk]);
+          if (!homes.length) continue;
+          const near = homes.filter((z) => z.kinds[l.kind]);
+          for (let i = 0; i < lvl.like; i++) {
+            const z = pick(r, near.length ? near : homes);
+            const it = add(lk, bestSpot(r, z, D.KINDS[lk].size, items, H, 8), "fill");
+            it.like = l.kind;
+          }
+        }
+      }
+    }
+
     // 4. the fillers: everything else, never of a group the list asks for
     for (const z of place.zones) {
       const table = {};

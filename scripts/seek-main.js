@@ -361,6 +361,7 @@
       place, level, seed, items: lay.items, H: lay.H,
       list: lay.list.map((e) => ({ kind: e.kind, n: e.n, art: e.art, got: 0, done: false })),
       found: new Set(), els: [], cards: [], openedAt: now(), lastFindAt: now(), lastTap: null,
+      shadow: !!D.LEVELS[level].shadow,
     };
     save.last = place.id;
     titleEl.textContent = place.name;
@@ -369,7 +370,8 @@
     for (const i of found) if (run.items[i] && (run.items[i].role === "find" || run.items[i].role === "buddy")) mark(i, true);
     saveRun();
     view.scrollTop = 0;
-    if (!run.list.every((e) => e.done)) later(() => { if (playVisible()) say(listLine()); }, 400);
+    const firstShadows = run.shadow && !found.length;
+    if (!run.list.every((e) => e.done)) later(() => { if (playVisible()) { if (firstShadows) say(D.SAY.shadows); say(listLine()); } }, 400);
     else showWin(true);
   }
 
@@ -450,6 +452,8 @@
     const c = b.querySelector(".seek-card__count");
     if (c) c.textContent = e.got + "/" + e.n;
     b.classList.toggle("seek-card--done", e.done);
+    // a tricky picture's list shows SHADOWS until each thing is found
+    b.classList.toggle("seek-card--shadow", !!run.shadow && e.kind !== "buddy" && !e.done);
     const nm = nameOf(e);
     b.setAttribute("aria-label", (e.done ? "Found " : "Find ") + nm + (e.n > 1 ? ", " + e.got + " of " + e.n + " found" : ""));
   }
@@ -598,6 +602,8 @@
       persist();
       cue("winCue");
       say(D.SAY.win);
+      // the next picture of this place is a new level: say so
+      if (run.level < D.LEVELS.length - 1) say(D.SAY.trickier);
       try { if (playVisible() && global.JoshEffects) global.JoshEffects.confetti(); } catch (e) { /* ignore */ }
     }
     const box = win.querySelector(".seek-win__box");
@@ -692,6 +698,8 @@
     items: () => (run ? run.items.map((it) => ({ ...it })) : []),
     save: () => JSON.parse(JSON.stringify(save)),
     reset() { save = freshSave(); try { global.localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } },
+    // a place already finished n times (its next picture is level n, capped)
+    setStars(id, n) { if (isPlace(id)) { save.stars[id] = nat(n); delete save.runs[id]; persist(); } },
     start(id, opts) { startPlace(id, opts || {}); return !!run; },
     // where item i's centre is on the page (to tap it like a finger)
     pointOf(i) {

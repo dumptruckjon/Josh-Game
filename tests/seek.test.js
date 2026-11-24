@@ -337,6 +337,67 @@ test("the fun layer: 🎲 Surprise opens a place he has not finished, a find FLI
   assert.equal(pageErrors.length, 0, pageErrors.join(" | "));
 });
 
+test("TRICKY pictures for the child who is good at this: from a place's fourth picture the list shows SHADOWS (each turns to colour when found), and from the fifth LOOK-ALIKES crowd round the finds — a look-alike names itself and marks nothing, and a win says the next picture is trickier", async () => {
+  // level 3: shadows
+  await spy();
+  await page.evaluate(() => window.__SEEK.reset());
+  await page.evaluate(() => window.__SEEK.setStars("zoo", 3));
+  await go("#seek-home", "#screen-seek-home");
+  await page.evaluate(() => { window.__said.length = 0; });
+  await page.locator('.seek-door[data-place="zoo"]').click();
+  await page.waitForFunction(() => { const r = window.__SEEK.run(); return r && r.place === "zoo"; });
+  await page.waitForTimeout(700);
+  let r = await run();
+  assert.equal(r.level, 3, "three ⭐ make the fourth level");
+  const cards = await page.evaluate(() => [...document.querySelectorAll(".seek-card")].map((c, i) => ({
+    shadow: c.classList.contains("seek-card--shadow"),
+    filter: getComputedStyle(c.querySelector(".seek-card__pic")).filter,
+    buddy: !!c.querySelector(".seek-card__buddy"),
+  })));
+  for (const c of cards) {
+    if (c.buddy) assert.ok(!c.shadow, "the buddy is never a shadow: it is his friend");
+    else assert.ok(c.shadow && /brightness\(0\)/.test(c.filter), "a thing to find is shown as its shadow (" + c.filter + ")");
+  }
+  let said = await page.evaluate(() => window.__said.slice());
+  const si = said.indexOf("Tricky! Find the shadows!");
+  assert.ok(si >= 0 && said.slice(si + 1).some((s) => /^Can you find /.test(s)), "the shadows are announced, then the list: " + said.join(" | "));
+  // a find turns its card to colour
+  const its = await items();
+  const f = its.findIndex((it) => it.role === "find" && r.list.find((e) => e.kind === it.kind && e.n === 1));
+  await tapItem(f);
+  const li = r.list.findIndex((e) => e.kind === its[f].kind);
+  assert.ok(!(await page.evaluate((k) => document.querySelectorAll(".seek-card")[k].classList.contains("seek-card--shadow"), li)), "a found thing's card shows its colours again");
+  // finish it: the win says the next one is trickier
+  await page.evaluate(() => { window.__said.length = 0; });
+  r = await run();
+  const all = await items();
+  for (let i = 0; i < all.length; i++) {
+    if ((all[i].role === "find" || all[i].role === "buddy") && r.found.indexOf(i) < 0) await page.evaluate((k) => window.__SEEK.markForTest(k), i);
+  }
+  await page.locator(".seek-win").waitFor({ state: "visible", timeout: 4000 });
+  said = await page.evaluate(() => window.__said.slice());
+  assert.ok(said.indexOf("Next time, a trickier picture!") > said.indexOf("You found everything!"), "the party says the next picture is trickier: " + said.join(" | "));
+
+  // level 4: look-alikes (stars now 4)
+  await page.waitForTimeout(400);
+  await page.locator(".seek-again").click();
+  await page.waitForFunction(() => { const r = window.__SEEK.run(); return r && r.level === 4; });
+  await page.waitForTimeout(400);
+  r = await run();
+  const four = await items();
+  const likes = four.map((it, i) => ({ it, i })).filter((x) => x.it.like);
+  assert.ok(likes.length >= 2, "look-alikes crowd round the finds (" + likes.length + ")");
+  const groups = new Set(r.list.map((e) => window_group(e.kind)));
+  for (const x of likes) assert.ok(!groups.has(window_group(x.it.kind)), x.it.kind + " is not of a group the list asks for");
+  await page.evaluate(() => { window.__said.length = 0; });
+  await tapItem(likes[0].i);
+  assert.equal((await run()).found.length, 0, "a look-alike marks nothing");
+  said = await page.evaluate(() => window.__said.slice());
+  assert.ok(said.some((s) => /^That's an? /.test(s)), "…and says what it is: " + said.join(" | "));
+  assert.equal(pageErrors.length, 0, pageErrors.join(" | "));
+});
+function window_group(k) { const D = require("../scripts/seek-data.js"); return (D.KINDS[k] && D.KINDS[k].group) || k; }
+
 test("reduced motion: the picture holds still and nothing flies", async () => {
   const ctx = await browser.newContext({ viewport: { width: 402, height: 874 }, reducedMotion: "reduce" });
   const p = await ctx.newPage();
