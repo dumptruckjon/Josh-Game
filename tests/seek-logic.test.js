@@ -271,6 +271,40 @@ test("a tap: the topmost body under the finger, else the nearest within reach, e
   assert.ok(tried > 100, "checked " + tried + " finds");
 });
 
+test("a finger a little off still gets what he is after: a tap on the buddy (or a find) PEEKING OUT from behind scenery is meant for him, not the tree in front", () => {
+  // Measured on Josh's iPhone 17 Pro (the picture is ~370px across), 8px-off
+  // taps on the buddy landed on the tree he hides behind about half the time
+  // ("That's a tree.") — while he could plainly see the buddy there.
+  const tree = { kind: "tree", role: "prop", x: 100, y: 100, size: 120 };
+  const buddy = { kind: "buddy", role: "buddy", x: 130, y: 70, size: 60 };
+  const items = [buddy, tree];                // the tree is in FRONT of him
+  const want = (j) => items[j].role === "buddy";
+  const at = (x, y) => L.peekThrough(items, L.hitTest(items, x, y, 0), x, y, want);
+  assert.equal(L.hitTest(items, 120, 80, 0), 1, "fixture: the tree in front takes this tap");
+  assert.equal(at(120, 80), 0, "…but it lands on the buddy's body, so it is the buddy");
+  assert.equal(at(70, 130), 1, "a tap on the tree away from him is still the tree");
+  assert.equal(L.peekThrough(items, 1, 120, 80, () => false), 1, "once he is found (not wanted), the tree is the tree");
+  assert.equal(L.peekThrough(items, 0, 120, 80, want), 0, "a tap on a thing that is not scenery is left alone");
+  const hid = [{ ...buddy, hidden: true }, tree];
+  assert.equal(L.peekThrough(hid, 1, 120, 80, (j) => hid[j].role === "buddy"), 1, "a thing hidden INSIDE scenery is never reached through it");
+  // and over every real picture: taps 8px off a find or the buddy reach it
+  const VIEW = 370, k = D.W / VIEW, TOL = 22 * k, ERR = 8 * k;
+  let tot = 0, miss = 0;
+  for (const p of D.PLACES) for (const level of LEVELS) for (const seed of SEEDS.slice(0, 4)) {
+    const its = L.layout(p.id, { seed, level }).items;
+    const w = (j) => its[j].role === "find" || its[j].role === "buddy";
+    its.forEach((it, i) => {
+      if (!w(i) || it.hidden) return;
+      for (let a = 0; a < 8; a++) {
+        const x = it.x + Math.cos(a * Math.PI / 4) * ERR, y = it.y + Math.sin(a * Math.PI / 4) * ERR;
+        tot++; if (L.peekThrough(its, L.hitTest(its, x, y, TOL), x, y, w) !== i) miss++;
+      }
+    });
+  }
+  assert.ok(tot > 10000, "fixture: " + tot + " taps tried");
+  assert.ok(miss / tot < 0.02, "an 8px-off tap misses what he aimed at " + (miss / tot * 100).toFixed(1) + "% of the time");
+});
+
 test("the pictures: exactly the ones a place can draw, all in seek-art.js, each a whole SVG, with the Noto licence shipped beside them", () => {
   const names = L.artNames();
   assert.deepEqual(Object.keys(ART).sort(), names, "seek-art.js holds exactly the pictures the places draw (re-run tools/seek-art.js)");

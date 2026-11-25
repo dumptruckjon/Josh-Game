@@ -526,6 +526,14 @@ test("a STORY picture: a friend's bubble shows what they lost, the cards after i
   assert.ok(ui.bubble && ui.who && ui.want, "the bubble: the friend, and what they want");
   assert.ok(ui.cards[0].now && !ui.cards[0].locked, "the first card is the one asked for");
   for (const c of ui.cards.slice(1)) assert.ok(c.locked && c.q !== "none", "the later cards are a ?");
+  // The bubble sits over the top of the picture. On Josh's phone a find in the
+  // picture's top strip could never be scrolled out from under it, and every tap
+  // there went to the bubble: the picture must start BELOW it.
+  const cover = await page.evaluate(() => {
+    const v = document.querySelector(".seek-view"); v.scrollTop = 0;
+    return { bub: document.querySelector(".seek-bubble").getBoundingClientRect().bottom, scene: document.querySelector(".seek-scene").getBoundingClientRect().top };
+  });
+  assert.ok(cover.scene >= cover.bub, "the picture starts below the bubble (scene top " + Math.round(cover.scene) + ", bubble bottom " + Math.round(cover.bub) + ")");
   // a later thing: not yet
   const its = await items();
   const later = its.findIndex((it) => it.role === "find" && it.kind === r.list[1].kind && !it.hidden);

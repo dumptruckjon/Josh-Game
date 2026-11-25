@@ -585,6 +585,24 @@
     return best;
   }
 
+  // A tap that scenery took (item i is a prop) but that lands on a thing PEEKING
+  // OUT from behind it: the finger meant the thing he can see, not the tree.
+  // Measured on a 402px phone: the buddy hides behind scenery by design, and
+  // about half of all taps a few px off his face landed on the tree in front
+  // ("That's a tree."). `want(j)` says which things are still being looked for.
+  // Returns the thing under the finger (the nearest centre), else i unchanged.
+  function peekThrough(items, i, x, y, want) {
+    if (i < 0 || !items[i] || items[i].role !== "prop") return i;
+    let best = i, bd = Infinity;
+    for (let j = 0; j < items.length; j++) {
+      const it = items[j];
+      if (j === i || it.hidden || !want(j)) continue;
+      const d = Math.hypot(x - it.x, y - it.y);
+      if (d <= rOf(it) && d < bd) { bd = d; best = j; }
+    }
+    return best;
+  }
+
   // Every picture name a place can draw (for the art bundle and its test).
   function artNames() {
     const s = new Set([D.LOGO]);
@@ -630,7 +648,7 @@
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + D.W + " " + p.h + '" preserveAspectRatio="none" aria-hidden="true" focusable="false">' + s + "</svg>";
   }
 
-  const SeekLogic = { clueHolds, anchors, atMark, heldBy, FAR, recolor, artBase, SHIRTS, groundSvg, MARK, rng, hash, layout, hitTest, visibleFrac, groupOf, placeOf, levelOf, inZone, artNames, rOf, BODY };
+  const SeekLogic = { clueHolds, anchors, atMark, heldBy, FAR, recolor, artBase, SHIRTS, groundSvg, MARK, rng, hash, layout, hitTest, peekThrough, visibleFrac, groupOf, placeOf, levelOf, inZone, artNames, rOf, BODY };
   if (typeof module !== "undefined" && module.exports) module.exports = SeekLogic;
   global.SeekLogic = SeekLogic;
 })(typeof window !== "undefined" ? window : globalThis);

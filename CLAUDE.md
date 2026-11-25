@@ -16733,3 +16733,22 @@ at 380ms); Safari is slow enough to measure while it shows. A decoration that
 moves over a screen is `position: fixed` (it is never part of the page's
 height), and the test now measures while the finger is showing.
 
+
+**COLOR BOOK + SEEK & FIND PLAYED THROUGH ON THE iPHONE 17 PRO (2026-11-25):
+all 27 pages and 18 places × 6 kinds of picture, by real taps; two defects, both
+in Seek & Find, both invisible to a test that taps a thing's centre.** (1) **A
+story picture's friend bubble sat over the top of the picture**, and a find in
+the picture's top strip could never be scrolled out from under it: every tap
+there went to the bubble. A story picture now starts below the bubble
+(`.seek-play--story .seek-view`, for the whole story so nothing jumps when the
+bubble goes). Found only because the play-through tapped finds in STORY ORDER
+and one happened to sit at the top. (2) **The buddy peeks out from behind
+scenery by design, and an 8px-off tap on his face landed on the tree in front
+about half the time** ("That's a tree."). `SeekLogic.peekThrough`: a tap the
+scenery took that lands on the body of a thing still being looked for is meant
+for that thing. 8px-off taps now miss what they aimed at 0.4% of the time, not
+8.5%. Measured clean and recorded so they are not re-run: on the Color Book a
+6px-off tap with the right pot paints the right shape on every page (the judge
+snaps to the chosen color), the smallest shape is 681px² on the phone, and no
+control is small, crowded, under the island or in the home bar on any page,
+finished or not.

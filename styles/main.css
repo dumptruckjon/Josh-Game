@@ -5203,6 +5203,9 @@ body.in-game .screen.seek-play { flex: 1 1 auto; display: flex; flex-direction: 
   border-color: transparent #f2c21a transparent transparent;
 }
 .seek-bubble__pic, .seek-bubble__buddy { width: 52px; height: 52px; display: block; }
+/* The picture starts below the bubble (10px + its 80px + 10px), so nothing in
+   the picture's top strip is ever stuck under it. */
+.seek-play--story .seek-view { padding-top: 100px; }
 
 /* A story's cards: the one asked for now glows, the later ones are a ? */
 .seek-card__q { display: none; font-size: 2.4rem; font-weight: 900; color: #8a6d00; line-height: 1; }

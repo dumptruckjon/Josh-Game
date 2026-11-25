@@ -608,6 +608,11 @@
     if (!bubble) return;
     const st = run && run.story ? storyStep() : -1;
     bubble.hidden = st < 0;
+    // The bubble sits over the top of the picture, and a find at the very top
+    // could never be scrolled out from under it (it took every tap there). A
+    // story picture starts below the bubble instead, for the whole story, so
+    // the picture never jumps when the bubble goes.
+    play.classList.toggle("seek-play--story", !!(run && run.story));
     if (st < 0) return;
     const e = run.list[st];
     const who = bubble.querySelector(".seek-bubble__who");
@@ -658,7 +663,10 @@
     const x = (e.clientX - rect.left) * k, y = (e.clientY - rect.top) * k;
     const finger = e.isTrusted && e.detail !== 0;
     const t = now();
-    const i = L.hitTest(run.items, x, y, TOL_PX * k);
+    const i = L.peekThrough(run.items, L.hitTest(run.items, x, y, TOL_PX * k), x, y, (j) => {
+      const it = run.items[j];
+      return (it.role === "find" || it.role === "buddy") && !run.found.has(j) && entryFor(it) >= 0;
+    });
     // the second tap of a double tap on the same thing is the echo
     if (finger && run.lastTap && t - run.lastTap.t < ECHO_MS && run.lastTap.i === i) return;
     run.lastTap = { t, i };
