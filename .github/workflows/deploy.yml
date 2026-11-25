@@ -25,6 +25,9 @@ jobs:
     # WebKit build was made against — and nothing deployed. Move to a newer
     # image only together with a Playwright that supports it.
     runs-on: ubuntu-24.04
+    # A whole-job backstop. A healthy run takes ~40 min; without this a hang in
+    # a step with no timeout of its own holds the `pages` group for 6 hours.
+    timeout-minutes: 150
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,6 +37,18 @@ jobs:
         with:
           node-version: "20"
           cache: npm
+
+      - name: Record the toolchain
+        # The first question on any red run is "what changed under us?" — the
+        # runner image moved once and took WebKit down with it (run #527).
+        run: |
+          {
+            echo "### Toolchain"
+            echo "- runner image: ${ImageOS:-?} ${ImageVersion:-?} ($RUNNER_OS, $RUNNER_ARCH)"
+            echo "- node $(node -v), npm $(npm -v)"
+            echo "- playwright $(node -p 'require("./package-lock.json").packages["node_modules/playwright"]?.version || "?"')"
+            echo "- commit ${GITHUB_SHA::8}, run ${GITHUB_RUN_NUMBER} attempt ${GITHUB_RUN_ATTEMPT}, event ${GITHUB_EVENT_NAME}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Install dependencies
         run: npm ci
@@ -50,7 +65,25 @@ jobs:
         uses: ./.github/actions/install-browsers
 
       - name: Run tests (unit + browser e2e + mobile WebKit)
-        run: npm test
+        # tee: the full TAP is kept as an artifact and read by the triage step,
+        # so a red run names the failing test without anyone re-running it.
+        # pipefail, or tee's success would hide npm test's failure.
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee test-output.log
+
+      - name: Triage the test run (names every failure, the slowest tests)
+        if: always()
+        run: node tools/ci-triage.js test-output.log
+
+      - name: Keep the test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log-attempt-${{ github.run_attempt }}
+          path: test-output.log
+          retention-days: 14
+          if-no-files-found: ignore
 
   deploy:
     needs: test
@@ -58,6 +91,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     outputs:
       page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
@@ -76,16 +110,69 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: "."
+          # Named PER ATTEMPT. With the default name, "re-run failed jobs"
+          # uploads a second `github-pages` artifact into the same run and the
+          # deploy refuses both: "Multiple artifacts named github-pages were
+          # unexpectedly found" (run #598, 2026-11-25). That turned a one-click
+          # recovery into a full 40-minute run.
+          name: github-pages-${{ github.run_attempt }}
 
-      - name: Deploy to GitHub Pages
-        id: deployment
+      # GitHub's Pages API fails now and then AFTER a good upload, in under a
+      # second and with no fault of ours ("No artifacts named github-pages",
+      # "Fetching artifact metadata failed"; runs #597 and #598). A failed
+      # deploy creates nothing, so it is safe to simply try again — three
+      # attempts, backing off, inside this job, so a flake never needs a human.
+      - name: Deploy to GitHub Pages (attempt 1)
+        id: deploy1
+        continue-on-error: true
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
+
+      - name: Back off before deploy attempt 2
+        if: steps.deploy1.outcome == 'failure'
+        run: |
+          echo "::warning::Pages deploy attempt 1 failed (GitHub side; the upload was fine) — retrying in 45s"
+          sleep 45
+
+      - name: Deploy to GitHub Pages (attempt 2)
+        id: deploy2
+        if: steps.deploy1.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
+
+      - name: Back off before deploy attempt 3
+        if: steps.deploy2.outcome == 'failure'
+        run: |
+          echo "::warning::Pages deploy attempt 2 failed — retrying in 120s"
+          sleep 120
+
+      - name: Deploy to GitHub Pages (attempt 3)
+        id: deploy3
+        if: steps.deploy2.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
+
+      - name: Record which attempt published
+        id: deployment
+        run: |
+          url="${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy3.outputs.page_url }}"
+          n=1
+          if [ "${{ steps.deploy1.outcome }}" = "failure" ]; then n=2; fi
+          if [ "${{ steps.deploy2.outcome }}" = "failure" ]; then n=3; fi
+          echo "page_url=$url" >> "$GITHUB_OUTPUT"
+          echo "### Published ${GITHUB_SHA::8} on deploy attempt $n" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$n" -gt 1 ]; then echo "::notice::Pages needed $n attempts — GitHub's Pages API flaked and the retry recovered it"; fi
 
   # Validate the ACTUAL deployed site in real browsers — including WebKit
   # (Safari's engine) — so we never declare something shipped that's broken.
   verify-live:
     needs: deploy
     runs-on: ubuntu-24.04
+    timeout-minutes: 150
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -146,7 +233,114 @@ jobs:
             fi
             sleep 10
           done
-          echo "::error::Live site did not fully update to $sha within ~5 min"; exit 1
+          served="$(curl -fsSL "$url" 2>/dev/null | grep -oE 'v=[0-9a-f]{8}' | head -1)"
+          echo "::error::Live site did not fully update to $sha within ~5 min (it serves ${served:-nothing readable})"; exit 1
 
       - name: Run browser tests against the LIVE site
-        run: npm test
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee test-output.log
+
+      - name: Triage the live run
+        if: always()
+        run: node tools/ci-triage.js test-output.log
+
+      - name: Diagnose the live site
+        # What a human would curl first: the headers, which build each edge
+        # serves, and whether the service worker is the stale thing.
+        if: failure()
+        run: |
+          url="${JOSH_BASE_URL:-https://dumptruckjon.github.io/Josh-Game/}"
+          {
+            echo "### Live site"
+            echo "- expected build: ${GITHUB_SHA::8}"
+            for f in "" "sw.js" "wordcards.html"; do
+              b="$(curl -fsSL --max-time 20 "${url%/}/$f" 2>/dev/null | grep -oE '(v=|josh-)[0-9a-f]{8}' | head -1)"
+              echo "- /$f serves: ${b:-unreadable}"
+            done
+            echo '```'
+            curl -sSI --max-time 20 "$url" 2>&1 | head -20
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the live test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-test-log-attempt-${{ github.run_attempt }}
+          path: test-output.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # ONE place that says what went wrong. Runs whatever happened, reads every
+  # job of this run (and the log of each failed one) through the API, asks
+  # githubstatus.com how GitHub is, and runs tools/ci-triage.js over all of it:
+  # a verdict (ours: fix forward / GitHub's: re-run), the failing tests, and
+  # every step that ran long, in the run summary and as annotations.
+  report:
+    if: always()
+    needs: [test, deploy, verify-live]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch this run's jobs and the log of every failed one
+        id: fetch
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            fs.mkdirSync("ci-logs", { recursive: true });
+            const { owner, repo } = context.repo;
+            const all = await github.paginate(github.rest.actions.listJobsForWorkflowRun,
+              { owner, repo, run_id: context.runId, filter: "latest", per_page: 100 });
+            const jobs = all.filter((j) => j.name !== "report");
+            fs.writeFileSync("ci-logs/jobs.json", JSON.stringify(jobs.map((j) => ({
+              name: j.name, status: j.status, conclusion: j.conclusion,
+              started_at: j.started_at, completed_at: j.completed_at, steps: j.steps,
+            })), null, 2));
+            let failed = false;
+            for (const j of jobs) {
+              if (j.conclusion !== "failure" && j.conclusion !== "timed_out") continue;
+              failed = true;
+              let text = "";
+              // A just-finished job's log can take a few seconds to exist.
+              for (let i = 0; i < 4 && !text; i++) {
+                try {
+                  const r = await github.rest.actions.downloadJobLogsForWorkflowRun({ owner, repo, job_id: j.id });
+                  text = Buffer.from(r.data).toString("utf8");
+                } catch (e) {
+                  core.info(`log for ${j.name} not ready (${e.status || e.message}) — retrying`);
+                  await new Promise((res) => setTimeout(res, 15000));
+                }
+              }
+              fs.writeFileSync(`ci-logs/${j.name}.log`, text || "(log unavailable)");
+            }
+            core.setOutput("failed", failed ? "1" : "");
+
+      - name: Ask githubstatus.com how GitHub is
+        if: steps.fetch.outputs.failed
+        run: curl -fsS --max-time 15 https://www.githubstatus.com/api/v2/summary.json -o ci-logs/status.json || echo '{}' > ci-logs/status.json
+
+      - name: Triage
+        env:
+          TRIAGE_JSON: ci-logs/triage.json
+        run: |
+          set -- ci-logs/*.log
+          [ -e "$1" ] || set --
+          st=""; [ -f ci-logs/status.json ] && st="--status ci-logs/status.json"
+          node tools/ci-triage.js --jobs ci-logs/jobs.json $st "$@"
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-report-attempt-${{ github.run_attempt }}
+          path: ci-logs/
+          retention-days: 14
+          if-no-files-found: ignore

@@ -7156,6 +7156,9 @@ test("tools: every research tool still RUNS against today's data", () => {
     // 🔍 Seek & Find's art bundler: with no source folder it CHECKS the
     // shipped seek-art.js (every picture a place can draw is a whole svg).
     "seek-art.js": { args: [], env: {}, must: /[1-9]\d* pictures, all present/ },
+    // 🔧 the CI failure classifier: with no log it self-checks every signature
+    // against the real log it was written for.
+    "ci-triage.js": { args: [], env: {}, must: /[1-9]\d* signatures, [1-9]\d* fixtures, all classified/ },
   };
   // …and the FLAG arms, which are separate code paths and are where most of the
   // findings in CLAUDE.md came from. Running only a tool's default arm is the

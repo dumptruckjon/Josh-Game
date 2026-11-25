@@ -4048,8 +4048,13 @@ test("CI: the deploy watchdog exists, dispatches the deploy, and CANNOT loop", (
   // becoming a retry loop, and a broken build must cross NONE of them.
   assert.match(wd, /ACTIVE *= *\[[^\]]*"in_progress"[\s\S]{0,240}?return;/,
     "brake 1: a run still queued or in progress must be waited for, never raced");
-  assert.match(wd, /conclusion === "failure"[\s\S]{0,240}?return;/,
+  assert.match(wd, /conclusion === "failure"[\s\S]{0,120}?publishOnly\(failed\)[\s\S]{0,240}?return;/,
     "brake 2: a genuinely FAILED deploy must be left red — this is the difference from a retry loop");
+  // …and its one exception must be exactly "tests green, only the Pages publish
+  // red": anything wider (say, any failed deploy job) would re-kick a build that
+  // a real test or a broken live site turned red.
+  assert.match(wd, /by\.test === "success" && by\.deploy === "failure"/,
+    "brake 2's exception must require GREEN tests and a failed deploy, nothing looser");
   assert.match(wd, /event === "workflow_dispatch"[\s\S]{0,240}?return;/,
     "brake 3: one kick per commit — a dispatched run already existing must stop it dead");
 
@@ -4087,6 +4092,11 @@ test("CI: the watchdog's brakes actually BRAKE, and its two silences actually di
         },
         actions: {
           listWorkflowRuns: async () => ({ data: { total_count: runs.length, workflow_runs: runs } }),
+          listJobsForWorkflowRun: async ({ run_id }) => {
+            const r = runs.find((x) => x.id === run_id);
+            if (!r || r.jobs === "unreadable") throw new Error("HttpError: 502");
+            return { data: { jobs: r.jobs || [] } };
+          },
           createWorkflowDispatch: async (a) => { dispatched.push(a); },
         },
       },
@@ -4104,7 +4114,15 @@ test("CI: the watchdog's brakes actually BRAKE, and its two silences actually di
 
   const ok = (sha) => ({ status: "completed", conclusion: "success", event: "push", run_number: 1 });
   const cancelled = { status: "completed", conclusion: "cancelled", event: "push", run_number: 2 };
-  const failed = { status: "completed", conclusion: "failure", event: "push", run_number: 3 };
+  const failed = { id: 3, status: "completed", conclusion: "failure", event: "push", run_number: 3,
+    jobs: [{ name: "test", conclusion: "failure" }, { name: "deploy", conclusion: "skipped" }] };
+  // Tests GREEN, only the Pages publish red: GitHub's side (runs #597, #598).
+  const jobsOf = (deploy, verify) => [{ name: "test", conclusion: "success" }, { name: "deploy", conclusion: deploy },
+    { name: "verify-live", conclusion: verify }, { name: "report", conclusion: "success" }];
+  const publishFailed = { id: 6, status: "completed", conclusion: "failure", event: "push", run_number: 6, jobs: jobsOf("failure", "skipped") };
+  const liveFailed = { id: 7, status: "completed", conclusion: "failure", event: "push", run_number: 7, jobs: jobsOf("success", "failure") };
+  const unreadable = { id: 8, status: "completed", conclusion: "failure", event: "push", run_number: 8, jobs: "unreadable" };
+  const kickedFail = { id: 9, status: "completed", conclusion: "failure", event: "workflow_dispatch", run_number: 9, jobs: jobsOf("failure", "skipped") };
   const busy = { status: "in_progress", conclusion: null, event: "push", run_number: 4 };
   const kicked = { status: "completed", conclusion: "cancelled", event: "workflow_dispatch", run_number: 5 };
   const CUR = `<script src="./scripts/main.js?v=${SHA.slice(0, 8)}"></script>`;
@@ -4122,6 +4140,13 @@ test("CI: the watchdog's brakes actually BRAKE, and its two silences actually di
     // THE BRAKES
     ["brake 1: a run is still active", { ageMin: 60, runs: [busy, cancelled], live: OLD }, 0],
     ["brake 2: a run FAILED", { ageMin: 60, runs: [failed, cancelled], live: OLD }, 0],
+    ["brake 2: tests green but the LIVE check failed — real", { ageMin: 60, runs: [liveFailed], live: OLD }, 0],
+    ["brake 2: a failed run whose jobs cannot be read — real", { ageMin: 60, runs: [unreadable], live: OLD }, 0],
+    ["brake 2: one publish-only failure beside a real one — real", { ageMin: 60, runs: [publishFailed, failed], live: OLD }, 0],
+    // …the ONE exception: only Pages failed after green tests.
+    ["publish-only failure, site stale", { ageMin: 60, runs: [publishFailed], live: OLD }, 1],
+    ["publish-only failure, site CURRENT", { ageMin: 60, runs: [publishFailed], live: CUR }, 0],
+    ["publish-only failure, already kicked once", { ageMin: 60, runs: [kickedFail, publishFailed], live: OLD }, 0],
     ["brake 3: already kicked once", { ageMin: 60, runs: [kicked], live: OLD }, 0],
     ["a network blip is not staleness", { ageMin: 60, runs: [cancelled], live: "unreachable" }, 0],
   ];
@@ -4131,6 +4156,102 @@ test("CI: the watchdog's brakes actually BRAKE, and its two silences actually di
       assert.equal(got, want, `${name}: expected ${want} dispatch(es), got ${got}`);
     }
   })();
+});
+
+test("CI: publishing survives GitHub's Pages API, and every job is bounded", () => {
+  // 2026-11-25, runs #597 and #598: tests green, upload green, and then
+  // actions/deploy-pages failed in under a second ("No artifacts named
+  // github-pages"). Re-running the failed jobs then failed AGAIN, differently —
+  // "Multiple artifacts named github-pages" — because the re-run uploaded a
+  // second artifact under the same name, so the only way out was a fresh
+  // 40-minute run. Both are pinned here.
+  const dep = read(".github/workflows/deploy.yml");
+  const code = dep.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n");
+  // 1. the artifact is named per ATTEMPT, at the upload and at EVERY deploy
+  // read off the UPLOAD step alone: the deploy steps' `artifact_name:` lines
+  // also end in "name: github-pages-…", so a window over the file would let
+  // them satisfy this for an upload that names nothing
+  const upload = code.split(/\n {6}- /).find((st) => /uses: actions\/upload-pages-artifact@/.test(st));
+  assert.ok(upload, "deploy.yml must upload the Pages artifact");
+  assert.match(upload, /\n {10}name: github-pages-\$\{\{ github\.run_attempt \}\}/,
+    "the Pages artifact must be named per run attempt, or 're-run failed jobs' can never deploy");
+  const deploys = code.split(/\n {6}- /).filter((st) => /uses: actions\/deploy-pages@/.test(st));
+  assert.ok(deploys.length >= 3, `the deploy must be tried at least three times inside the job (found ${deploys.length})`);
+  for (const d of deploys) {
+    assert.match(d, /artifact_name: github-pages-\$\{\{ github\.run_attempt \}\}/,
+      `a deploy step must read the per-attempt artifact: ${d.split("\n")[0]}`);
+  }
+  // 2. every attempt but the last may fail without failing the job, and the
+  //    last must NOT — or three failures would read as a green deploy
+  deploys.slice(0, -1).forEach((d) => assert.match(d, /continue-on-error: true/, "an early deploy attempt must not fail the job"));
+  assert.ok(!/continue-on-error/.test(deploys[deploys.length - 1]), "the LAST deploy attempt must be allowed to fail the job");
+  // …and the URL the next job polls must come from whichever attempt worked
+  assert.match(code, /steps\.deploy1\.outputs\.page_url \|\| steps\.deploy2\.outputs\.page_url \|\| steps\.deploy3\.outputs\.page_url/,
+    "the published URL must come from whichever attempt succeeded");
+  // 3. a test step that tees its output must keep npm's exit status
+  for (const st of code.split(/\n {6}- /).filter((x) => /npm test/.test(x))) {
+    if (/\| *tee/.test(st)) assert.match(st, /set -o pipefail/, `"${st.split("\n")[0]}" pipes npm test into tee without pipefail — a red run would read green`);
+  }
+  // 4. every job is bounded, so nothing can hold the pages group for 6 hours
+  const jobs = code.split(/\n {2}(?=[a-z-]+:\n)/).slice(1).filter((j) => /\n {4}runs-on:/.test(j));
+  assert.ok(jobs.length >= 4, `expected test, deploy, verify-live and report (found ${jobs.length})`);
+  for (const j of jobs) assert.match(j, /\n {4}timeout-minutes: \d+/, `job "${j.split(":")[0]}" has no timeout-minutes`);
+  // 5. the report job always runs, can read the run, and triages it
+  const report = jobs.find((j) => /^report:/.test(j));
+  assert.ok(report, "deploy.yml must have a report job");
+  // JOB level (4 spaces): a step's `if: always()` would not make the job run
+  assert.match(report, /^report:\n {4}if: always\(\)/, "the report job must run when something failed — that is when it matters");
+  assert.match(report, /needs: \[test, deploy, verify-live\]/, "the report must wait for every job it reports on");
+  assert.match(report, /actions: read/, "reading the run's jobs and logs needs actions: read");
+  assert.match(report, /downloadJobLogsForWorkflowRun/, "the report must read each failed job's log");
+  assert.match(report, /node tools\/ci-triage\.js --jobs/, "the report must run the classifier");
+});
+
+test("CI: the triage tool names the failure, tells ours from GitHub's, and never fails the build", () => {
+  const T = require("../tools/ci-triage.js");
+  const stamp = (s) => s.split("\n").map((l) => "2026-11-25T22:17:23.7921013Z " + l).join("\n");
+  // the two real deploy logs, exactly as the job log printed them
+  const r598a = T.classify(stamp('##[error]Fetching artifact metadata failed. Is githubstatus.com reporting issues with API requests, Pages, or Actions? Please re-run the deployment at a later time.\n##[error]Error: No artifacts named "github-pages" were found for this workflow run.'));
+  assert.equal(r598a.primary.id, "pages-publish");
+  assert.equal(r598a.primary.transient, true, "a Pages API failure is GitHub's: re-run, never 'fix forward'");
+  const r598b = T.classify(stamp('Found 2 artifact(s)\n##[error]Fetching artifact metadata failed. Is githubstatus.com reporting issues with API requests, Pages, or Actions? Please re-run the deployment at a later time.\n##[error]Error: Multiple artifacts named "github-pages" were unexpectedly found for this workflow run. Artifact count is 2.'));
+  assert.equal(r598b.primary.id, "pages-artifact-duplicate", "the more specific signature must win over the generic one it also matches");
+  // a real test failure, in the job log's timestamped form, names test, file and message
+  const tap = stamp("TAP version 13\n# Subtest: the bed sits on the lane\nnot ok 7 - the bed sits on the lane\n  ---\n  duration_ms: 1234.5\n  location: '/home/runner/work/Josh-Game/Josh-Game/tests/td.test.js:88:1'\n  error: |-\n    the bed's ink is 0.11 cells off\n    second line\n  ...\n# Subtest: fine\nok 8 - fine\n  ---\n  duration_ms: 9000\n  ...\n# tests 2\n# pass 1\n# fail 1\n# duration_ms 10300");
+  const t = T.classify(tap);
+  assert.equal(t.primary.id, "test-failure");
+  assert.equal(t.primary.transient, false);
+  assert.deepEqual(t.failing.map((f) => [f.name, f.file, f.error]), [["the bed sits on the lane", "td.test.js", "the bed's ink is 0.11 cells off\nsecond line"]]);
+  assert.equal(t.slowest[0].name, "fine", "the slowest test must be reported, to see a suite creeping toward its timeout");
+  // a failing test OUTRANKS a signature that merely appears in the log
+  assert.equal(T.classify(tap + "\n" + stamp('Multiple artifacts named "github-pages"')).primary.id, "test-failure");
+  // a test that died on a transport error is transient, and one that did not is not
+  const net = T.classify("not ok 1 - live boots\n  ---\n  error: 'page.goto: Peer failed to perform TLS handshake'\n  ...\n# tests 1\n# pass 0\n# fail 1");
+  assert.equal(net.primary.id, "network");
+  // a green run is green whatever text it contains
+  assert.equal(T.classify("ok 1 - mentions No artifacts named \"github-pages\"\n  ---\n  duration_ms: 3\n  ...\n# tests 1\n# pass 1\n# fail 0\n# cancelled 0").primary.id, "pass");
+  // every signature has a fixture that it really classifies
+  const sc = T.selfCheck();
+  assert.deepEqual(sc, { wrong: [], untested: [] }, "every signature must classify the real log it was written for");
+  // annotations: one line each, newlines escaped, a file when known
+  const ann = T.annotations([{ label: "test", result: t }]);
+  assert.ok(ann.length === 2 && ann.every((a) => !a.includes("\n")), "annotations must be single lines");
+  assert.match(ann[1], /,file=tests\/td\.test\.js::the bed's ink is 0\.11 cells off%0Asecond line/);
+  // a test name holding ":" or "," must not cut the title short or invent a property
+  const odd = T.annotations([{ label: "x", result: T.classify("not ok 1 - a: b, c\n  ---\n  error: 'no'\n  ...\n# tests 1\n# fail 1") }]);
+  assert.match(odd[1], /^::error title=test a%3A b%2C c::no$/);
+  // the report table: a step over an hour is called out
+  const jobs = [{ name: "test", conclusion: "success", started_at: "2026-11-25T21:00:00Z", completed_at: "2026-11-25T22:30:00Z",
+    steps: [{ name: "Run tests", conclusion: "success", started_at: "2026-11-25T21:01:00Z", completed_at: "2026-11-25T22:25:00Z" }] }];
+  const md = T.render([], { jobs, status: { components: [{ name: "Pages", status: "partial_outage" }, { name: "Codespaces", status: "major_outage" }] } });
+  assert.match(md, /\| test \| success \| 90m00s \|/);
+  assert.match(md, /Run tests took 84m00s/);
+  assert.match(md, /Pages: partial outage/);
+  assert.ok(!/Codespaces/.test(md), "only components a deploy uses are reported");
+  // the CLI never fails the build: a missing file, junk, a bad jobs.json — exit 0
+  const { execFileSync } = require("node:child_process");
+  const out = execFileSync(process.execPath, ["tools/ci-triage.js", "--jobs", "package.json", "no-such.log"], { encoding: "utf8" });
+  assert.match(out, /CI report|could not run/);
 });
 
 test("CI: installing browsers CANNOT hang — one owner, a timeout, and a retry", () => {

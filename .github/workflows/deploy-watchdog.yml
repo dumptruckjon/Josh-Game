@@ -25,6 +25,8 @@ name: Deploy watchdog
 # every one of them must be crossed before a single dispatch happens:
 #   1. a run for this sha is still ACTIVE          -> wait, do not race it
 #   2. any run for this sha FAILED                 -> leave it red, never re-kick
+#      (unless its tests passed and only the Pages publish failed: GitHub's
+#       fault, not ours, and brake 3 still allows exactly one kick)
 #   3. a workflow_dispatch run for this sha exists -> we already kicked it once
 #   4. the live site already serves this sha       -> nothing is wrong
 # So a genuinely broken deploy is never kicked at all, and a stuck one is kicked
@@ -88,11 +90,29 @@ jobs:
               return;
             }
             // BRAKE 2: a real failure must stay red. This is the difference
-            // between a watchdog and a retry loop.
-            const failed = list.find((r) => r.conclusion === "failure" || r.conclusion === "timed_out");
-            if (failed) {
-              core.info(`head ${short} has a ${failed.conclusion} run — that is a real failure, leaving it alone`);
-              return;
+            // between a watchdog and a retry loop. ONE exception, by measured
+            // shape: tests GREEN and only `deploy` red is GitHub's Pages API
+            // failing after a good upload (runs #597 and #598, 2026-11-25) —
+            // nothing of ours to fix, so it may have its one fresh run (brake 3
+            // still caps it at one). Anything else, or a run whose jobs cannot
+            // be read, counts as real.
+            const publishOnly = async (r) => {
+              try {
+                const jobs = (await github.rest.actions.listJobsForWorkflowRun(
+                  { owner, repo, run_id: r.id, filter: "latest", per_page: 50 })).data.jobs || [];
+                const by = Object.fromEntries(jobs.map((j) => [j.name, j.conclusion]));
+                return by.test === "success" && by.deploy === "failure";
+              } catch (e) {
+                core.info(`could not read the jobs of run #${r.run_number} (${e.message}) — treating it as a real failure`);
+                return false;
+              }
+            };
+            for (const failed of list.filter((r) => r.conclusion === "failure" || r.conclusion === "timed_out")) {
+              if (!(await publishOnly(failed))) {
+                core.info(`head ${short} has a ${failed.conclusion} run (#${failed.run_number}) — that is a real failure, leaving it alone`);
+                return;
+              }
+              core.info(`run #${failed.run_number} failed only at publishing (tests green) — GitHub's side, eligible for one fresh run`);
             }
             // BRAKE 3: we have already kicked this exact commit once.
             const mine = list.find((r) => r.event === "workflow_dispatch");

@@ -11162,6 +11162,13 @@ tooling.
 │   ├── seek-art.js             # 🔍 builds scripts/seek-art.js from the @iconify-json/noto package's icons.json (`node tools/seek-art.js <dir>`), taking only the pictures SeekLogic.artNames() names, copied exactly (rounding the numbers broke 167 of 175 pictures: measured by drawing each both ways). With no folder it checks the shipped bundle
 │   ├── hole-check.js           # 🕳️ Gobble Hole's AUTHORING check (PLAN_GOBBLE §17): `node tools/hole-check.js [ids,…]` prints each place's things per tier, the bot's win time, the progress margin at every grow (x2.0 is the floor), its challenge set (`twistsOf`) and a FAIL line for any law it breaks, in seconds rather than the suite's minutes. The full proof is still `node --test tests/hole-logic.test.js`.
 │   ├── map-gen.js              # 🗺️ builds scripts/map-shapes.js: `node tools/map-gen.js <dir>` where <dir> holds Natural Earth geojson (110m/50m countries, 10m states) and d3-geo; every place is a real [lon, lat] in content.js, a pin sits on its spot or is moved with a line to it
+│   ├── ci-triage.js            # 🔧 CI failure classifier: reads a test run (TAP) or a GitHub job log and
+│   │                           #   names WHAT failed (each failing test, its file and message), WHETHER it
+│   │                           #   is ours (fix forward) or GitHub's/the network's (re-run), and WHAT to
+│   │                           #   do; the slowest tests and any step over an hour. Signatures are data
+│   │                           #   with a real-log fixture each (`node tools/ci-triage.js` self-checks).
+│   │                           #   Never fails the build itself. Add a signature when a new failure kind
+│   │                           #   is diagnosed by hand
 │   └── hole-fuzz.js            # 🕳️ Gobble Hole's STUCK-SPOT fuzzer (PLAN_GOBBLE_LANTERN.md §7): `node tools/hole-fuzz.js [ids,…]` plays each place the way a child steers (a finger held anywhere, on the water, against a wall, yanked about, let go) and every few seconds asks the bot to get going FROM THERE; a spot where it stands still 5s is printed with its saved run, in the shape the "NEVER STUCK" regression test restores. Calibrated: the pre-§20 engine gives 2 stuck, the shipped one 0. The greedy bot alone only visits the states a perfect player reaches, which is how §20's traps hid. `SEEDS`, `SECS`, `EVERY` widen it.
 ├── package.json                # `npm test` → `node --test` (runs unit + e2e + mobile + offline)
 ├── package-lock.json           # committed for reproducible `npm ci` in CI
@@ -11173,7 +11180,13 @@ tooling.
 ├── .gitignore                  # ignores node_modules etc.
 ├── .github/
 │   ├── workflows/
-│   │   ├── deploy.yml          # CI: test (unit+e2e+WebKit) → deploy (cache-busts assets) → verify-live
+│   │   ├── deploy.yml          # CI: test (unit+e2e+WebKit) → deploy (cache-busts assets; the Pages
+│   │   │                       #   artifact named per run ATTEMPT; the publish tried 3 times in-job) →
+│   │   │                       #   verify-live → report (always runs: reads every job + each failed
+│   │   │                       #   job's log through the API, asks githubstatus.com, runs
+│   │   │                       #   tools/ci-triage.js; verdict, failing tests, slow steps in the run
+│   │   │                       #   summary and as annotations). Every job has a timeout; test logs kept
+│   │   │                       #   as artifacts (tee + pipefail)
 │   │   └── deploy-watchdog.yml # every 30 min: does the LIVE SITE serve main's head? Covers both
 │   │                           #   silences — a push that fires no run, and a run that exists and
 │   │                           #   never publishes. Four brakes stop it looping (active run / any
@@ -16752,3 +16765,28 @@ for that thing. 8px-off taps now miss what they aimed at 0.4% of the time, not
 snaps to the chosen color), the smallest shape is 681px² on the phone, and no
 control is small, crowded, under the island or in the home bar on any page,
 finished or not.
+
+**THE PIPELINE NAMES ITS OWN FAILURES NOW (owner, 2026-11-25: "add more advanced
+logging and debugging … pipeline should be the best").** It came out of two
+deploys that failed AFTER green tests: GitHub's Pages API refused a good upload
+("No artifacts named github-pages", runs #597 and #598), and re-running the
+failed jobs then failed differently, "Multiple artifacts named github-pages",
+because a re-run uploads a second artifact under the same name, so the one-click
+recovery became a 40-minute fresh run. Four changes. (1) **The artifact is named
+per run attempt**, so re-running failed jobs works. (2) **The publish is tried
+three times inside the job** (45s, then 120s apart): a failed deploy creates
+nothing, so retrying is safe, and only the last attempt may fail the job.
+(3) **A `report` job always runs**, reads every job of the run and each failed
+job's log through the API, asks githubstatus.com how GitHub is, and runs
+`tools/ci-triage.js`: a verdict (ours: fix forward, or GitHub's: re-run), each
+failing test with its file and message, and any step over an hour, in the run
+summary and as annotations; logs are kept 14 days as artifacts. (4) **The
+watchdog re-kicks a publish-only failure once** (tests green, only `deploy`
+red); every other failure still stays red, and a run whose jobs cannot be read
+counts as real. Every job now has a timeout, and both test steps tee with
+pipefail (without it tee's success hides npm's failure, a test pins that).
+Two of the new guardrails passed their first mutations: the per-attempt name
+was matched by a window that the deploy steps' own `artifact_name:` lines
+satisfied, and `if: always()` by a STEP's condition inside the report job. Both
+now read the one step or the job header they are about. A regex window over a
+file can be satisfied by a neighbour that shares its words.
