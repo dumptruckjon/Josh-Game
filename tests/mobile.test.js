@@ -183,12 +183,15 @@ test("the front door: six giant world tiles, all ABOVE THE FOLD, marks equally w
   // the list because they are where that measurement was taken.
   // 🔍 Seek & Find made it SIX (2026-11): three full rows of two, the same
   // three rows five took, and six across in landscape.
+  // 🎨 Color Book made it SEVEN (2026-11): in portrait the wide door across
+  // the bottom, its picture beside its name so the fourth row is a short one
+  // (and the doors a little shorter on tall phones); seven across in landscape.
   for (const [w, h] of [[390, 780], [320, 780], [320, 568], [360, 640], [375, 667], [844, 390], [667, 375], [810, 1080], [834, 1112], [1024, 768]]) {
     await page.setViewportSize({ width: w, height: h });
     await showScreen(page, "#start", "#screen-start");
     // 🕳️ Gobble Hole joined as the fourth door (2026-09): four tiles, not
     // three, must now fit above the fold at every size in this list.
-    assert.equal(await page.locator(".start-tile").count(), 6, "six world tiles (🔍 Seek & Find made the third row full)");
+    assert.equal(await page.locator(".start-tile").count(), 7, "seven world tiles (🎨 Color Book is the wide door across the bottom)");
     await noOverflow(page, `start@${w}x${h}`);
     await auditActiveScreen(page, `start@${w}x${h}`);
     const m = await page.evaluate(() => {
@@ -198,7 +201,20 @@ test("the front door: six giant world tiles, all ABOVE THE FOLD, marks equally w
         // Where each label sits INSIDE its own tile: the three mark boxes used
         // to differ (Josh's SVG portrait inks 56x77 where 👵🏻 inks 58x63 and
         // 🏰 inks 72x70), so the doors did not read as peers.
-        offsets: ts.map((t) => Math.round(t.querySelector(".start-tile__label").getBoundingClientRect().top - t.getBoundingClientRect().top)),
+        // A door whose picture sits BESIDE its name (the wide 🎨 door in
+        // portrait) is a different shape, so it is not compared with the
+        // stacked doors; its name must be centred in it instead.
+        offsets: ts.filter((t) => {
+          const a = t.querySelector(".start-tile__art"), l = t.querySelector(".start-tile__label");
+          return !a || l.getBoundingClientRect().top >= a.getBoundingClientRect().bottom - 2;
+        }).map((t) => Math.round(t.querySelector(".start-tile__label").getBoundingClientRect().top - t.getBoundingClientRect().top)),
+        beside: ts.filter((t) => {
+          const a = t.querySelector(".start-tile__art"), l = t.querySelector(".start-tile__label");
+          return a && l.getBoundingClientRect().top < a.getBoundingClientRect().bottom - 2;
+        }).map((t) => {
+          const r = t.getBoundingClientRect(), l = t.querySelector(".start-tile__label").getBoundingClientRect();
+          return Math.round(Math.abs((l.top + l.bottom) / 2 - (r.top + r.bottom) / 2));
+        }),
         // …and every label fits its door on ONE line, with room. Two columns
         // made the doors narrow (112px of content at 320 wide), and one label
         // that wraps makes its whole ROW taller, so the label beside it — centred
@@ -222,11 +238,13 @@ test("the front door: six giant world tiles, all ABOVE THE FOLD, marks equally w
       };
     });
     assert.ok(m.last <= m.vh,
-      `all six doors must be reachable without scrolling at ${w}x${h} — the last one ends ${Math.round(m.last - m.vh)}px past the fold`);
+      `all seven doors must be reachable without scrolling at ${w}x${h} — the last one ends ${Math.round(m.last - m.vh)}px past the fold`);
     assert.ok(m.room.px >= 3,
       `every door's name must fit on one line with room at ${w}x${h} — "${m.room.name}" has ${m.room.px}px to spare`);
     assert.ok(Math.max(...m.offsets) - Math.min(...m.offsets) <= 4,
       `the doors must carry equally-weighted marks at ${w}x${h} — label offsets ${m.offsets.join("/")}`);
+    assert.ok(m.offsets.length >= 6, `at least six stacked doors to compare at ${w}x${h} (saw ${m.offsets.length})`);
+    for (const d of m.beside) assert.ok(d <= 6, `a door with its name beside its picture must centre the name at ${w}x${h} (off by ${d}px)`);
   }
 });
 
@@ -269,6 +287,60 @@ test("🔍 Seek & Find fits every screen: its doors, the picture with its list, 
         const b = await page.locator(sel).boundingBox();
         assert.ok(b && b.y >= 0 && b.y + b.height <= h + 1, `${sel} is on screen with no scrolling at ${w}x${h}`);
       }
+    }
+  } finally {
+    await page.setViewportSize({ width: 390, height: 844 });
+  }
+});
+
+test("🎨 Color Book fits every screen: its book, a page with its pots, and free paint with its crayons — big taps, 16px apart, no sideways scroll, the page a big square", async () => {
+  // The pots are 76px circles in as many columns as fit (two rows of four on a
+  // phone, three rows below 376px); a phone on its side puts them beside the
+  // page. Each size here is where one of those layouts is tightest.
+  try {
+    for (const [w, h] of [[320, 568], [360, 640], [375, 667], [402, 874], [390, 844], [834, 1112], [844, 390], [667, 375]]) {
+      await page.setViewportSize({ width: w, height: h });
+      await page.evaluate(() => window.__COLOR.reset());
+      await showScreen(page, "#color-home", "#screen-color-home");
+      await page.waitForTimeout(150);
+      await noOverflow(page, `color book@${w}x${h}`);
+      await auditActiveScreen(page, `color book@${w}x${h}`);
+      // the biggest palette: the last page's eight pots
+      const last = await page.evaluate(() => ColorData.PAGES[ColorData.PAGES.length - 1].id);
+      await page.evaluate((id) => { location.hash = "#color-play"; window.__COLOR.start(id, {}); }, last);
+      await page.locator("#screen-color-play").waitFor({ state: "visible" });
+      await page.waitForTimeout(250);
+      await noOverflow(page, `color page@${w}x${h}`);
+      await auditActiveScreen(page, `color page@${w}x${h}`);
+      const m = await page.evaluate(() => {
+        const s = document.querySelector(".color-holder svg").getBoundingClientRect();
+        const pots = [...document.querySelectorAll(".color-pot")].map((c) => c.getBoundingClientRect());
+        return { w: s.width, h: s.height, top: s.top, bottom: s.bottom, potsBottom: Math.max(...pots.map((c) => c.bottom)), vh: innerHeight, doc: document.documentElement.scrollHeight };
+      });
+      assert.ok(Math.abs(m.w - m.h) <= 1, `the page is a square at ${w}x${h} (${Math.round(m.w)}x${Math.round(m.h)})`);
+      assert.ok(m.w >= (h >= 500 ? 240 : 150), `the page keeps room to paint (${Math.round(m.w)}px) at ${w}x${h}`);
+      assert.ok(m.potsBottom <= m.vh + 1, `every pot is on screen at ${w}x${h} (ends at ${Math.round(m.potsBottom)})`);
+      assert.ok(m.doc <= m.vh + 1, `the page never scrolls at ${w}x${h} (${m.doc} in ${m.vh})`);
+      // a finished page: the crayon box
+      await page.evaluate(() => {
+        const s = JSON.parse(localStorage.getItem("josh-color-v1") || "{}");
+        s.stars = { sun: 1 }; s.runs = {}; localStorage.setItem("josh-color-v1", JSON.stringify(s));
+      });
+      await page.reload({ waitUntil: "load" });
+      await page.evaluate(() => { location.hash = "#color-play"; window.__COLOR.start("sun", {}); });
+      await page.locator(".color-box").waitFor({ state: "visible" });
+      await page.waitForTimeout(250);
+      await noOverflow(page, `color free paint@${w}x${h}`);
+      await auditActiveScreen(page, `color free paint@${w}x${h}`);
+      const f = await page.evaluate(() => {
+        const s = document.querySelector(".color-holder svg").getBoundingClientRect();
+        const box = document.querySelector(".color-box");
+        box.scrollTop = 1e6;
+        const again = document.querySelector(".color-again").getBoundingClientRect();
+        return { w: s.width, again: again.bottom, vh: innerHeight };
+      });
+      assert.ok(f.w >= 150, `the finished page keeps room to look at (${Math.round(f.w)}px) at ${w}x${h}`);
+      assert.ok(f.again <= f.vh + 1, `🔁 and ▶ can be reached at ${w}x${h}`);
     }
   } finally {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -2654,7 +2726,7 @@ test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, G
     if (ovf > 1) out.push("scrolls sideways " + ovf + "px");
     return out.length ? label + ": " + out.slice(0, 3).join("; ") : "";
   }, [IP17.top, IP17.bottom, IP17.h, label]);
-  const bad = [], seen = { nav: 0, hole: 0, board: 0, mid: 0, seek: 0, wc: 0, pages: 0 };
+  const bad = [], seen = { nav: 0, hole: 0, board: 0, mid: 0, seek: 0, color: 0, wc: 0, pages: 0 };
   const note = (r) => { if (r) bad.push(r); };
   try {
     await p.goto(baseURL, { waitUntil: "load" });
@@ -2705,6 +2777,19 @@ test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, G
     await p.evaluate(() => { location.hash = "#seek-album"; });
     await p.locator("#screen-seek-album").waitFor({ state: "visible" });
     await p.waitForTimeout(120); seen.seek++; note(await check("seek album"));
+    // 3c. 🎨 Color Book: every page, and a finished page's crayon box
+    await p.evaluate(() => window.__COLOR.reset());
+    for (const id of await p.evaluate(() => ColorData.PAGES.map((x) => x.id))) {
+      await p.evaluate((id) => { location.hash = "#color-play"; window.__COLOR.start(id, {}); }, id);
+      await p.waitForTimeout(120); seen.color = (seen.color || 0) + 1; note(await check("color " + id));
+    }
+    await p.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem("josh-color-v1") || "{}");
+      s.stars = { sun: 1 }; s.runs = {}; localStorage.setItem("josh-color-v1", JSON.stringify(s));
+    });
+    await p.reload({ waitUntil: "load" });
+    await p.evaluate(() => { location.hash = "#color-play"; window.__COLOR.start("sun", {}); });
+    await p.waitForTimeout(200); seen.color++; note(await check("color free paint"));
     // 4. Word Cards: the menu, every button on it, and every page of every book
     const wc = async () => { await p.goto(baseURL + "wordcards.html", { waitUntil: "load" }); await p.waitForTimeout(80); };
     await wc(); note(await check("word cards menu"));
@@ -2729,7 +2814,7 @@ test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, G
       }
     }
     // a walk that silently skipped a section would pass on nothing
-    assert.ok(seen.nav >= 25 && seen.hole >= 70 && seen.board >= 40 && seen.mid >= 10 && seen.seek >= 7 && seen.wc >= 40 && seen.pages >= 140,
+    assert.ok(seen.nav >= 25 && seen.hole >= 70 && seen.board >= 40 && seen.mid >= 10 && seen.seek >= 7 && seen.color >= 13 && seen.wc >= 40 && seen.pages >= 140,
       `fixture: too little was measured ${JSON.stringify(seen)}`);
     assert.deepEqual(bad, [], `on an iPhone 17 Pro:\n${bad.join("\n")}`);
     assert.deepEqual(errs, [], "no page errors");

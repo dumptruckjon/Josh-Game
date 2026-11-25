@@ -235,8 +235,8 @@ body {
    is the old 136px, so a short phone is unchanged; the door's picture grows
    with it. Portrait only — on its side a phone has the height least. */
 @media (orientation: portrait) and (max-width: 599px) {
-  .start-tile { min-height: clamp(136px, 21vh, 200px); }
-  .start-tile__icon, .start-tile__art { width: clamp(84px, 11.5vh, 112px); height: clamp(84px, 11.5vh, 112px); font-size: clamp(3.8rem, 6.4vh, 4.8rem); }
+  .start-tile { min-height: clamp(136px, 18vh, 190px); }
+  .start-tile__icon, .start-tile__art { width: clamp(84px, 10.5vh, 108px); height: clamp(84px, 10.5vh, 108px); font-size: clamp(3.8rem, 6vh, 4.6rem); }
 }
 /* ONE shared mark box for every door. Measured INK, not boxes: Josh's
    JoshArt.friend portrait inks 56x77 inside a 96x96 box while 👵🏻 inks 58x63
@@ -266,6 +266,15 @@ body {
 .start-tile--board .start-tile__label { color: #7a2e10; }
 .start-tile--seek { background: linear-gradient(135deg, #e3fbe6, #b9ecc4); }
 .start-tile--seek .start-tile__label { color: #1d5e33; }
+/* 🎨 Color Book (PLAN_COLOR.md), the seventh door: in portrait it is the wide
+   door across the bottom (two columns of seven leave one alone), its picture
+   beside its name, so the fourth row costs less height than a full row would. */
+.start-tile--color { background: linear-gradient(135deg, #fff3c4, #ffc9de); }
+.start-tile--color .start-tile__label { color: #8a1d4b; }
+@media (orientation: portrait) {
+  .start-tile--color { grid-column: 1 / -1; grid-template-columns: auto auto; justify-content: center; align-items: center; column-gap: 16px; min-height: 84px; padding-top: 6px; padding-bottom: 6px; }
+  .start-tile--color .start-tile__art { width: 72px; height: 72px; font-size: 3.2rem; }
+}
 .start-tile__art img { width: 100%; height: 100%; display: block; }
 
 /* ---------- Home launcher ---------- */
@@ -2824,7 +2833,7 @@ body.hl-mode .brand { color: #ffe9b0; }
      40-card grid could only ever be two stretched columns or four cards
      NARROWER than a phone's, which is the "a tablet must never be stingier"
      law it was caught breaking. */
-  .screen:not(.start):not(.home):not(.hl-home):not(.category):not(.stickers):not(.td-home):not(.hole-home):not(.hole-landpage):not(.hole-play):not(.seek-home):not(.seek-album) {
+  .screen:not(.start):not(.home):not(.hl-home):not(.category):not(.stickers):not(.td-home):not(.hole-home):not(.hole-landpage):not(.hole-play):not(.seek-home):not(.seek-album):not(.color-home) {
     /* `width: 100%` is load-bearing, not decoration: `#screens` becomes a
        COLUMN FLEX container in a game (main.css `body.in-game #screens`), and
        an auto cross-axis margin on a flex item cancels the stretch and
@@ -2852,8 +2861,16 @@ body.hl-mode .brand { color: #ffe9b0; }
   .start-tile__icon, .start-tile__art { width: 148px; height: 148px; font-size: 6rem; }
   .start-tile__label { font-size: 1.4rem; }
 }
+/* …and the seventh, 🎨 Color Book, stays the short wide door across the bottom
+   on a tablet in portrait (a full 260px row put it 185px past the fold at
+   810x1080). After the tablet block so it wins there. */
+@media (min-width: 600px) and (orientation: portrait) {
+  .start-tile { min-height: 236px; }
+  .start-tile--color { min-height: 112px; padding-top: 8px; padding-bottom: 8px; }
+  .start-tile--color .start-tile__art { width: 96px; height: 96px; font-size: 4.2rem; }
+}
 @media (min-width: 600px) and (orientation: landscape) {
-  .start-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .start-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 }
 
 /* ---------- Short screens: every door above the fold ----------
@@ -2874,13 +2891,13 @@ body.hl-mode .brand { color: #ffe9b0; }
   .start-tile { min-height: 88px; padding: 6px 12px; }
   .start-tile__icon, .start-tile__art { width: 52px; height: 52px; font-size: 2.4rem; }
 }
-/* Six doors in ONE row (landscape): each door is (100vw - 112px) / 6 wide, so
+/* Seven doors in ONE row (landscape): each door is (100vw - 128px) / 7 wide, so
    the label follows THAT width — a phone on its side leaves a door only ~75px
    of room, where a flat 1rem "Josh's Games" ran far past its edge. After the
    short-screen block on purpose, so it wins on a short landscape screen too. */
 @media (min-width: 600px) and (orientation: landscape) {
   .start-tile { padding-left: 4px; padding-right: 4px; }
-  .start-tile__label { font-size: clamp(0.62rem, calc((100vw - 112px) * 0.0165), 1.3rem); }
+  .start-tile__label { font-size: clamp(0.53rem, calc((100vw - 128px) * 0.0134), 1.3rem); }
 }
 
 /* ---------- 🕳️ Gobble Hole (PLAN_GOBBLE.md) ----------
@@ -5227,3 +5244,233 @@ body.in-game .screen.seek-play { flex: 1 1 auto; display: flex; flex-direction: 
   animation: seekFlyout 1.2s ease-out forwards;
 }
 @keyframes seekFlyout { from { transform: translate(0, 0) scale(0.6); opacity: 1; } to { transform: translate(60%, -260%) scale(1); opacity: 0; } }
+
+/* ---------- 🎨 Color Book (PLAN_COLOR.md) ----------
+   A coloring book he paints by number. Kid laws fully ON: every pot, crayon
+   and page >= 75px and 16px apart (grid gap only, never flex gap: iOS 14.0
+   drops it), no aspect-ratio (14.0 has none: the page is square because its
+   SVG is), state cues are rings drawn with box-shadow (an outline does not
+   follow a radius on his iPad), and every animation stops under
+   prefers-reduced-motion. */
+body.color-mode { background: linear-gradient(165deg, #fff4d6 0%, #fff9f0 50%, #ffe3ef 100%); background-attachment: fixed; }
+.color-bar { margin-bottom: 16px; }
+.color-pages {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.color-page {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 100%);
+  padding: 10px;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+.color-page:active { transform: scale(0.97); }
+.color-page__pic { display: block; width: 100%; }
+.color-page__pic svg, .cb-thumb { display: block; width: 100%; height: auto; border-radius: 12px; }
+.color-page__num {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #5b2a86;
+  font-weight: 900;
+  font-size: 1.05rem;
+  box-shadow: 0 0 0 2px #5b2a86;
+}
+.color-page__star { position: absolute; right: 6px; top: 2px; font-size: 1.7rem; line-height: 1; }
+.color-page--done { box-shadow: 0 0 0 4px #b26a00, 0 8px 20px rgba(0, 0, 0, 0.12); }
+/* the page the book suggests next: a slow breathing ring, never a lock */
+.color-page--next { box-shadow: 0 0 0 4px #5b2a86, 0 8px 20px rgba(0, 0, 0, 0.12); animation: cbNext 1.8s ease-in-out infinite; }
+@keyframes cbNext { 0%, 100% { box-shadow: 0 0 0 4px #5b2a86, 0 8px 20px rgba(0, 0, 0, 0.12); } 50% { box-shadow: 0 0 0 8px #5b2a86, 0 8px 20px rgba(0, 0, 0, 0.12); } }
+@media (min-width: 600px) {
+  .color-pages { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 900px) {
+  .color-pages { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* The page: a column — the bar, the picture (as big a square as fits), the
+   pots. The picture's holder is positioned inside the field, so the SVG's
+   size never feeds back into the layout. */
+body.in-game .screen.color-play { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; position: relative; }
+.color-field { position: relative; flex: 1 1 auto; min-height: 220px; }
+.color-holder {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  touch-action: manipulation;
+}
+.color-holder svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+  -webkit-user-select: none;
+  user-select: none;
+}
+.cb-label { font-family: ui-rounded, "SF Pro Rounded", Nunito, Verdana, system-ui, sans-serif; font-weight: 800; fill: #5f6675; }
+.cb-want { fill: var(--want, #ffffff); animation: cbWant 1.6s ease-in-out infinite; }
+@keyframes cbWant { 0%, 100% { fill: var(--want, #ffffff); } 50% { fill: #ffffff; } }
+.cb-label--nudge { animation: cbNudge 0.6s ease; transform-box: fill-box; transform-origin: center; }
+@keyframes cbNudge { 0%, 100% { transform: scale(1); fill: #5f6675; } 35% { transform: scale(1.7); fill: #c2255c; } }
+
+.color-pots, .color-crayons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+  justify-items: center;
+}
+.color-pot, .color-crayon {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border: none;
+  border-radius: 50%;
+  background: var(--pot, #ffffff);
+  box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.16), 0 4px 10px rgba(0, 0, 0, 0.18);
+}
+.color-pot__num { font-size: 2rem; font-weight: 900; color: var(--ink, #1f2333); }
+.color-pot__done {
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  display: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #2c7a3f;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 1.1rem;
+  line-height: 30px;
+  text-align: center;
+}
+.color-pot--done .color-pot__done { display: block; }
+.color-pot--done { opacity: 0.55; }
+/* the chosen pot: a two-tone ring (dark beside light) that reads on any page */
+.color-pot--sel, .color-crayon--sel { box-shadow: 0 0 0 4px #ffffff, 0 0 0 9px #232634, 0 4px 10px rgba(0, 0, 0, 0.18); }
+.color-pot--pop { animation: cbPop 0.45s ease; }
+@keyframes cbPop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-8px); } }
+.color-pot--wiggle { animation: cbWiggle 0.5s ease; }
+@keyframes cbWiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
+.color-pot--cheer { animation: cbPop 0.45s ease 2; }
+.color-crayon { background: var(--crayon, #ffffff); }
+
+.color-box { margin-top: 0; }
+.color-crayons { grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); }
+.color-boxrow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.color-boxrow .btn-big { min-width: 0; width: 100%; } /* .btn-big's 140px floor overflowed two 136px tracks at 320 wide, eating the 16px gap */
+.color-next { display: grid; grid-auto-flow: column; justify-content: center; align-items: center; column-gap: 8px; }
+.color-next__pic { display: block; width: 48px; height: 48px; }
+.color-next__pic svg { width: 48px; height: 48px; border-radius: 8px; }
+/* free paint scrolls its crayons if a short screen needs it; the picture keeps its room */
+.color-box:not([hidden]) { max-height: 46vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+
+/* The first time: a finger shows pot, then shape. */
+.cb-ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 3rem;
+  pointer-events: none;
+  z-index: 5;
+  animation: cbGhost 2s ease-in-out 2;
+}
+@keyframes cbGhost {
+  0% { transform: translate(var(--x0), var(--y0)); opacity: 0; }
+  15% { transform: translate(var(--x0), var(--y0)); opacity: 1; }
+  30% { transform: translate(var(--x0), var(--y0)) scale(0.85); }
+  75% { transform: translate(var(--x1), var(--y1)); opacity: 1; }
+  85% { transform: translate(var(--x1), var(--y1)) scale(0.85); }
+  100% { transform: translate(var(--x1), var(--y1)); opacity: 0; }
+}
+
+/* It comes alive: each part of the finished page moves its own way. */
+.cb-anim { transform-box: fill-box; transform-origin: center; }
+.cb-anim--spin { animation: cbSpin 7s linear infinite; }
+@keyframes cbSpin { to { transform: rotate(360deg); } }
+.cb-anim--bob { animation: cbBob 1.6s ease-in-out infinite; }
+@keyframes cbBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.cb-anim--swim { animation: cbSwim 2.2s ease-in-out infinite; }
+@keyframes cbSwim { 0%, 100% { transform: translateX(-6px) rotate(-3deg); } 50% { transform: translateX(8px) rotate(3deg); } }
+.cb-anim--wobble { transform-origin: 50% 100%; animation: cbWobble 1.4s ease-in-out infinite; }
+@keyframes cbWobble { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+.cb-anim--launch { animation: cbLaunch 2.4s ease-in-out infinite; }
+@keyframes cbLaunch { 0%, 100% { transform: translateY(0); } 10% { transform: translate(-1px, 1px); } 20% { transform: translate(1px, -1px); } 55% { transform: translateY(-12px); } }
+.cb-anim--stomp { animation: cbStomp 0.9s ease-in-out infinite; }
+@keyframes cbStomp { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px) rotate(-1.5deg); } }
+.cb-anim--tip { animation: cbTip 3s ease-in-out infinite; }
+@keyframes cbTip { 0%, 20%, 100% { transform: rotate(0); } 50%, 70% { transform: rotate(-24deg); } }
+.cb-anim--rumble { animation: cbRumble 0.3s linear infinite; }
+@keyframes cbRumble { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(0.6px, -0.8px); } }
+.cb-anim--flash { animation: cbFlash 0.6s ease-in-out infinite; }
+@keyframes cbFlash { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.cb-anim--wave { transform-origin: 0% 50%; animation: cbWave 1.2s ease-in-out infinite; }
+@keyframes cbWave { 0%, 100% { transform: skewY(0deg) scaleX(1); } 50% { transform: skewY(6deg) scaleX(0.92); } }
+.cb-anim--rock { animation: cbRock 2.6s ease-in-out infinite; }
+@keyframes cbRock { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+.cb-anim--flap { animation: cbFlap 0.8s ease-in-out infinite; }
+@keyframes cbFlap { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(14deg); } }
+.cb-anim--flicker { animation: cbFlicker 0.45s ease-in-out infinite; }
+@keyframes cbFlicker { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14, 0.9); } }
+.cb-anim--bounce { animation: cbBounce 1s ease-in-out infinite; }
+@keyframes cbBounce { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-8px); } }
+.color-holder .cb-anim--wave { transform-box: fill-box; }
+
+/* A phone on its side: the pots stand to the right of the picture. */
+@media (orientation: landscape) and (max-height: 500px) {
+  body.in-game .screen.color-play {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 352px; /* four pots across: eight pots in two rows fit a phone on its side */
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: 16px;
+  }
+  .color-play .color-bar { grid-column: 1 / -1; }
+  .color-play .color-pots, .color-play .color-box { margin-top: 0; align-content: start; overflow-y: auto; overscroll-behavior: contain; max-height: none; min-height: 0; }
+  .color-play .color-pots, .color-play .color-crayons { grid-template-columns: repeat(4, minmax(0, 1fr)); min-height: 0; }
+  /* The screen has no height of its own here, so the 1fr row grows to the
+     crayons (12 of them, three rows, then 🔁 ▶) and pushed 🔁 ▶ off a phone on
+     its side. The box gets the screen's height less the bar, and scrolls. */
+  .color-play .color-box { max-height: calc(100vh - 124px); max-height: calc(100dvh - 124px); }
+}
+
+/* A small phone (320x568 and its kin): three rows of 76px pots would leave the
+   picture 220px, so the pots (and the crayons) are ONE row that scrolls
+   sideways, and the chosen pot is scrolled into view for him. */
+@media (orientation: portrait) and (max-width: 375px) and (max-height: 700px) {
+  .color-play .color-pots, .color-play .color-crayons {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 76px;
+    justify-content: start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    position: relative; /* the chosen pot's offsetLeft is measured from the row */
+    margin-top: 6px;
+    padding: 10px 10px 14px; /* room for the chosen pot's 9px ring */
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .color-page--next, .cb-want, .cb-label--nudge, .color-pot--pop, .color-pot--wiggle, .color-pot--cheer, .cb-ghost, .cb-anim,
+  .cb-anim--spin, .cb-anim--bob, .cb-anim--swim, .cb-anim--wobble, .cb-anim--launch, .cb-anim--stomp, .cb-anim--tip, .cb-anim--rumble,
+  .cb-anim--flash, .cb-anim--wave, .cb-anim--rock, .cb-anim--flap, .cb-anim--flicker, .cb-anim--bounce { animation: none; }
+}

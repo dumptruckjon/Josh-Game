@@ -85,7 +85,7 @@ test("the front door's SIXTH door opens Seek & Find, with a door per place, and 
   await page.evaluate(() => { location.hash = ""; });
   await page.locator("#screen-start").waitFor({ state: "visible" });
   const order = await page.evaluate(() => [...document.querySelectorAll(".start-tile")].map((t) => t.id));
-  assert.equal(order[order.length - 1], "start-seek", "Seek & Find is the last door");
+  assert.equal(order.indexOf("start-seek"), order.indexOf("start-board") + 1, "Seek & Find comes right after Game Night");
   assert.equal(await page.locator("#start-seek .start-tile__art img").count(), 1, "the door wears the world's Noto magnifying glass");
   await page.waitForTimeout(400);
   await page.locator("#start-seek").click();

@@ -152,6 +152,7 @@
     wire("start-hole", "#hole-home");
     wire("start-board", "#board-home");
     wire("start-seek", "#seek-home");
+    wire("start-color", "#color-home");
     wire("home-door", ""); // 🚪 on Josh's home returns to the front door
   }
 
@@ -188,7 +189,7 @@
   })();
   let awayAt = 0, newerBuild = false;
   function updateSafeHere() {
-    return !location.hash || /^#(home|cat-|stickers|today|progress|hole-home|hole-land-|board-home|seek-home|seek-album|hl-home|td-home)/.test(location.hash);
+    return !location.hash || /^#(home|cat-|stickers|today|progress|hole-home|hole-land-|board-home|seek-home|seek-album|color-home|hl-home|td-home)/.test(location.hash);
   }
   function reloadIfNewer() {
     if (newerBuild && !document.hidden && updateSafeHere()) location.reload();
@@ -656,6 +657,7 @@
       gobble: null,
       night: null,
       seek: null,
+      color: null,
     };
     try {
       const HD = window.HoleData;
@@ -681,6 +683,14 @@
         const k = progRead("josh-seek-v1");
         const st = k && k.stars && typeof k.stars === "object" ? k.stars : {};
         out.seek = { won: SD.PLACES.filter((p) => typeof st[p.id] === "number" && st[p.id] > 0).length, total: SD.PLACES.length };
+      }
+    } catch (e) { /* the page still shows the rest */ }
+    try {
+      const CD = window.ColorData;
+      if (CD && CD.PAGES) {
+        const k = progRead("josh-color-v1");
+        const st = k && k.stars && typeof k.stars === "object" ? k.stars : {};
+        out.color = { won: CD.PAGES.filter((p) => typeof st[p.id] === "number" && st[p.id] > 0).length, total: CD.PAGES.length };
       }
     } catch (e) { /* the page still shows the rest */ }
     return out;
@@ -782,6 +792,8 @@
       line(o, "🎲 Game Night last played: " + lastSeen("night", now), "progress__last");
       if (d.seek) bar2(o, "🔍 Seek & Find places", d.seek.won, d.seek.total);
       line(o, "🔍 Seek & Find last played: " + lastSeen("seek", now), "progress__last");
+      if (d.color) bar2(o, "🎨 Color Book pages", d.color.won, d.color.total);
+      line(o, "🎨 Color Book last played: " + lastSeen("color", now), "progress__last");
       bar2(o, "👵🏻 华丽's games", d.huali.won, d.huali.total);
       screen.dataset.won = String(d.josh.won);
     };
@@ -841,6 +853,10 @@
     refreshStickers();
   }
 
+  // The Color Book's screens: exactly these two hashes (Josh's games color-sort,
+  // color-number and color-mix share the "color-" prefix and must stay games).
+  const COLOR_WORLD = /^color-(home|play)$/;
+
   function route() {
     const id = (location.hash || "").replace(/^#/, "");
     const home = document.getElementById("screen-home");
@@ -882,6 +898,11 @@
     // …and 🔍 Seek & Find: leaving parks its half-found picture.
     if (id.indexOf("seek-") !== 0) {
       try { if (window.SeekFind && window.SeekFind.onLeave) window.SeekFind.onLeave(); } catch (e) { /* ignore */ }
+    }
+
+    // …and 🎨 Color Book: leaving keeps its half-painted page in the save.
+    if (!COLOR_WORLD.test(id)) {
+      try { if (window.ColorBook && window.ColorBook.onLeave) window.ColorBook.onLeave(); } catch (e) { /* ignore */ }
     }
 
     // 🏰 the fort (Dad's TD world, opened from the front door — no gate).
@@ -930,6 +951,20 @@
       try {
         if (window.SeekFind && window.SeekFind.route && window.SeekFind.route(id)) return;
       } catch (e) { /* a Seek & Find failure must never break Josh's site */ }
+      location.hash = "";
+      return;
+    }
+
+    // 🎨 Color Book (color by number, PLAN_COLOR.md): ColorBook.route handles
+    // its two screens. NOT every color-* hash: Josh's own games color-sort,
+    // color-number and color-mix share the prefix, and a prefix match sent
+    // them to the Color Book (which bounced them to the front door).
+    // Isolated: its failure can never break Josh's site.
+    if (COLOR_WORLD.test(id)) {
+      markLast("color");
+      try {
+        if (window.ColorBook && window.ColorBook.route && window.ColorBook.route(id)) return;
+      } catch (e) { /* a Color Book failure must never break Josh's site */ }
       location.hash = "";
       return;
     }

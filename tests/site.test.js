@@ -1367,7 +1367,7 @@ test("guardrail: Look From Above's top-down map stays aligned with the isometric
 });
 
 // ---------- 华丽 (the hidden grandma world) guardrails ----------
-test("the front door: six world tiles open Josh's / 华丽's / the fort / Gobble Hole / Game Night / Seek & Find DIRECTLY (no gates)", () => {
+test("the front door: seven world tiles open Josh's / 华丽's / the fort / Gobble Hole / Game Night / Seek & Find / Color Book DIRECTLY (no gates)", () => {
   // By request (2026-07) the name gates are gone: the app opens on a start page
   // whose tiles navigate straight to each world. Lock both halves — the start
   // page exists AND no gate machinery remains to re-lock a world. 🕳️ Gobble
@@ -1375,12 +1375,13 @@ test("the front door: six world tiles open Josh's / 华丽's / the fort / Gobble
   // and 🎲 Game Night as the fifth (2026-10), right after Gobble Hole's.
   const html = read("index.html");
   assert.match(html, /id="screen-start"/, "index.html carries the front-door screen");
-  for (const tile of ["start-josh", "start-hl", "start-td", "start-hole", "start-board", "start-seek"]) {
+  for (const tile of ["start-josh", "start-hl", "start-td", "start-hole", "start-board", "start-seek", "start-color"]) {
     assert.ok(html.includes('id="' + tile + '"'), "the front door has the " + tile + " tile");
   }
   assert.ok(html.indexOf('id="start-hole"') > html.indexOf('id="start-td"'), "the Gobble Hole door comes after the fort's");
   assert.ok(html.indexOf('id="start-board"') > html.indexOf('id="start-hole"'), "the Game Night door comes after Gobble Hole's");
   assert.ok(html.indexOf('id="start-seek"') > html.indexOf('id="start-board"'), "the Seek & Find door comes after Game Night's");
+  assert.ok(html.indexOf('id="start-color"') > html.indexOf('id="start-seek"'), "the Color Book door comes after Seek & Find's");
   assert.match(html, /id="home-door"/, "Josh's home carries the 🚪 back-to-front-door button");
   const mainjs = read("scripts/main.js");
   assert.match(mainjs, /wire\("start-josh", "#home"\)/, "the Josh tile opens his launcher");
@@ -1389,6 +1390,26 @@ test("the front door: six world tiles open Josh's / 华丽's / the fort / Gobble
   assert.match(mainjs, /wire\("start-hole", "#hole-home"\)/, "the 🕳️ tile opens Gobble Hole directly");
   assert.match(mainjs, /wire\("start-board", "#board-home"\)/, "the 🎲 tile opens Game Night directly");
   assert.match(mainjs, /wire\("start-seek", "#seek-home"\)/, "the 🔍 tile opens Seek & Find directly");
+  assert.match(mainjs, /wire\("start-color", "#color-home"\)/, "the 🎨 tile opens Color Book directly");
+  // A world routes its own hashes BEFORE the game lookup, so a world prefix that
+  // a game id also starts with steals that game. The Color Book's first cut
+  // routed every "color-*" hash and swallowed color-sort, color-number and
+  // color-mix (they bounced to the front door). Derived both ways: every prefix
+  // main.js routes by, against every game id the scripts register (her hl-*
+  // games are hers to route).
+  const prefixes = [...mainjs.matchAll(/id\.indexOf\("([a-z]+-)"\) === 0/g)].map((x) => x[1]).filter((p) => p !== "hl-");
+  assert.ok(prefixes.length >= 4, "the world prefixes main.js routes by must be found (saw " + prefixes.join(", ") + ")");
+  const cw = mainjs.match(/const COLOR_WORLD = (\/.+\/);/);
+  assert.ok(cw, "the Color Book's screens are an exact list (COLOR_WORLD), never a color-* prefix");
+  assert.ok(!/id\.indexOf\("color-"\)/.test(mainjs), "no color-* prefix route: Josh has games named color-*");
+  const colorWorld = eval(cw[1]);
+  const gameIds = [];
+  for (const f of fs.readdirSync(path.join(root, "scripts")).filter((f) => /^games-.*\.js$/.test(f))) {
+    for (const x of read("scripts/" + f).matchAll(/\bid: "([a-z0-9-]+)"/g)) gameIds.push(x[1]);
+  }
+  assert.ok(gameIds.includes("color-sort"), "the game-id scan must find Josh's games (color-sort among them)");
+  const stolen = gameIds.filter((g) => !g.startsWith("hl-") && (prefixes.some((p) => g.startsWith(p)) || colorWorld.test(g)));
+  assert.deepEqual(stolen, [], "a world's route would steal these games: " + stolen.join(", "));
   const hm = read("scripts/hl-main.js");
   assert.ok(!/hl-ok/.test(hm) && !/sessionStorage/.test(hm), "no hl-ok session flag / gate remains in her shell");
   assert.ok(!/hl-gate/.test(hm) && !/hl-door/.test(hm), "her name gate + top-bar door are removed");
