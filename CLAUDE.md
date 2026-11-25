@@ -16775,7 +16775,11 @@ because a re-run uploads a second artifact under the same name, so the one-click
 recovery became a 40-minute fresh run. Four changes. (1) **The artifact is named
 per run attempt**, so re-running failed jobs works. (2) **The publish is tried
 three times inside the job** (45s, then 120s apart): a failed deploy creates
-nothing, so retrying is safe, and only the last attempt may fail the job.
+nothing, so retrying is safe, and only the last attempt may fail the job. The cause was MEASURED on the third failure (run #599): the upload finished
+at 23:27:48, deploy-pages asked one second later and got "Found 0 artifact(s)",
+and the API listed the same artifact afterwards. GitHub's artifact listing lags
+the upload, so the deploy now first waits (up to 2 min) until the per-attempt
+artifact is listed — asking exactly what deploy-pages will ask.
 (3) **A `report` job always runs**, reads every job of the run and each failed
 job's log through the API, asks githubstatus.com how GitHub is, and runs
 `tools/ci-triage.js`: a verdict (ours: fix forward, or GitHub's: re-run), each

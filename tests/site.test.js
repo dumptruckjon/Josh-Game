@@ -4181,6 +4181,18 @@ test("CI: publishing survives GitHub's Pages API, and every job is bounded", () 
     assert.match(d, /artifact_name: github-pages-\$\{\{ github\.run_attempt \}\}/,
       `a deploy step must read the per-attempt artifact: ${d.split("\n")[0]}`);
   }
+  // 1b. …and the deploy waits until GitHub LISTS that artifact (run #599: the
+  //     listing lagged the upload by over a second, and deploy-pages asked
+  //     first), asking for exactly the name the deploy steps will ask for
+  const steps = code.split(/\n {6}- /);
+  const wait = steps.findIndex((st) => /listWorkflowRunArtifacts/.test(st));
+  const first = steps.findIndex((st) => /uses: actions\/deploy-pages@/.test(st));
+  assert.ok(wait > 0 && wait < first, "a wait for the artifact to be listed must come BEFORE the first deploy attempt");
+  assert.match(steps[wait], /ARTIFACT: github-pages-\$\{\{ github\.run_attempt \}\}/, "the wait must look for the per-attempt name");
+  assert.match(steps[wait], /n === 1\) \{[^\n]*return;/, "the wait must stop as soon as the artifact is listed");
+  const deployJob = code.split(/\n {2}(?=[a-z-]+:\n)/).find((j) => /^deploy:/.test(j));
+  assert.match(deployJob, /permissions:\s+contents: read\s+pages: write\s+id-token: write\s+actions: read/,
+    "the deploy job must restate the Pages permissions when it adds actions: read — job permissions REPLACE the workflow's");
   // 2. every attempt but the last may fail without failing the job, and the
   //    last must NOT — or three failures would read as a green deploy
   deploys.slice(0, -1).forEach((d) => assert.match(d, /continue-on-error: true/, "an early deploy attempt must not fail the job"));
