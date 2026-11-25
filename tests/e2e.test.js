@@ -8181,12 +8181,14 @@ test("the owner's new picks play as designed: Story Dice, Hunt at Home and the ð
       const s = document.getElementById("screen-flag-friends"), b = s.querySelector(".choice--thing:not([data-correct])");
       const big = s.querySelector(".pick__big").textContent, n = s.querySelectorAll(".choice--thing").length;
       const c = (window.JoshContent.COUNTRIES || []).find((x) => x.thingName === b.getAttribute("aria-label"));
-      b.click(); return { big, n, flags: s.querySelectorAll(".choice--flag").length, label: b.getAttribute("aria-label"), from: c && c.name };
+      b.click(); return { big, n, flags: s.querySelectorAll(".choice--flag").length, label: b.getAttribute("aria-label"), from: c && c.name, plural: !!(c && c.plural) };
     });
     assert.equal(ff.n, 3, "Flag Friends offers three things");
     assert.equal(ff.flags, 0, "â€¦and no flags");
     assert.ok(/[\u{1F1E6}-\u{1F1FF}]/u.test(ff.big), `its question is a flag (${ff.big})`);
-    assert.ok((await said()).some((x) => "That's " + ff.label + ", from " + ff.from + "." === x[0]), `a wrong thing says where it is from (${ff.label})`);
+    // a plural thing is "Those are the royal guards" (the wrong pick is random, so this
+    // test once failed only when it happened to land on the UK)
+    assert.ok((await said()).some((x) => (ff.plural ? "Those are " : "That's ") + ff.label + ", from " + ff.from + "." === x[0]), `a wrong thing says where it is from (${ff.label})`);
     // the right answer says the country, then its Chinese name in a Chinese voice
     await page.waitForTimeout(400);
     const big = await page.evaluate(() => { const s = document.getElementById("screen-flag-friends"); const f = s.querySelector(".pick__big").textContent; s.querySelector("[data-correct]").click(); return f; });

@@ -5192,8 +5192,8 @@ body.in-game .screen.seek-play { flex: 1 1 auto; display: flex; flex-direction: 
 .seek-card--locked { background: #fff6d6; }
 .seek-card--locked .seek-card__pic, .seek-card--locked .seek-card__count, .seek-card--locked .seek-card__clue { visibility: hidden; }
 .seek-card--locked .seek-card__q { display: block; position: absolute; }
-.seek-card--now { box-shadow: 0 0 0 4px #f2c21a, 0 6px 14px rgba(0, 0, 0, 0.14); animation: seekNow 1.6s ease-in-out infinite alternate; }
-@keyframes seekNow { from { box-shadow: 0 0 0 3px #f2c21a, 0 6px 14px rgba(0, 0, 0, 0.14); } to { box-shadow: 0 0 0 7px #f2c21a, 0 6px 14px rgba(0, 0, 0, 0.14); } }
+.seek-card--now { box-shadow: 0 0 0 4px #b26a00, 0 6px 14px rgba(0, 0, 0, 0.14); animation: seekNow 1.6s ease-in-out infinite alternate; }
+@keyframes seekNow { from { box-shadow: 0 0 0 3px #b26a00, 0 6px 14px rgba(0, 0, 0, 0.14); } to { box-shadow: 0 0 0 7px #b26a00, 0 6px 14px rgba(0, 0, 0, 0.14); } }
 
 /* A clue card: its clue as a picture in the corner (a colour, or the piece
    of the world the thing stands at) */
