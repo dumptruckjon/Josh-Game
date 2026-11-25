@@ -29,7 +29,7 @@
   // A run carries the layout version it was laid out under: change how the
   // engine places things and an old half-found picture would mark the wrong
   // things, so it is dropped (its ⭐ stay).
-  const LAYOUT = 2;
+  const LAYOUT = 3;
   const ECHO_MS = 350;       // the second tap of a double tap
   const HINT_AFTER_MS = 20000; // a list card shows WHERE only after he has looked this long
   const TOL_PX = 22;         // a finger just beside a small picture still gets it
@@ -53,7 +53,7 @@
         const r = raw.runs[id];
         if (!isPlace(id) || !r || typeof r !== "object" || r.v !== LAYOUT) continue;
         if (!Array.isArray(r.found)) continue;
-        s.runs[id] = { v: LAYOUT, seed: nat(r.seed), level: Math.min(D.LEVELS.length - 1, nat(r.level)), found: r.found.filter((n) => Number.isInteger(n) && n >= 0) };
+        s.runs[id] = { v: LAYOUT, seed: nat(r.seed), level: Math.min(D.LEVELS.length - 1, nat(r.level)), found: r.found.filter((n) => Number.isInteger(n) && n >= 0), story: r.story === true, night: r.night === true };
       }
     }
     // seen: every kind he has found, ever (the album) — a kind this build
@@ -117,7 +117,7 @@
   }
 
   // ---- Screens -------------------------------------------------------------------
-  let home = null, album = null, play = null, view = null, scene = null, tray = null, win = null, titleEl = null;
+  let home = null, album = null, play = null, view = null, scene = null, tray = null, win = null, titleEl = null, dark = null, bubble = null;
   let run = null, pending = null, surpriseN = 0;
 
   function build() {
@@ -136,11 +136,13 @@
       "</div>" +
       '<div class="seek-extras">' +
         '<button class="seek-extra seek-surprise tap" type="button" aria-label="Surprise! A place picked for you"><span class="seek-extra__pic" aria-hidden="true">🎲</span><span class="seek-extra__label">Surprise!</span></button>' +
+        '<button class="seek-extra seek-nightbtn tap" type="button" aria-label="Night hunt: find things with a flashlight"><span class="seek-extra__pic" aria-hidden="true">🔦</span><span class="seek-extra__label">Night Hunt</span></button>' +
         '<button class="seek-extra seek-albumbtn tap" type="button"><span class="seek-extra__pic" aria-hidden="true">📒</span><span class="seek-extra__label">My Finds <span class="seek-albumcount"></span></span></button>' +
       "</div>" +
       '<div class="seek-doors" role="list" aria-label="Pick a place"></div>';
     screens.appendChild(home);
     home.querySelector(".seek-surprise").addEventListener("click", () => openPlace(surprisePlace()));
+    home.querySelector(".seek-nightbtn").addEventListener("click", () => openPlace(surprisePlace(), { night: true }));
     home.querySelector(".seek-albumbtn").addEventListener("click", () => { location.hash = "#seek-album"; });
     home.querySelector(".seek-exit").addEventListener("click", () => { location.hash = ""; });
     home.querySelector(".seek-homehear").addEventListener("click", () => say(D.SAY.pick));
@@ -179,6 +181,8 @@
         '<div class="seek-view">' +
           '<div class="seek-scene" role="img" aria-label="A busy picture. Find the things on the list."></div>' +
         "</div>" +
+        '<div class="seek-dark" aria-hidden="true" hidden></div>' +
+        '<button class="seek-bubble tap" type="button" hidden><span class="seek-bubble__who art-fill" aria-hidden="true"></span><span class="seek-bubble__say" aria-hidden="true"></span></button>' +
         '<div class="seek-win" role="dialog" aria-label="You found everything!" hidden>' +
           '<div class="seek-win__box">' +
             '<div class="seek-win__cheer" aria-hidden="true"><span class="seek-win__buddy art-fill"></span><span class="seek-win__star">⭐</span></div>' +
@@ -198,6 +202,16 @@
     tray = play.querySelector(".seek-tray");
     win = play.querySelector(".seek-win");
     titleEl = play.querySelector(".seek-placename");
+    dark = play.querySelector(".seek-dark");
+    bubble = play.querySelector(".seek-bubble");
+    bubble.addEventListener("click", () => { if (run && run.story) say(storyLine(false)); });
+    // the flashlight follows the finger: touch events keep coming while the
+    // picture scrolls under it (pointer events stop), so both are heard
+    const aim = (x, y) => { if (run && run.night) beamAt(x, y); };
+    view.addEventListener("touchstart", (e) => { if (e.touches[0]) aim(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    view.addEventListener("touchmove", (e) => { if (e.touches[0]) aim(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+    view.addEventListener("pointermove", (e) => { if (e.pointerType === "mouse") aim(e.clientX, e.clientY); });
+    view.addEventListener("pointerdown", (e) => aim(e.clientX, e.clientY));
     play.querySelector(".seek-back").addEventListener("click", () => { location.hash = "#seek-home"; });
     play.querySelector(".seek-hear").addEventListener("click", () => { if (run) say(listLine()); });
     win.querySelector(".seek-again").addEventListener("click", () => { if (run) startPlace(run.place.id, { fresh: true }); });
@@ -332,14 +346,16 @@
   }
 
   // ---- A picture -------------------------------------------------------------------
-  function openPlace(id) { pending = { id, resume: true }; location.hash = "#seek-play"; }
+  function openPlace(id, o) { pending = { id, resume: true, night: !!(o && o.night) }; location.hash = "#seek-play"; }
 
   function nameOf(entry) {
     if (entry.kind === "buddy") return buddyName();
     const k = D.KINDS[entry.kind];
+    if (entry.clue) return D.SAY.clue(k.say, entry.clue.word);
     return entry.n > 1 ? entry.n + " " + k.many : "the " + k.say;
   }
   function listLine() {
+    if (run.story) return storyLine(false);
     const names = run.list.filter((e) => !e.done).map(nameOf);
     if (!names.length) return D.SAY.win;
     const joined = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0];
@@ -351,21 +367,30 @@
     clearLater();
     hideWin();
     const level = Math.min(D.LEVELS.length - 1, save.stars[place.id] || 0);
-    const parked = opts && opts.resume ? save.runs[place.id] : null;
-    let seed, found = [];
+    let parked = opts && opts.resume ? save.runs[place.id] : null;
+    // a Night Hunt is its own picture: it never carries on a daytime one
+    if (parked && opts && opts.night && !parked.night) parked = null;
+    let seed, found = [], story, night;
     if (parked && parked.v === LAYOUT && parked.level === level) {
       seed = parked.seed;
       found = parked.found;
+      story = parked.story;
+      night = parked.night;
     } else {
       save.plays[place.id] = (save.plays[place.id] || 0) + 1;
       seed = (L.hash(place.id) + save.plays[place.id] * 7919) >>> 0;
+      // every second picture of a place is a STORY: a friend lost things
+      story = save.plays[place.id] % 2 === 0;
+      night = !!(opts && opts.night);
     }
+    if (opts && typeof opts.story === "boolean") story = opts.story;
     const lay = L.layout(place.id, { seed, level });
     run = {
       place, level, seed, items: lay.items, H: lay.H,
-      list: lay.list.map((e) => ({ kind: e.kind, n: e.n, art: e.art, got: 0, done: false })),
+      list: lay.list.map((e) => ({ kind: e.kind, n: e.n, art: e.art, clue: e.clue || null, inside: e.inside || null, got: 0, done: false })),
       found: new Set(), els: [], cards: [], openedAt: now(), lastFindAt: now(), lastTap: null,
       shadow: !!D.LEVELS[level].shadow,
+      story: !!story, night: !!night, friend: D.FRIENDS[seed % D.FRIENDS.length],
     };
     save.last = place.id;
     titleEl.textContent = place.name;
@@ -374,9 +399,17 @@
     for (const i of found) if (run.items[i] && (run.items[i].role === "find" || run.items[i].role === "buddy")) mark(i, true);
     saveRun();
     view.scrollTop = 0;
+    paintStory();
+    paintNight();
     const firstShadows = run.shadow && !found.length;
-    if (!run.list.every((e) => e.done)) later(() => { if (playVisible()) { if (firstShadows) say(D.SAY.shadows); say(listLine()); } }, 400);
-    else showWin(true);
+    if (!run.list.every((e) => e.done)) {
+      later(() => {
+        if (!playVisible()) return;
+        if (run.night && !found.length) say(D.SAY.night);
+        if (firstShadows) say(D.SAY.shadows);
+        say(run.story ? storyLine(!found.length) : listLine());
+      }, 400);
+    } else showWin(true);
   }
 
   function drawScene() {
@@ -394,7 +427,8 @@
       // a living picture: what flies floats, what swims sways — gently, out
       // of step with each other, and never under reduced motion (CSS)
       const live = k.sky && !k.prop ? " seek-it--float" : k.swim ? " seek-it--swim" : "";
-      el.className = "seek-it" + (k.sky ? " seek-it--sky" : "") + live + (it.role === "buddy" ? " seek-it--buddy" : "");
+      el.className = "seek-it" + (k.sky ? " seek-it--sky" : "") + live + (it.role === "buddy" ? " seek-it--buddy" : "") +
+        (it.hidden ? " seek-it--hidden" : "") + (it.holds ? " seek-it--rumble" : "");
       if (live) el.style.animationDelay = -((i * 0.37) % 3).toFixed(2) + "s";
       el.dataset.i = String(i);
       el.dataset.kind = it.kind;
@@ -440,6 +474,25 @@
         c.className = "seek-card__count";
         b.appendChild(c);
       }
+      // a clue card carries its clue as a picture too (a colour, or the
+      // piece of the world it stands at), so it reads with the sound off
+      if (e.clue) {
+        const c = doc.createElement("span");
+        c.className = "seek-card__clue seek-card__clue--" + e.clue.type;
+        c.setAttribute("aria-hidden", "true");
+        if (e.clue.type === "colour") c.style.background = D.CLUES.swatch[e.clue.shirt];
+        else {
+          const prop = Object.keys(D.KINDS).find((k) => D.KINDS[k].prop && D.KINDS[k].say === e.clue.say);
+          if (prop) c.appendChild(img(D.KINDS[prop].art, "seek-card__cluepic"));
+          else c.textContent = { bench: "🪑", "lamp post": "💡", "trash can": "🗑️", slide: "🎢", swings: "🎠", bush: "🌳", tree: "🌳", tent: "⛺", blanket: "🧺" }[e.clue.say] || "📍";
+        }
+        b.appendChild(c);
+      }
+      const q = doc.createElement("span");
+      q.className = "seek-card__q";
+      q.setAttribute("aria-hidden", "true");
+      q.textContent = "?";
+      b.appendChild(q);
       const t = doc.createElement("span");
       t.className = "seek-card__tick";
       t.setAttribute("aria-hidden", "true");
@@ -458,8 +511,78 @@
     b.classList.toggle("seek-card--done", e.done);
     // a tricky picture's list shows SHADOWS until each thing is found
     b.classList.toggle("seek-card--shadow", !!run.shadow && e.kind !== "buddy" && !e.done);
+    const locked = isLocked(li);
+    b.classList.toggle("seek-card--locked", locked);
+    b.classList.toggle("seek-card--now", !!run.story && li === storyStep());
     const nm = nameOf(e);
+    if (locked) { b.setAttribute("aria-label", "Next: a surprise. Find the one before it first."); return; }
     b.setAttribute("aria-label", (e.done ? "Found " : "Find ") + nm + (e.n > 1 ? ", " + e.got + " of " + e.n + " found" : ""));
+  }
+
+  // ---- A story picture ---------------------------------------------------------
+  // A friend has lost things and asks for them ONE AT A TIME: the card being
+  // asked for glows, the ones after it stay a ? until it is found, and the
+  // friend's bubble at the top of the picture shows what they want.
+  function storyStep() { return run.list.findIndex((e) => !e.done); }
+  function isLocked(li) { return !!run && run.story && !run.list[li].done && li > storyStep(); }
+  function friendArt(name) {
+    try {
+      const f = (global.JoshContent.FRIENDS || []).find((x) => x.name === name);
+      return f && global.JoshArt ? global.JoshArt.friend(f.art) : "";
+    } catch (e) { return ""; }
+  }
+  // what the friend says now: `first` is the opening line
+  function storyLine(first) {
+    const st = storyStep();
+    if (st < 0) return D.SAY.storyEnd(run.friend);
+    const e = run.list[st];
+    if (e.kind === "buddy") return D.SAY.storyBuddy(run.friend, buddyName());
+    if (first) return D.SAY.storyStart(run.friend, nameOf(e));
+    return e.n > 1 ? D.SAY.storyCount(run.friend, nameOf(e)) : D.SAY.storyNext(run.friend, nameOf(e));
+  }
+  function paintStory() {
+    if (!bubble) return;
+    const st = run && run.story ? storyStep() : -1;
+    bubble.hidden = st < 0;
+    if (st < 0) return;
+    const e = run.list[st];
+    const who = bubble.querySelector(".seek-bubble__who");
+    who.innerHTML = friendArt(run.friend);
+    const sayEl = bubble.querySelector(".seek-bubble__say");
+    sayEl.textContent = "";
+    if (e.kind === "buddy") { const s2 = doc.createElement("span"); s2.className = "seek-bubble__buddy art-fill"; s2.innerHTML = buddyArt(); sayEl.appendChild(s2); }
+    else sayEl.appendChild(img(e.art, "seek-bubble__pic"));
+    bubble.setAttribute("aria-label", run.friend + " asks: find " + nameOf(e));
+  }
+
+  // ---- A night hunt: the flashlight ------------------------------------------
+  // The picture is dark but for a big beam where the finger is (or was last).
+  // Things stay where they are and a tap anywhere is still judged — the dark
+  // only changes what he can see, never what counts.
+  function paintNight() {
+    if (!dark) return;
+    dark.hidden = !(run && run.night) || run.list.every((e) => e.done);
+    play.classList.toggle("seek-play--night", !dark.hidden);
+    if (!dark.hidden) {
+      const r = dark.getBoundingClientRect();
+      if (run.beam) beamPaint(run.beam.x, run.beam.y);
+      else beamPaint(r.width / 2, r.height * 0.42);
+    }
+  }
+  function beamRadius() {
+    const r = dark.getBoundingClientRect();
+    return Math.max(90, Math.min(r.width, r.height) * 0.3);
+  }
+  function beamPaint(x, y) {
+    run.beam = { x, y };
+    const R = beamRadius();
+    dark.style.background = "radial-gradient(circle at " + Math.round(x) + "px " + Math.round(y) + "px, rgba(8,12,34,0) 0px, rgba(8,12,34,0) " +
+      Math.round(R * 0.6) + "px, rgba(8,12,34,0.55) " + Math.round(R * 0.85) + "px, rgba(8,12,34,0.9) " + Math.round(R) + "px)";
+  }
+  function beamAt(clientX, clientY) {
+    if (!dark || dark.hidden) return;
+    const r = dark.getBoundingClientRect();
+    beamPaint(clientX - r.left, clientY - r.top);
   }
 
   // ---- A tap on the picture ------------------------------------------------------
@@ -488,7 +611,32 @@
   function judge(i) {
     const it = run.items[i];
     const li = entryFor(it);
+    // a story's later things wait their turn (no fail: it just is not yet)
+    if (li >= 0 && !run.found.has(i) && isLocked(li)) { bounce(run.els[i], "seek-it--again"); say(D.SAY.notYet); return; }
     if (li >= 0 && !run.found.has(i)) { mark(i, false); return; }
+    // the same thing that does not fit the clue: a gentle "not that one"
+    if (it.role === "decoy") {
+      bounce(run.els[i], "seek-it--wig");
+      const e = run.list.find((x) => x.kind === it.kind && x.clue);
+      if (e) say(D.SAY.decoy(nameOf(e)));
+      return;
+    }
+    // scenery that something is hiding in: it pops out — found!
+    const held = it.holds ? L.heldBy(run.items, i) : -1;
+    if (held >= 0) {
+      const hi = entryFor(run.items[held]);
+      if (hi >= 0 && isLocked(hi)) { bounce(run.els[i], "seek-it--shake"); say(D.SAY.notYet); return; }
+      bounce(run.els[i], "seek-it--shake");
+      mark(held, false, D.KINDS[it.kind].say);
+      return;
+    }
+    // any other scenery: it shakes, and a tree lets something fly out
+    if (it.role === "prop") {
+      bounce(run.els[i], "seek-it--shake");
+      flyOut(i);
+      say(D.SAY.that((global.JoshLogic && global.JoshLogic.article ? global.JoshLogic.article(D.KINDS[it.kind].say) : "a") + " " + D.KINDS[it.kind].say));
+      return;
+    }
     if (li >= 0) {                              // found already: a happy bounce
       bounce(run.els[i], "seek-it--again");
       return;
@@ -511,12 +659,17 @@
 
   // Mark item i found (quiet: restoring a parked picture says nothing).
   const NUM = ["", "One!", "Two!", "Three!", "Four!", "Five!", "Six!"];
-  function mark(i, quiet) {
+  function mark(i, quiet, from) {
     const it = run.items[i];
     const li = entryFor(it);
     if (li < 0 || run.found.has(i)) return;
     const e = run.list[li];
     run.found.add(i);
+    if (it.hidden) {                            // out it comes, on top of its hiding place
+      it.hidden = false;
+      run.els[i].classList.remove("seek-it--hidden");
+      for (let b = 0; b < run.items.length; b++) if (run.items[b].holds && run.items[b].x === it.x) { run.items[b].holds = false; run.els[b].classList.remove("seek-it--rumble"); }
+    }
     e.got += 1;
     e.done = e.got >= e.n;
     const el = run.els[i];
@@ -537,10 +690,36 @@
       cue("goodCue");
       if (it.role === "buddy") say(D.SAY.buddy(buddyName()));
       else if (e.n > 1) say(e.done ? D.SAY.foundAll(e.n, D.KINDS[e.kind].many) : NUM[e.got] || "");
+      else if (from) say(D.SAY.popped(D.KINDS[e.kind].say, from));
       else say(D.SAY.found(D.KINDS[e.kind].say));
       saveRun();
+      if (run.story) {
+        for (let k = 0; k < run.list.length; k++) paintCard(k);
+        paintStory();
+        if (e.done && !run.list.every((x) => x.done)) later(() => { if (playVisible() && run) say(storyLine(false)); }, 1100);
+      }
       if (run.list.every((x) => x.done)) later(() => showWin(false), 900);
     }
+  }
+
+  // Shake a tree and something flies out of it: a bird, a butterfly, a bat —
+  // never anything of a group the list asks for (it would be a second one).
+  const FLIERS = ["bird", "butterfly", "bat", "honeybee"];
+  const TREEISH = ["tree", "pine", "palm", "plant", "web", "coral"];
+  function flyOut(i) {
+    try {
+      const it = run.items[i];
+      if (TREEISH.indexOf(it.kind) < 0) return;
+      const want = new Set(run.list.map((e) => L.groupOf(e.kind)));
+      const kind = FLIERS.find((k) => !want.has(L.groupOf(k)));
+      if (!kind) return;
+      const f = img(D.KINDS[kind].art, "seek-flyout");
+      f.setAttribute("aria-hidden", "true");
+      f.style.left = (it.x / D.W) * 100 + "%";
+      f.style.top = ((it.y - it.size * 0.3) / run.H) * 100 + "%";
+      scene.appendChild(f);
+      later(() => { if (f.parentNode) f.parentNode.removeChild(f); }, 1300);
+    } catch (e) { /* a flourish only */ }
   }
 
   // A find FLIES to its card on the list: the picture of it lifts off the
@@ -577,6 +756,7 @@
     if (!run) return;
     const e = run.list[li];
     if (e.done) { say(e.kind === "buddy" ? D.SAY.buddy(buddyName()) : D.SAY.found(D.KINDS[e.kind].say)); return; }
+    if (isLocked(li)) { say(storyLine(false)); return; }
     say(D.SAY.find(nameOf(e)));
     if (now() - run.lastFindAt >= HINT_AFTER_MS) showWhere(li);
   }
@@ -587,6 +767,11 @@
       if (at < 0 && !run.found.has(i) && ((e.kind === "buddy" && it.role === "buddy") || (it.role === "find" && it.kind === e.kind))) at = i;
     });
     if (at < 0) return;
+    // a thing hiding inside scenery: show the scenery it is in
+    if (run.items[at].hidden) {
+      const b = run.items.findIndex((p) => p.holds && p.x === run.items[at].x);
+      if (b >= 0) at = b;
+    }
     const el = run.els[at];
     const vr = view.getBoundingClientRect(), er = el.getBoundingClientRect();
     const top = view.scrollTop + (er.top - vr.top) - (vr.height - er.height) / 2;
@@ -594,6 +779,8 @@
     try { view.scrollTo({ top: Math.max(0, top), behavior: reduce ? "auto" : "smooth" }); } catch (x) { view.scrollTop = Math.max(0, top); }
     el.classList.add("seek-it--hint");
     later(() => el.classList.remove("seek-it--hint"), 3000);
+    // at night, the flashlight goes there too
+    later(() => { if (run && run.night) { const q = el.getBoundingClientRect(); beamAt(q.left + q.width / 2, q.top + q.height / 2); } }, reduce ? 0 : 450);
     run.lastFindAt = now();                     // the next hint waits again
   }
 
@@ -605,7 +792,7 @@
       delete save.runs[run.place.id];
       persist();
       cue("winCue");
-      say(D.SAY.win);
+      say(run.night ? D.SAY.lightsOn : run.story ? D.SAY.storyEnd(run.friend) : D.SAY.win);
       // the next picture of this place is a new level: say so
       if (run.level < D.LEVELS.length - 1) say(D.SAY.trickier);
       try { if (playVisible() && global.JoshEffects) global.JoshEffects.confetti(); } catch (e) { /* ignore */ }
@@ -628,13 +815,15 @@
     next.setAttribute("aria-label", "Next place: " + nx.name);
     win.hidden = false;
     win.__shownAt = now();
+    paintStory();
+    paintNight();
   }
   function hideWin() { if (win) win.hidden = true; }
 
   function saveRun() {
     if (!run) return;
     if (run.list.every((e) => e.done)) delete save.runs[run.place.id];
-    else save.runs[run.place.id] = { v: LAYOUT, seed: run.seed, level: run.level, found: [...run.found] };
+    else save.runs[run.place.id] = { v: LAYOUT, seed: run.seed, level: run.level, found: [...run.found], story: run.story, night: run.night };
     persist();
   }
   function leavePlay() {
@@ -682,7 +871,7 @@
         global.scrollTo(0, 0);
         const p = pending;
         pending = null;
-        if (p) startPlace(p.id, { resume: p.resume });
+        if (p) startPlace(p.id, { resume: p.resume, night: p.night });
         else if (!run) startPlace(save.last, { resume: true });
         return true;
       }
@@ -698,7 +887,7 @@
 
   // ---- Test hooks (the __HOLE / __BOARD precedent) -------------------------------------
   global.__SEEK = {
-    run: () => (run && play && !play.hidden ? { place: run.place.id, level: run.level, seed: run.seed, list: run.list.map((e) => ({ ...e })), found: [...run.found] } : null),
+    run: () => (run && play && !play.hidden ? { place: run.place.id, level: run.level, seed: run.seed, list: run.list.map((e) => ({ ...e })), found: [...run.found], story: run.story, night: run.night, friend: run.friend, step: run.story ? storyStep() : -1 } : null),
     items: () => (run ? run.items.map((it) => ({ ...it })) : []),
     save: () => JSON.parse(JSON.stringify(save)),
     reset() { save = freshSave(); try { global.localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } },
@@ -718,6 +907,7 @@
     markForTest(i) { if (run && run.items[i]) judge(i); },
     timers: () => timers.size,
     flying: () => doc.querySelectorAll(".seek-fly").length,
+    beam: () => (run && run.beam ? { ...run.beam } : null),
     surprise: () => surprisePlace(),
     albumKinds: () => allAlbumKinds(),
   };

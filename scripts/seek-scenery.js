@@ -250,17 +250,6 @@
       for (let xx = x + 10; xx < x + w; xx += 12) s += line(xx, y, xx, y + h, "#6e4423", 1.4);
       return s + rect(x, y - 6, w, 5, "#8a5a36", 1, false) + rect(x, y + h + 1, w, 5, "#8a5a36", 1, false);
     },
-    // a market stall: counter, striped awning, crates
-    stall(a) {
-      const [x, y, w, c] = a;
-      let s = ell(x + w / 2, y + 4, w * 0.6, 8, "rgba(0,0,0,.15)", false) + rect(x + 4, y - 80, 6, 80, "#8a5a36", 1) + rect(x + w - 10, y - 80, 6, 80, "#8a5a36", 1);
-      const n = Math.round(w / 20);
-      for (let i = 0; i < n; i++) s += rect(x + (w / n) * i, y - 96, w / n, 22, i % 2 ? "#fff" : c, 0, "rgba(0,0,0,.2)");
-      for (let i = 0; i < n; i++) s += shape("path", 'd="M' + f(x + (w / n) * i) + " " + (y - 74) + " q" + f(w / n / 2) + " 10 " + f(w / n) + ' 0"', i % 2 ? "#fff" : c, "rgba(0,0,0,.2)", 1);
-      s += rect(x, y - 30, w, 30, "#c98a4f", 2, "#6e4423");
-      for (let xx = x + 6; xx < x + w - 20; xx += 26) s += rect(xx, y - 26, 20, 22, "#e0b077", 2, "#8a5a36");
-      return s;
-    },
     tent(a) {
       const [x, y, c] = a;
       return ell(x, y + 4, 60, 9, "rgba(0,0,0,.16)", false) + poly([[x - 56, y], [x, y - 70], [x + 56, y]], c || "#ff8c3a", "rgba(0,0,0,.3)") +
@@ -347,6 +336,94 @@
       for (let i = 0; i < n; i++) { const px = x + r() * w, py = y + r() * h, k = 0.5 + r() * 1.3; s += ell(px, py, 22 * k, 9 * k, "#9aa0b4", "#6b728a") + ell(px, py + 2 * k, 16 * k, 5 * k, "#878ca2", false); }
       return s;
     },
+    // ---- under the sea ----
+    // shafts of sunlight slanting down from the surface
+    rays(a, r) {
+      const [y, h, n] = a;
+      let s = "";
+      for (let i = 0; i < (n || 6); i++) {
+        const x = 20 + r() * 500, w = 30 + r() * 50, lean = 80 + r() * 60;
+        s += poly([[x, y], [x + w, y], [x + w + lean, y + h], [x + lean - w * 0.4, y + h]], "rgba(255,255,255," + (0.07 + r() * 0.06).toFixed(2) + ")", false);
+      }
+      return s;
+    },
+    // a kelp forest: tall swaying strands with leaves, from the floor up
+    kelp(a, r) {
+      const [x, y, w, h, n] = a;
+      let s = "";
+      for (let i = 0; i < (n || 5); i++) {
+        const px = x + r() * w, hh = h * (0.6 + r() * 0.4), c = r() < 0.5 ? "#2f8a4a" : "#3fa058";
+        let d = "M " + f(px) + " " + f(y);
+        const seg = 6;
+        for (let k = 1; k <= seg; k++) d += " Q " + f(px + (k % 2 ? 16 : -16)) + " " + f(y - (hh * (k - 0.5)) / seg) + " " + f(px) + " " + f(y - (hh * k) / seg);
+        s += stroke(d, "#245f36", 9) + stroke(d, c, 6);
+        for (let k = 1; k < seg; k++) {
+          const ly = y - (hh * k) / seg, side = k % 2 ? 1 : -1;
+          s += ell(px + side * 12, ly, 12, 5, c, "#245f36");
+        }
+      }
+      return s;
+    },
+    // a coral reef mound: rocks in reef colours, branching coral, brain coral
+    reef(a, r) {
+      const [x, y, w] = a;
+      const COL = ["#ff7a8a", "#ffb347", "#c27aff", "#ff9ec7", "#ffd866", "#7ad7c9"];
+      let s = ell(x + w / 2, y + 6, w * 0.55, 16, "rgba(0,0,0,.18)", false);
+      for (let i = 0; i < Math.round(w / 34); i++) s += ell(x + 16 + r() * (w - 32), y - 10 - r() * 18, 22 + r() * 16, 16 + r() * 8, "#8d7f72", "rgba(0,0,0,.3)");
+      for (let i = 0; i < Math.round(w / 40); i++) {
+        const px = x + 20 + r() * (w - 40), py = y - 20 - r() * 20, c = COL[Math.floor(r() * COL.length)], h = 30 + r() * 34;
+        s += stroke("M " + f(px) + " " + f(py) + " l 0 " + f(-h) + " M " + f(px) + " " + f(py - h * 0.4) + " l " + f(-h * 0.4) + " " + f(-h * 0.4) + " M " + f(px) + " " + f(py - h * 0.6) + " l " + f(h * 0.35) + " " + f(-h * 0.35), "rgba(0,0,0,.25)", 9) +
+          stroke("M " + f(px) + " " + f(py) + " l 0 " + f(-h) + " M " + f(px) + " " + f(py - h * 0.4) + " l " + f(-h * 0.4) + " " + f(-h * 0.4) + " M " + f(px) + " " + f(py - h * 0.6) + " l " + f(h * 0.35) + " " + f(-h * 0.35), c, 6);
+      }
+      for (let i = 0; i < Math.round(w / 70); i++) {
+        const px = x + 20 + r() * (w - 40), py = y - 8 - r() * 12, rr = 12 + r() * 8;
+        s += circ(px, py, rr, COL[Math.floor(r() * COL.length)], "rgba(0,0,0,.3)") + stroke("M " + f(px - rr * 0.6) + " " + f(py) + " q " + f(rr * 0.3) + " -6 " + f(rr * 0.6) + " 0 t " + f(rr * 0.6) + " 0", "rgba(0,0,0,.25)", 1.6);
+      }
+      return s;
+    },
+    // a sunken ship lying on the floor, a little tilted, with its broken mast
+    wreck(a) {
+      const [x, y, k0] = a, k = k0 || 1;
+      const X = (v) => x + v * k, Y = (v) => y + v * k;
+      let s = ell(X(0), Y(6), 130 * k, 16 * k, "rgba(0,0,0,.2)", false);
+      s += poly([[X(-120), Y(-60)], [X(110), Y(-40)], [X(90), Y(0)], [X(-100), Y(-10)]], "#6b4a33", "#3e2a1c");
+      for (let i = 1; i < 4; i++) s += line(X(-118 + i * 4), Y(-60 + i * 14), X(104 - i * 4), Y(-40 + i * 11), "#4b3423", 2);
+      s += circ(X(-40), Y(-32), 8 * k, "#2a4a5a", "#3e2a1c") + circ(X(0), Y(-28), 8 * k, "#2a4a5a", "#3e2a1c") + circ(X(40), Y(-24), 8 * k, "#2a4a5a", "#3e2a1c");
+      s += line(X(-10), Y(-48), X(-40), Y(-150), "#5a3d28", 8) + line(X(-34), Y(-128), X(10), Y(-118), "#5a3d28", 5);
+      s += poly([[X(-30), Y(-140)], [X(8), Y(-122)], [X(-14), Y(-96)]], "rgba(240,232,210,.7)", "rgba(0,0,0,.25)");
+      s += stroke("M " + f(X(-100)) + " " + f(Y(-14)) + " q 10 -26 26 -6 q 10 -24 24 -2", "#3f9e57", 5);
+      return s;
+    },
+    // the sandy sea floor: ripples and pebbles
+    seabed(a, r) {
+      const [x, y, w, h] = a;
+      let s = rect(x, y, w, h, "#e2c98a", 0, false) + stroke("M " + x + " " + y + " C " + (x + w * 0.3) + " " + (y - 24) + " " + (x + w * 0.6) + " " + (y + 18) + " " + (x + w) + " " + (y - 8), "#e2c98a", 30);
+      for (let yy = y + 20; yy < y + h; yy += 26) {
+        let d = "M " + x + " " + f(yy);
+        for (let xx = x; xx < x + w; xx += 40) d += " q 10 -6 20 0 t 20 0";
+        s += stroke(d, "rgba(160,120,60,.35)", 2);
+      }
+      for (let i = 0; i < Math.round((w * h) / 2500); i++) s += ell(x + r() * w, y + r() * h, 3 + r() * 4, 2 + r() * 2, r() < 0.5 ? "#b9a170" : "#cfd3cf", "rgba(0,0,0,.2)");
+      return s;
+    },
+    // ---- the market ----
+    // a big market stall: a striped awning on poles, TWO wooden shelves of
+    // crates the produce stands on (top at y - 84, counter at y)
+    marketstall(a) {
+      const [x, y, w, c] = a;
+      let s = ell(x + w / 2, y + 6, w * 0.6, 9, "rgba(0,0,0,.16)", false) + rect(x + 4, y - 160, 7, 160, "#8a5a36", 1) + rect(x + w - 11, y - 160, 7, 160, "#8a5a36", 1);
+      const n = Math.round(w / 22);
+      for (let i = 0; i < n; i++) s += rect(x + (w / n) * i, y - 178, w / n, 24, i % 2 ? "#fff" : c, 0, "rgba(0,0,0,.2)");
+      for (let i = 0; i < n; i++) s += shape("path", 'd="M' + f(x + (w / n) * i) + " " + (y - 154) + " q" + f(w / n / 2) + " 11 " + f(w / n) + ' 0"', i % 2 ? "#fff" : c, "rgba(0,0,0,.2)", 1);
+      // back shelf, then the front counter, each a row of crates
+      s += rect(x + 8, y - 96, w - 16, 12, "#a8703f", 2, "#6e4423");
+      for (let xx = x + 12; xx < x + w - 24; xx += 30) s += rect(xx, y - 112, 26, 16, "#e0b077", 2, "#8a5a36");
+      s += rect(x, y - 30, w, 30, "#c98a4f", 2, "#6e4423");
+      for (let xx = x + 6; xx < x + w - 22; xx += 28) s += rect(xx, y - 40, 24, 18, "#e0b077", 2, "#8a5a36") + line(xx + 2, y - 31, xx + 22, y - 31, "#8a5a36", 1.2);
+      s += rect(x + w / 2 - 20, y - 150, 40, 14, "#fff8e0", 3, "rgba(0,0,0,.3)");
+      return s;
+    },
+
     // a campfire glow on the ground
     glow(a) {
       const [x, y, rr] = a;

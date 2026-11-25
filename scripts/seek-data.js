@@ -509,13 +509,18 @@
         ["rect", 0, 0, 540, 2400, "#4fb6e6"],
         ["rect", 0, 0, 540, 220, "#8fd4f5"],
         ["water", 0, 0, 540, 200, "#8fd4f5"],
-        ["rect", 0, 900, 540, 900, "#3a9fd8"],
-        ["rect", 0, 1700, 540, 700, "#2f8bc6"],
-        ["bubbles", 0, 220, 540, 1900, 120],
-        ["field", 0, 2220, 540, 180, "#e8d39a", "#c9b277", 90],
-        ["ellipse", 270, 2300, 520, 170, "#e8d39a"],
-        ["seaweed", 0, 2300, 540, 14], ["seaweed", 0, 1980, 140, 6], ["seaweed", 400, 1990, 140, 6],
-        ["rocks", 20, 2260, 180, 90, "#8d8f8a"], ["rocks", 360, 2280, 160, 80, "#8d8f8a"],
+        ["rect", 0, 820, 540, 800, "#3a9fd8"],
+        ["rect", 0, 1560, 540, 840, "#2c84bf"],
+        ["rays", 200, 1100, 7],
+        ["bubbles", 0, 220, 540, 1900, 110],
+        ["kelp", 0, 1990, 110, 760, 4], ["kelp", 440, 1990, 100, 700, 4], ["kelp", 200, 1180, 130, 360, 3],
+        ["reef", 0, 1985, 230], ["reef", 330, 1985, 210],
+        ["seabed", 0, 2180, 540, 220],
+        ["wreck", 290, 2300, 1],
+        ["rocks", 0, 1300, 130, 90, "#7f8a8c"], ["rocks", 420, 860, 120, 80, "#7f8a8c"], ["reef", 380, 1350, 160], ["kelp", 20, 1330, 80, 320, 2],
+        ["rocks", 0, 560, 90, 60, "#8a9698"],
+        ["rocks", 20, 2300, 150, 60, "#8d8f8a"],
+        ["kelp", 470, 2390, 70, 160, 2], ["seaweed", 0, 2395, 540, 12],
       ],
       marks: [],
       zones: [
@@ -607,19 +612,22 @@
         ["rect", 0, 0, 540, 400, "#d7efff"],
         ["cloud", 60, 90, 0.8], ["cloud", 380, 140, 0.7],
         ["skyline", 400, "#c4d6e6"],
-        ["floor", 0, 400, 540, 500, "#e9d9b4", "#e0ceaa", 36],
-        ["floor", 0, 900, 540, 1400, "#f2e6c9", "#eadcbb", 36],
-        ["stall", 10, 1000, 160, "#ff7a7a"], ["stall", 190, 1000, 160, "#ffcf4a"], ["stall", 370, 1000, 160, "#7ac7ff"],
-        ["stall", 10, 1500, 160, "#7ac7ff"], ["stall", 190, 1500, 160, "#ff7a7a"], ["stall", 370, 1500, 160, "#4bb36a"],
-        ["stall", 10, 2010, 160, "#ffcf4a"], ["stall", 370, 2010, 160, "#ff7ab0"],
-        ["lamp", 270, 980], ["lamp", 270, 1480], ["bench", 270, 2200], ["bin", 200, 2240],
+        ["floor", 0, 400, 540, 520, "#e9d9b4", "#e0ceaa", 36],
+        ["floor", 0, 920, 540, 1380, "#f2e6c9", "#eadcbb", 36],
+        ["marketstall", 8, 1150, 168, "#ff7a7a"], ["marketstall", 186, 1150, 168, "#ffcf4a"], ["marketstall", 364, 1150, 168, "#7ac7ff"],
+        ["marketstall", 8, 1720, 168, "#4bb36a"], ["marketstall", 186, 1720, 168, "#ff7ab0"], ["marketstall", 364, 1720, 168, "#ffcf4a"],
+        ["marketstall", 8, 2250, 168, "#c27aff"], ["marketstall", 364, 2250, 168, "#ff7a7a"],
+        ["lamp", 270, 1420], ["bench", 90, 1450], ["bin", 470, 1440], ["bench", 450, 2000], ["lamp", 270, 2010],
+        ["bed", 196, 2120, 150, 70],
       ],
       marks: [],
       zones: [
         { id: "street", rect: [0, 410, 540, 480], n: 9, props: ["store", "tree", "house"], kinds: { walker: 2, stander: 1, dog: 1, bird: 2, cart: 1, biker: 1 } },
-        { id: "fruit", rect: [0, 1010, 540, 420], n: 16, kinds: { apple: 3, banana: 3, grapes: 2, strawberry: 3, pineapple: 1, lemon: 2, cherries: 2, watermelon: 1 } },
-        { id: "veg", rect: [0, 1510, 540, 430], n: 16, kinds: { carrot: 3, corn: 2, tomato: 3, broccoli: 2, eggplant: 2, basket: 1, mushroom: 2 } },
-        { id: "shoppers", rect: [0, 2020, 540, 260], n: 12, kinds: { bread: 2, cheese: 2, cart: 1, cook: 1, farmer: 1, stander: 1, friends: 1, basket: 1, wheelchair: 1, cat: 1 } },
+        { id: "fruit", rect: [0, 960, 540, 200], lanes: [1054, 1120], perLane: 10, n: 16, kinds: { apple: 3, banana: 3, grapes: 2, strawberry: 3, pineapple: 1, lemon: 2, cherries: 2, watermelon: 1 } },
+        { id: "aisle", rect: [0, 1190, 540, 330], n: 10, kinds: { walker: 2, stander: 2, cart: 1, friends: 1, wheelchair: 1, dog: 1, cat: 1, basket: 1 } },
+        { id: "veg", rect: [0, 1530, 540, 200], lanes: [1624, 1690], perLane: 10, n: 16, kinds: { carrot: 3, corn: 2, tomato: 3, broccoli: 2, eggplant: 2, mushroom: 2 } },
+        { id: "shoppers", rect: [0, 1760, 540, 300], n: 10, kinds: { cart: 1, cook: 1, farmer: 1, stander: 1, friends: 1, basket: 1, cat: 1, walker: 1 } },
+        { id: "bakery", rect: [0, 2060, 540, 200], lanes: [2154, 2220], perLane: 8, n: 10, kinds: { bread: 3, cheese: 3, basket: 1, cherries: 1 } },
       ],
       hide: ["store", "tree", "house"],
       finds: { grapes: 1, pineapple: 1, watermelon: 1, cherries: 1, broccoli: 1, eggplant: 1, bread: 1, cheese: 1, cart: 1, basket: 1, cook: 1, farmer: 1, dog: 1, cat: 1,
@@ -820,13 +828,39 @@
   // things he is after (the swan beside the duck, the tomato among the apples).
   //   shadow  the list's pictures are silhouettes until found
   //   like    how many look-alikes join each thing on the list (LIKE below)
+  //   clue    one thing on the list is asked for WITH A CLUE (the runner in
+  //           blue, the dog under the tree), and two more of it stand
+  //           elsewhere that do not fit the clue (CLUES below)
+  //   inside  one thing on the list hides INSIDE scenery (a tent, a tree, a
+  //           house) that wiggles: tap it and out it pops
   const LEVELS = [
     { fill: 1.5, buddy: [0.62, 0.78], count: [2, 3] },
-    { fill: 1.8, buddy: [0.5, 0.66], count: [3, 4] },
-    { fill: 2.1, buddy: [0.42, 0.56], count: [3, 5] },
-    { fill: 2.3, buddy: [0.38, 0.52], count: [4, 5], shadow: true },
-    { fill: 2.4, buddy: [0.34, 0.48], count: [4, 6], shadow: true, like: 2 },
+    { fill: 1.8, buddy: [0.5, 0.66], count: [3, 4], clue: true },
+    { fill: 2.1, buddy: [0.42, 0.56], count: [3, 5], clue: true, inside: true },
+    { fill: 2.3, buddy: [0.38, 0.52], count: [4, 5], shadow: true, clue: true, inside: true },
+    { fill: 2.4, buddy: [0.34, 0.48], count: [4, 6], shadow: true, like: 2, clue: true, inside: true },
   ];
+
+  // Clue hunts: position words and colour words, his working edge.
+  //  - COLOUR: a person whose shirt the page recolours, three of them in three
+  //    shirts of clearly different colours; the clue names one. Only kinds
+  //    whose shirt really changes (measured by drawing every person in every
+  //    shirt) and only shirts with a plain name (never orange, pink or teal,
+  //    which sit too close to red, purple and green).
+  //  - UNDER / NEXT TO: one stands at a piece of scenery; the other two stand
+  //    far from every piece of that kind. UNDER is for scenery with a roof or
+  //    a canopy over the ground; anything else is NEXT TO.
+  const CLUES = {
+    colourKinds: ["runner", "walker", "stander", "wheelchair", "cartwheel", "juggler", "fairy"],
+    colours: { 1: "red", 2: "blue", 3: "green", 4: "purple", 5: "yellow" },
+    swatch: { 1: "#e0382a", 2: "#2f6fe0", 3: "#2fbf3f", 4: "#9a3fd8", 5: "#f2c21a" },
+    under: ["tree", "pine", "palm", "umbrella", "partytent", "web"],
+    decoys: 2,
+  };
+
+  // A story picture: one of his friends has lost things and asks for them one
+  // at a time (the next card stays a ? until the last one is found).
+  const FRIENDS = ["River", "Raegar", "Viraj"];
 
   // Look-alikes: things of a DIFFERENT name that a quick look could mix up.
   // Never the same group (that would make a wrong answer right), and a
@@ -876,12 +910,23 @@
     shadows: "Tricky! Find the shadows!",
     trickier: "Next time, a trickier picture!",
     look: "Look here!",
+    clue: (kind, phrase) => "the " + kind + " " + phrase,
+    decoy: (name) => "Not that one! Find " + name + "!",
+    popped: (name, where) => "Look! The " + name + " was hiding in the " + where + "!",
+    storyStart: (friend, what) => "Oh no! " + friend + " lost " + what + "! Can you find it?",
+    storyNext: (friend, what) => "Thank you! Now " + friend + " needs " + what + ".",
+    storyCount: (friend, what) => "Thank you! Now " + friend + " needs " + what + ". Count them!",
+    storyBuddy: (friend, buddy) => "Thank you! Now " + friend + " wants to find " + buddy + ". Where is " + buddy + "?",
+    storyEnd: (friend) => friend + " says thank you! You found everything!",
+    notYet: "Not yet! Find the one in the bubble first.",
+    night: "It's dark! Move your finger to shine the flashlight!",
+    lightsOn: "Lights on! You found everything!",
   };
 
   // The world's own mark: on the front door and its home.
   const LOGO = "magnifying-glass-tilted-left";
 
-  const SeekData = { W, SCALE, DENSE, TONES, KINDS, PLACES, LEVELS, LIKE, SAY, LOGO };
+  const SeekData = { W, SCALE, DENSE, TONES, KINDS, PLACES, LEVELS, LIKE, CLUES, FRIENDS, SAY, LOGO };
   if (typeof module !== "undefined" && module.exports) module.exports = SeekData;
   global.SeekData = SeekData;
 })(typeof window !== "undefined" ? window : globalThis);

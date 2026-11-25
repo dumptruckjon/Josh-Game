@@ -72,12 +72,96 @@ test("FAIR: each find is in the picture exactly as often as the list says, nothi
     for (const e of o.list) {
       if (e.kind === "buddy") { assert.equal(o.items.filter((it) => it.role === "buddy").length, 1, tag + ": one buddy"); continue; }
       const same = o.items.filter((it) => L.groupOf(it.kind) === L.groupOf(e.kind));
+      if (e.clue) {
+        // a clue hunt: the one it asks for, and one or two of the SAME thing
+        // that do not fit the clue — the clue picks out exactly one
+        assert.ok(D.LEVELS[level].clue, tag + ": no clue before its level");
+        const finds = same.filter((it) => it.role === "find"), decoys = same.filter((it) => it.role === "decoy");
+        assert.equal(finds.length, 1, tag + ": one " + e.kind + " fits the clue");
+        assert.equal(finds[0].art, e.art, tag + ": …and it is the card's picture");
+        assert.ok(decoys.length >= 1 && decoys.length <= D.CLUES.decoys, tag + ": " + decoys.length + " that do not");
+        assert.equal(decoys.length + 1, same.length, tag + ": nothing else of its group");
+        assert.ok(L.clueHolds(p, o.items, e), tag + ": the clue (" + e.clue.word + ") is TRUE of exactly one");
+        continue;
+      }
       assert.equal(same.length, e.n, tag + ": " + e.kind + " is in the picture " + same.length + " times, the list says " + e.n);
       assert.ok(same.every((it) => it.role === "find" && it.kind === e.kind), tag + ": every " + e.kind + " is one of the finds");
       assert.ok(same.every((it) => it.art === e.art), tag + ": every " + e.kind + " is the SAME picture as its card");
     }
   });
   assert.ok(pictures >= 250, "laid out " + pictures + " pictures");
+});
+
+test("CLUE hunts: most harder pictures ask for one thing with a position or colour word; the clue is true of exactly one, the decoys plainly not; a colour clue's shirts are three different named colours", () => {
+  let pics = 0, clued = 0;
+  const types = {};
+  each((p, level, seed, o) => {
+    const c = o.list.filter((e) => e.clue);
+    assert.ok(c.length <= 1, "at most one clue a picture");
+    if (!D.LEVELS[level].clue) { assert.equal(c.length, 0, p.id + ": no clue on level " + level); assert.equal(o.items.filter((it) => it.role === "decoy").length, 0, "no decoys without a clue"); return; }
+    pics++;
+    if (!c.length) return;
+    clued++;
+    const e = c[0];
+    types[e.clue.type] = (types[e.clue.type] || 0) + 1;
+    assert.ok(!D.KINDS[e.kind].sky && e.n === 1, p.id + ": a clue asks for ONE thing on the ground");
+    if (e.clue.type === "colour") {
+      const same = o.items.filter((it) => it.kind === e.kind);
+      const shirts = same.map((it) => it.art.split("~")[1]);
+      assert.equal(new Set(shirts).size, shirts.length, p.id + ": every " + e.kind + " wears a different shirt");
+      for (const sh of shirts) assert.ok(D.CLUES.colours[sh], p.id + ": shirt " + sh + " has a plain colour name");
+      assert.ok(D.CLUES.colourKinds.indexOf(e.kind) >= 0, p.id + ": " + e.kind + "'s shirt really changes");
+    } else {
+      assert.match(e.clue.word, /^(under|on|next to) the [a-z ]+$/, "a position word and a thing: " + e.clue.word);
+      // the decoys are not merely outside the clue: they are plainly far
+      const marks = L.anchors(p, o.items).filter((a) => a.say === e.clue.say);
+      assert.ok(marks.length >= 1, p.id + ": the " + e.clue.say + " is in the picture");
+      for (const it of o.items.filter((x) => x.role === "decoy")) for (const a of marks) {
+        const d = Math.hypot(it.x - a.x, it.y + it.size / 2 - a.foot);
+        assert.ok(d > a.w / 2 + it.size * 0.7 + L.FAR - 0.01, p.id + ": a decoy " + it.kind + " stands well away from every " + a.say);
+      }
+    }
+  });
+  assert.ok(clued / pics >= 0.85, "most harder pictures carry a clue (" + clued + "/" + pics + ")");
+  for (const t of ["under", "next", "on", "colour"]) assert.ok(types[t] >= 10, "clues of every kind turn up: " + t + " " + (types[t] || 0));
+});
+
+test("HIDING INSIDE: on the harder levels one thing hides in a piece of scenery big enough to hold it; a tap cannot reach it until it is out, and out it shows like any find", () => {
+  let pics = 0, hid = 0;
+  each((p, level, seed, o) => {
+    const inside = o.items.filter((it) => it.inside);
+    if (!D.LEVELS[level].inside) { assert.equal(inside.length, 0, p.id + ": nothing hides before its level"); return; }
+    pics++;
+    if (!inside.length) return;
+    hid++;
+    assert.equal(inside.length, 1, "one thing a picture");
+    const it = inside[0], i = o.items.indexOf(it);
+    assert.ok(it.hidden && it.role === "find", "it is a hidden find");
+    const e = o.list.find((x) => x.kind === it.kind);
+    assert.ok(e && e.n === 1 && !e.clue && e.inside, p.id + ": the list knows " + it.kind + " is inside a " + e.inside);
+    assert.ok(!p.zones.some((z) => z.lanes && z.kinds[it.kind]), p.id + ": what drives on a road never hides in a tree");
+    const b = o.items.findIndex((x) => x.holds);
+    assert.ok(b >= 0, p.id + ": the scenery that holds it");
+    assert.equal(L.heldBy(o.items, b), i, p.id + ": heldBy finds it");
+    assert.ok(o.items[b].size >= it.size * 1.4, p.id + ": the box is big enough");
+    assert.ok(i > b, "out, it is drawn in front of its box");
+    assert.ok(L.visibleFrac(o.items, i) >= 0.78, p.id + ": out, it shows");
+    // a tap where it is lands on the box, never on it
+    assert.notEqual(L.hitTest(o.items, it.x, it.y, 0), i, p.id + ": hidden, it cannot be tapped");
+    const buddy = o.items.find((x) => x.role === "buddy");
+    assert.ok(!(Math.hypot(o.items[b].x - buddy.x, o.items[b].y - buddy.y) < L.rOf(o.items[b]) + L.rOf(buddy)), p.id + ": never the buddy's hiding place");
+  });
+  assert.ok(hid / pics >= 0.7, "most harder pictures hide something (" + hid + "/" + pics + ")");
+});
+
+test("a STORY's friends are Josh's own friends, and every new line is words", () => {
+  const C = require("../scripts/content.js");
+  const names = (C.FRIENDS || []).map((f) => f.name);
+  for (const f of D.FRIENDS) assert.ok(names.indexOf(f) >= 0, f + " is one of his friends");
+  const lines = [D.SAY.clue("dog", "under the tree"), D.SAY.decoy("the dog"), D.SAY.popped("dog", "tent"), D.SAY.storyStart("River", "the dog"),
+    D.SAY.storyNext("River", "x"), D.SAY.storyCount("River", "3 x"), D.SAY.storyBuddy("River", "Spidey"), D.SAY.storyEnd("River"), D.SAY.notYet, D.SAY.night, D.SAY.lightsOn];
+  for (const l of lines) assert.ok(!EMOJI.test(l), "no picture in: " + l);
+  for (const l of lines) assert.ok(!/\b(he|she|his|her)\b/i.test(l), "no pronoun guessed for a friend: " + l);
 });
 
 test("FAIR: every find shows (nothing in front covers more than a little of it), the buddy peeks by the level's share, and all of it is inside the picture", () => {
@@ -172,6 +256,7 @@ test("a tap: the topmost body under the finger, else the nearest within reach, e
     const o = L.layout(p.id, { seed, level: 2 });
     o.items.forEach((it, i) => {
       if (it.role !== "find" && it.role !== "buddy") return;
+      if (it.hidden) return;                   // inside scenery: its box is tapped (HIDING INSIDE)
       // a point on the visible part of its body
       const R = L.rOf(it);
       let hit = false;

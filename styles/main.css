@@ -5063,25 +5063,25 @@ body.in-game .screen.seek-play { flex: 1 1 auto; display: flex; flex-direction: 
 /* 🎲 Surprise and 📒 My Finds, above the doors */
 .seek-extras {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 16px;
 }
 .seek-extra {
   display: grid;
-  grid-auto-flow: column;
-  justify-content: center;
-  align-items: center;
-  column-gap: 8px;
+  grid-auto-flow: row;
+  justify-items: center;
+  align-content: center;
+  row-gap: 2px;
   min-height: 84px;
-  padding: 8px;
+  padding: 8px 4px;
   border-radius: 22px;
   background: linear-gradient(160deg, #fff7d6, #ffe7a3);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 .seek-extra:active { transform: scale(0.97); }
 .seek-extra__pic { font-size: 2.2rem; line-height: 1; }
-.seek-extra__label { font-size: clamp(0.95rem, 4.4vw, 1.2rem); font-weight: 900; color: #5b3a00; }
+.seek-extra__label { font-size: clamp(0.8rem, 3.8vw, 1.15rem); font-weight: 900; color: #5b3a00; text-align: center; line-height: 1.15; }
 .seek-albumcount { display: block; font-size: 0.85em; }
 
 /* 📒 My Finds: a section per place, a sticker per thing it can ask for. An
@@ -5132,4 +5132,98 @@ body.in-game .screen.seek-play { flex: 1 1 auto; display: flex; flex-direction: 
   .seek-it--pop .seek-it__pic, .seek-it--wig .seek-it__pic, .seek-it--again .seek-it__pic, .seek-card--pop .seek-card__pic { animation: none; }
   .seek-it--float, .seek-it--swim, .seek-it--peekaboo .seek-it__pic, .seek-sticker--pop .seek-sticker__pic { animation: none; }
   .seek-fly { transition: none; }
+  .seek-it--rumble .seek-it__pic, .seek-it--shake .seek-it__pic, .seek-flyout, .seek-card--now { animation: none; }
 }
+
+/* 🔦 Night hunt: the dark lies over the picture (not the list), with a beam
+   where the finger is. It takes no taps — a tap anywhere is still judged. */
+.seek-dark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  border-radius: 20px;
+}
+.seek-play--night .seek-field { box-shadow: inset 0 0 0 3px rgba(255, 233, 160, 0.6), 0 6px 16px rgba(0, 0, 0, 0.2); }
+
+/* A story: the friend who lost things, and what they want now, in a bubble
+   at the top of the picture. Tap it to hear it again. */
+.seek-bubble {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  display: grid;
+  grid-template-columns: 64px 64px;
+  align-items: center;
+  column-gap: 10px;
+  min-height: 80px;
+  padding: 6px 12px 6px 6px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
+}
+.seek-bubble__who { display: block; width: 64px; height: 64px; }
+.seek-bubble__who svg, .seek-bubble__buddy svg { width: 100%; height: 100%; display: block; }
+.seek-bubble__say {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: #fff6d6;
+  box-shadow: inset 0 0 0 3px #f2c21a;
+}
+.seek-bubble__say::before {
+  content: "";
+  position: absolute;
+  left: -9px;
+  top: 24px;
+  border-style: solid;
+  border-width: 8px 10px 8px 0;
+  border-color: transparent #f2c21a transparent transparent;
+}
+.seek-bubble__pic, .seek-bubble__buddy { width: 52px; height: 52px; display: block; }
+
+/* A story's cards: the one asked for now glows, the later ones are a ? */
+.seek-card__q { display: none; font-size: 2.4rem; font-weight: 900; color: #8a6d00; line-height: 1; }
+.seek-card--locked { background: #fff6d6; }
+.seek-card--locked .seek-card__pic, .seek-card--locked .seek-card__count, .seek-card--locked .seek-card__clue { visibility: hidden; }
+.seek-card--locked .seek-card__q { display: block; position: absolute; }
+.seek-card--now { box-shadow: 0 0 0 4px #f2c21a, 0 6px 14px rgba(0, 0, 0, 0.14); animation: seekNow 1.6s ease-in-out infinite alternate; }
+@keyframes seekNow { from { box-shadow: 0 0 0 3px #f2c21a, 0 6px 14px rgba(0, 0, 0, 0.14); } to { box-shadow: 0 0 0 7px #f2c21a, 0 6px 14px rgba(0, 0, 0, 0.14); } }
+
+/* A clue card: its clue as a picture in the corner (a colour, or the piece
+   of the world the thing stands at) */
+.seek-card__clue {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.seek-card__cluepic { width: 24px; height: 24px; display: block; }
+
+/* Scenery: something inside wiggles now and then; a tap shakes it */
+.seek-it--hidden { visibility: hidden; }
+.seek-it--rumble .seek-it__pic { animation: seekRumble 3.2s ease-in-out infinite; }
+@keyframes seekRumble { 0%, 78%, 100% { transform: rotate(0); } 82% { transform: rotate(-4deg); } 86% { transform: rotate(4deg); } 90% { transform: rotate(-3deg); } 94% { transform: rotate(2deg); } }
+.seek-it--shake .seek-it__pic { animation: seekShake 0.5s ease; }
+@keyframes seekShake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-6%); } 40% { transform: translateX(6%); } 60% { transform: translateX(-4%); } 80% { transform: translateX(3%); } }
+.seek-flyout {
+  position: absolute;
+  width: 9%;
+  margin-left: -4.5%;
+  pointer-events: none;
+  animation: seekFlyout 1.2s ease-out forwards;
+}
+@keyframes seekFlyout { from { transform: translate(0, 0) scale(0.6); opacity: 1; } to { transform: translate(60%, -260%) scale(1); opacity: 0; } }

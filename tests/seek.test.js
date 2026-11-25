@@ -412,3 +412,202 @@ test("reduced motion: the picture holds still and nothing flies", async () => {
     assert.equal(await p.evaluate(() => window.__SEEK.flying()), 0, "nothing flies");
   } finally { await ctx.close(); }
 });
+
+// ---- Clues, stories, hiding inside, and the flashlight (the owner's picks,
+// 2026-11-25: "1, 2, 3, 4, 6. Go") --------------------------------------------
+
+// A picture of `id` on `level` with what `want` asks for (a clue, something
+// hidden inside): new pictures until one has it (each is a new seed).
+async function pictureWith(id, level, want) {
+  await spy();
+  await page.evaluate(() => window.__SEEK.reset());
+  await go("#seek-home", "#screen-seek-home");
+  await page.evaluate(() => { location.hash = "#seek-play"; });
+  await page.locator("#screen-seek-play").waitFor({ state: "visible" });
+  for (let k = 0; k < 30; k++) {
+    const ok = await page.evaluate(([p, lv, w]) => {
+      window.__SEEK.setStars(p, lv);
+      window.__SEEK.start(p, { story: false });
+      const r = window.__SEEK.run();
+      const its = window.__SEEK.items();
+      return (!w.clue || r.list.some((e) => e.clue && e.clue.type !== "colour")) && (!w.inside || its.some((it) => it.holds));
+    }, [id, level, want]);
+    if (ok) { await page.waitForTimeout(500); return; }
+  }
+  throw new Error("no picture of " + id + " with " + JSON.stringify(want));
+}
+
+test("CLUE hunt: the card asks for ONE of three (the dog next to the bench) and shows its clue as a picture; a decoy says 'not that one' and marks nothing; the right one is found", async () => {
+  await pictureWith("park", 2, { clue: true });
+  const r = await run();
+  const li = r.list.findIndex((e) => e.clue);
+  const e = r.list[li];
+  const its = await items();
+  const decoys = its.map((it, i) => ({ it, i })).filter((x) => x.it.role === "decoy");
+  const target = its.findIndex((it) => it.role === "find" && it.kind === e.kind);
+  assert.ok(decoys.length >= 1 && target >= 0, "the one it asks for and the ones it does not");
+  const card = await page.evaluate((k) => {
+    const c = document.querySelectorAll(".seek-card")[k];
+    const b = c.querySelector(".seek-card__clue");
+    return { badge: !!b && b.getBoundingClientRect().width > 20, label: c.getAttribute("aria-label") };
+  }, li);
+  assert.ok(card.badge, "the clue is on the card as a picture, so it reads with the sound off");
+  assert.ok(card.label.indexOf(e.clue.word) >= 0, "the card says the clue: " + card.label);
+  await page.evaluate(() => { window.__said.length = 0; });
+  await page.locator(".seek-hear").click();
+  let said = await page.evaluate(() => window.__said.slice());
+  assert.ok(said.some((s) => s.indexOf(e.clue.word) >= 0), "👂 says the clue: " + said.join(" | "));
+  await page.evaluate(() => { window.__said.length = 0; });
+  await tapItem(decoys[0].i);
+  assert.equal((await run()).found.indexOf(decoys[0].i), -1, "a decoy marks nothing");
+  said = await page.evaluate(() => window.__said.slice());
+  assert.ok(said.some((s) => /^Not that one! Find the .+ (under|on|next to) the /.test(s)), "…and says which one to find: " + said.join(" | "));
+  await tapItem(target);
+  const after = await run();
+  assert.ok(after.found.indexOf(target) >= 0 && after.list[li].done, "the one the clue picks out is found");
+  assert.equal(pageErrors.length, 0, pageErrors.join(" | "));
+});
+
+test("HIDING INSIDE: scenery with something in it wiggles; the thing cannot be seen or tapped; a tap on the scenery shakes it and out pops the find. Any other scenery just shakes (a tree lets something fly out) and names itself", async () => {
+  await pictureWith("park", 2, { inside: true });
+  let its = await items();
+  const box = its.findIndex((it) => it.holds);
+  const hid = its.findIndex((it) => it.hidden);
+  assert.ok(box >= 0 && hid >= 0, "a box and what hides in it");
+  const st = await page.evaluate(([b, h]) => ({
+    rumble: document.querySelector('.seek-it[data-i="' + b + '"]').classList.contains("seek-it--rumble"),
+    anim: getComputedStyle(document.querySelector('.seek-it[data-i="' + b + '"] .seek-it__pic')).animationName,
+    hidden: getComputedStyle(document.querySelector('.seek-it[data-i="' + h + '"]')).visibility,
+  }), [box, hid]);
+  assert.ok(st.rumble && st.anim === "seekRumble", "the box wiggles now and then (" + st.anim + ")");
+  assert.equal(st.hidden, "hidden", "what is inside does not show");
+  await page.evaluate(() => { window.__said.length = 0; });
+  await tapItem(box);
+  const r = await run();
+  assert.ok(r.found.indexOf(hid) >= 0, "a tap on the box finds what was inside");
+  const out = await page.evaluate((h) => getComputedStyle(document.querySelector('.seek-it[data-i="' + h + '"]')).visibility, hid);
+  assert.equal(out, "visible", "…and it shows now");
+  const said = await page.evaluate(() => window.__said.slice());
+  assert.ok(said.some((s) => /^Look! The .+ was hiding in the /.test(s)), "…and says where it was: " + said.join(" | "));
+  assert.ok(!(await page.evaluate((b) => document.querySelector('.seek-it[data-i="' + b + '"]').classList.contains("seek-it--rumble"), box)), "the box stops wiggling");
+  // a tree that holds nothing: it shakes, something flies out, it names itself
+  its = await items();
+  const tree = its.findIndex((it, i) => it.role === "prop" && ["tree", "pine"].indexOf(it.kind) >= 0 && !it.holds && i !== box);
+  await page.evaluate(() => { window.__said.length = 0; });
+  await tapItem(tree);
+  const shook = await page.evaluate(() => document.querySelectorAll(".seek-flyout").length);
+  assert.ok(shook >= 1, "a shaken tree lets something fly out");
+  const said2 = await page.evaluate(() => window.__said.slice());
+  assert.ok(said2.some((s) => /^That's a (tree|pine tree)\.$/.test(s)), "…and says what it is: " + said2.join(" | "));
+  assert.equal((await run()).found.length, 1, "shaking scenery finds nothing else");
+  await page.waitForTimeout(1500);
+  assert.equal(await page.evaluate(() => document.querySelectorAll(".seek-flyout").length), 0, "what flew out is gone");
+  assert.equal(pageErrors.length, 0, pageErrors.join(" | "));
+});
+
+test("a STORY picture: a friend's bubble shows what they lost, the cards after it stay a ? until it is found (a later thing says 'not yet'), and each find moves the story on", async () => {
+  await spy();
+  await page.evaluate(() => window.__SEEK.reset());
+  await go("#seek-home", "#screen-seek-home");
+  await page.evaluate(() => { location.hash = "#seek-play"; window.__said.length = 0; });
+  await page.locator("#screen-seek-play").waitFor({ state: "visible" });
+  await page.evaluate(() => window.__SEEK.start("park", { story: true }));
+  await page.waitForTimeout(700);
+  let r = await run();
+  assert.ok(r.story && r.step === 0, "a story, on its first step");
+  let said = await page.evaluate(() => window.__said.slice());
+  assert.ok(said.some((s) => s.indexOf("Oh no! " + r.friend + " lost ") === 0), "the friend's story starts: " + said.join(" | "));
+  const ui = await page.evaluate(() => ({
+    bubble: !document.querySelector(".seek-bubble").hidden && document.querySelector(".seek-bubble").getBoundingClientRect().height >= 75,
+    who: !!document.querySelector(".seek-bubble__who svg"),
+    want: !!document.querySelector(".seek-bubble__say img, .seek-bubble__say svg"),
+    cards: [...document.querySelectorAll(".seek-card")].map((c) => ({ now: c.classList.contains("seek-card--now"), locked: c.classList.contains("seek-card--locked"), q: getComputedStyle(c.querySelector(".seek-card__q")).display })),
+  }));
+  assert.ok(ui.bubble && ui.who && ui.want, "the bubble: the friend, and what they want");
+  assert.ok(ui.cards[0].now && !ui.cards[0].locked, "the first card is the one asked for");
+  for (const c of ui.cards.slice(1)) assert.ok(c.locked && c.q !== "none", "the later cards are a ?");
+  // a later thing: not yet
+  const its = await items();
+  const later = its.findIndex((it) => it.role === "find" && it.kind === r.list[1].kind && !it.hidden);
+  await page.evaluate(() => { window.__said.length = 0; });
+  await tapItem(later);
+  assert.equal((await run()).found.length, 0, "a thing further on in the story waits its turn");
+  said = await page.evaluate(() => window.__said.slice());
+  assert.ok(said.indexOf("Not yet! Find the one in the bubble first.") >= 0, "…and says so: " + said.join(" | "));
+  // the first thing: found, and the story moves on
+  const first = its.findIndex((it) => it.role === "find" && it.kind === r.list[0].kind && !it.hidden);
+  await page.evaluate(() => { window.__said.length = 0; });
+  await tapItem(first);
+  await page.waitForTimeout(1300);
+  r = await run();
+  assert.equal(r.step, 1, "the story is on its second step");
+  said = await page.evaluate(() => window.__said.slice());
+  assert.ok(said.some((s) => s.indexOf("Thank you! Now " + r.friend + " needs ") === 0), "the friend asks for the next thing: " + said.join(" | "));
+  const c1 = await page.evaluate(() => { const c = document.querySelectorAll(".seek-card")[1]; return { now: c.classList.contains("seek-card--now"), locked: c.classList.contains("seek-card--locked") }; });
+  assert.ok(c1.now && !c1.locked, "its card is the one asked for now");
+  // finish: the friend says thank you, and the bubble goes
+  const all = await items();
+  for (let k = 0; k < 4; k++) {
+    const cur = await run();
+    const st = cur.step;
+    if (st < 0) break;
+    const e = cur.list[st];
+    for (let i = 0; i < all.length; i++) {
+      const it = all[i];
+      if (cur.found.indexOf(i) >= 0) continue;
+      if ((e.kind === "buddy" && it.role === "buddy") || (it.role === "find" && it.kind === e.kind)) await page.evaluate((q) => window.__SEEK.markForTest(q), i);
+    }
+  }
+  await page.locator(".seek-win").waitFor({ state: "visible", timeout: 4000 });
+  said = await page.evaluate(() => window.__said.slice());
+  assert.ok(said.some((s) => s === r.friend + " says thank you! You found everything!"), "the party is the friend's thanks: " + said.join(" | "));
+  assert.ok(await page.evaluate(() => document.querySelector(".seek-bubble").hidden), "the bubble goes at the party");
+  assert.equal(pageErrors.length, 0, pageErrors.join(" | "));
+});
+
+test("🔦 NIGHT HUNT: the home's flashlight opens a dark picture with a beam where the finger is; a tap anywhere is still judged; the party turns the lights on", async () => {
+  await spy();
+  await page.evaluate(() => window.__SEEK.reset());
+  await go("#seek-home", "#screen-seek-home");
+  await page.evaluate(() => { window.__said.length = 0; });
+  await page.locator(".seek-nightbtn").click();
+  await page.waitForFunction(() => { const r = window.__SEEK.run(); return r && r.night; });
+  await page.waitForTimeout(700);
+  const dark = await page.evaluate(() => {
+    const d = document.querySelector(".seek-dark");
+    const f = document.querySelector(".seek-field").getBoundingClientRect(), r = d.getBoundingClientRect();
+    return { shown: !d.hidden, bg: d.style.background, cover: r.width >= f.width - 1 && r.height >= f.height - 1, pe: getComputedStyle(d).pointerEvents };
+  });
+  assert.ok(dark.shown && dark.cover && /radial-gradient/.test(dark.bg), "the picture is dark but for a beam");
+  assert.equal(dark.pe, "none", "the dark takes no taps");
+  let said = await page.evaluate(() => window.__said.slice());
+  assert.ok(said.indexOf("It's dark! Move your finger to shine the flashlight!") >= 0, "it says how: " + said.join(" | "));
+  // the beam follows a finger on the picture
+  const f = await page.evaluate(() => { const r = document.querySelector(".seek-field").getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+  await page.touchscreen.tap(f.x + f.w * 0.25, f.y + f.h * 0.7);
+  await page.waitForTimeout(200);
+  const b = await page.evaluate(() => window.__SEEK.beam());
+  assert.ok(Math.abs(b.x - f.w * 0.25) < 4 && Math.abs(b.y - f.h * 0.7) < 4, "the beam is where the finger was (" + JSON.stringify(b) + ")");
+  // a find is found in the dark like in the day
+  const its = await items();
+  const r = await run();
+  const one = its.findIndex((it) => it.role === "find" && !it.hidden && r.list.find((e) => e.kind === it.kind && !e.clue));
+  await tapItem(one);
+  assert.ok((await run()).found.indexOf(one) >= 0, "a tap in the dark finds it");
+  // the party: lights on
+  await page.evaluate(() => { window.__said.length = 0; });
+  const all = await items();
+  const cur = await run();
+  for (let i = 0; i < all.length; i++) {
+    const it = all[i];
+    if (cur.found.indexOf(i) < 0 && (it.role === "find" || it.role === "buddy")) await page.evaluate((q) => window.__SEEK.markForTest(q), i);
+  }
+  // a hidden find comes out through its box
+  const box = all.findIndex((it) => it.holds);
+  if (box >= 0) await page.evaluate((q) => window.__SEEK.markForTest(q), box);
+  await page.locator(".seek-win").waitFor({ state: "visible", timeout: 4000 });
+  said = await page.evaluate(() => window.__said.slice());
+  assert.ok(said.indexOf("Lights on! You found everything!") >= 0, "the lights come on: " + said.join(" | "));
+  assert.ok(await page.evaluate(() => document.querySelector(".seek-dark").hidden), "…and the dark is gone");
+  assert.equal(pageErrors.length, 0, pageErrors.join(" | "));
+});

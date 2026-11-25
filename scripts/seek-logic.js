@@ -187,6 +187,193 @@
     return ord;
   }
 
+  // ---- Clues ------------------------------------------------------------------
+  // Which singles on the list may carry the clue, in the order to try them
+  // (never the thing to count, never something in the sky).
+  function clueCandidate(r, list) {
+    const ok = [];
+    for (let i = 0; i < list.length; i++) {
+      const l = list[i], k = D.KINDS[l.kind];
+      if (l.n === 1 && !k.sky) ok.push(i);
+    }
+    // a person whose shirt can change: half the time, a colour clue
+    const col = ok.filter((i) => D.CLUES.colourKinds.indexOf(list[i].kind) >= 0);
+    if (col.length && r() < 0.5) return col.concat(ok.filter((i) => col.indexOf(i) < 0));
+    return ok;
+  }
+  // The pieces of the world a clue can name: the big scenery things (a tree,
+  // a tent, a house) and the set pieces drawn in the ground (a bench, a lamp
+  // post, a slide, a blanket). Each is a GROUND POINT (where its foot is) and
+  // a width; `word` is how a thing stands at it.
+  const LANDMARK = {
+    bench: (a) => ({ say: "bench", x: a[0], foot: a[1] + 14, w: 64, word: "next" }),
+    lamp: (a) => ({ say: "lamp post", x: a[0], foot: a[1], w: 18, word: "next" }),
+    bin: (a) => ({ say: "trash can", x: a[0], foot: a[1], w: 24, word: "next" }),
+    slide: (a) => ({ say: "slide", x: a[0] + 10, foot: a[1], w: 90, word: "next" }),
+    swings: (a) => ({ say: "swings", x: a[0], foot: a[1], w: 100, word: "next" }),
+    bush: (a) => ({ say: "bush", x: a[0], foot: a[1] + 14 * (a[2] || 1), w: 64 * (a[2] || 1), word: "next" }),
+    tree: (a) => ({ say: "tree", x: a[0], foot: a[1], w: 90 * (a[2] || 1), word: "under" }),
+    tent: (a) => ({ say: "tent", x: a[0], foot: a[1], w: 112, word: "next" }),
+    wreck: (a) => ({ say: "shipwreck", x: a[0], foot: a[1], w: 200 * (a[2] || 1), word: "next" }),
+    kelp: (a) => ({ say: "seaweed", x: a[0] + a[2] / 2, foot: a[1], w: Math.max(40, a[2]), word: "next" }),
+    marketstall: (a) => ({ say: "market stall", x: a[0] + a[2] / 2, foot: a[1], w: a[2], word: "next" }),
+    blanket: (a) => ({ say: "blanket", x: a[0] + a[2] / 2, foot: a[1] + a[3] / 2, w: Math.min(a[2], a[3] * 1.6), word: "on" }),
+  };
+  function anchors(place, items) {
+    const out = [];
+    for (const g of place.ground || []) if (LANDMARK[g[0]]) out.push(LANDMARK[g[0]](g.slice(1)));
+    for (const p of items) {
+      if (p.role !== "prop" || D.KINDS[p.kind].sky) continue;
+      out.push({ say: D.KINDS[p.kind].say, x: p.x, foot: p.y + p.size * 0.4, w: p.size * 0.6, word: D.CLUES.under.indexOf(p.kind) >= 0 ? "under" : "next", bottom: p.y + p.size / 2 });
+    }
+    return out;
+  }
+  // Does a landmark stand by a zone? Its foot is in the zone, or (not for a
+  // water zone) within a short step of its edge: the tree at the meadow's edge.
+  function nearZone(z, a) {
+    if (inZone(z, a.x, a.foot)) return true;
+    if (z.oval) return false;
+    const [x, y, w, h] = z.rect, M = 120;
+    return a.x >= x - M && a.x <= x + w + M && a.foot >= y - M && a.foot <= y + h + M;
+  }
+  // Is a thing standing at landmark a? The one measure the placing, the
+  // decoys and the test all use.
+  const atMark = (it, a) => Math.hypot(it.x - a.x, it.y + it.size / 2 - a.foot) <= a.w / 2 + it.size * 0.7;
+  // Decoys stand well clear of every landmark the clue names.
+  const FAR = 70;
+  const farFrom = (x, y, size, marks) => marks.every((a) => Math.hypot(x - a.x, y + size / 2 - a.foot) > a.w / 2 + size * 0.7 + FAR);
+  // Does the clue on list entry l pick out exactly ONE thing in the picture,
+  // and is every decoy plainly not it?
+  function clueHolds(place, items, l) {
+    const c = l.clue;
+    const same = items.filter((it) => it.kind === l.kind && (it.role === "find" || it.role === "decoy"));
+    if (!same.some((it) => it.role === "decoy")) return false;
+    if (c.type === "colour") {
+      const hits = same.filter((it) => it.art.split("~")[1] === String(c.shirt));
+      return hits.length === 1 && hits[0].role === "find";
+    }
+    const marks = anchors(place, items).filter((a) => a.say === c.say);
+    const hits = same.filter((it) => marks.some((a) => atMark(it, a)));
+    if (hits.length !== 1 || hits[0].role !== "find") return false;
+    return same.filter((it) => it.role === "decoy").every((it) => farFrom(it.x, it.y, it.size, marks));
+  }
+  // Would a thing here stand over the buddy (who is drawn behind scenery
+  // and must keep showing the share its level asks)?
+  function blocksBuddy(items, x, y, size) {
+    const b = items.find((it) => it.role === "buddy");
+    return !!b && Math.hypot(b.x - x, b.y - y) < rOf(b) + size * BODY;
+  }
+  // Place list entry l (one thing) with a clue, and its decoys. Returns false
+  // (place it plainly instead) when this picture has no way to make one fair.
+  function placeClue(r, place, l, items, H, add) {
+    const k = D.KINDS[l.kind], C = D.CLUES;
+    const sz = sizeOf(l.kind);
+    const homes = place.zones.filter((z) => z.kinds && z.kinds[l.kind]);
+    if (!homes.length) return false;
+    // COLOUR: three of a person, three plainly different shirts
+    if (C.colourKinds.indexOf(l.kind) >= 0 && r() < 0.7) {
+      const shirts = shuffle(r, Object.keys(C.colours).map(Number)).slice(0, 1 + C.decoys);
+      shirts.forEach((sh, i) => {
+        let at = bestSpot(r, pick(r, homes), sz, items, H, 16);
+        for (let t = 0; t < 12 && blocksBuddy(items, at.x, at.y, sz); t++) at = bestSpot(r, pick(r, homes), sz, items, H, 16);
+        const it = add(l.kind, at, i ? "decoy" : "find");
+        it.art = artBase(it.art) + "~" + sh;
+        if (!i) l.art = it.art;
+      });
+      l.clue = { type: "colour", shirt: shirts[0], word: "in " + C.colours[shirts[0]] };
+      return true;
+    }
+    // UNDER / NEXT TO / ON: a landmark where this thing lives (no fish next
+    // to a house), its kind named once in the clue. Never for what drives
+    // on a road or rails: it stays on its lane.
+    if (homes.some((z) => z.lanes)) return false;
+    const all = anchors(place, items);
+    const marks = all.filter((a) => homes.some((z) => nearZone(z, a)));
+    for (const a of shuffle(r, marks.slice())) {
+      const same = all.filter((b) => b.say === a.say);
+      let at;
+      if (a.word === "under") at = { x: a.x + (r() - 0.5) * a.w * 0.3, y: a.foot - sz * 0.55 };
+      else if (a.word === "on") at = { x: a.x + (r() - 0.5) * a.w * 0.2, y: a.foot - sz * 0.5 };
+      else {
+        const side = r() < 0.5 ? -1 : 1;
+        at = { x: a.x + side * (a.w / 2 + sz * 0.45), y: a.foot - sz * 0.55 };
+        if (at.x < sz / 2 || at.x > D.W - sz / 2) at.x = a.x - side * (a.w / 2 + sz * 0.45);
+      }
+      // in FRONT of scenery it stands at (drawn after it), so it is never
+      // moved out from behind it later
+      if (a.bottom) at.y = Math.max(at.y, a.bottom + 4 - sz / 2);
+      if (at.x < sz / 2 || at.x > D.W - sz / 2 || at.y < sz / 2 || at.y > H - sz / 2) continue;
+      if (blocksBuddy(items, at.x, at.y, sz)) continue;
+      // the decoys: in the thing's own zones, far from every one of these
+      const dec = [];
+      for (let t = 0; t < 80 && dec.length < C.decoys; t++) {
+        const c = spot(r, pick(r, homes), sz, H);
+        if (farFrom(c.x, c.y, sz, same) && !blocksBuddy(items, c.x, c.y, sz) && dec.every((d) => Math.hypot(d.x - c.x, d.y - c.y) > sz * 1.4)) dec.push(c);
+      }
+      if (!dec.length) continue;
+      const it = add(l.kind, at, "find");
+      it.rot = 0;
+      l.art = it.art;
+      for (const d of dec) {
+        const o = add(l.kind, d, "decoy");
+        if (k.tone) o.art = it.art;               // the same picture: only the clue tells them apart
+      }
+      const pre = a.word === "under" ? "under the " : a.word === "on" ? "on the " : "next to the ";
+      l.clue = { type: a.word, say: a.say, word: pre + a.say };
+      return true;
+    }
+    return false;
+  }
+
+  // ---- Hiding inside scenery ---------------------------------------------------
+  // One single on the list (never the clue, never a count, never in the sky)
+  // moves INSIDE a piece of scenery: hidden until he taps the scenery, when
+  // it pops out on top of it. The scenery never covers the buddy's hiding
+  // place, and once out the thing shows as well as any find.
+  function hideInside(r, list, items) {
+    const l = list.find((e) => e.n === 1 && !e.clue && !D.KINDS[e.kind].sky && !e.lanes);
+    if (!l) return;
+    const it = items.find((x) => x.role === "find" && x.kind === l.kind);
+    const buddy = items.find((x) => x.role === "buddy");
+    // a box big enough to hide it, never the buddy's hiding place
+    const boxes = items.filter((p) => p.role === "prop" && !D.KINDS[p.kind].sky && p.size >= it.size * 1.4 &&
+      !(buddy && Math.hypot(p.x - buddy.x, p.y - buddy.y) < rOf(p) + rOf(buddy)));
+    for (const p of shuffle(r, boxes)) {
+      const keep = { x: it.x, y: it.y, z: it.z };
+      it.x = p.x;
+      it.y = Math.max(it.size / 2, p.y - p.size * 0.28);
+      it.z = p.z + 0.5;
+      items.sort(byDraw);
+      // clear the fillers that would stand in front of it once it is out
+      for (let g = 0; g < 40; g++) {
+        const i = items.indexOf(it);
+        if (visibleFrac(items, i) >= 0.78) break;
+        let j = -1;
+        for (let k = i + 1; k < items.length; k++) {
+          const o = items[k];
+          if (o.role === "fill" && Math.hypot(o.x - it.x, o.y - it.y) < rOf(o) + rOf(it)) { j = k; break; }
+        }
+        if (j < 0) break;
+        items.splice(j, 1);
+      }
+      if (visibleFrac(items, items.indexOf(it)) >= 0.78 && !blocksBuddy(items.filter((x) => x !== it), it.x, it.y, it.size)) {
+        it.hidden = true;
+        it.inside = true;
+        l.inside = p.kind;
+        p.holds = true;
+        return;
+      }
+      it.x = keep.x; it.y = keep.y; it.z = keep.z;
+      items.sort(byDraw);
+    }
+  }
+  // Where the thing hiding inside prop index b is (its index), or -1.
+  function heldBy(items, b) {
+    const p = items[b];
+    if (!p || !p.holds) return -1;
+    return items.findIndex((it) => it.inside && it.hidden && it.x === p.x);
+  }
+
   // ---- Lay a place out -------------------------------------------------------
   // opts: { seed, level } → { place, list, items } where list is
   // [{ kind, n, art }…, { kind: "buddy", n: 1 }] and each item is
@@ -212,6 +399,8 @@
     };
 
     const list = chooseList(r, place, lvl);
+    // what lives on a road, rails or a runway never hides in a tree
+    for (const l of list) if (place.zones.some((z) => z.lanes && z.kinds && z.kinds[l.kind])) l.lanes = true;
     const want = new Set(list.map((l) => groupOf(l.kind)));
     const zoneFor = (kind) => {
       const zs = place.zones.filter((z) => z.kinds && z.kinds[kind]);
@@ -270,8 +459,14 @@
       items.push(buddy);
     }
 
-    // 3. the finds, each in a zone it lives in, kept clear of what is there
-    for (const l of list) {
+    // 3. the finds, each in a zone it lives in, kept clear of what is there.
+    //    One single on a clue level is asked for WITH A CLUE (placeClue).
+    const clueAt = lvl.clue ? clueCandidate(r, list) : [];
+    let clued = false;
+    const order = clueAt.concat(list.map((_, i) => i).filter((i) => clueAt.indexOf(i) < 0));
+    for (const li of order) {
+      const l = list[li];
+      if (!clued && clueAt.indexOf(li) >= 0 && placeClue(r, place, l, items, H, add)) { clued = true; continue; }
       for (let i = 0; i < l.n; i++) {
         const z = zoneFor(l.kind);
         const at = bestSpot(r, z, sizeOf(l.kind), items, H, 16);
@@ -306,7 +501,7 @@
       for (const k of Object.keys(z.kinds || {})) if (!want.has(groupOf(k))) table[k] = z.kinds[k];
       if (!Object.keys(table).length) continue;
       // a lane holds a row, not a crowd: about four things to a lane
-      const n = z.lanes ? Math.min(z.lanes.length * 4, Math.round(z.n * lvl.fill)) : Math.round(z.n * lvl.fill * DENSE);
+      const n = z.lanes ? Math.min(z.lanes.length * (z.perLane || 4), Math.round(z.n * lvl.fill)) : Math.round(z.n * lvl.fill * DENSE);
       for (let i = 0; i < n; i++) {
         const kind = weighted(r, table);
         const at = bestSpot(r, z, sizeOf(kind), items, H, 8);
@@ -351,6 +546,20 @@
       if (fixed) break;
     }
 
+    // 6. a clue must still hold after the fairness pass (a find moved up out
+    //    from behind scenery may have left its tree): if not, it is dropped
+    //    and its decoys go with it, so a clue on the list is always true
+    for (const l of list) {
+      if (!l.clue) continue;
+      if (!clueHolds(place, items, l)) {
+        for (let i = items.length - 1; i >= 0; i--) if (items[i].role === "decoy" && items[i].kind === l.kind) items.splice(i, 1);
+        delete l.clue;
+      }
+    }
+
+    // 7. one thing on the list hides INSIDE scenery on the harder levels
+    if (lvl.inside) hideInside(r, list, items);
+
     list.push({ kind: "buddy", n: 1 });
     return { place, level, seed, H, list, items };
   }
@@ -362,12 +571,14 @@
   function hitTest(items, x, y, tol) {
     for (let i = items.length - 1; i >= 0; i--) {
       const it = items[i];
+      if (it.hidden) continue;
       const R = rOf(it);
       if ((x - it.x) * (x - it.x) + (y - it.y) * (y - it.y) <= R * R) return i;
     }
     let best = -1, bestD = Infinity;
     for (let i = items.length - 1; i >= 0; i--) {
       const it = items[i];
+      if (it.hidden) continue;
       const d = Math.hypot(x - it.x, y - it.y) - rOf(it);
       if (d <= (tol || 0) && d < bestD) { bestD = d; best = i; }
     }
@@ -419,7 +630,7 @@
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + D.W + " " + p.h + '" preserveAspectRatio="none" aria-hidden="true" focusable="false">' + s + "</svg>";
   }
 
-  const SeekLogic = { recolor, artBase, SHIRTS, groundSvg, MARK, rng, hash, layout, hitTest, visibleFrac, groupOf, placeOf, levelOf, inZone, artNames, rOf, BODY };
+  const SeekLogic = { clueHolds, anchors, atMark, heldBy, FAR, recolor, artBase, SHIRTS, groundSvg, MARK, rng, hash, layout, hitTest, visibleFrac, groupOf, placeOf, levelOf, inZone, artNames, rOf, BODY };
   if (typeof module !== "undefined" && module.exports) module.exports = SeekLogic;
   global.SeekLogic = SeekLogic;
 })(typeof window !== "undefined" ? window : globalThis);
