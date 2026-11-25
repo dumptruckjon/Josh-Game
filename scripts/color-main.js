@@ -31,7 +31,7 @@
   // indices painted) · art: his own colors on a finished page (free paint) ·
   // demo: the ghost finger has been shown · last · order: the order he
   // painted a finished page in (🎬 replays it).
-  function freshSave() { return { v: 1, stars: {}, runs: {}, art: {}, order: {}, demo: false, glided: false, last: PAGES[0].id }; }
+  function freshSave() { return { v: 1, stars: {}, runs: {}, art: {}, order: {}, demo: false, glided: false, last: PAGES[0].id, gen: 0 }; }
   const pageOf = (id) => PAGES.find((p) => p.id === id) || null;
   const nat = (n) => (typeof n === "number" && Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0);
   function coerce(text) {
@@ -62,17 +62,68 @@
     s.demo = raw.demo === true;
     s.glided = raw.glided === true;
     if (pageOf(raw.last)) s.last = raw.last;
+    s.gen = genOf(raw.gen);
     return s;
   }
+  // gen: when a grown-up last reset the book (a time). A gen from the future
+  // is not a real one (a hand-edited save), so it reads as never reset.
+  function genOf(g) { return typeof g === "number" && Number.isFinite(g) && g > 0 && g <= Date.now() + 864e5 ? Math.floor(g) : 0; }
   function readStored() { try { return global.localStorage.getItem(KEY); } catch (e) { return null; } }
   let save = coerce(readStored());
-  // Two tabs: ⭐ only grow, so a write folds in what the other tab stored.
-  function persist() {
+  // Two tabs: ⭐ only grow, so a write folds in what the other tab stored —
+  // unless a grown-up reset the book in that tab since (its gen is newer):
+  // then this tab takes the reset, keeping only the pages it changed since its
+  // last write (`own`), or its old ⭐ would fold straight back in (Gobble
+  // Hole's §22 lesson). The save is re-read before anything decides from it
+  // (syncSave: the router and the storage event), not only before a write.
+  const own = new Set();
+  function adopt(disk) {
+    for (const id of own) for (const k of ["stars", "runs", "art", "order"]) {
+      if (save[k][id] != null) disk[k][id] = save[k][id]; else delete disk[k][id];
+    }
+    disk.demo = disk.demo || save.demo;
+    disk.glided = disk.glided || save.glided;
+    if (st && st.page) disk.last = st.page.id;
+    save = disk;
+  }
+  function syncSave() {
     const disk = coerce(readStored());
-    for (const id of Object.keys(disk.stars)) save.stars[id] = Math.max(save.stars[id] || 0, disk.stars[id]);
-    save.demo = save.demo || disk.demo;
-    save.glided = save.glided || disk.glided;
+    if (disk.gen > save.gen) { adopt(disk); return true; }
+    return false;
+  }
+  function persist(pageId) {
+    if (pageId) own.add(pageId);
+    const disk = coerce(readStored());
+    if (disk.gen > save.gen) adopt(disk);
+    else {
+      for (const id of Object.keys(disk.stars)) save.stars[id] = Math.max(save.stars[id] || 0, disk.stars[id]);
+      save.demo = save.demo || disk.demo;
+      save.glided = save.glided || disk.glided;
+    }
+    own.clear();
     try { global.localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* private mode: play on */ }
+  }
+  // Grown-ups only (the ⚙️ under the book, through the ONE gate, JoshGate):
+  // every ⭐, every half-painted page, his own colors and the replays go. It
+  // keeps "he has seen how" (the ghost finger and the crayon glide). The ONE
+  // wipe: the button and the test hook both call it. It writes without
+  // folding, and stamps a gen past this tab's and the stored one, so another
+  // open tab takes it rather than folding its old ⭐ back in.
+  function resetProgress(opts) {
+    const disk = coerce(readStored());
+    const had = [save, disk].some((s) => Object.keys(s.stars).length || Object.keys(s.runs).length || Object.keys(s.art).length);
+    const keep = !!(opts && opts.keepDemo);
+    const demo = save.demo, glided = save.glided;
+    const gen = Math.max(Date.now(), save.gen + 1, disk.gen + 1);
+    save = freshSave();
+    save.gen = gen;
+    if (keep) { save.demo = demo; save.glided = glided; }
+    st = null;
+    own.clear();
+    clearLater();
+    try { global.localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ }
+    if (home) paintBook();
+    return had;
   }
 
   // ---- Sound: through JoshAudio only, and only while a screen of ours is up ---
@@ -91,7 +142,9 @@
   function clearLater() {
     for (const id of timers) global.clearTimeout(id);
     timers.clear();
-    for (const f of doc.querySelectorAll(".cb-ghost")) f.parentNode.removeChild(f);
+    // what a cancelled timer would have taken away goes with it: a finger, or
+    // a sparkle burst left over the page he comes back to
+    for (const f of doc.querySelectorAll(".cb-ghost, .cb-burst")) f.parentNode.removeChild(f);
   }
 
   // ---- Geometry, once per page ---------------------------------------------------
@@ -134,8 +187,22 @@
         '<h1 class="game__title color-title">Color Book</h1>' +
         '<button class="btn-round game__hear color-homehear" type="button" aria-label="Hear it again">👂</button>' +
       "</div>" +
-      '<div class="color-pages" role="list" aria-label="Pick a page to color"></div>';
+      '<div class="color-pages" role="list" aria-label="Pick a page to color"></div>' +
+      // Grown-ups only: start the book over. Small and quiet on purpose, after
+      // the last page, behind the app's ONE type-the-word gate (JoshGate).
+      // data-adult: exempt from the kid tap audit, like Josh's own ⚙️.
+      '<button class="reset-stars color-reset" id="color-reset" type="button" data-adult="1" ' +
+        'aria-label="Grown-ups: start the Color Book over">⚙️ Grown-ups</button>';
     screens.appendChild(home);
+    home.querySelector(".color-reset").addEventListener("click", () => {
+      const G = global.JoshGate;
+      if (!G) return;
+      G.ask({
+        label: "Start the Color Book over",
+        msg: "Grown-ups: type <b>reset</b> to clear every page’s&nbsp;⭐ and his colors, and start the Color Book over",
+        confirm: () => (resetProgress({ keepDemo: true }) ? "The Color Book starts over! ✨" : "Nothing to clear yet."),
+      });
+    });
     home.querySelector(".color-exit").addEventListener("click", () => { location.hash = ""; });
     home.querySelector(".color-homehear").addEventListener("click", () => say("Pick a page to color!"));
     const grid = home.querySelector(".color-pages");
@@ -261,7 +328,7 @@
     st = { page, g, done: new Set(finished ? L.numbered(page) : save.runs[page.id] || []), sel: null, free: false, crayon: null, fills: {} };
     for (const i of st.done) st.fills[i] = colorOf(page, page.regions[i].n).hex;
     save.last = page.id;
-    persist();
+    persist(opts && opts.fresh ? page.id : null);
     titleEl.textContent = page.name;
     holder.setAttribute("aria-label", "A coloring page: " + page.name);
     if (finished) { enterFree(true); return; }
@@ -279,11 +346,13 @@
     armHint();
   }
 
-  // ---- Find it: a quiet while with nothing painted, and the shapes waiting
-  // for his color are shown to him (rings that pulse, the ghost finger on one).
-  // A hint, never a timer: nothing is lost, nothing is said, and it comes back
-  // only after another quiet while.
-  const HINT_MS = 14000;
+  // ---- Find it: a long quiet while with nothing painted, and ONE shape
+  // waiting for his color is shown to him (a ring that pulses, the ghost
+  // finger on it). Choosing a color shows nothing (the owner, 2026-11-25:
+  // lighting the shapes the moment he picks a number was far too easy) —
+  // finding the numbers IS the game. A hint, never a timer: nothing is lost,
+  // nothing is said, and it comes back only after another quiet while.
+  const HINT_MS = 25000;
   let hintTok = 0;
   function armHint() {
     const tok = ++hintTok;
@@ -293,11 +362,21 @@
     if (!st || st.free || st.replaying || !play || play.hidden) return;
     const svg = holder.querySelector("svg");
     if (!svg) return;
-    for (const el of svg.querySelectorAll("path.cb-want")) el.classList.add("cb-find");
+    const i = hintTarget();
+    if (i == null) return;
+    const el = svg.querySelector('path.cb-num[data-i="' + i + '"]');
+    if (el) el.classList.add("cb-find");
     showGhost();
     const tok = hintTok;
     later(() => { if (tok === hintTok) clearHint(); }, 4200);
     armHint();
+  }
+  // the shape a hint shows: the first one still waiting for his color (the
+  // ghost finger points at the same one)
+  function hintTarget() {
+    if (!st || st.sel == null) return null;
+    const i = L.numbered(st.page).find((k) => !st.done.has(k) && st.page.regions[k].n === st.sel);
+    return i == null ? null : i;
   }
   function clearHint() {
     const svg = holder && holder.querySelector("svg");
@@ -311,7 +390,6 @@
     const svg = holder.querySelector("svg");
     svg.insertAdjacentHTML("afterbegin", "<defs></defs>");
     fit();
-    markWanted();
   }
   // The page is as big a square as the field allows.
   function fit() {
@@ -321,18 +399,6 @@
     svg.style.width = side + "px";
     svg.style.height = side + "px";
   }
-  // The shapes waiting for the chosen color shimmer with a light tint of it.
-  function markWanted() {
-    const svg = holder.querySelector("svg");
-    if (!svg) return;
-    const c = !st.free && st.sel ? colorOf(st.page, st.sel) : null;
-    if (c) svg.style.setProperty("--want", L.wantTint(c.hex));
-    for (const el of svg.querySelectorAll("path.cb-num")) {
-      const i = +el.dataset.i;
-      el.classList.toggle("cb-want", !!c && !st.done.has(i) && +el.dataset.n === st.sel);
-    }
-  }
-
   function drawPots() {
     pots.textContent = "";
     const left = L.remaining(st.page, st.done);
@@ -365,7 +431,9 @@
     const c = colorOf(st.page, n);
     st.sel = n;
     paintPots();
-    markWanted();
+    // a pick is activity: the quiet while starts again (a pick never hints)
+    clearHint();
+    armHint();
     const pot = pots.querySelector('.color-pot[data-n="' + n + '"]');
     if (pot) { bounce(pot, "color-pot--pop"); showInRow(pots, pot); }
     if (spoken) say(D.SAY.pick(c));
@@ -414,8 +482,7 @@
     if (!save.demo) { save.demo = true; }
     tone(SCALE[(st.done.size - 1) % SCALE.length], { duration: 0.16, type: "triangle", gain: 0.14 });
     save.runs[page.id] = [...st.done];
-    persist();
-    markWanted();
+    persist(page.id);
     const left = L.remaining(page, st.done);
     if (L.finished(page, st.done)) { paintPots(left); finish(); return; }
     if (left[n] === 0) {
@@ -437,7 +504,7 @@
   // Put a paint on shape i at once: its fill, and the magic lying over it.
   function applyPaint(path, paint) {
     path.setAttribute("fill", L.paintFill(paint));
-    path.classList.remove("cb-want", "cb-find");
+    path.classList.remove("cb-find");
     const nx = path.nextElementSibling;
     if (nx && nx.classList && nx.classList.contains("cb-fx")) nx.parentNode.removeChild(nx);
     const over = L.paintOver(paint, path.getAttribute("d"));
@@ -529,7 +596,7 @@
     save.order[page.id] = [...st.done]; // the order he painted it in, for 🎬
     delete save.runs[page.id];
     delete save.art[page.id];
-    persist();
+    persist(page.id);
     cue("winCue");
     say(D.SAY.done(page));
     say(page.cheer);
@@ -644,7 +711,7 @@
     st.fills[i] = paint;
     if (!save.art[page.id]) save.art[page.id] = {};
     save.art[page.id][i] = paint;
-    persist();
+    persist(page.id);
     spread(i, paint, p);
     burst(p, L.paintOf(paint).hex);
     const magic = L.paintOf(paint).fx;
@@ -686,7 +753,7 @@
     hideGhost();
     if (!st || st.free || reduce()) return;
     const pot = pots.querySelector('.color-pot[data-n="' + st.sel + '"]');
-    const i = [...L.numbered(st.page)].find((k) => !st.done.has(k) && st.page.regions[k].n === st.sel);
+    const i = hintTarget();
     if (!pot || i == null) return;
     const svg = holder.querySelector("svg"), r = svg.getBoundingClientRect(), pr = pot.getBoundingClientRect();
     const lab = st.g.labels[i];
@@ -724,6 +791,7 @@
         play.hidden = true;
         doc.body.classList.add("color-mode");
         doc.body.classList.remove("in-game");
+        if (syncSave()) st = null; // another tab reset the book: nothing parked here survives it
         paintBook();
         home.hidden = false;
         home.__shownAt = now();
@@ -740,6 +808,7 @@
         global.scrollTo(0, 0);
         const p = pending;
         pending = null;
+        if (syncSave()) st = null;
         if (p) startPage(p, {});
         else if (!st) startPage(save.last, {});
         else if (!st.free) armHint(); // back on a half-painted page: the hint is armed again
@@ -757,6 +826,11 @@
     },
   };
   global.ColorBook = ColorBook;
+  // Another tab reset the book: an open book here loses its ⭐ at once.
+  global.addEventListener("storage", (e) => {
+    if (e.key !== KEY || !syncSave()) return;
+    if (home && !home.hidden) { st = null; paintBook(); }
+  });
 
   // ---- Test hooks (the __SEEK / __HOLE precedent) ----------------------------------
   global.__COLOR = {
@@ -764,7 +838,7 @@
     hint: () => hint(),
     hintMs: HINT_MS,
     save: () => JSON.parse(JSON.stringify(save)),
-    reset() { save = freshSave(); st = null; try { global.localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } },
+    reset() { resetProgress(); },
     start(id, opts) { startPage(id, opts || {}); return !!st; },
     // where on the screen region i's number sits (to tap it like a finger)
     pointOf(i) {

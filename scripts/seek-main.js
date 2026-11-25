@@ -37,7 +37,7 @@
   // ---- The save ---------------------------------------------------------------
   // stars: places finished (and how often) · plays: pictures started (the
   // seed of the next one) · runs: a half-found picture per place · last.
-  function freshSave() { return { v: 1, stars: {}, plays: {}, runs: {}, seen: {}, last: PLACES[0].id }; }
+  function freshSave() { return { v: 1, stars: {}, plays: {}, runs: {}, seen: {}, last: PLACES[0].id, gen: 0 }; }
   const isPlace = (id) => PLACES.some((p) => p.id === id);
   const nat = (n) => (typeof n === "number" && Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0);
   function coerce(text) {
@@ -60,16 +60,65 @@
     // does not know is dropped, never shown as a blank sticker
     if (raw.seen && typeof raw.seen === "object") for (const k of Object.keys(raw.seen)) if (D.KINDS[k] && !D.KINDS[k].prop) s.seen[k] = nat(raw.seen[k]);
     if (isPlace(raw.last)) s.last = raw.last;
+    s.gen = genOf(raw.gen);
     return s;
   }
+  // gen: when a grown-up last reset Seek & Find (a time). A gen from the
+  // future is not a real one (a hand-edited save), so it reads as never reset.
+  function genOf(g) { return typeof g === "number" && Number.isFinite(g) && g > 0 && g <= Date.now() + 864e5 ? Math.floor(g) : 0; }
   function readStored() { try { return global.localStorage.getItem(KEY); } catch (e) { return null; } }
   let save = coerce(readStored());
   // Two tabs: stars and plays only grow, so a write folds in what the other
   // tab stored; a half-found picture belongs to the tab that is playing it.
-  function persist() {
+  // Unless a grown-up reset Seek & Find in that tab since (its gen is newer):
+  // then this tab takes the reset, keeping only what it changed since its last
+  // write (`own` places, `ownSeen` stickers), or its old ⭐ would fold straight
+  // back in (Gobble Hole's §22 lesson). The save is re-read before anything
+  // decides from it (syncSave: the router and the storage event).
+  const own = new Set(), ownSeen = new Set();
+  function adopt(disk) {
+    for (const id of own) for (const k of ["stars", "plays", "runs"]) {
+      if (save[k][id] != null) disk[k][id] = save[k][id]; else delete disk[k][id];
+    }
+    for (const k of ownSeen) if (save.seen[k]) disk.seen[k] = Math.max(disk.seen[k] || 0, save.seen[k]);
+    if (run) disk.last = run.place.id;
+    save = disk;
+  }
+  function syncSave() {
     const disk = coerce(readStored());
-    for (const k of ["stars", "plays", "seen"]) for (const id of Object.keys(disk[k])) save[k][id] = Math.max(save[k][id] || 0, disk[k][id]);
+    if (disk.gen > save.gen) { adopt(disk); return true; }
+    return false;
+  }
+  function persist(placeId) {
+    if (placeId) own.add(placeId);
+    const disk = coerce(readStored());
+    if (disk.gen > save.gen) adopt(disk);
+    else for (const k of ["stars", "plays", "seen"]) for (const id of Object.keys(disk[k])) save[k][id] = Math.max(save[k][id] || 0, disk[k][id]);
+    own.clear();
+    ownSeen.clear();
     try { global.localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* private mode: play on */ }
+  }
+  // Grown-ups only (the ⚙️ under the doors, through the ONE gate, JoshGate):
+  // every ⭐, every half-found picture, the sticker album and which picture
+  // comes next all go. The ONE wipe: the button and the test hook both call
+  // it. It drops the picture parked in memory (leaving the play screen saves
+  // it, so a wipe that left it alive would put it straight back), writes
+  // without folding, and stamps a gen past this tab's and the stored one, so
+  // another open tab takes it rather than folding its old ⭐ back in.
+  function resetProgress() {
+    const disk = coerce(readStored());
+    const had = [save, disk].some((s) => Object.keys(s.stars).length || Object.keys(s.runs).length || Object.keys(s.seen).length || Object.keys(s.plays).length);
+    const gen = Math.max(Date.now(), save.gen + 1, disk.gen + 1);
+    save = freshSave();
+    save.gen = gen;
+    run = null;
+    pending = null;
+    own.clear();
+    ownSeen.clear();
+    clearLater();
+    try { global.localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ }
+    if (home) paintDoors();
+    return had;
   }
 
   // ---- Pictures ------------------------------------------------------------------
@@ -139,8 +188,22 @@
         '<button class="seek-extra seek-nightbtn tap" type="button" aria-label="Night hunt: find things with a flashlight"><span class="seek-extra__pic" aria-hidden="true">🔦</span><span class="seek-extra__label">Night Hunt</span></button>' +
         '<button class="seek-extra seek-albumbtn tap" type="button"><span class="seek-extra__pic" aria-hidden="true">📒</span><span class="seek-extra__label">My Finds <span class="seek-albumcount"></span></span></button>' +
       "</div>" +
-      '<div class="seek-doors" role="list" aria-label="Pick a place"></div>';
+      '<div class="seek-doors" role="list" aria-label="Pick a place"></div>' +
+      // Grown-ups only: start Seek & Find over. Small and quiet on purpose,
+      // after the last door, behind the app's ONE type-the-word gate
+      // (JoshGate). data-adult: exempt from the kid tap audit.
+      '<button class="reset-stars seek-reset" id="seek-reset" type="button" data-adult="1" ' +
+        'aria-label="Grown-ups: start Seek and Find over">⚙️ Grown-ups</button>';
     screens.appendChild(home);
+    home.querySelector(".seek-reset").addEventListener("click", () => {
+      const G = global.JoshGate;
+      if (!G) return;
+      G.ask({
+        label: "Start Seek & Find over",
+        msg: "Grown-ups: type <b>reset</b> to clear every place’s&nbsp;⭐ and the sticker album, and start Seek &amp; Find over",
+        confirm: () => (resetProgress() ? "Seek & Find starts over! ✨" : "Nothing to clear yet."),
+      });
+    });
     home.querySelector(".seek-surprise").addEventListener("click", () => openPlace(surprisePlace()));
     home.querySelector(".seek-nightbtn").addEventListener("click", () => openPlace(surprisePlace(), { night: true }));
     home.querySelector(".seek-albumbtn").addEventListener("click", () => { location.hash = "#seek-album"; });
@@ -378,6 +441,7 @@
       night = parked.night;
     } else {
       save.plays[place.id] = (save.plays[place.id] || 0) + 1;
+      own.add(place.id);
       seed = (L.hash(place.id) + save.plays[place.id] * 7919) >>> 0;
       // every second picture of a place is a STORY: a friend lost things
       story = save.plays[place.id] % 2 === 0;
@@ -682,7 +746,7 @@
     }
     paintCard(li);
     run.lastFindAt = now();
-    if (it.role !== "buddy") save.seen[it.kind] = Math.max(1, (save.seen[it.kind] || 0) + (quiet ? 0 : 1));
+    if (it.role !== "buddy") { save.seen[it.kind] = Math.max(1, (save.seen[it.kind] || 0) + (quiet ? 0 : 1)); ownSeen.add(it.kind); }
     if (!quiet) {
       bounce(el, it.role === "buddy" ? "seek-it--peekaboo" : "seek-it--pop");
       flyToCard(el, run.cards[li]);
@@ -790,7 +854,7 @@
     if (!restored) {
       save.stars[run.place.id] = (save.stars[run.place.id] || 0) + 1;
       delete save.runs[run.place.id];
-      persist();
+      persist(run.place.id);
       cue("winCue");
       say(run.night ? D.SAY.lightsOn : run.story ? D.SAY.storyEnd(run.friend) : D.SAY.win);
       // the next picture of this place is a new level: say so
@@ -824,7 +888,7 @@
     if (!run) return;
     if (run.list.every((e) => e.done)) delete save.runs[run.place.id];
     else save.runs[run.place.id] = { v: LAYOUT, seed: run.seed, level: run.level, found: [...run.found], story: run.story, night: run.night };
-    persist();
+    persist(run.place.id);
   }
   function leavePlay() {
     if (run && win && win.hidden) saveRun();
@@ -841,6 +905,7 @@
         album.hidden = true;
         doc.body.classList.add("seek-mode");
         doc.body.classList.remove("in-game");
+        if (syncSave()) run = null; // another tab reset it: nothing parked here survives
         paintDoors();
         home.hidden = false;
         home.__shownAt = now();
@@ -854,6 +919,7 @@
         home.hidden = true;
         doc.body.classList.add("seek-mode");
         doc.body.classList.remove("in-game");
+        if (syncSave()) run = null;
         paintAlbum();
         album.hidden = false;
         album.__shownAt = now();
@@ -871,6 +937,7 @@
         global.scrollTo(0, 0);
         const p = pending;
         pending = null;
+        if (syncSave()) run = null;
         if (p) startPlace(p.id, { resume: p.resume, night: p.night });
         else if (!run) startPlace(save.last, { resume: true });
         return true;
@@ -884,13 +951,20 @@
     },
   };
   global.SeekFind = SeekFind;
+  // Another tab reset Seek & Find: an open page here loses its ⭐ at once.
+  global.addEventListener("storage", (e) => {
+    if (e.key !== KEY || !syncSave()) return;
+    if (!play || play.hidden) run = null; // a picture he is in the middle of stays his
+    if (home && !home.hidden) paintDoors();
+    if (album && !album.hidden) paintAlbum();
+  });
 
   // ---- Test hooks (the __HOLE / __BOARD precedent) -------------------------------------
   global.__SEEK = {
     run: () => (run && play && !play.hidden ? { place: run.place.id, level: run.level, seed: run.seed, list: run.list.map((e) => ({ ...e })), found: [...run.found], story: run.story, night: run.night, friend: run.friend, step: run.story ? storyStep() : -1 } : null),
     items: () => (run ? run.items.map((it) => ({ ...it })) : []),
     save: () => JSON.parse(JSON.stringify(save)),
-    reset() { save = freshSave(); try { global.localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } },
+    reset() { resetProgress(); },
     // a place already finished n times (its next picture is level n, capped)
     setStars(id, n) { if (isPlace(id)) { save.stars[id] = nat(n); delete save.runs[id]; persist(); } },
     start(id, opts) { startPlace(id, opts || {}); return !!run; },

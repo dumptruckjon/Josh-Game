@@ -611,3 +611,76 @@ test("🔦 NIGHT HUNT: the home's flashlight opens a dark picture with a beam wh
   assert.ok(await page.evaluate(() => document.querySelector(".seek-dark").hidden), "…and the dark is gone");
   assert.equal(pageErrors.length, 0, pageErrors.join(" | "));
 });
+
+// ---- Grown-ups reset (the owner, 2026-11-25): only a grown-up starts it over
+test("grown-ups reset: the ⚙️ under the doors asks the ONE gate; only the word clears every ⭐, half-found picture and the sticker album; a second open tab cannot fold them back", async () => {
+  await page.evaluate(() => window.__SEEK.reset());
+  const seed = { v: 1, stars: { park: 2, beach: 1 }, plays: { park: 3, beach: 1 }, runs: {}, seen: { dog: 2, kite: 1 }, last: "beach" };
+  await page.evaluate((s) => localStorage.setItem("josh-seek-v1", JSON.stringify(s)), seed);
+  await page.reload({ waitUntil: "load" });
+  await spy();
+  await go("#seek-home", "#screen-seek-home");
+  const stars = () => page.evaluate(() => [...document.querySelectorAll(".seek-door__stars")].filter((e) => e.textContent).length);
+  assert.equal(await stars(), 2, "fixture: two doors wear a ⭐");
+  const saved = await page.evaluate(() => window.__SEEK.save());
+  assert.ok(Object.keys(saved.seen).length >= 1, "fixture: the album has stickers");
+  const tab2 = await context.newPage();
+  // DEAF to the storage event (an init script, inert in every other page), so
+  // the only way it can learn of the reset is at its next WRITE — the path a
+  // tab whose event was missed must still get right
+  await tab2.addInitScript(() => window.addEventListener("storage", (e) => e.stopImmediatePropagation(), true));
+  await tab2.goto(baseURL + "#seek-home", { waitUntil: "load" });
+  await tab2.locator("#screen-seek-home").waitFor({ state: "visible" });
+  // tab 2 is in the middle of a picture when the grown-up resets
+  await tab2.waitForTimeout(400);
+  await tab2.locator('.seek-door[data-place="zoo"]').click();
+  await tab2.locator("#screen-seek-play").waitFor({ state: "visible" });
+  await tab2.waitForFunction(() => { const r = window.__SEEK.run(); return r && r.place === "zoo"; });
+
+  const btn = await page.evaluate(() => {
+    const b = document.getElementById("seek-reset"), r = b.getBoundingClientRect();
+    const last = Math.max(...[...document.querySelectorAll(".seek-door")].map((d) => d.getBoundingClientRect().bottom));
+    return { adult: b.dataset.adult, below: r.top - last, h: r.height };
+  });
+  assert.equal(btn.adult, "1", "the button is marked adult-only");
+  assert.ok(btn.below >= 16, "it sits after the last door, clear of it (" + btn.below + "px)");
+  assert.ok(btn.h < 75, "it is small and quiet (" + btn.h + "px)");
+  const open = async () => {
+    await page.locator("#seek-reset").scrollIntoViewIfNeeded();
+    await page.locator("#seek-reset").click();
+    await page.locator(".gate").waitFor({ state: "visible" });
+  };
+  await open();
+  assert.match(await page.locator(".gate__msg").textContent(), /Seek &(amp;)? Find/, "the gate says what it will clear");
+  await page.locator(".gate__ok").click();
+  assert.ok(await page.locator(".gate__err").isVisible(), "OK with no word only shows the hint");
+  await page.locator(".gate__cancel").click();
+  await page.locator(".gate").waitFor({ state: "hidden" });
+  assert.deepEqual(await page.evaluate(() => window.__SEEK.save()), saved, "nothing is cleared without the word");
+  await page.waitForTimeout(400);
+  await open();
+  await page.locator(".gate__input").fill("reset");
+  await page.locator(".gate__ok").click();
+  await page.locator(".gate").waitFor({ state: "hidden" });
+  assert.match(await page.locator(".gate__done").last().textContent(), /Seek & Find starts over/, "the grown-up is told it worked");
+  assert.equal(await stars(), 0, "every ⭐ is gone from the doors");
+  assert.match(await page.locator(".seek-albumcount").textContent(), /^0\//, "the album is empty");
+  const after = await page.evaluate(() => window.__SEEK.save());
+  for (const k of ["stars", "plays", "runs", "seen"]) assert.deepEqual(after[k], {}, k + " is cleared");
+  assert.ok(after.gen > 0, "the reset is stamped, so another tab can tell");
+
+  // tab 2, open from before and mid-picture, leaves it (leaving saves the
+  // picture: a write, before anything else): it must take the reset rather
+  // than fold the old ⭐ and stickers back in
+  await tab2.waitForFunction(() => JSON.parse(localStorage.getItem("josh-seek-v1")).gen > 0);
+  await tab2.evaluate(() => { location.hash = "#seek-home"; });
+  await tab2.locator("#screen-seek-home").waitFor({ state: "visible" });
+  await tab2.waitForTimeout(200);
+  assert.equal(await tab2.evaluate(() => [...document.querySelectorAll(".seek-door__stars")].filter((e) => e.textContent).length), 0, "tab 2's doors show the reset");
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("josh-seek-v1")));
+  assert.deepEqual(stored.stars, {}, "a tab open from before cannot fold the wiped ⭐ back in");
+  assert.deepEqual(stored.seen, {}, "…nor the old stickers");
+  await tab2.close();
+  await page.reload({ waitUntil: "load" });
+  assert.deepEqual((await page.evaluate(() => window.__SEEK.save())).stars, {}, "and it holds across a reload");
+});

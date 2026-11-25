@@ -105,9 +105,10 @@ test("a whole page painted by real taps: paint spreads, pots tick off and move o
     const r = await b.boundingBox();
     assert.ok(r.width >= 75 && r.height >= 75, "every pot is a big tap");
   }
-  // the shapes waiting for pot 1 shimmer, and only they
-  const want = await page.evaluate(() => [...document.querySelectorAll(".cb-want")].map((p) => +p.dataset.n));
-  assert.ok(want.length && want.every((n) => n === 1), "the shapes waiting for the chosen color shimmer");
+  // choosing a color gives no clue (the owner, 2026-11-25): every shape
+  // waiting for it stays plain white with nothing marking it
+  const marked = await page.evaluate(() => [...document.querySelectorAll(".color-holder path.cb-num")].filter((p) => p.getAttribute("fill") !== "#ffffff" || [...p.classList].some((c) => c !== "cb-r" && c !== "cb-num")).length);
+  assert.equal(marked, 0, "no shape is tinted or marked when a color is chosen");
   const pots = new Set();
   for (let guard = 0; guard < 40; guard++) {
     s = await state();
@@ -402,36 +403,43 @@ test("🎬 watch it paint: the page paints itself again from white in the order 
   assert.equal(await fillOf(order[0]), "#7950f2", "and his page is whole, not half white");
 });
 
-test("find it: after a quiet while the shapes waiting for his color ring and a finger points; a tap paints and the hint goes", async () => {
+test("find it: only after a LONG quiet while does ONE shape waiting for his color ring, with a finger on it; picking a color shows nothing; a tap paints and the hint goes", async () => {
   await page.evaluate(() => window.__COLOR.reset());
   await page.evaluate(() => { const s = JSON.parse(localStorage.getItem("josh-color-v1")); s.demo = true; localStorage.setItem("josh-color-v1", JSON.stringify(s)); });
   await page.reload({ waitUntil: "load" });
   await spy();
   await openPage("icecream");
   const ms = await page.evaluate(() => window.__COLOR.hintMs);
-  assert.ok(ms >= 10000 && ms <= 20000, "a quiet while, not a rush (" + ms + "ms)");
+  assert.ok(ms >= 20000 && ms <= 40000, "a long quiet while, never the moment he picks (" + ms + "ms)");
   assert.equal(await page.locator(".color-holder .cb-find").count(), 0, "no hint at first");
   // hint a color with at least two shapes waiting, so a tap on ONE must take
   // the rings off the others too
   const many = await page.evaluate(() => { const c = {}; for (const t of window.__COLOR.todo()) c[t.n] = (c[t.n] || 0) + 1; return +Object.keys(c).find((n) => c[n] >= 2); });
   await page.locator('.color-pot[data-n="' + many + '"]').click();
-  await page.waitForTimeout(420);
+  await page.waitForTimeout(1200);
+  assert.equal(await page.locator(".color-holder .cb-find").count(), 0, "picking a color shows no shape");
+  assert.ok(!(await page.evaluate(() => window.__COLOR.ghost())), "…and no finger points (he has been shown how)");
   // really wait the quiet while: the hint comes by itself
   const said = (await page.evaluate(() => window.__said.length));
   await page.waitForTimeout(ms + 600);
   const n = await page.locator(".color-holder .cb-find").count();
   const s = await state();
   const waiting = (await page.evaluate(() => window.__COLOR.todo())).filter((x) => x.n === s.sel).length;
-  assert.equal(n, waiting, "every shape waiting for his color rings (" + n + " of " + waiting + ")");
-  assert.ok(await page.evaluate(() => window.__COLOR.ghost()), "and the ghost finger points at one");
+  assert.equal(n, 1, "ONE shape rings, not every one (" + n + " of " + waiting + " waiting)");
+  const ringed = await page.evaluate(() => +document.querySelector(".color-holder .cb-find").dataset.n);
+  assert.equal(ringed, s.sel, "the ringed shape is one waiting for his color");
+  assert.ok(await page.evaluate(() => window.__COLOR.ghost()), "and the ghost finger points at it");
   assert.equal(await page.evaluate(() => window.__said.length), said, "a hint says nothing (no pressure)");
-  const t = (await page.evaluate(() => window.__COLOR.todo())).find((x) => x.n === s.sel);
+  // tap a DIFFERENT shape of his color: any paint takes the hint away
+  const ringI = await page.evaluate(() => +document.querySelector(".color-holder .cb-find").dataset.i);
+  const t = (await page.evaluate(() => window.__COLOR.todo())).find((x) => x.n === s.sel && x.i !== ringI);
   await tapShape(t.i);
   assert.ok(waiting >= 2, "the hinted color had more than one shape waiting");
-  assert.equal(await page.locator(".color-holder .cb-find").count(), 0, "a tap that paints takes the hint away (from every shape)");
+  assert.equal(await page.locator(".color-holder .cb-find").count(), 0, "a tap that paints takes the hint away");
   await go("#color-home", "#screen-color-home");
   await page.waitForTimeout(200);
   assert.equal(await page.evaluate(() => window.__COLOR.timers()), 0, "the hint's timer goes with the page");
+  assert.equal(await page.locator(".cb-burst, .cb-ghost").count(), 0, "…and a sparkle whose timer was cancelled goes too (it is not left on the page)");
 });
 
 test("a broken save is read safely: bad paints, bad orders and junk are dropped, good ones kept", async () => {
@@ -493,4 +501,79 @@ test("leaving mid-paint leaves nothing running, and every number is big enough t
   await page.waitForTimeout(500);
   assert.equal(await page.evaluate(() => document.querySelectorAll(".cb-ghost").length), 0, "the ghost finger goes with the page");
   assert.deepEqual(pageErrors, [], "no page errors");
+});
+
+// ---- Grown-ups reset (the owner, 2026-11-25): only a grown-up starts the book over
+test("grown-ups reset: the ⚙️ under the book asks the ONE gate; only the word clears every ⭐, half-painted page, his colors and replays; a second open tab cannot fold them back", async () => {
+  const pg = await page.evaluate(() => window.ColorData.PAGES.map((p) => ({ id: p.id, i: p.regions.findIndex((r) => r.n) })));
+  const seed = { v: 1, stars: { sun: 1, fish: 2 }, runs: { rocket: [pg[3].i] }, art: { sun: { [pg[0].i]: "#ff0000 glitter" } }, order: { sun: [pg[0].i] }, demo: true, glided: true, last: "fish" };
+  await page.evaluate((s) => localStorage.setItem("josh-color-v1", JSON.stringify(s)), seed);
+  await page.reload({ waitUntil: "load" });
+  await spy();
+  await go("#color-home", "#screen-color-home");
+  const stars = () => page.evaluate(() => [...document.querySelectorAll(".color-page__star")].filter((e) => e.textContent).length);
+  assert.equal(await stars(), 2, "fixture: two pages wear a ⭐");
+  const saved = await page.evaluate(() => window.__COLOR.save());
+  // a second tab, open from before the reset, holding the old ⭐ in memory
+  const tab2 = await context.newPage();
+  // DEAF to the storage event (an init script, inert in every other page), so
+  // the only way it can learn of the reset is at its next WRITE — the path a
+  // tab whose event was missed must still get right
+  await tab2.addInitScript(() => window.addEventListener("storage", (e) => e.stopImmediatePropagation(), true));
+  await tab2.goto(baseURL + "#color-home", { waitUntil: "load" });
+  await tab2.locator("#screen-color-home").waitFor({ state: "visible" });
+  assert.equal(Object.keys(await tab2.evaluate(() => window.__COLOR.save().stars)).length, 2, "fixture: tab 2 holds the old ⭐");
+
+  const btn = await page.evaluate(() => {
+    const b = document.getElementById("color-reset"), r = b.getBoundingClientRect();
+    const last = Math.max(...[...document.querySelectorAll(".color-page")].map((d) => d.getBoundingClientRect().bottom));
+    return { adult: b.dataset.adult, below: r.top - last, h: r.height, inHome: !!b.closest("#screen-color-home") };
+  });
+  assert.equal(btn.adult, "1", "the button is marked adult-only");
+  assert.ok(btn.inHome, "it lives on the book");
+  assert.ok(btn.below >= 16, "it sits after the last page, clear of it (" + btn.below + "px)");
+  assert.ok(btn.h < 75, "it is small and quiet (" + btn.h + "px)");
+  const open = async () => {
+    await page.locator("#color-reset").scrollIntoViewIfNeeded();
+    await page.locator("#color-reset").click();
+    await page.locator(".gate").waitFor({ state: "visible" });
+  };
+  await open();
+  assert.match(await page.locator(".gate__msg").textContent(), /Color Book/, "the gate says what it will clear");
+  await page.locator(".gate__input").fill("banana");
+  await page.locator(".gate__ok").click();
+  assert.ok(await page.locator(".gate__err").isVisible(), "a wrong word only shows the hint");
+  await page.locator(".gate__cancel").click();
+  await page.locator(".gate").waitFor({ state: "hidden" });
+  assert.deepEqual(await page.evaluate(() => window.__COLOR.save()), saved, "nothing is cleared without the word");
+  await page.waitForTimeout(400);
+  await open();
+  await page.locator(".gate__input").fill("RESET");
+  await page.locator(".gate__ok").click();
+  await page.locator(".gate").waitFor({ state: "hidden" });
+  assert.match(await page.locator(".gate__done").last().textContent(), /Color Book starts over/, "the grown-up is told it worked");
+  assert.equal(await stars(), 0, "every ⭐ is gone from the book");
+  const after = await page.evaluate(() => window.__COLOR.save());
+  for (const k of ["stars", "runs", "art", "order"]) assert.deepEqual(after[k], {}, k + " is cleared");
+  assert.equal(after.demo, true, "how to play is not progress: the ghost finger is not shown again");
+  assert.ok(after.gen > 0, "the reset is stamped, so another tab can tell");
+
+  // tab 2 still holds the old ⭐: when it next writes (it opens a page), it
+  // must take the reset, not fold its old ⭐ back in
+  await tab2.waitForFunction(() => JSON.parse(localStorage.getItem("josh-color-v1")).gen > 0);
+  await tab2.evaluate(() => window.__COLOR.start("castle", {}));
+  await tab2.waitForTimeout(200);
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("josh-color-v1")));
+  assert.deepEqual(stored.stars, {}, "a tab open from before cannot fold the wiped ⭐ back in");
+  assert.deepEqual(stored.art, {}, "…nor his old colors");
+  // (tab 2 is already ON #color-home: setting the same hash is no navigation,
+  // so hop away first)
+  await tab2.evaluate(() => { location.hash = "#__renav"; });
+  await tab2.waitForTimeout(60);
+  await tab2.evaluate(() => { location.hash = "#color-home"; });
+  await tab2.locator("#screen-color-home").waitFor({ state: "visible" });
+  assert.equal(await tab2.evaluate(() => [...document.querySelectorAll(".color-page__star")].filter((e) => e.textContent).length), 0, "tab 2's book shows the reset too");
+  await tab2.close();
+  await page.reload({ waitUntil: "load" });
+  assert.deepEqual((await page.evaluate(() => window.__COLOR.save())).stars, {}, "and it holds across a reload");
 });

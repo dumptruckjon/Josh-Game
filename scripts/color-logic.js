@@ -298,17 +298,8 @@
   function contrast(a, b) { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
   // The ink a pot's number wears on its color: dark or white, whichever reads.
   const inkOn = (hex) => (contrast(hex, "#1f2333") >= contrast(hex, "#ffffff") ? "#1f2333" : "#ffffff");
-  // A light tint of a color (the shimmer on a region waiting for it).
+  // A light tint of a color.
   function tint(hex, t) { const c = hexRgb(hex); return "#" + c.map((v) => Math.round(v + (255 - v) * t).toString(16).padStart(2, "0")).join(""); }
-  // The shimmer on a shape waiting for its color: a light tint of it, lightened
-  // further when the number (LABEL, gray) would not read on it — a black's
-  // 0.62 tint is a mid gray, 2.77:1 against the number.
-  const LABEL = "#5f6675";
-  function wantTint(hex) {
-    let t = 0.62, c = tint(hex, t);
-    while (contrast(LABEL, c) < 3.2 && t < 0.95) { t += 0.03; c = tint(hex, t); }
-    return c;
-  }
 
   // ---- The page as SVG markup --------------------------------------------------
   // fills: { regionIndex: hex } for what is painted · labels: from labels() (or
@@ -386,7 +377,7 @@
     raster, distance, labels, labelText, needR, fontSize,
     judge, ownerAt, remaining, nextColor, numbered, finished,
     FX, isPaint, paintOf, paintFill, paintOver,
-    hexRgb, lum, contrast, inkOn, tint, wantTint, LABEL, pageSvg, OUTLINE,
+    hexRgb, lum, contrast, inkOn, tint, pageSvg, OUTLINE,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else global.ColorLogic = api;

@@ -5324,8 +5324,6 @@ body.in-game .screen.color-play { flex: 1 1 auto; display: flex; flex-direction:
   user-select: none;
 }
 .cb-label { font-family: ui-rounded, "SF Pro Rounded", Nunito, Verdana, system-ui, sans-serif; font-weight: 800; fill: #5f6675; }
-.cb-want { fill: var(--want, #ffffff); animation: cbWant 1.6s ease-in-out infinite; }
-@keyframes cbWant { 0%, 100% { fill: var(--want, #ffffff); } 50% { fill: #ffffff; } }
 .cb-label--nudge { animation: cbNudge 0.6s ease; transform-box: fill-box; transform-origin: center; }
 @keyframes cbNudge { 0%, 100% { transform: scale(1); fill: #5f6675; } 35% { transform: scale(1.7); fill: #c2255c; } }
 
@@ -5526,7 +5524,7 @@ body.in-game .screen.color-play { flex: 1 1 auto; display: flex; flex-direction:
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .color-page--next, .cb-want, .cb-label--nudge, .color-pot--pop, .color-pot--wiggle, .color-pot--cheer, .cb-ghost, .cb-anim,
+  .color-page--next, .cb-label--nudge, .color-pot--pop, .color-pot--wiggle, .color-pot--cheer, .cb-ghost, .cb-anim,
   .cb-anim--spin, .cb-anim--bob, .cb-anim--swim, .cb-anim--wobble, .cb-anim--launch, .cb-anim--stomp, .cb-anim--tip, .cb-anim--rumble,
   .cb-anim--flash, .cb-anim--wave, .cb-anim--rock, .cb-anim--flap, .cb-anim--flicker, .cb-anim--bounce,
   .cb-find, .cb-burst span { animation: none; }

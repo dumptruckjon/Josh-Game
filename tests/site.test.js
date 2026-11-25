@@ -1294,6 +1294,32 @@ test("guardrail: Gobble Hole's grown-ups reset asks the ONE parent gate, and wip
   assert.equal((h.match(/save = freshSave\(\)/g) || []).length, 1, "a fresh save is made in ONE place");
 });
 
+test("guardrail: the Color Book and Seek & Find grown-ups resets ask the ONE gate, wipe through ONE owner, and stamp a gen another tab takes", () => {
+  // The owner (2026-11-25): both worlds need an adult-only reset. Same shape
+  // as Gobble Hole's: the shared JoshGate (no word checked here, no dialog
+  // built here), ONE wipe that the button and the test hook both call, and a
+  // reset `gen` stamped past this tab's and the stored one — an ordinary
+  // write folds ⭐ in as a max, so without it a second open tab would put
+  // every wiped ⭐ straight back (Gobble Hole §22).
+  const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  for (const [file, id, hook] of [["scripts/color-main.js", "color-reset", "__COLOR"], ["scripts/seek-main.js", "seek-reset", "__SEEK"]]) {
+    const h = strip(read(file));
+    assert.match(h, /JoshGate[\s\S]{0,80}\.ask\(\{[\s\S]*?resetProgress\(/, file + ": the ⚙️ asks the shared gate, and its confirm goes through the one wipe");
+    assert.ok(!/toLowerCase\(\)\s*===/.test(h), file + " checks no word itself");
+    assert.ok(!/["']gate(__[a-z]+)?["']/.test(h), file + " builds no gate dialog of its own");
+    assert.match(h, new RegExp('id="' + id + '"[^>]*data-adult="1"'), file + ": its button is marked adult-only");
+    assert.match(h, /reset\(\)\s*\{\s*resetProgress\(\);?\s*\}/, file + ": " + hook + ".reset goes through the one wipe");
+    assert.equal((h.match(/save = freshSave\(\)/g) || []).length, 1, file + ": a fresh save is made in ONE place");
+    const at = h.indexOf("function resetProgress(");
+    const body = h.slice(at, h.indexOf("\n  }\n", at));
+    assert.match(body, /save\.gen = gen/, file + ": the reset stamps a gen");
+    assert.match(body, /Math\.max\(Date\.now\(\), save\.gen \+ 1, disk\.gen \+ 1\)/, file + ": past this tab's gen and the stored one");
+    const per = h.slice(h.indexOf("function persist("), h.indexOf("\n  }\n", h.indexOf("function persist(")));
+    assert.match(per, /if \(disk\.gen > save\.gen\) adopt\(disk\)/, file + ": a write takes a newer reset instead of folding");
+    assert.match(h, /addEventListener\("storage"/, file + ": an open page hears another tab's reset");
+  }
+});
+
 test("guardrail: every change Gobble Hole makes to its save goes through own.*, so a reset taken from another tab keeps it", () => {
   // §22: a tab that finds another tab's reset in storage takes it, keeping
   // exactly what IT has changed and not yet written (pend). A change written

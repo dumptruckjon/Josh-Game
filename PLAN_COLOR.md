@@ -91,9 +91,10 @@ Numbered regions grow 5 → ~40, colors 3 → 8; the last three are color-by-mat
 ## 3. The page, step by step
 
 1. Opening: the page appears as a white coloring page, its name is said
-   ("Let's color the rocket!"), and pot **1** is already chosen; its regions
-   shimmer.
-2. Tap a shimmering region (or near one): paint spreads from the finger, a
+   ("Let's color the rocket!"), and pot **1** is already chosen. Nothing marks
+   its regions: finding the numbers IS the game (the owner, 2026-11-25 — the
+   first build made them shimmer on every pick, which was far too easy).
+2. Tap a region with that number (or near one): paint spreads from the finger, a
    note plays (each fill a step up a pentatonic scale), the number vanishes.
 3. When a color is all done its pot gets a ✓, a chime plays, and the next
    unfinished pot is chosen for him.
@@ -142,7 +143,7 @@ to improve ours … amazing and awesome and fun … deep audit and deep testing.
 
 | What the best apps do | Theirs | Ours now |
 |---|---|---|
-| Help you find the last shapes | Happy Color's light bulb highlights the areas you missed, but costs an ad | 🔍 **Find it**: after a quiet while (14s) the shapes waiting for his color ring and pulse, and the ghost finger points at one. Free, silent, comes back only after another quiet while |
+| Help you find the last shapes | Happy Color's light bulb highlights the areas you missed, but costs an ad | 🔍 **Find it**: after a LONG quiet while (25s, restarted by every pick and every paint) ONE shape waiting for his color rings, and the ghost finger points at it. Free, silent, comes back only after another quiet while |
 | Show off the finished picture | Save and share | 🎬 **Watch it paint**: the page paints itself again from white, in the order HE painted it, a note per shape, then comes alive again with his own colors |
 | Special paints | Kids' coloring apps sell glitter and pattern packs | ✨ **Magic crayons**, free and first in the box: 🌈 rainbow (replaces the color), glitter, stripes and polka dots (lie over any color, so red with dots stays red) |
 | A reward per picture | A badge or coins | Each page **sounds** like itself when it comes alive: the rocket whooshes up the scale, the dump truck honks, the dinosaur and the dragon roar, the fire truck's siren, the castle's fanfare, the robot beeps, the monster truck vrooms |
@@ -156,8 +157,8 @@ meter (he cannot read it; the pots' ✓ are the progress).
 **What the audit found**
 - On the three pages with a BLACK color (fire truck, pirate ship, monster
   truck) the shimmer on a waiting shape was a mid gray, and the gray number on
-  it measured 2.77:1. `ColorLogic.wantTint` lightens a tint the number would
-  not read on (≥3.2:1); a law checks every color of every page.
+  it measured 2.77:1. (The shimmer itself was then REMOVED, 2026-11-25: it
+  gave away where every shape of the chosen color was. §7.)
 - On a phone the crayon box became one strip of sixteen, and exactly four fit:
   the twelve colors were hidden with nothing saying so. The strip now runs edge
   to edge with a fade at the right, takes two rows on a tall phone, and glides
@@ -180,3 +181,19 @@ after a real quiet while, rings exactly the waiting shapes, says nothing, and
 goes with a tap; a broken save keeps only real stars, paints and orders;
 reduced motion; label contrast on the shimmer; the patterns declared once;
 every page's sound known to the player; the Chinese restated.
+
+## 7. Harder, and a grown-ups reset (the owner, 2026-11-25)
+
+"Don't pulse them (give the clue) the second he selects a number every time.
+That's way too easy." The shimmer on every shape waiting for the chosen color
+is gone: picking a pot marks nothing, and a law fails any mark a pick adds.
+The 🔍 hint stays as a rescue only: after 25s with no pick and no paint, ONE
+shape rings and the ghost finger points at it (it used to ring every shape of
+the color after 14s).
+
+A grown-ups ⚙️ under the last page clears every ⭐, half-painted page, his
+colors and replays, through the app's ONE type-the-word gate (`JoshGate`).
+Seek & Find has the same. Both stamp a reset `gen` (a time), so a second open
+tab takes the reset at its next write, or on the storage event, instead of
+folding its old ⭐ back in — Gobble Hole's §22 lesson, built in from the start.
+

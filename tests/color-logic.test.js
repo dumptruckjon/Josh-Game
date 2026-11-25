@@ -208,27 +208,22 @@ test("geometry helpers: a square raster, a clipped line, a sampled path", () => 
 });
 
 // ---- The upgrade (compared with the color-by-number apps): magic crayons, a
-// sound for each page, his Chinese, and the numbers readable on the shimmer.
+// sound for each page, his Chinese, and no clue on a pick.
 
-test("a number reads on the shimmer: the label color against every waiting tint (and white) is at least 3:1", () => {
-  // The shapes waiting for the chosen color shimmer between white and a light
-  // tint of it (markWanted: L.wantTint); the number sits on top all the time.
-  // A plain 0.62 tint failed on BLACK (2.77:1 on the fire truck, the pirate
-  // ship and the monster truck), so wantTint lightens a tint the number would
-  // not read on.
-  const label = "#5f6675"; // .cb-label in main.css
-  assert.equal(L.LABEL, label, "wantTint measures against the label main.css paints");
+test("choosing a color gives no clue: nothing marks the shapes waiting for it, and a number reads on the white page", () => {
+  // The owner (2026-11-25): lighting the shapes waiting for a color the second
+  // he picks it was far too easy — finding the numbers IS the game. Nothing in
+  // the page's code may tint or mark them on a pick; only the long-quiet hint
+  // (one ring, color-main.js hint()) ever shows one.
   const main = fs.readFileSync(path.join(__dirname, "..", "scripts", "color-main.js"), "utf8");
-  assert.match(main, /--want", L\.wantTint\(/, "the shimmer is wantTint, the tint this law measures");
   const css = fs.readFileSync(path.join(__dirname, "..", "styles", "main.css"), "utf8");
-  assert.match(css, /\.cb-label \{[^}]*fill: #5f6675/, "the label color this law measures is the one main.css paints");
-  const bad = [];
-  for (const p of PAGES) for (const c of p.colors) {
-    const k = L.contrast(label, L.wantTint(c.hex));
-    if (k < 3) bad.push(p.id + " " + c.name + " " + k.toFixed(2));
-  }
-  assert.ok(L.contrast(label, "#ffffff") >= 4.5, "on white the number is AA");
-  assert.deepEqual(bad, [], "a number that fades into its own shimmer: " + bad.join(", "));
+  assert.ok(!/cb-want|markWanted|wantTint/.test(main + css), "no shimmer on the waiting shapes");
+  const pick = main.slice(main.indexOf("function pickColor("), main.indexOf("\n  }\n", main.indexOf("function pickColor(")));
+  assert.ok(pick.length > 50, "pickColor exists");
+  assert.ok(!/classList\.(add|toggle)\([^)]*cb-/.test(pick) && !/cb-find/.test(pick.replace(/clearHint\(\)/g, "")), "a pick adds no mark to a shape");
+  const label = "#5f6675"; // .cb-label in main.css
+  assert.match(css, /\.cb-label \{[^}]*fill: #5f6675/, "the label color measured here is the one main.css paints");
+  assert.ok(L.contrast(label, "#ffffff") >= 4.5, "on the white page the number is AA");
 });
 
 test("paint: a color, or a color with magic; only the four magic crayons are paint", () => {
