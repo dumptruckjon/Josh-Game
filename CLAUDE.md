@@ -16725,5 +16725,11 @@ the test, not the product**: returning through the book redraws the page, so
 WITHOUT it; and a hinted color with one waiting shape cannot show that a tap
 clears the OTHER rings. Also: the ONE LIGHT law said "no gradient outside the
 shared block", a stand-in for its real claim (no id declared twice); a colored
-gradient cannot join the alpha-only block, so the law now asserts the claim.
+gradient cannot join the alpha-only block, so the law now asserts the claim. And the first Color Book deploy went red on CI's Safari on an
+iPad: the first-time ghost finger was ABSOLUTE, started on the bottom row of
+pots, and hung 5px below the page, so a page that must never scroll did. It
+passed here only because Chromium measured before the finger appeared (it shows
+at 380ms); Safari is slow enough to measure while it shows. A decoration that
+moves over a screen is `position: fixed` (it is never part of the page's
+height), and the test now measures while the finger is showing.
 

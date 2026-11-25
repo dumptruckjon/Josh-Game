@@ -5414,7 +5414,7 @@ body.in-game .screen.color-play { flex: 1 1 auto; display: flex; flex-direction:
 
 /* The first time: a finger shows pot, then shape. */
 .cb-ghost {
-  position: absolute;
+  position: fixed; /* never part of the page's height (see showGhost) */
   left: 0;
   top: 0;
   font-size: 3rem;

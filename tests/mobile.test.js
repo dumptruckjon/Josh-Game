@@ -321,6 +321,16 @@ test("🎨 Color Book fits every screen: its book, a page with its pots, and fre
       assert.ok(m.w >= (h >= 500 ? 240 : 150), `the page keeps room to paint (${Math.round(m.w)}px) at ${w}x${h}`);
       assert.ok(m.potsBottom <= m.vh + 1, `every pot is on screen at ${w}x${h} (ends at ${Math.round(m.potsBottom)})`);
       assert.ok(m.doc <= m.vh + 1, `the page never scrolls at ${w}x${h} (${m.doc} in ${m.vh})`);
+      // …nor while the first-time finger sits on the bottom row of pots: an
+      // absolute finger hung 5px below the page on an iPad (CI's Safari, which
+      // is slow enough to measure while it shows)
+      const g = await page.evaluate(async () => {
+        const out = [];
+        for (let t = 0; t < 10; t++) { await new Promise((r) => setTimeout(r, 120)); out.push([document.documentElement.scrollHeight, window.__COLOR.ghost()]); }
+        return out;
+      });
+      assert.ok(g.some((x) => x[1]), `the first-time finger shows at ${w}x${h}`);
+      for (const [hgt] of g) assert.ok(hgt <= m.vh + 1, `the finger never makes the page scroll at ${w}x${h} (${hgt} in ${m.vh})`);
       // a finished page: the crayon box
       await page.evaluate(() => {
         const s = JSON.parse(localStorage.getItem("josh-color-v1") || "{}");

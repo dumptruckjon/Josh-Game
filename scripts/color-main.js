@@ -688,16 +688,21 @@
     const pot = pots.querySelector('.color-pot[data-n="' + st.sel + '"]');
     const i = [...L.numbered(st.page)].find((k) => !st.done.has(k) && st.page.regions[k].n === st.sel);
     if (!pot || i == null) return;
-    const svg = holder.querySelector("svg"), r = svg.getBoundingClientRect(), pr = pot.getBoundingClientRect(), fr = play.getBoundingClientRect();
+    const svg = holder.querySelector("svg"), r = svg.getBoundingClientRect(), pr = pot.getBoundingClientRect();
     const lab = st.g.labels[i];
     ghost = doc.createElement("div");
     ghost.className = "cb-ghost";
     ghost.setAttribute("aria-hidden", "true");
     ghost.textContent = "👆";
-    ghost.style.setProperty("--x0", pr.left + pr.width / 2 - fr.left + "px");
-    ghost.style.setProperty("--y0", pr.top + pr.height / 2 - fr.top + "px");
-    ghost.style.setProperty("--x1", r.left + (lab.x / L.W) * r.width - fr.left + "px");
-    ghost.style.setProperty("--y1", r.top + (lab.y / L.H) * r.height - fr.top + "px");
+    // FIXED to the screen, in screen coordinates, with the fingertip (the top
+    // middle of the glyph) on the target: an absolute finger on the bottom row
+    // of pots hung below the page and made it 5px taller (CI's Safari caught it
+    // on an iPad), which scrolls a page that must never scroll.
+    const TIP = 24; // half the glyph's width at 3rem
+    ghost.style.setProperty("--x0", pr.left + pr.width / 2 - TIP + "px");
+    ghost.style.setProperty("--y0", pr.top + pr.height / 2 + "px");
+    ghost.style.setProperty("--x1", r.left + (lab.x / L.W) * r.width - TIP + "px");
+    ghost.style.setProperty("--y1", r.top + (lab.y / L.H) * r.height + "px");
     play.appendChild(ghost);
     later(hideGhost, 4200);
   }
