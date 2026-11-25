@@ -132,3 +132,51 @@ Numbered regions grow 5 → ~40, colors 3 → 8; the last three are color-by-mat
   inside a wrong region does not; a finished region is never refilled.
 - Kid laws: ≥75px pots 16px apart, no overflow at 320/390/834, iPhone 17 Pro.
 - Save: coerced field by field, done ⭐ fold across tabs, free-paint colors kept.
+
+## 6. The upgrade: compared with the color-by-number apps (2026-11-25)
+
+The owner: "Compare to other color by number games and sites and look for ways
+to improve ours … amazing and awesome and fun … deep audit and deep testing."
+
+**What the others do, and what we took**
+
+| What the best apps do | Theirs | Ours now |
+|---|---|---|
+| Help you find the last shapes | Happy Color's light bulb highlights the areas you missed, but costs an ad | 🔍 **Find it**: after a quiet while (14s) the shapes waiting for his color ring and pulse, and the ghost finger points at one. Free, silent, comes back only after another quiet while |
+| Show off the finished picture | Save and share | 🎬 **Watch it paint**: the page paints itself again from white, in the order HE painted it, a note per shape, then comes alive again with his own colors |
+| Special paints | Kids' coloring apps sell glitter and pattern packs | ✨ **Magic crayons**, free and first in the box: 🌈 rainbow (replaces the color), glitter, stripes and polka dots (lie over any color, so red with dots stays red) |
+| A reward per picture | A badge or coins | Each page **sounds** like itself when it comes alive: the rocket whooshes up the scale, the dump truck honks, the dinosaur and the dragon roar, the fire truck's siren, the castle's fanfare, the robot beeps, the monster truck vrooms |
+| Juicy taps | A soft fill | A **burst of sparkles** in the paint's color where it lands (not under reduced motion) |
+| — | — | **His Chinese**: a finished color is cheered in English, then in Chinese (红色, 天蓝色…) in a Chinese voice. Cream, tan, teal and mint have no everyday word a four-year-old hears, so they stay English |
+
+**What the comparison did NOT take**: ads, paid hints, hint counters (he never
+runs out of help), timelapse export, sharing, pinch-zoom (§1), a percentage
+meter (he cannot read it; the pots' ✓ are the progress).
+
+**What the audit found**
+- On the three pages with a BLACK color (fire truck, pirate ship, monster
+  truck) the shimmer on a waiting shape was a mid gray, and the gray number on
+  it measured 2.77:1. `ColorLogic.wantTint` lightens a tint the number would
+  not read on (≥3.2:1); a law checks every color of every page.
+- On a phone the crayon box became one strip of sixteen, and exactly four fit:
+  the twelve colors were hidden with nothing saying so. The strip now runs edge
+  to edge with a fade at the right, takes two rows on a tall phone, and glides
+  to its end and back the first time it opens.
+
+**How it is built**: a paint is `"#rrggbb"` or `"#rrggbb fx"`
+(`ColorLogic.isPaint/paintOf`), saved as it is; the rainbow gradient and the
+three patterns are declared once in index.html (ids resolve document-wide, so
+the book's thumbnails share them, as JoshArt's light does). The painting order
+of a finished page is kept in `save.order` for the replay.
+
+**Tests added** (each proven by a mutation that puts the defect back): every
+page painted to the end by real taps (each tap paints exactly one shape; every
+finished color cheered, and in Chinese where it has a word); the rocket's
+whoosh rises and a muted page is silent; magic crayons keep the color under
+them, a plain crayon takes the magic off, they survive a reload and show in the
+book; the replay starts white, paints in his order, ignores taps, ends with his
+colors, and a replay cut short leaves the page whole; the hint comes by itself
+after a real quiet while, rings exactly the waiting shapes, says nothing, and
+goes with a tap; a broken save keeps only real stars, paints and orders;
+reduced motion; label contrast on the shimmer; the patterns declared once;
+every page's sound known to the player; the Chinese restated.

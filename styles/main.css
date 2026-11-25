@@ -5371,14 +5371,44 @@ body.in-game .screen.color-play { flex: 1 1 auto; display: flex; flex-direction:
 @keyframes cbWiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
 .color-pot--cheer { animation: cbPop 0.45s ease 2; }
 .color-crayon { background: var(--crayon, #ffffff); }
+/* The magic crayons: each swatch shows what it does (no reading). Longhands
+   only: a translucent-stop gradient on the shorthand would reset the color. */
+.color-crayon--rainbow { background-color: #845ef7; background-image: linear-gradient(135deg, #ff4d4d 0%, #ff9f1c 20%, #ffd43b 40%, #51cf66 60%, #339af0 80%, #845ef7 100%); }
+.color-crayon--glitter { background-color: #7048e8; background-image: radial-gradient(circle at 30% 30%, #ffffff 0 3px, transparent 4px), radial-gradient(circle at 68% 42%, #fff6bf 0 2px, transparent 3px), radial-gradient(circle at 46% 72%, #ffffff 0 2.5px, transparent 3.5px), radial-gradient(circle at 74% 74%, #ffffff 0 1.5px, transparent 2.5px); }
+.color-crayon--stripes { background-color: #1c7ed6; background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.6) 0 7px, transparent 7px 14px); }
+.color-crayon--dots { background-color: #e64980; background-image: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0 4px, transparent 5px); background-size: 18px 18px; }
+.color-play--replay .color-crayons { opacity: 0.5; }
+
+/* Find it: after a quiet while, the shapes waiting for his color ring and pulse. */
+.cb-find { stroke: #c2255c; stroke-width: 4.2; animation: cbFind 0.7s ease-in-out infinite alternate; }
+@keyframes cbFind { from { stroke-width: 2.6; } to { stroke-width: 5.4; } }
+
+/* A burst of sparkles where the paint lands. */
+.cb-burst { position: absolute; width: 0; height: 0; pointer-events: none; z-index: 4; }
+.cb-burst span {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--burst, #ffd43b);
+  box-shadow: 0 0 0 2px #ffffff;
+  animation: cbBurst 0.6s ease-out forwards;
+}
+@keyframes cbBurst {
+  from { transform: rotate(var(--a)) translateX(0) scale(1); opacity: 1; }
+  to { transform: rotate(var(--a)) translateX(38px) scale(0.3); opacity: 0; }
+}
 
 .color-box { margin-top: 0; }
 .color-crayons { grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); }
-.color-boxrow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.color-boxrow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
 .color-boxrow .btn-big { min-width: 0; width: 100%; } /* .btn-big's 140px floor overflowed two 136px tracks at 320 wide, eating the 16px gap */
 .color-next { display: grid; grid-auto-flow: column; justify-content: center; align-items: center; column-gap: 8px; }
-.color-next__pic { display: block; width: 48px; height: 48px; }
-.color-next__pic svg { width: 48px; height: 48px; border-radius: 8px; }
+.color-next__pic { display: block; width: 40px; height: 40px; }
+.color-next__pic svg { width: 40px; height: 40px; border-radius: 8px; }
+.color-boxrow .btn-big { padding-left: 4px; padding-right: 4px; }
 /* free paint scrolls its crayons if a short screen needs it; the picture keeps its room */
 .color-box:not([hidden]) { max-height: 46vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 
@@ -5450,6 +5480,32 @@ body.in-game .screen.color-play { flex: 1 1 auto; display: flex; flex-direction:
   .color-play .color-box { max-height: calc(100vh - 124px); max-height: calc(100dvh - 124px); }
 }
 
+/* A phone in portrait: sixteen crayons (four magic, twelve colors) in a grid
+   would take four rows from the picture, so they are ONE row that scrolls
+   sideways, the magic ones first; the fourth is cut by the edge, which says
+   "there is more". */
+@media (orientation: portrait) and (max-width: 599px) {
+  .color-play .color-crayons {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 76px;
+    justify-content: start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+    margin: 6px -16px 0; /* edge to edge, so the fifth crayon peeks in */
+    padding: 10px 16px 14px;
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 82%, transparent 100%);
+    mask-image: linear-gradient(to right, #000 0, #000 82%, transparent 100%);
+  }
+}
+/* …and a tall phone has room for two rows of it (the magic ones a 2x2 square). */
+@media (orientation: portrait) and (max-width: 599px) and (min-height: 780px) {
+  .color-play .color-crayons { grid-template-rows: repeat(2, 76px); }
+}
+
 /* A small phone (320x568 and its kin): three rows of 76px pots would leave the
    picture 220px, so the pots (and the crayons) are ONE row that scrolls
    sideways, and the chosen pot is scrolled into view for him. */
@@ -5472,5 +5528,8 @@ body.in-game .screen.color-play { flex: 1 1 auto; display: flex; flex-direction:
 @media (prefers-reduced-motion: reduce) {
   .color-page--next, .cb-want, .cb-label--nudge, .color-pot--pop, .color-pot--wiggle, .color-pot--cheer, .cb-ghost, .cb-anim,
   .cb-anim--spin, .cb-anim--bob, .cb-anim--swim, .cb-anim--wobble, .cb-anim--launch, .cb-anim--stomp, .cb-anim--tip, .cb-anim--rumble,
-  .cb-anim--flash, .cb-anim--wave, .cb-anim--rock, .cb-anim--flap, .cb-anim--flicker, .cb-anim--bounce { animation: none; }
+  .cb-anim--flash, .cb-anim--wave, .cb-anim--rock, .cb-anim--flap, .cb-anim--flicker, .cb-anim--bounce,
+  .cb-find, .cb-burst span { animation: none; }
+  /* the find-it ring still shows, just still */
+  .cb-burst { display: none; }
 }

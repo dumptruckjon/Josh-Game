@@ -300,6 +300,15 @@
   const inkOn = (hex) => (contrast(hex, "#1f2333") >= contrast(hex, "#ffffff") ? "#1f2333" : "#ffffff");
   // A light tint of a color (the shimmer on a region waiting for it).
   function tint(hex, t) { const c = hexRgb(hex); return "#" + c.map((v) => Math.round(v + (255 - v) * t).toString(16).padStart(2, "0")).join(""); }
+  // The shimmer on a shape waiting for its color: a light tint of it, lightened
+  // further when the number (LABEL, gray) would not read on it — a black's
+  // 0.62 tint is a mid gray, 2.77:1 against the number.
+  const LABEL = "#5f6675";
+  function wantTint(hex) {
+    let t = 0.62, c = tint(hex, t);
+    while (contrast(LABEL, c) < 3.2 && t < 0.95) { t += 0.03; c = tint(hex, t); }
+    return c;
+  }
 
   // ---- The page as SVG markup --------------------------------------------------
   // fills: { regionIndex: hex } for what is painted · labels: from labels() (or
@@ -309,6 +318,26 @@
   // part can come alive without changing what covers what.
   const OUTLINE = "#232634";
   function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+  // ---- Paint: a color, or a color with MAGIC on it ------------------------------
+  // A paint is "#rrggbb", or "#rrggbb fx" where fx is one of the magic crayons.
+  // The magic is drawn from gradients and patterns declared ONCE in index.html
+  // (ids resolve document-wide, so the 12 thumbnails in the book and the page
+  // share them, as JoshArt's light does): rainbow REPLACES the color, the other
+  // three lie over it (white sparkles, stripes, dots), so they suit any color.
+  const FX = ["rainbow", "glitter", "stripes", "dots"];
+  function isPaint(v) {
+    if (typeof v !== "string") return false;
+    const m = /^#[0-9a-f]{6}(?: ([a-z]+))?$/i.exec(v);
+    return !!m && (!m[1] || FX.includes(m[1]));
+  }
+  function paintOf(v) {
+    const s = String(v || "#ffffff").split(" ");
+    return { hex: s[0], fx: FX.includes(s[1]) ? s[1] : null };
+  }
+  // the fill attribute for a paint; the overlay (or "") that lies on top of it
+  const paintFill = (v) => { const p = paintOf(v); return p.fx === "rainbow" ? "url(#cb-fx-rainbow) " + p.hex : p.hex; };
+  const paintOver = (v, d) => { const p = paintOf(v); return p.fx && p.fx !== "rainbow" ? `<path class="cb-fx" d="${d}" fill="url(#cb-fx-${p.fx}) none" pointer-events="none"/>` : ""; };
+
   function pageSvg(page, o) {
     const opt = o || {}, fills = opt.fills || {}, labs = opt.labels || null;
     const sw = opt.thumb ? 2.4 : 1.8;
@@ -329,10 +358,11 @@
         if (part) out += `<g class="cb-part" data-part="${esc(part)}">`;
         open = part;
       }
-      const fill = reg.fill || fills[i] || "#ffffff";
+      const paint = reg.fill || fills[i] || "#ffffff", d = toD(reg.pts);
       const hook = opt.thumb ? "" : ` data-i="${i}"${reg.n ? ` data-n="${reg.n}"` : ""}`;
-      out += `<path class="cb-r${reg.n ? " cb-num" : ""}" d="${toD(reg.pts)}" fill="${fill}" stroke="${OUTLINE}" stroke-width="${sw}" stroke-linejoin="round"${hook}/>`;
-      if (opt.shade && i > 0) out += `<path d="${toD(reg.pts)}" fill="url(#jart-lit) none" pointer-events="none"/>`;
+      out += `<path class="cb-r${reg.n ? " cb-num" : ""}" d="${d}" fill="${paintFill(paint)}" stroke="${OUTLINE}" stroke-width="${sw}" stroke-linejoin="round"${hook}/>`;
+      out += paintOver(paint, d);
+      if (opt.shade && i > 0) out += `<path d="${d}" fill="url(#jart-lit) none" pointer-events="none"/>`;
       out += inkAfter(i);
       if (part && lastRun[part] === i) out += inkOf(part);
     });
@@ -355,7 +385,8 @@
     circle, ellipse, rect, star, poly, path, move, mirror, rotate, clipLine, toD, lineD,
     raster, distance, labels, labelText, needR, fontSize,
     judge, ownerAt, remaining, nextColor, numbered, finished,
-    hexRgb, lum, contrast, inkOn, tint, pageSvg, OUTLINE,
+    FX, isPaint, paintOf, paintFill, paintOver,
+    hexRgb, lum, contrast, inkOn, tint, wantTint, LABEL, pageSvg, OUTLINE,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else global.ColorLogic = api;

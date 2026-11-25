@@ -3101,8 +3101,21 @@ test("ONE LIGHT: Josh's art shares three alpha-only gradients, and cannot re-ope
   const declared = [...block[0].matchAll(/<(?:linear|radial)Gradient id="([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(declared.slice().sort(), ["jart-dome", "jart-ground", "jart-lit"],
     "exactly the three shared gradients, by stable id");
-  assert.equal((live.match(/<(?:linear|radial)Gradient/g) || []).length, declared.length,
-    "and NO gradient is declared anywhere else in the page — a second block re-opens the id collapse");
+  // The collapse is a DUPLICATE id (200 pictures each declaring "bg"). So the
+  // law is: gradients live only in the declared blocks — this one, and the
+  // 🎨 Color Book's magic (.cb-defs, colored by design, so it may not join the
+  // alpha-only block) — and every gradient or pattern id in the page is
+  // declared exactly once.
+  const cb = /<svg class="jart-defs cb-defs"[\s\S]*?<\/svg>/.exec(live);
+  const cbGrads = cb ? (cb[0].match(/<(?:linear|radial)Gradient/g) || []).length : 0;
+  assert.equal((live.match(/<(?:linear|radial)Gradient/g) || []).length, declared.length + cbGrads,
+    "and NO gradient is declared outside the two shared blocks — a per-picture block re-opens the id collapse");
+  const ids = [...live.matchAll(/<(?:linearGradient|radialGradient|pattern)\b[^>]*\bid="([^"]+)"/g)].map((m) => m[1]);
+  const dup = ids.filter((x, k) => ids.indexOf(x) !== k);
+  assert.deepEqual(dup, [], "a gradient or pattern id declared twice is the collapse itself");
+  if (cb) for (const m of cb[0].matchAll(/<(?:linearGradient|radialGradient|pattern)\b[^>]*\bid="([^"]+)"/g)) {
+    assert.match(m[1], /^cb-fx-/, "the Color Book's block holds only its own namespaced magic");
+  }
 
   // ALPHA-ONLY is the whole reason one definition can serve 240 differently
   // coloured pictures. A gradient carrying a colour of its own would tint every

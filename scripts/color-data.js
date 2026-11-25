@@ -361,7 +361,32 @@
   const PAGES = [sun(), fish(), iceCream(), rocket(), dino(), dumpTruck(), fireTruck(), castle(), pirateShip(), robot(), dragon(), monsterTruck()];
   PAGES.forEach((p, i) => { p.level = i + 1; });
 
+  // What each page SOUNDS like when it comes alive (color-main.js plays these
+  // through JoshAudio.tone, so the mute silences them).
+  const SOUNDS = {
+    sun: "chime", fish: "bloop", icecream: "yum", rocket: "whoosh", dino: "roar", dumptruck: "honk",
+    firetruck: "siren", castle: "fanfare", pirate: "horn", robot: "beep", dragon: "roar", monster: "vroom",
+  };
+  PAGES.forEach((p) => { p.sound = SOUNDS[p.id] || "chime"; });
+
+  // His Chinese: a finished color is said in English, then in Chinese. Only the
+  // names with a plain, everyday Chinese word (cream, tan, teal and mint have
+  // none a four-year-old would hear, so they stay English).
+  const COLOR_ZH = {
+    red: "红色", orange: "橙色", yellow: "黄色", green: "绿色", blue: "蓝色", purple: "紫色",
+    pink: "粉色", brown: "棕色", black: "黑色", white: "白色", gray: "灰色", silver: "银色",
+    "sky blue": "天蓝色", "light blue": "浅蓝色", "dark blue": "深蓝色", "dark green": "深绿色",
+  };
+
   // Free paint: the crayon box that opens when a page is done.
+  // Magic crayons come FIRST in the box (they are the surprise): rainbow
+  // replaces a shape's color; glitter, stripes and dots go on top of it.
+  const MAGIC = [
+    { fx: "rainbow", label: "Rainbow crayon", say: "Rainbow!" },
+    { fx: "glitter", label: "Glitter crayon", say: "Sparkly!" },
+    { fx: "stripes", label: "Stripes crayon", say: "Stripes!" },
+    { fx: "dots", label: "Polka dot crayon", say: "Polka dots!" },
+  ];
   const CRAYONS = ["#f03e3e", "#ff922b", "#ffd43b", "#82c91e", "#37b24d", "#22b8cf", "#1c7ed6", "#7950f2", "#e64980", "#a9744f", "#343a40", "#f8f9fa"];
 
   const SAY = {
@@ -374,9 +399,11 @@
     done: (p) => "You colored " + p.say + "!",
     paint: "Now paint it any way you like!",
     again: "Let's color it again!",
+    replay: "Watch it paint!",
+    magic: "Magic crayons! Tap a shape to make it sparkle!",
   };
 
-  const data = { PAGES, CRAYONS, SAY };
+  const data = { PAGES, CRAYONS, MAGIC, COLOR_ZH, SAY };
   if (typeof module !== "undefined" && module.exports) module.exports = data;
   else global.ColorData = data;
 })(typeof window !== "undefined" ? window : globalThis);

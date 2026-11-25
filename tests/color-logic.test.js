@@ -206,3 +206,90 @@ test("geometry helpers: a square raster, a clipped line, a sampled path", () => 
   assert.deepEqual(p, [[0, 0], [10, 0], [10, 10]]);
   assert.equal(L.path("M0 0 C10 0 10 10 0 10 Z").length, 13, "a curve is sampled");
 });
+
+// ---- The upgrade (compared with the color-by-number apps): magic crayons, a
+// sound for each page, his Chinese, and the numbers readable on the shimmer.
+
+test("a number reads on the shimmer: the label color against every waiting tint (and white) is at least 3:1", () => {
+  // The shapes waiting for the chosen color shimmer between white and a light
+  // tint of it (markWanted: L.wantTint); the number sits on top all the time.
+  // A plain 0.62 tint failed on BLACK (2.77:1 on the fire truck, the pirate
+  // ship and the monster truck), so wantTint lightens a tint the number would
+  // not read on.
+  const label = "#5f6675"; // .cb-label in main.css
+  assert.equal(L.LABEL, label, "wantTint measures against the label main.css paints");
+  const main = fs.readFileSync(path.join(__dirname, "..", "scripts", "color-main.js"), "utf8");
+  assert.match(main, /--want", L\.wantTint\(/, "the shimmer is wantTint, the tint this law measures");
+  const css = fs.readFileSync(path.join(__dirname, "..", "styles", "main.css"), "utf8");
+  assert.match(css, /\.cb-label \{[^}]*fill: #5f6675/, "the label color this law measures is the one main.css paints");
+  const bad = [];
+  for (const p of PAGES) for (const c of p.colors) {
+    const k = L.contrast(label, L.wantTint(c.hex));
+    if (k < 3) bad.push(p.id + " " + c.name + " " + k.toFixed(2));
+  }
+  assert.ok(L.contrast(label, "#ffffff") >= 4.5, "on white the number is AA");
+  assert.deepEqual(bad, [], "a number that fades into its own shimmer: " + bad.join(", "));
+});
+
+test("paint: a color, or a color with magic; only the four magic crayons are paint", () => {
+  assert.deepEqual(L.FX, ["rainbow", "glitter", "stripes", "dots"]);
+  for (const ok of ["#a1b2c3", "#A1B2C3 rainbow", "#000000 glitter", "#ffffff stripes", "#123456 dots"]) assert.ok(L.isPaint(ok), ok);
+  for (const no of ["#abc", "red", "#a1b2c3 zap", "#a1b2c3  dots", " #a1b2c3", "#a1b2c3 dots extra", null, 7, "url(#x)"]) assert.ok(!L.isPaint(no), String(no));
+  assert.deepEqual(L.paintOf("#112233 dots"), { hex: "#112233", fx: "dots" });
+  assert.deepEqual(L.paintOf("#112233"), { hex: "#112233", fx: null });
+  // rainbow replaces the color, with the color as the fallback paint
+  assert.equal(L.paintFill("#112233 rainbow"), "url(#cb-fx-rainbow) #112233");
+  assert.equal(L.paintFill("#112233 glitter"), "#112233", "glitter lies OVER the color");
+  assert.equal(L.paintOver("#112233"), "", "a plain color has nothing over it");
+  assert.match(L.paintOver("#112233 dots", "M0 0Z"), /class="cb-fx" d="M0 0Z" fill="url\(#cb-fx-dots\) none" pointer-events="none"/);
+  // pageSvg puts the magic right after its shape, and still declares no ids
+  const p = PAGES[0], i = L.numbered(p)[0];
+  const svg = L.pageSvg(p, { fills: { [i]: "#7950f2 stripes" } });
+  assert.ok(!/ id=/.test(svg), "a page declares no ids (the patterns are index.html's)");
+  const at = svg.indexOf('data-i="' + i + '"');
+  const over = svg.indexOf('class="cb-fx"');
+  assert.ok(at > 0 && over > at && svg.lastIndexOf("<path", over - 1) > at - 200, "the stripes lie right over their shape");
+  const rb = L.pageSvg(p, { fills: { [i]: "#7950f2 rainbow" }, thumb: true });
+  assert.match(rb, /fill="url\(#cb-fx-rainbow\) #7950f2"/, "a rainbow thumbnail asks for the shared gradient");
+});
+
+test("every magic crayon's gradient or pattern is declared ONCE in index.html (ids resolve document-wide)", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8").replace(/<!--[\s\S]*?-->/g, "");
+  for (const fx of L.FX) {
+    const n = (html.match(new RegExp('id="cb-fx-' + fx + '"', "g")) || []).length;
+    assert.equal(n, 1, "cb-fx-" + fx + " is declared once (saw " + n + ")");
+  }
+  // and the crayon box offers exactly these, magic first
+  assert.deepEqual(D.MAGIC.map((m) => m.fx), L.FX, "one magic crayon per magic paint");
+  for (const m of D.MAGIC) assert.ok(m.label && m.say && !/\p{Extended_Pictographic}/u.test(m.say), m.fx + " is named and said in words");
+});
+
+test("every page has a sound when it comes alive, and every sound is one the player knows", () => {
+  const main = fs.readFileSync(path.join(__dirname, "..", "scripts", "color-main.js"), "utf8");
+  const sfx = main.slice(main.indexOf("const SFX = {"), main.indexOf("function pageSound"));
+  assert.ok(sfx.length > 200, "the SFX table must be found");
+  const known = [...sfx.matchAll(/^\s+([a-z]+): \{ notes:/gm)].map((m) => m[1]);
+  assert.ok(known.length >= 8, "the player knows its sounds (saw " + known.join(", ") + ")");
+  for (const p of PAGES) assert.ok(known.includes(p.sound), p.id + " sounds like '" + p.sound + "', which the player does not know");
+  // and the page's sound plays through the mute-gated tone() only
+  const ps = main.slice(main.indexOf("function pageSound"), main.indexOf("function comeAlive"));
+  assert.ok(/\btone\(/.test(ps) && !/JoshAudio/.test(ps), "pageSound plays through tone(), which the mute silences");
+});
+
+test("his Chinese: a finished color is said in English, then in Chinese — each name restated, none missing", () => {
+  // Restated truth (an everyday word for each color a page uses).
+  const TRUTH = {
+    red: "红色", orange: "橙色", yellow: "黄色", green: "绿色", blue: "蓝色", purple: "紫色",
+    pink: "粉色", brown: "棕色", black: "黑色", white: "白色", gray: "灰色", silver: "银色",
+    "sky blue": "天蓝色", "light blue": "浅蓝色", "dark blue": "深蓝色", "dark green": "深绿色",
+  };
+  assert.deepEqual(D.COLOR_ZH, TRUTH);
+  // colors with no plain everyday Chinese word a four-year-old would hear stay English
+  const ENGLISH_ONLY = ["cream", "tan", "teal", "mint"];
+  const used = new Set(PAGES.flatMap((p) => p.colors.map((c) => c.name)));
+  for (const name of used) assert.ok(D.COLOR_ZH[name] || ENGLISH_ONLY.includes(name), "the color '" + name + "' has no Chinese and is not declared English-only");
+  for (const e of ENGLISH_ONLY) assert.ok(used.has(e), "'" + e + "' is declared English-only but no page uses it (a dead carve-out)");
+  for (const zh of Object.values(D.COLOR_ZH)) assert.match(zh, /^\p{Script=Han}+$/u);
+  const main = fs.readFileSync(path.join(__dirname, "..", "scripts", "color-main.js"), "utf8");
+  assert.match(main, /lang: "zh-CN"/, "the Chinese is said in a Chinese voice");
+});

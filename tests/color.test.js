@@ -19,6 +19,8 @@ before(async () => {
   page.on("pageerror", (e) => pageErrors.push(String(e)));
   await page.addInitScript(() => {
     window.__said = [];
+    window.__saidLang = [];
+    window.__tones = [];
     try { localStorage.setItem("josh-muted", "0"); } catch (e) { /* ignore */ }
   });
   await page.goto(baseURL, { waitUntil: "load" });
@@ -33,7 +35,9 @@ async function spy() {
     const A = window.JoshAudio;
     if (A.__spied) return;
     const say = A.say;
-    A.say = function (t, o) { window.__said.push(String(t)); return say.call(this, t, o); };
+    A.say = function (t, o) { window.__said.push(String(t)); window.__saidLang.push((o && o.lang) || "en"); return say.call(this, t, o); };
+    const tone = A.tone;
+    A.tone = function (f, o) { window.__tones.push(f); return tone.call(this, f, o); };
     A.__spied = true;
   });
 }
@@ -216,6 +220,267 @@ test("free paint: a crayon recolors any shape; his colors are saved and shown in
   const s = await state();
   assert.ok(!s.free && s.done.length === 0, "🔁 starts the page over");
   assert.ok(!(await page.evaluate(() => window.__COLOR.save())).art.sun, "and forgets the old colors");
+});
+
+// Paint the open page to the end by real taps (each tap must paint exactly one
+// shape), and return what was said and played along the way.
+async function paintAll() {
+  for (let g = 0; g < 200; g++) {
+    const s = await state();
+    if (s.free) break;
+    const todo = await page.evaluate(() => window.__COLOR.todo());
+    if (!todo.length) { await page.waitForTimeout(150); continue; } // the beat before it comes alive
+    const t = todo.find((x) => x.n === s.sel);
+    assert.ok(t, "the chosen pot always has a shape waiting (sel " + s.sel + ")");
+    const before = s.done.length;
+    const p = await page.evaluate((k) => window.__COLOR.pointOf(k), t.i);
+    await page.mouse.click(p.x, p.y);
+    const after = await state();
+    if (after && !after.free) assert.equal(after.done.length, before + 1, "a tap on number " + t.n + " (shape " + t.i + ") paints it");
+    await page.waitForTimeout(after && !after.free && after.sel !== s.sel ? 420 : 60);
+  }
+  await page.waitForTimeout(700);
+}
+
+test("EVERY page paints to the end by real taps: each number tapped paints its shape, the page comes alive with its OWN sound, and each finished color is said in Chinese too", async () => {
+  await page.evaluate(() => window.__COLOR.reset());
+  const pages = await page.evaluate(() => window.ColorData.PAGES.map((p) => ({ id: p.id, colors: p.colors.map((c) => c.name) })));
+  const zh = await page.evaluate(() => window.ColorData.COLOR_ZH);
+  for (const pg of pages) {
+    await openPage(pg.id);
+    await page.evaluate(() => { window.__said.length = 0; window.__saidLang.length = 0; window.__tones.length = 0; });
+    await paintAll();
+    const s = await state();
+    assert.ok(s && s.free, pg.id + ": the page is finished and open for free paint");
+    assert.equal((await page.evaluate(() => window.__COLOR.save())).stars[pg.id], 1, pg.id + ": a ⭐");
+    const said = await page.evaluate(() => window.__said.map((t, k) => window.__saidLang[k] + ":" + t));
+    // every color but the last is cheered (the last one is the page's own cheer),
+    // in English and then, where it has one, in Chinese
+    const cheered = pg.colors.filter((n) => said.some((x) => x === "en:All the " + n + " is done!"));
+    assert.ok(cheered.length >= pg.colors.length - 1, pg.id + ": every finished color is cheered (" + cheered.join(", ") + ")");
+    for (const n of cheered) if (zh[n]) assert.ok(said.includes("zh-CN:" + zh[n]), pg.id + ": " + n + " is said in Chinese too (" + zh[n] + ")");
+    assert.ok(said.some((x) => /^en:You colored /.test(x)), pg.id + ": the finish is said");
+  }
+});
+
+test("the page's own sound plays when it comes alive (and the mute silences it)", async () => {
+  await page.evaluate(() => window.__COLOR.reset());
+  const sfx = await page.evaluate(() => window.ColorData.PAGES.map((p) => [p.id, p.sound]));
+  // the rocket's whoosh climbs: its notes rise
+  await openPage("rocket");
+  await page.evaluate(() => { window.__tones.length = 0; });
+  await paintAll();
+  const tones = await page.evaluate(() => window.__tones.slice());
+  const tail = tones.slice(-11);
+  assert.ok(tail.length === 11 && tail.every((f, k) => k === 0 || f > tail[k - 1]), "the rocket goes WHOOSH: eleven rising notes (" + tail.join(" ") + ")");
+  assert.equal(sfx.find((x) => x[0] === "rocket")[1], "whoosh");
+  // muted: nothing plays at all
+  await page.evaluate(() => { window.JoshAudio.setMuted(true); window.__tones.length = 0; window.__COLOR.reset(); });
+  await openPage("sun");
+  await paintAll();
+  assert.equal(await page.evaluate(() => window.__tones.filter((f) => f > 0).length), 0, "with sound off, the page makes no sound");
+  await page.evaluate(() => window.JoshAudio.setMuted(false));
+});
+
+test("magic crayons: rainbow, glitter, stripes and dots — on any color, saved, back after a reload, and in the book", async () => {
+  await page.evaluate(() => { localStorage.setItem("josh-color-v1", JSON.stringify({ v: 1, stars: { monster: 1 } })); });
+  await page.reload({ waitUntil: "load" });
+  await spy();
+  await openPage("monster");
+  assert.ok((await state()).free, "a finished page opens in free paint");
+  const keys = await page.locator(".color-crayon").evaluateAll((els) => els.map((e) => e.dataset.crayon));
+  assert.deepEqual(keys.slice(0, 4), ["fx:rainbow", "fx:glitter", "fx:stripes", "fx:dots"], "the magic crayons come first");
+  assert.equal(keys.length, 16, "four magic crayons and twelve colors");
+  const shapes = await page.evaluate(() => window.__COLOR.todo().length ? [] : window.ColorData.PAGES.find((p) => p.id === "monster").regions.map((r, i) => (r.n ? i : -1)).filter((i) => i >= 0));
+  const want = {};
+  const fxs = ["rainbow", "glitter", "stripes", "dots"];
+  for (let k = 0; k < 4; k++) {
+    await page.locator('.color-crayon[data-crayon="fx:' + fxs[k] + '"]').click();
+    await page.waitForTimeout(420);
+    assert.equal((await state()).crayon, "fx:" + fxs[k]);
+    const i = shapes[k * 3];
+    const was = (await state()).fills[i];
+    await tapShape(i);
+    want[i] = was.split(" ")[0] + " " + fxs[k];
+  }
+  await page.waitForTimeout(500);
+  const s = await state();
+  for (const i of Object.keys(want)) assert.equal(s.fills[i], want[i], "shape " + i + " wears " + want[i] + " (the magic keeps the color under it)");
+  // what the page shows: the rainbow fill, and a pattern lying over the others
+  const drawn = await page.evaluate((w) => Object.keys(w).map((i) => {
+    const el = document.querySelector('.color-holder path[data-i="' + i + '"]');
+    const nx = el.nextElementSibling;
+    return { fill: el.getAttribute("fill"), over: nx && nx.classList.contains("cb-fx") ? nx.getAttribute("fill") : null };
+  }), want);
+  assert.match(drawn[0].fill, /^url\(#cb-fx-rainbow\) #/, "rainbow paints the shape");
+  assert.deepEqual(drawn.slice(1).map((d) => d.over), ["url(#cb-fx-glitter) none", "url(#cb-fx-stripes) none", "url(#cb-fx-dots) none"], "glitter, stripes and dots lie over the color");
+  // a plain crayon takes the magic off
+  await page.locator('.color-crayon[data-crayon="#f03e3e"]').click();
+  await page.waitForTimeout(420);
+  const dotted = Object.keys(want)[3];
+  await tapShape(+dotted);
+  await page.waitForTimeout(450);
+  assert.equal((await state()).fills[dotted], "#f03e3e", "a plain crayon paints over the magic");
+  assert.equal(await page.evaluate((i) => { const n = document.querySelector('.color-holder path[data-i="' + i + '"]').nextElementSibling; return !!(n && n.classList.contains("cb-fx")); }, dotted), false, "and the dots are gone");
+  // saved: back after a reload, and the book's thumbnail wears it too
+  await page.reload({ waitUntil: "load" });
+  await spy();
+  await go("#color-home", "#screen-color-home");
+  const thumb = await page.evaluate(() => {
+    const ps = [...document.querySelectorAll('.color-page[data-page="monster"] path')];
+    return { rainbow: ps.some((p) => /cb-fx-rainbow/.test(p.getAttribute("fill") || "")), over: ps.filter((p) => p.classList.contains("cb-fx")).length };
+  });
+  assert.ok(thumb.rainbow && thumb.over >= 2, "the book shows the rainbow and the patterns (" + JSON.stringify(thumb) + ")");
+  // the patterns really resolve (index.html declares them): the browser finds each id
+  assert.equal(await page.evaluate(() => ["rainbow", "glitter", "stripes", "dots"].filter((f) => document.getElementById("cb-fx-" + f)).length), 4);
+});
+
+test("🎬 watch it paint: the page paints itself again from white in the order he painted it, taps wait, then it comes alive with his colors", async () => {
+  await page.evaluate(() => window.__COLOR.reset());
+  await openPage("fish");
+  const order = [];
+  for (let g = 0; g < 60; g++) {
+    const s = await state();
+    if (s.free) break;
+    const t = (await page.evaluate(() => window.__COLOR.todo())).find((x) => x.n === s.sel);
+    order.push(t.i);
+    await tapShape(t.i);
+  }
+  await page.waitForTimeout(700);
+  assert.deepEqual((await page.evaluate(() => window.__COLOR.save())).order.fish, order, "the order he painted in is kept");
+  // his own color on one shape, to see it come back after the replay
+  await page.locator('.color-crayon[data-crayon="#7950f2"]').click();
+  await page.waitForTimeout(420);
+  await tapShape(order[0]);
+  await page.waitForTimeout(450);
+  // watch: the fills as the replay runs
+  await page.evaluate((ord) => {
+    window.__seen = [];
+    const holder = document.querySelector(".color-holder");
+    const look = () => {
+      const svg = holder.querySelector("svg");
+      if (svg) window.__seen.push(ord.map((i) => { const el = svg.querySelector('path[data-i="' + i + '"]'); return el && el.getAttribute("fill") !== "#ffffff"; }));
+      if (window.__COLOR.state() && window.__COLOR.state().replaying) requestAnimationFrame(look);
+    };
+    window.__look = look;
+  }, order);
+  await page.locator(".color-replay").click();
+  await page.evaluate(() => requestAnimationFrame(window.__look));
+  await page.waitForTimeout(120);
+  assert.ok((await state()).replaying, "🎬 starts the replay");
+  assert.ok((await page.evaluate(() => window.__said)).includes("Watch it paint!"));
+  // a tap on the page during the replay paints nothing
+  await tapShape(order[1]);
+  assert.equal((await page.evaluate(() => window.__COLOR.save())).art.fish[order[1]], undefined, "taps wait while it paints itself");
+  await page.waitForFunction(() => !window.__COLOR.state().replaying, null, { timeout: 15000 });
+  const seen = await page.evaluate(() => window.__seen);
+  assert.ok(seen.length > 5, "the replay was watched (" + seen.length + " frames)");
+  assert.ok(seen[0].every((x) => !x), "it starts from a white page");
+  // shapes come in IN HIS ORDER: once a shape is painted, every earlier one is too
+  for (const f of seen) {
+    const last = f.lastIndexOf(true);
+    assert.ok(f.slice(0, last + 1).every(Boolean), "the replay paints in the order he did (" + f.map((x) => (x ? 1 : 0)).join("") + ")");
+  }
+  await page.waitForTimeout(300);
+  const s = await state();
+  assert.ok(s.free && !s.replaying, "back to free paint");
+  assert.equal(s.fills[order[0]], "#7950f2", "and the page wears his colors again");
+  assert.equal(await fillOf(order[0]), "#7950f2");
+  // leaving mid-replay: the page comes back whole, nothing left running
+  await page.locator(".color-replay").click();
+  await page.waitForTimeout(400);
+  await go("#color-home", "#screen-color-home");
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => window.__COLOR.timers()), 0, "no replay step outlives the page");
+  // back WITHOUT the book (the browser's forward button): nothing restarts
+  // the page, so only the cut-short replay itself can have put it back whole
+  await page.evaluate(() => { location.hash = "#color-play"; });
+  await page.locator("#screen-color-play").waitFor({ state: "visible" });
+  await page.waitForTimeout(450);
+  const back = await state();
+  assert.ok(back.free && !back.replaying, "a replay cut short is over when he comes back");
+  assert.equal(await fillOf(order[0]), "#7950f2", "and his page is whole, not half white");
+});
+
+test("find it: after a quiet while the shapes waiting for his color ring and a finger points; a tap paints and the hint goes", async () => {
+  await page.evaluate(() => window.__COLOR.reset());
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem("josh-color-v1")); s.demo = true; localStorage.setItem("josh-color-v1", JSON.stringify(s)); });
+  await page.reload({ waitUntil: "load" });
+  await spy();
+  await openPage("icecream");
+  const ms = await page.evaluate(() => window.__COLOR.hintMs);
+  assert.ok(ms >= 10000 && ms <= 20000, "a quiet while, not a rush (" + ms + "ms)");
+  assert.equal(await page.locator(".color-holder .cb-find").count(), 0, "no hint at first");
+  // hint a color with at least two shapes waiting, so a tap on ONE must take
+  // the rings off the others too
+  const many = await page.evaluate(() => { const c = {}; for (const t of window.__COLOR.todo()) c[t.n] = (c[t.n] || 0) + 1; return +Object.keys(c).find((n) => c[n] >= 2); });
+  await page.locator('.color-pot[data-n="' + many + '"]').click();
+  await page.waitForTimeout(420);
+  // really wait the quiet while: the hint comes by itself
+  const said = (await page.evaluate(() => window.__said.length));
+  await page.waitForTimeout(ms + 600);
+  const n = await page.locator(".color-holder .cb-find").count();
+  const s = await state();
+  const waiting = (await page.evaluate(() => window.__COLOR.todo())).filter((x) => x.n === s.sel).length;
+  assert.equal(n, waiting, "every shape waiting for his color rings (" + n + " of " + waiting + ")");
+  assert.ok(await page.evaluate(() => window.__COLOR.ghost()), "and the ghost finger points at one");
+  assert.equal(await page.evaluate(() => window.__said.length), said, "a hint says nothing (no pressure)");
+  const t = (await page.evaluate(() => window.__COLOR.todo())).find((x) => x.n === s.sel);
+  await tapShape(t.i);
+  assert.ok(waiting >= 2, "the hinted color had more than one shape waiting");
+  assert.equal(await page.locator(".color-holder .cb-find").count(), 0, "a tap that paints takes the hint away (from every shape)");
+  await go("#color-home", "#screen-color-home");
+  await page.waitForTimeout(200);
+  assert.equal(await page.evaluate(() => window.__COLOR.timers()), 0, "the hint's timer goes with the page");
+});
+
+test("a broken save is read safely: bad paints, bad orders and junk are dropped, good ones kept", async () => {
+  const sun = await page.evaluate(() => window.ColorData.PAGES[0].regions.map((r, i) => (r.n ? i : -1)).filter((i) => i >= 0));
+  await page.evaluate((sun) => localStorage.setItem("josh-color-v1", JSON.stringify({
+    v: 1, stars: { sun: 2, nope: 5, fish: -3 }, runs: { fish: [999, "x", 1.5] },
+    art: { sun: { [sun[0]]: "#123456 dots", [sun[1]]: "#123456 lasers", [sun[2]]: "red", 0.5: "#000000", 9999: "#000000" }, mars: { 1: "#000000" } },
+    order: { sun: [sun[1], sun[1], sun[0], 9999, "a"], fish: "no" }, demo: "yes", glided: 1, last: "nowhere",
+  })), sun);
+  await page.reload({ waitUntil: "load" });
+  const s = await page.evaluate(() => window.__COLOR.save());
+  assert.deepEqual(s.stars, { sun: 2, fish: 0 }, "stars: only real pages, never negative");
+  assert.deepEqual(s.runs, {}, "a run of nothing real is dropped");
+  assert.deepEqual(s.art.sun, { [sun[0]]: "#123456 dots" }, "only real paints on real shapes");
+  assert.equal(s.art.mars, undefined);
+  assert.deepEqual(s.order, { sun: [sun[1], sun[0]] }, "an order keeps real shapes, once each, in order");
+  assert.equal(s.demo, false);
+  assert.equal(s.glided, false);
+  assert.equal(s.last, "sun");
+  // and it plays: the sun opens in free paint wearing the dots
+  await spy();
+  await openPage("sun");
+  assert.equal((await state()).fills[sun[0]], "#123456 dots");
+});
+
+test("reduced motion: paint lands at once, no sparkles, the replay still plays (still), the hint ring stays still", async () => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  try {
+    await page.evaluate(() => window.__COLOR.reset());
+    await openPage("sun");
+    const t = (await page.evaluate(() => window.__COLOR.todo()))[0];
+    const s0 = await state();
+    const first = (await page.evaluate(() => window.__COLOR.todo())).find((x) => x.n === s0.sel);
+    const p = await page.evaluate((k) => window.__COLOR.pointOf(k), first.i);
+    await page.mouse.click(p.x, p.y);
+    assert.notEqual(await fillOf(first.i), "#ffffff", "the paint is there at once");
+    await page.waitForTimeout(420); // a finished color moves the pot: the next tap waits past the echo
+    assert.equal(await page.locator(".cb-burst").count(), 0, "no sparkle burst");
+    await page.evaluate(() => window.__COLOR.hint());
+    const anim = await page.evaluate(() => { const e = document.querySelector(".color-holder .cb-find"); return e ? getComputedStyle(e).animationName : "none"; });
+    assert.equal(anim, "none", "the hint ring is still");
+    await paintAll();
+    await page.locator(".color-replay").click();
+    await page.waitForFunction(() => !window.__COLOR.state().replaying, null, { timeout: 15000 });
+    assert.ok((await state()).free, "the replay finishes under reduced motion too");
+    void t;
+  } finally {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+  }
 });
 
 test("leaving mid-paint leaves nothing running, and every number is big enough to read", async () => {

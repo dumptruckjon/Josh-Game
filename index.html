@@ -56,6 +56,33 @@
       <stop offset="1" stop-color="#000000" stop-opacity="0"/>
     </radialGradient>
   </defs></svg>
+  <!-- Its own block, not .jart-defs: the light there is alpha-only by law, and
+       the rainbow is colored. -->
+  <svg class="jart-defs cb-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs>
+    <!-- 🎨 Color Book's magic crayons (ColorLogic.FX): rainbow replaces a
+         shape's color; glitter, stripes and dots lie over any color, so they
+         are white with a soft dark edge. In the page's own 200-unit drawing. -->
+    <linearGradient id="cb-fx-rainbow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff4d4d"/>
+      <stop offset="0.2" stop-color="#ff9f1c"/>
+      <stop offset="0.4" stop-color="#ffd43b"/>
+      <stop offset="0.6" stop-color="#51cf66"/>
+      <stop offset="0.8" stop-color="#339af0"/>
+      <stop offset="1" stop-color="#845ef7"/>
+    </linearGradient>
+    <pattern id="cb-fx-glitter" width="16" height="16" patternUnits="userSpaceOnUse">
+      <path d="M5 1.6 L6 4 L8.4 5 L6 6 L5 8.4 L4 6 L1.6 5 L4 4 Z" fill="#ffffff" fill-opacity="0.95" stroke="#000000" stroke-opacity="0.22" stroke-width="0.4"/>
+      <circle cx="12.5" cy="11.5" r="1.1" fill="#ffffff" fill-opacity="0.9"/>
+      <circle cx="11" cy="3.5" r="0.7" fill="#ffffff" fill-opacity="0.85"/>
+      <circle cx="3.5" cy="13" r="0.8" fill="#fff6bf" fill-opacity="0.9"/>
+    </pattern>
+    <pattern id="cb-fx-stripes" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect x="0" y="0" width="5" height="12" fill="#ffffff" fill-opacity="0.5"/>
+    </pattern>
+    <pattern id="cb-fx-dots" width="13" height="13" patternUnits="userSpaceOnUse">
+      <circle cx="6.5" cy="6.5" r="2.8" fill="#ffffff" fill-opacity="0.7" stroke="#000000" stroke-opacity="0.15" stroke-width="0.5"/>
+    </pattern>
+  </defs></svg>
 
   <header class="topbar">
     <span class="brand">Josh's Games</span>
