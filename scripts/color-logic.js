@@ -112,6 +112,35 @@
     return [[a[0] + dx * t0, a[1] + dy * t0], [a[0] + dx * t1, a[1] + dy * t1]];
   }
 
+  // A MYSTERY picture: a grid of squares (rows of letters, one per square),
+  // where a run of the same letter along a row is one shape, and a run that
+  // sits exactly under the same run in the row above joins it (so the sky is a
+  // few big shapes, not forty squares). key maps a letter to a pot number n,
+  // or to a fixed "#hex". Returns the regions, all in one part.
+  function mosaic(rows, key, part) {
+    const C = rows[0].length, R = rows.length, sw = W / C, sh = H / R;
+    const open = []; // runs still growing downward: { x0, x1, ch, y0, y1 }
+    const done = [];
+    for (let y = 0; y < R; y++) {
+      const row = rows[y], runs = [];
+      for (let x = 0; x < C;) { let e = x; while (e + 1 < C && row[e + 1] === row[x]) e++; runs.push({ x0: x, x1: e, ch: row[x] }); x = e + 1; }
+      const keep = [];
+      for (const r of runs) {
+        const k = open.findIndex((o) => o.x0 === r.x0 && o.x1 === r.x1 && o.ch === r.ch && o.y1 === y - 1);
+        if (k >= 0) { open[k].y1 = y; keep.push(open[k]); open.splice(k, 1); } else keep.push({ x0: r.x0, x1: r.x1, ch: r.ch, y0: y, y1: y });
+      }
+      done.push(...open); open.length = 0; open.push(...keep);
+    }
+    done.push(...open);
+    done.sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
+    return done.map((b) => {
+      const pts = rect(b.x0 * sw, b.y0 * sh, (b.x1 - b.x0 + 1) * sw, (b.y1 - b.y0 + 1) * sh);
+      const v = key[b.ch];
+      if (v == null) throw new Error("mosaic: no key for '" + b.ch + "'");
+      return typeof v === "number" ? { pts, n: v, part: part || null } : { pts, fill: v, part: part || null };
+    });
+  }
+
   const r1 = (v) => Math.round(v * 10) / 10;
   function toD(pts) { return pts.length ? "M" + pts.map((p) => r1(p[0]) + " " + r1(p[1])).join("L") + "Z" : ""; }
   function lineD(pts) { return pts.length ? "M" + pts.map((p) => r1(p[0]) + " " + r1(p[1])).join("L") : ""; }
@@ -218,19 +247,46 @@
     return out;
   }
 
-  // What a math region shows: "a+b" that makes its number.
-  function labelText(reg) {
+  // What a region shows. A page's `label` says how its numbers are written:
+  // digits (the default), "dots" (a die's dots to count) or "zh" (一 二 三).
+  // A region may instead carry a sum ("a+b") or a take-away ("a−b").
+  const ZH_NUM = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
+  const MINUS = "\u2212"; // a real minus sign, not a hyphen
+  function labelText(reg, page) {
     if (reg.sum) return reg.sum[0] + "+" + reg.sum[1];
+    if (reg.diff) return reg.diff[0] + MINUS + reg.diff[1];
+    if (page && page.label === "zh") return ZH_NUM[reg.n];
     return String(reg.n);
   }
+  const isMath = (reg) => !!(reg.sum || reg.diff);
   // The smallest radius a label needs at the page's 200-unit width (a digit
-  // must read on a 320px phone: about 13px of radius there).
-  const R_MIN = 7, R_MIN_SUM = 11.5;
-  const needR = (reg) => (reg.sum ? R_MIN_SUM : R_MIN);
+  // must read on a 320px phone: about 13px of radius there). A die's dots need
+  // more room (each dot must be a dot, not a speck); a Chinese numeral a little.
+  const R_MIN = 7, R_MIN_SUM = 11.5, R_MIN_DOTS = 12, R_MIN_ZH = 8;
+  function needR(reg, page) {
+    if (isMath(reg)) return R_MIN_SUM;
+    if (page && page.label === "dots") return R_MIN_DOTS;
+    if (page && page.label === "zh") return R_MIN_ZH;
+    return R_MIN;
+  }
   // The label's font size, in page units.
-  function fontSize(reg, L) {
-    const base = reg.sum ? L.r * 0.82 : L.r * 1.2;
-    return Math.max(8, Math.min(reg.sum ? 15 : 20, base));
+  function fontSize(reg, L, page) {
+    if (isMath(reg)) return Math.max(8, Math.min(15, L.r * 0.82));
+    if (page && page.label === "zh") return Math.max(9, Math.min(18, L.r * 1.1));
+    return Math.max(8, Math.min(20, L.r * 1.2));
+  }
+  // A die's dots for n (1..6), in a square of half-size 1 around the middle.
+  const DIE = {
+    1: [[0, 0]], 2: [[-1, -1], [1, 1]], 3: [[-1, -1], [0, 0], [1, 1]],
+    4: [[-1, -1], [1, -1], [-1, 1], [1, 1]], 5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]],
+    6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]],
+  };
+  // The dots' geometry at a label: their spread h and each dot's radius.
+  function dotsAt(n, L) {
+    // the corner dots sit h√2 from the middle: with their own radius and a
+    // margin they stay inside the widest circle the shape holds there
+    const h = Math.min((L.r - 2.5) / (Math.SQRT2 + 0.34), 12), dr = Math.max(1.8, h * 0.34);
+    return (DIE[n] || []).map((q) => [L.x + q[0] * h, L.y + q[1] * h, dr]);
   }
 
   // ---- The forgiving tap ---------------------------------------------------------
@@ -351,9 +407,13 @@
       }
       const paint = reg.fill || fills[i] || "#ffffff", d = toD(reg.pts);
       const hook = opt.thumb ? "" : ` data-i="${i}"${reg.n ? ` data-n="${reg.n}"` : ""}`;
-      out += `<path class="cb-r${reg.n ? " cb-num" : ""}" d="${d}" fill="${paintFill(paint)}" stroke="${OUTLINE}" stroke-width="${sw}" stroke-linejoin="round"${hook}/>`;
+      // a mystery picture's painted square is outlined in its own color, so
+      // the finished picture is seamless (only the squares still to paint show
+      // the grid); and it is never shaded square by square
+      const edge = page.mosaic && paint !== "#ffffff" ? paintOf(paint).hex : OUTLINE;
+      out += `<path class="cb-r${reg.n ? " cb-num" : ""}" d="${d}" fill="${paintFill(paint)}" stroke="${edge}" stroke-width="${sw}" stroke-linejoin="round"${hook}/>`;
       out += paintOver(paint, d);
-      if (opt.shade && i > 0) out += `<path d="${d}" fill="url(#jart-lit) none" pointer-events="none"/>`;
+      if (opt.shade && i > 0 && !page.mosaic) out += `<path d="${d}" fill="url(#jart-lit) none" pointer-events="none"/>`;
       out += inkAfter(i);
       if (part && lastRun[part] === i) out += inkOf(part);
     });
@@ -363,8 +423,13 @@
       out += `<g class="cb-labels" pointer-events="none">`;
       page.regions.forEach((reg, i) => {
         if (!reg.n || fills[i]) return;
-        const L = labs[i], fs = fontSize(reg, L);
-        out += `<text class="cb-label" data-for="${i}" x="${r1(L.x)}" y="${r1(L.y)}" font-size="${r1(fs)}" text-anchor="middle" dominant-baseline="central">${esc(labelText(reg))}</text>`;
+        const L = labs[i];
+        if (page.label === "dots" && !isMath(reg)) {
+          out += `<g class="cb-label cb-label--dots" data-for="${i}">` + dotsAt(reg.n, L).map((d) => `<circle cx="${r1(d[0])}" cy="${r1(d[1])}" r="${r1(d[2])}"/>`).join("") + "</g>";
+          return;
+        }
+        const fs = fontSize(reg, L, page), zh = page.label === "zh" && !isMath(reg);
+        out += `<text class="cb-label${zh ? " cb-label--zh" : ""}"${zh ? ' lang="zh-CN"' : ""} data-for="${i}" x="${r1(L.x)}" y="${r1(L.y)}" font-size="${r1(fs)}" text-anchor="middle" dominant-baseline="central">${esc(labelText(reg, page))}</text>`;
       });
       out += "</g>";
     }
@@ -372,9 +437,9 @@
   }
 
   const api = {
-    W, H, GRID, R_MIN, R_MIN_SUM, TOL,
+    W, H, GRID, R_MIN, R_MIN_SUM, R_MIN_DOTS, R_MIN_ZH, TOL, ZH_NUM, MINUS, DIE,
     circle, ellipse, rect, star, poly, path, move, mirror, rotate, clipLine, toD, lineD,
-    raster, distance, labels, labelText, needR, fontSize,
+    raster, distance, labels, labelText, isMath, needR, fontSize, dotsAt, mosaic,
     judge, ownerAt, remaining, nextColor, numbered, finished,
     FX, isPaint, paintOf, paintFill, paintOver,
     hexRgb, lum, contrast, inkOn, tint, pageSvg, OUTLINE,

@@ -305,8 +305,8 @@ test("🎨 Color Book fits every screen: its book, a page with its pots, and fre
       await page.waitForTimeout(150);
       await noOverflow(page, `color book@${w}x${h}`);
       await auditActiveScreen(page, `color book@${w}x${h}`);
-      // the biggest palette: the last page's eight pots
-      const last = await page.evaluate(() => ColorData.PAGES[ColorData.PAGES.length - 1].id);
+      // the biggest palette: the page with the most pots (nine, on a big picture)
+      const last = await page.evaluate(() => ColorData.PAGES.reduce((a, p) => (p.colors.length > a.colors.length ? p : a)).id);
       await page.evaluate((id) => { location.hash = "#color-play"; window.__COLOR.start(id, {}); }, last);
       await page.locator("#screen-color-play").waitFor({ state: "visible" });
       await page.waitForTimeout(250);
@@ -2789,7 +2789,7 @@ test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, G
     await p.waitForTimeout(120); seen.seek++; note(await check("seek album"));
     // 3c. 🎨 Color Book: every page, and a finished page's crayon box
     await p.evaluate(() => window.__COLOR.reset());
-    for (const id of await p.evaluate(() => ColorData.PAGES.map((x) => x.id))) {
+    for (const id of await p.evaluate(() => ColorData.PAGES.map((x) => x.id).concat("draw"))) {
       await p.evaluate((id) => { location.hash = "#color-play"; window.__COLOR.start(id, {}); }, id);
       await p.waitForTimeout(120); seen.color = (seen.color || 0) + 1; note(await check("color " + id));
     }
@@ -2824,7 +2824,7 @@ test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, G
       }
     }
     // a walk that silently skipped a section would pass on nothing
-    assert.ok(seen.nav >= 25 && seen.hole >= 70 && seen.board >= 40 && seen.mid >= 10 && seen.seek >= 7 && seen.color >= 13 && seen.wc >= 40 && seen.pages >= 140,
+    assert.ok(seen.nav >= 25 && seen.hole >= 70 && seen.board >= 40 && seen.mid >= 10 && seen.seek >= 7 && seen.color >= 29 && seen.wc >= 40 && seen.pages >= 140,
       `fixture: too little was measured ${JSON.stringify(seen)}`);
     assert.deepEqual(bad, [], `on an iPhone 17 Pro:\n${bad.join("\n")}`);
     assert.deepEqual(errs, [], "no page errors");

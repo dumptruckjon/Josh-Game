@@ -77,7 +77,7 @@ test("the front door's SEVENTH door opens the Color Book: a page per picture, wh
   assert.ok(await page.evaluate(() => document.body.classList.contains("color-mode")), "the world's theme is on");
   const n = await page.evaluate(() => window.ColorData.PAGES.length);
   assert.ok(n >= 10);
-  assert.equal(await page.locator(".color-page").count(), n, "one page per picture");
+  assert.equal(await page.locator(".color-page:not(.color-page--draw)").count(), n, "one page per picture");
   assert.equal(await page.locator(".color-page--next").count(), 1, "one page glows: the next to color");
   assert.equal(await page.locator('.color-page--next[data-page="sun"]').count(), 1, "on a fresh book it is page 1");
   // an unpainted page is a white coloring page: no shape filled with a color
@@ -576,4 +576,138 @@ test("grown-ups reset: the ⚙️ under the book asks the ONE gate; only the wor
   await tab2.close();
   await page.reload({ waitUntil: "load" });
   assert.deepEqual((await page.evaluate(() => window.__COLOR.save())).stars, {}, "and it holds across a reload");
+});
+
+// ---- The other shelves (the owner, 2026-11-25: "all six") ---------------------
+
+test("the book's shelves: a heading over each, every page under its own, the mystery pages keep their names, and his drawing page last", async () => {
+  await page.evaluate(() => window.__COLOR.reset());
+  await go("#color-home", "#screen-color-home");
+  const book = await page.evaluate(() => {
+    const out = [];
+    let cur = null;
+    for (const el of document.querySelectorAll(".color-book > *")) {
+      if (el.matches(".color-shelf")) { cur = { title: el.textContent.trim(), pages: [] }; out.push(cur); }
+      else for (const b of el.querySelectorAll(".color-page")) cur.pages.push(b.dataset.page);
+    }
+    return out;
+  });
+  const want = await page.evaluate(() => window.ColorData.SHELVES.map((s) => ({ id: s.id, pages: window.ColorData.PAGES.filter((p) => p.shelf === s.id).map((p) => p.id) })));
+  assert.equal(book.length, want.length + 1, "a shelf per set of pages, then the drawing page");
+  want.forEach((w, k) => assert.deepEqual(book[k].pages, w.pages, w.id + "'s pages sit under its heading"));
+  assert.deepEqual(book[book.length - 1].pages, ["draw"], "the last shelf is his own drawing");
+  for (const id of ["mysterycat", "mysteryduck", "mysterycar"]) {
+    const a = await page.locator('.color-page[data-page="' + id + '"]').getAttribute("aria-label");
+    assert.match(a, /Mystery picture/, id + " keeps its name in the book");
+    assert.ok(await page.locator('.color-page[data-page="' + id + '"] .color-page__q').isVisible(), id + " wears a ❓");
+  }
+  for (const b of await page.locator(".color-page").all()) {
+    const r = await b.boundingBox();
+    assert.ok(r.width >= 75 && r.height >= 75, "every page is a big tap");
+  }
+});
+
+test("count the dots, 一 二 三 and take away: each page writes its numbers its own way, says them, and a wrong shape tells him what it is", async () => {
+  await page.evaluate(() => window.__COLOR.reset());
+  // dots: circles, no digits; a wrong shape says how many dots
+  await openPage("caterpillar");
+  assert.ok(await page.locator(".color-holder .cb-label--dots circle").count() > 6, "the dots are drawn");
+  assert.equal(await page.locator(".color-holder text.cb-label").count(), 0, "and no digits");
+  const wrongOf = async () => {
+    const s = await state();
+    const t = (await page.evaluate(() => window.__COLOR.todo())).find((x) => x.n !== s.sel);
+    await page.evaluate(() => { window.__said.length = 0; window.__saidLang.length = 0; });
+    await tapShape(t.i);
+    return { n: t.n, said: await page.evaluate(() => window.__said.map((x, k) => window.__saidLang[k] + ":" + x)) };
+  };
+  let w = await wrongOf();
+  assert.ok(w.said.includes("en:That one has " + w.n + " dots!") || w.said.includes("en:That one has 1 dot!"), "a wrong shape says its dots (" + w.said + ")");
+  // Chinese: the numbers are 一 二 三, in a Chinese face; a pot and a wrong shape say the Chinese
+  await openPage("lantern");
+  const zh = await page.evaluate(() => [...document.querySelectorAll(".color-holder text.cb-label")].map((t) => [t.textContent, t.getAttribute("lang"), getComputedStyle(t).fontFamily]));
+  assert.ok(zh.length >= 4 && zh.every(([t, l, f]) => /^[一二三四]$/.test(t) && l === "zh-CN" && /^"?PingFang SC/.test(f)), "every number is a Chinese numeral in a Chinese face (" + JSON.stringify(zh[0]) + ")");
+  await page.evaluate(() => { window.__said.length = 0; window.__saidLang.length = 0; });
+  await page.locator('.color-pot[data-n="3"]').click();
+  await page.waitForTimeout(420);
+  const said = await page.evaluate(() => window.__said.map((x, k) => window.__saidLang[k] + ":" + x));
+  assert.ok(said.includes("en:Number 3. yellow!") && said.includes("zh-CN:三"), "a pot says its number, then in Chinese (" + said + ")");
+  w = await wrongOf();
+  assert.ok(w.said.includes("zh-CN:" + "一二三四"[w.n - 1]), "a wrong shape says its Chinese number (" + w.said + ")");
+  // take away: a−b on the shapes, with a real minus; a wrong shape says the take-away
+  await openPage("snowman");
+  const diffs = await page.evaluate(() => [...document.querySelectorAll(".color-holder text.cb-label")].map((t) => t.textContent).filter((t) => t.includes("−")));
+  assert.ok(diffs.length >= 3, "the take-aways are written a−b (" + diffs + ")");
+  let found = false;
+  for (let k = 0; k < 4 && !found; k++) {
+    w = await wrongOf();
+    found = w.said.some((x) => / take away \d+ is \d+!$/.test(x)) || w.said.some((x) => /That one is number/.test(x));
+  }
+  assert.ok(found, "a wrong shape says what it is");
+});
+
+test("a mystery picture keeps its name until he has colored it, then says what it was", async () => {
+  await page.evaluate(() => window.__COLOR.reset());
+  await openPage("mysteryduck");
+  assert.equal(await page.locator(".color-pagename").textContent(), "Mystery picture", "the page is not named while he paints");
+  assert.match(await page.locator(".color-holder").getAttribute("aria-label"), /Mystery picture/);
+  await page.evaluate(() => { window.__said.length = 0; });
+  await paintAll();
+  assert.equal(await page.locator(".color-pagename").textContent(), "Little Duck", "colored, it is named");
+  const said = await page.evaluate(() => window.__said.join(" | "));
+  assert.match(said, /It's a little duck!/, "and it says what it was");
+  // the finished picture is seamless: no square keeps the dark grid line
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll(".color-holder path.cb-r")].filter((p) => p.getAttribute("stroke") === "#232634").length), 0, "no grid lines left");
+  await go("#color-home", "#screen-color-home");
+  assert.match(await page.locator('.color-page[data-page="mysteryduck"]').getAttribute("aria-label"), /Little Duck, colored/, "the book names it now");
+  assert.ok(!(await page.locator('.color-page[data-page="mysteryduck"] .color-page__q').isVisible()), "and its ❓ is gone");
+});
+
+test("✏️ draw your own: a finger draws, ↩️ takes it back, 🧽 is a clean page ↩️ can undo, and the drawing is kept in the book", async () => {
+  await page.evaluate(() => window.__COLOR.reset());
+  await go("#color-home", "#screen-color-home");
+  await page.locator('.color-page[data-page="draw"]').click();
+  await page.locator("#screen-color-play").waitFor({ state: "visible" });
+  // the echo of the tap that opened the page draws nothing
+  const box0 = await page.locator(".color-holder svg").boundingBox();
+  await page.mouse.click(box0.x + box0.width / 2, box0.y + box0.height / 2);
+  await page.waitForTimeout(450);
+  let s = await state();
+  assert.ok(s && s.draw, "the drawing page is open");
+  assert.equal(s.strokes, 0, "the tap that opened it drew nothing");
+  assert.ok(await page.locator(".color-crayon--sel").count() === 1, "a crayon is ready");
+  assert.equal(await page.locator(".color-crayon--magic").first().isVisible(), false, "no magic crayons on a blank page");
+  assert.ok(!(await page.locator(".color-again").isVisible()) && await page.locator(".color-undo").isVisible(), "↩️ and 🧽 in place of 🔁 🎬 ▶");
+  const drag = async (pts) => {
+    const b = await page.locator(".color-holder svg").boundingBox();
+    const at = (q) => [b.x + (q[0] / 200) * b.width, b.y + (q[1] / 200) * b.height];
+    await page.mouse.move(...at(pts[0]));
+    await page.mouse.down();
+    for (const q of pts.slice(1)) await page.mouse.move(...at(q), { steps: 4 });
+    await page.mouse.up();
+    await page.waitForTimeout(80);
+  };
+  await drag([[30, 30], [100, 60], [170, 40]]);
+  s = await state();
+  assert.equal(s.strokes, 1, "a drag draws one stroke");
+  const d = await page.evaluate(() => document.querySelector(".color-holder .cb-strokes path").getAttribute("d"));
+  assert.ok((d.match(/L/g) || []).length >= 4, "the stroke follows the finger (" + d + ")");
+  await page.locator('.color-crayon[data-crayon="#f03e3e"]').click();
+  await drag([[40, 150], [160, 150]]);
+  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll(".color-holder .cb-strokes path")].map((p) => p.getAttribute("stroke"))), ["#1c7ed6", "#f03e3e"], "each stroke in its crayon");
+  await page.locator(".color-undo").click();
+  assert.equal((await state()).strokes, 1, "↩️ takes the last stroke back");
+  await page.locator(".color-clear").click();
+  assert.equal((await state()).strokes, 0, "🧽 is a clean page");
+  await page.locator(".color-undo").click();
+  assert.equal((await state()).strokes, 1, "…and ↩️ brings it all back: one tap never loses a drawing");
+  assert.equal((await page.evaluate(() => window.__COLOR.save())).draw.length, 1, "the drawing is saved");
+  await page.reload({ waitUntil: "load" });
+  await go("#color-home", "#screen-color-home");
+  assert.equal(await page.locator('.color-page[data-page="draw"] .cb-strokes path').count(), 1, "the book shows his drawing");
+  await page.locator('.color-page[data-page="draw"]').click();
+  await page.waitForFunction(() => { const s = window.__COLOR.state(); return s && s.draw; });
+  assert.equal((await state()).strokes, 1, "and it opens again where he left it");
+  await page.evaluate(() => window.__COLOR.reset());
+  assert.equal((await page.evaluate(() => window.__COLOR.save())).draw.length, 0, "the grown-ups reset clears it");
+  assert.deepEqual(pageErrors, [], "no page errors");
 });

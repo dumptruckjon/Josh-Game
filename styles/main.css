@@ -5259,6 +5259,14 @@ body.color-mode { background: linear-gradient(165deg, #fff4d6 0%, #fff9f0 50%, #
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
+/* The book's shelves: a heading for the grown-up over each set of pages. */
+.color-book { display: grid; grid-template-columns: minmax(0, 100%); gap: 16px; }
+.color-shelf { margin: 8px 0 0; font-size: 1.15rem; font-weight: 900; color: #5b2a86; }
+.color-shelf:first-child { margin-top: 0; }
+.color-page__q { position: absolute; right: 6px; top: 2px; font-size: 1.6rem; line-height: 1; }
+.color-page--mystery.color-page--done .color-page__q { display: none; }
+.color-page__pen { position: absolute; right: 6px; top: 2px; font-size: 1.6rem; line-height: 1; }
+.color-page--draw:not(.color-page--drawn) .color-page__pen { display: none; }
 .color-page {
   position: relative;
   display: grid;
@@ -5324,6 +5332,13 @@ body.in-game .screen.color-play { flex: 1 1 auto; display: flex; flex-direction:
   user-select: none;
 }
 .cb-label { font-family: ui-rounded, "SF Pro Rounded", Nunito, Verdana, system-ui, sans-serif; font-weight: 800; fill: #5f6675; }
+/* 一 二 三 must be drawn in a Simplified Chinese face, asked for by name */
+.cb-label--zh { font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif; font-weight: 700; }
+/* ✏️ his own drawing: the finger draws, so the page takes every touch */
+.color-play--draw .color-holder { touch-action: none; }
+.color-play--draw .color-crayon--magic { display: none; }
+.color-play--draw .color-boxrow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.color-boxrow .btn-big:disabled { opacity: 0.45; }
 .cb-label--nudge { animation: cbNudge 0.6s ease; transform-box: fill-box; transform-origin: center; }
 @keyframes cbNudge { 0%, 100% { transform: scale(1); fill: #5f6675; } 35% { transform: scale(1.7); fill: #c2255c; } }
 

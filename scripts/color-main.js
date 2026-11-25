@@ -31,7 +31,23 @@
   // indices painted) · art: his own colors on a finished page (free paint) ·
   // demo: the ghost finger has been shown · last · order: the order he
   // painted a finished page in (🎬 replays it).
-  function freshSave() { return { v: 1, stars: {}, runs: {}, art: {}, order: {}, demo: false, glided: false, last: PAGES[0].id, gen: 0 }; }
+  function freshSave() { return { v: 1, stars: {}, runs: {}, art: {}, order: {}, draw: [], demo: false, glided: false, last: PAGES[0].id, gen: 0 }; }
+  // His own drawing (the ✏️ page): strokes of a crayon color, each a flat list
+  // of points [x, y, x, y, …] on the 200-unit page. Capped, so a save stays small.
+  const MAX_STROKES = 300, MAX_PTS = 400;
+  const isHex = (v) => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
+  function coerceDraw(a) {
+    if (!Array.isArray(a)) return [];
+    const out = [];
+    for (const st of a) {
+      if (out.length >= MAX_STROKES) break;
+      if (!st || !isHex(st.c) || !Array.isArray(st.p)) continue;
+      const p = st.p.slice(0, MAX_PTS * 2);
+      if (p.length < 2 || p.length % 2 || !p.every((v) => typeof v === "number" && Number.isFinite(v) && v >= -10 && v <= 210)) continue;
+      out.push({ c: st.c.toLowerCase(), p });
+    }
+    return out;
+  }
   const pageOf = (id) => PAGES.find((p) => p.id === id) || null;
   const nat = (n) => (typeof n === "number" && Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0);
   function coerce(text) {
@@ -59,6 +75,7 @@
       const ok = [...new Set(r.filter((i) => Number.isInteger(i) && i >= 0 && i < p.regions.length && p.regions[i].n))];
       if (ok.length) s.order[id] = ok;
     }
+    s.draw = coerceDraw(raw.draw);
     s.demo = raw.demo === true;
     s.glided = raw.glided === true;
     if (pageOf(raw.last)) s.last = raw.last;
@@ -78,6 +95,7 @@
   // (syncSave: the router and the storage event), not only before a write.
   const own = new Set();
   function adopt(disk) {
+    if (own.has("draw")) disk.draw = save.draw;
     for (const id of own) for (const k of ["stars", "runs", "art", "order"]) {
       if (save[k][id] != null) disk[k][id] = save[k][id]; else delete disk[k][id];
     }
@@ -111,7 +129,7 @@
   // open tab takes it rather than folding its old ⭐ back in.
   function resetProgress(opts) {
     const disk = coerce(readStored());
-    const had = [save, disk].some((s) => Object.keys(s.stars).length || Object.keys(s.runs).length || Object.keys(s.art).length);
+    const had = [save, disk].some((s) => Object.keys(s.stars).length || Object.keys(s.runs).length || Object.keys(s.art).length || s.draw.length);
     const keep = !!(opts && opts.keepDemo);
     const demo = save.demo, glided = save.glided;
     const gen = Math.max(Date.now(), save.gen + 1, disk.gen + 1);
@@ -187,7 +205,7 @@
         '<h1 class="game__title color-title">Color Book</h1>' +
         '<button class="btn-round game__hear color-homehear" type="button" aria-label="Hear it again">👂</button>' +
       "</div>" +
-      '<div class="color-pages" role="list" aria-label="Pick a page to color"></div>' +
+      '<div class="color-book"></div>' +
       // Grown-ups only: start the book over. Small and quiet on purpose, after
       // the last page, behind the app's ONE type-the-word gate (JoshGate).
       // data-adult: exempt from the kid tap audit, like Josh's own ⚙️.
@@ -205,17 +223,44 @@
     });
     home.querySelector(".color-exit").addEventListener("click", () => { location.hash = ""; });
     home.querySelector(".color-homehear").addEventListener("click", () => say("Pick a page to color!"));
-    const grid = home.querySelector(".color-pages");
-    for (const p of PAGES) {
-      const b = doc.createElement("button");
-      b.type = "button";
-      b.className = "color-page tap";
-      b.dataset.page = p.id;
-      b.setAttribute("role", "listitem");
-      b.innerHTML = '<span class="color-page__pic" aria-hidden="true"></span><span class="color-page__num" aria-hidden="true">' + p.level + '</span><span class="color-page__star" aria-hidden="true"></span>';
-      b.addEventListener("click", () => openPage(p.id));
-      grid.appendChild(b);
+    // The book's shelves (ColorData.SHELVES): a heading for the grown-up, then
+    // its pages; the last shelf is his own drawing page.
+    const book = home.querySelector(".color-book");
+    const shelf = (icon, title) => {
+      const h = doc.createElement("h2");
+      h.className = "color-shelf";
+      h.innerHTML = '<span aria-hidden="true">' + icon + "</span> " + title;
+      const g = doc.createElement("div");
+      g.className = "color-pages";
+      g.setAttribute("role", "list");
+      g.setAttribute("aria-label", title);
+      book.appendChild(h);
+      book.appendChild(g);
+      return g;
+    };
+    for (const sh of D.SHELVES) {
+      const grid = shelf(sh.icon, sh.title);
+      for (const p of PAGES.filter((x) => x.shelf === sh.id)) {
+        const b = doc.createElement("button");
+        b.type = "button";
+        b.className = "color-page tap" + (p.mystery ? " color-page--mystery" : "");
+        b.dataset.page = p.id;
+        b.setAttribute("role", "listitem");
+        b.innerHTML = '<span class="color-page__pic" aria-hidden="true"></span><span class="color-page__num" aria-hidden="true">' + p.level + '</span><span class="color-page__star" aria-hidden="true"></span>' +
+          (p.mystery ? '<span class="color-page__q" aria-hidden="true">❓</span>' : "");
+        b.addEventListener("click", () => openPage(p.id));
+        grid.appendChild(b);
+      }
     }
+    const dgrid = shelf("✏️", "Draw your own");
+    const db = doc.createElement("button");
+    db.type = "button";
+    db.className = "color-page color-page--draw tap";
+    db.dataset.page = "draw";
+    db.setAttribute("role", "listitem");
+    db.innerHTML = '<span class="color-page__pic" aria-hidden="true"></span><span class="color-page__pen" aria-hidden="true">✏️</span>';
+    db.addEventListener("click", () => openPage("draw"));
+    dgrid.appendChild(db);
     guardEcho(home);
 
     play = doc.createElement("section");
@@ -236,6 +281,8 @@
           '<button class="btn-big color-again" type="button" aria-label="Color this page again">🔁</button>' +
           '<button class="btn-big color-replay" type="button" aria-label="Watch it paint">🎬</button>' +
           '<button class="btn-big color-next" type="button" aria-label="Next page">▶</button>' +
+          '<button class="btn-big color-undo" type="button" aria-label="Undo" hidden>↩️</button>' +
+          '<button class="btn-big color-clear" type="button" aria-label="A clean page" hidden>🧽</button>' +
         "</div>" +
       "</div>";
     screens.appendChild(play);
@@ -247,14 +294,21 @@
     play.querySelector(".color-back").addEventListener("click", () => { location.hash = "#color-home"; });
     play.querySelector(".color-hear").addEventListener("click", () => {
       if (!st) return;
+      if (st.draw) { say(D.SAY.draw); return; }
       if (st.free) { say(D.SAY.paint); return; }
-      say(D.SAY.open(st.page) + " " + D.SAY.how);
+      say(D.SAY.open(st.page) + " " + D.SAY.how(st.page));
       showGhost();
     });
     box.querySelector(".color-again").addEventListener("click", () => { if (st) startPage(st.page.id, { fresh: true }); });
     box.querySelector(".color-next").addEventListener("click", () => { if (st) startPage(nextPage(st.page.id), {}); });
     box.querySelector(".color-replay").addEventListener("click", () => replay());
+    box.querySelector(".color-undo").addEventListener("click", () => undoDraw());
+    box.querySelector(".color-clear").addEventListener("click", () => clearDraw());
     holder.addEventListener("click", onTap);
+    holder.addEventListener("pointerdown", penDown);
+    holder.addEventListener("pointermove", penMove);
+    holder.addEventListener("pointerup", penUp);
+    holder.addEventListener("pointercancel", penUp);
     const crayons = box.querySelector(".color-crayons");
     for (const m of D.MAGIC) {
       const c = doc.createElement("button");
@@ -302,16 +356,24 @@
   // The page the book suggests: the first one not yet colored.
   const suggested = () => (PAGES.find((p) => !save.stars[p.id]) || PAGES[0]).id;
 
+  // A mystery page keeps its name until it is colored.
+  const nameOf = (p) => (p.mystery && !(save.stars[p.id] > 0) ? "Mystery picture" : p.name);
   function paintBook() {
     const sug = suggested();
-    for (const b of home.querySelectorAll(".color-page")) {
+    for (const b of home.querySelectorAll(".color-page:not(.color-page--draw)")) {
       const p = pageOf(b.dataset.page);
       const n = save.stars[p.id] || 0, painting = !!save.runs[p.id];
       b.querySelector(".color-page__pic").innerHTML = L.pageSvg(p, { fills: fillsFor(p), thumb: true, shade: n > 0 && !painting, cls: "cb-thumb" });
       b.querySelector(".color-page__star").textContent = n ? "⭐" : "";
       b.classList.toggle("color-page--done", n > 0);
       b.classList.toggle("color-page--next", p.id === sug);
-      b.setAttribute("aria-label", "Page " + p.level + ": " + p.name + (n ? ", colored" : painting ? ", started" : ""));
+      b.setAttribute("aria-label", "Page " + p.level + ": " + nameOf(p) + (n ? ", colored" : painting ? ", started" : ""));
+    }
+    const db = home.querySelector(".color-page--draw");
+    if (db) {
+      db.querySelector(".color-page__pic").innerHTML = drawSvg(save.draw, true);
+      db.classList.toggle("color-page--drawn", save.draw.length > 0);
+      db.setAttribute("aria-label", "Draw your own picture" + (save.draw.length ? ", started" : ""));
     }
   }
 
@@ -319,9 +381,11 @@
   function openPage(id) { pending = id; location.hash = "#color-play"; }
 
   function startPage(id, opts) {
+    if (id === "draw") { startDraw(); return; }
     const page = pageOf(id) || PAGES[0];
     clearLater();
-    if (play) play.classList.remove("color-play--replay");
+    if (play) play.classList.remove("color-play--replay", "color-play--draw");
+    setDrawUi(false);
     if (opts && opts.fresh) { delete save.runs[page.id]; delete save.art[page.id]; }
     const g = geo(page);
     const finished = save.stars[page.id] > 0 && !save.runs[page.id] && !(opts && opts.fresh);
@@ -329,8 +393,8 @@
     for (const i of st.done) st.fills[i] = colorOf(page, page.regions[i].n).hex;
     save.last = page.id;
     persist(opts && opts.fresh ? page.id : null);
-    titleEl.textContent = page.name;
-    holder.setAttribute("aria-label", "A coloring page: " + page.name);
+    titleEl.textContent = nameOf(page);
+    holder.setAttribute("aria-label", "A coloring page: " + nameOf(page));
     if (finished) { enterFree(true); return; }
     st.sel = L.nextColor(page, st.done, page.colors[page.colors.length - 1].n);
     draw();
@@ -340,7 +404,7 @@
     fit();
     later(() => {
       if (!play || play.hidden) return;
-      say(st.done.size ? D.SAY.pick(colorOf(page, st.sel)) : D.SAY.open(page) + " " + D.SAY.how);
+      if (st.done.size) sayPick(colorOf(page, st.sel)); else say(D.SAY.open(page) + " " + D.SAY.how(page));
       if (!save.demo) showGhost();
     }, 380);
     armHint();
@@ -359,7 +423,7 @@
     later(() => { if (tok === hintTok) hint(); }, HINT_MS);
   }
   function hint() {
-    if (!st || st.free || st.replaying || !play || play.hidden) return;
+    if (!st || st.free || st.draw || st.replaying || !play || play.hidden) return;
     const svg = holder.querySelector("svg");
     if (!svg) return;
     const i = hintTarget();
@@ -426,8 +490,13 @@
       b.setAttribute("aria-label", "Number " + n + ", " + c.name + (left[n] === 0 ? ", all done" : ", " + left[n] + " left"));
     }
   }
+  // A pot said: its number and color, and on a Chinese page its number in Chinese.
+  function sayPick(c) {
+    say(D.SAY.pick(c));
+    if (st && st.page && st.page.label === "zh") sayZh(L.ZH_NUM[c.n]);
+  }
   function pickColor(n, spoken) {
-    if (!st || st.free) return;
+    if (!st || st.free || st.draw) return;
     const c = colorOf(st.page, n);
     st.sel = n;
     paintPots();
@@ -436,7 +505,7 @@
     armHint();
     const pot = pots.querySelector('.color-pot[data-n="' + n + '"]');
     if (pot) { bounce(pot, "color-pot--pop"); showInRow(pots, pot); }
-    if (spoken) say(D.SAY.pick(c));
+    if (spoken) sayPick(c);
   }
   // On a small phone the pots are one row that scrolls sideways: bring the
   // chosen one into view (only the row scrolls, never the page).
@@ -460,7 +529,7 @@
   }
 
   function onTap(e) {
-    if (!st) return;
+    if (!st || st.draw) return;
     const p = pageXY(e);
     if (st.free) { freeTap(p); return; }
     const v = L.judge(st.page, st.g.r, p.x, p.y, st.sel, st.done);
@@ -476,7 +545,7 @@
     burst(p, c.hex);
     clearHint();
     armHint();
-    const lab = holder.querySelector('text[data-for="' + i + '"]');
+    const lab = holder.querySelector('[data-for="' + i + '"]');
     if (lab) lab.parentNode.removeChild(lab);
     hideGhost();
     if (!save.demo) { save.demo = true; }
@@ -496,7 +565,7 @@
       // must work), and said a beat after the cheer
       const nx = L.nextColor(page, st.done, n);
       play.__changedAt = now();
-      if (nx) { pickColor(nx, false); later(() => { if (st && !st.free && st.sel === nx) say(D.SAY.pick(colorOf(page, nx))); }, 900); }
+      if (nx) { pickColor(nx, false); later(() => { if (st && !st.free && st.sel === nx) sayPick(colorOf(page, nx)); }, 900); }
     } else paintPots(left);
   }
 
@@ -576,11 +645,15 @@
 
   function wrong(i) {
     const reg = st.page.regions[i];
-    const lab = holder.querySelector('text[data-for="' + i + '"]');
+    const lab = holder.querySelector('[data-for="' + i + '"]');
     if (lab) bounceSvg(lab, "cb-label--nudge");
     const pot = pots.querySelector('.color-pot[data-n="' + reg.n + '"]');
     if (pot) bounce(pot, "color-pot--wiggle");
-    say(reg.sum ? D.SAY.wrongSum(reg.sum[0], reg.sum[1], reg.n) : D.SAY.wrong(reg.n));
+    const label = st.page.label;
+    if (reg.sum) say(D.SAY.wrongSum(reg.sum[0], reg.sum[1], reg.n));
+    else if (reg.diff) say(D.SAY.wrongDiff(reg.diff[0], reg.diff[1], reg.n));
+    else if (label === "dots") say(D.SAY.wrongDots(reg.n));
+    else { say(D.SAY.wrong(reg.n)); if (label === "zh") sayZh(L.ZH_NUM[reg.n]); }
   }
   function bounceSvg(el, cls) {
     el.classList.remove(cls);
@@ -600,6 +673,8 @@
     cue("winCue");
     say(D.SAY.done(page));
     say(page.cheer);
+    if (page.cheerZh) sayZh(page.cheerZh);
+    titleEl.textContent = page.name; // a mystery picture is named once it is done
     try { if (global.JoshEffects && play && !play.hidden) global.JoshEffects.confetti(); } catch (e) { /* ignore */ }
     clearHint();
     hintTok++;
@@ -621,7 +696,7 @@
     const nx = pageOf(nextPage(st.page.id));
     const next = box.querySelector(".color-next");
     next.innerHTML = "▶ " + '<span class="color-next__pic" aria-hidden="true">' + L.pageSvg(nx, { thumb: true, cls: "cb-thumb" }) + "</span>";
-    next.setAttribute("aria-label", "Next page: " + nx.name);
+    next.setAttribute("aria-label", "Next page: " + nameOf(nx));
     glideStrip();
     if (restored) later(() => { if (play && !play.hidden) say(D.SAY.paint); }, 380);
     else later(() => { if (st && st.free) say(D.SAY.paint); }, 1800);
@@ -640,6 +715,10 @@
     horn: { notes: [196, 247], step: 520, o: { duration: 0.5, type: "sawtooth", gain: 0.13 } },
     beep: { notes: [988, 1319, 988, 1568], step: 120, o: { duration: 0.09, type: "square", gain: 0.1, plain: true } },
     vroom: { notes: [110, 131, 156, 185, 220], step: 90, o: { duration: 0.16, type: "sawtooth", gain: 0.14 } },
+    meow: { notes: [740, 932, 830, 622], step: 110, o: { duration: 0.18, type: "sine", gain: 0.14 } },
+    quack: { notes: [494, 440], step: 170, o: { duration: 0.14, type: "square", gain: 0.1, plain: true } },
+    choo: { notes: [392, 523, 392, 523], step: 230, o: { duration: 0.22, type: "triangle", gain: 0.14 } },
+    drum: { notes: [131, 131, 196, 131], step: 210, o: { duration: 0.16, type: "triangle", gain: 0.16 } },
   };
   function pageSound(page) {
     const fx = SFX[page.sound] || SFX.chime;
@@ -683,7 +762,7 @@
 
   // A crayon is "#rrggbb", or "fx:<magic>" for a magic one.
   function pickCrayon(key) {
-    if (!st || !st.free || st.replaying) return;
+    if (!st || !(st.free || st.draw) || st.replaying) return;
     st.crayon = key;
     for (const c of box.querySelectorAll(".color-crayon")) {
       const on = c.dataset.crayon === key;
@@ -747,6 +826,111 @@
     }, 500 + order.length * REPLAY_STEP + 500);
   }
 
+  // ---- ✏️ Draw your own: a blank page, a crayon, a finger ---------------------
+  // A stroke follows the finger (one finger: a second one is ignored). ↩️ takes
+  // back the last stroke, and 🧽 gives a clean page — which ↩️ can bring back,
+  // so nothing he drew is ever lost to one tap. His drawing is kept in the save
+  // and shown in the book.
+  const PEN_W = 5;
+  function drawSvg(strokes, thumb) {
+    let out = '<svg class="' + (thumb ? "cb-thumb" : "cb-svg") + ' cb-draw" viewBox="0 0 ' + L.W + " " + L.H + '" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">';
+    out += '<rect width="' + L.W + '" height="' + L.H + '" fill="#ffffff"/>';
+    if (!strokes.length && thumb) out += '<text x="100" y="112" font-size="60" text-anchor="middle" dominant-baseline="central">✏️</text>';
+    out += '<g class="cb-strokes">' + strokes.map(strokePath).join("") + "</g>";
+    return out + "</svg>";
+  }
+  function strokeD(p) {
+    const pts = [];
+    for (let k = 0; k + 1 < p.length; k += 2) pts.push([p[k], p[k + 1]]);
+    if (pts.length === 1) pts.push([pts[0][0] + 0.01, pts[0][1]]); // a dot
+    return L.lineD(pts);
+  }
+  const strokePath = (s) => '<path d="' + strokeD(s.p) + '" fill="none" stroke="' + s.c + '" stroke-width="' + PEN_W + '" stroke-linecap="round" stroke-linejoin="round"/>';
+  function setDrawUi(on) {
+    if (!play) return;
+    play.classList.toggle("color-play--draw", on);
+    for (const c of [".color-again", ".color-replay", ".color-next"]) box.querySelector(c).hidden = on;
+    for (const c of [".color-undo", ".color-clear"]) box.querySelector(c).hidden = !on;
+  }
+  function startDraw() {
+    clearLater();
+    hintTok++;
+    play.classList.remove("color-play--replay");
+    st = { draw: true, page: null, strokes: save.draw.map((s) => ({ c: s.c, p: s.p.slice() })), undo: [], crayon: null, free: false };
+    titleEl.textContent = "My Drawing";
+    holder.setAttribute("aria-label", "A blank page to draw on");
+    holder.innerHTML = drawSvg(st.strokes, false);
+    pots.hidden = true;
+    box.hidden = false;
+    setDrawUi(true);
+    for (const c of box.querySelectorAll(".color-crayon")) c.classList.remove("color-crayon--sel");
+    pickCrayon(D.CRAYONS[6]); // a blue crayon is ready, so a first stroke just works
+    paintDrawButtons();
+    fit();
+    play.__changedAt = now();
+    later(() => { if (play && !play.hidden && st && st.draw) say(D.SAY.draw); }, 380);
+  }
+  function paintDrawButtons() {
+    box.querySelector(".color-undo").disabled = !st.undo.length;
+    box.querySelector(".color-clear").disabled = !st.strokes.length;
+  }
+  function saveDraw() {
+    save.draw = st.strokes.map((s) => ({ c: s.c, p: s.p.slice() }));
+    persist("draw");
+    paintDrawButtons();
+  }
+  let pen = null; // the stroke under the finger: { s, el, id }
+  function penDown(e) {
+    if (!st || !st.draw || pen || e.isPrimary === false) return;
+    if (now() - (play.__shownAt || -1e9) < ECHO_MS) return; // the echo of the tap that opened the page
+    if (e.button != null && e.button > 0) return;
+    if (st.strokes.length >= MAX_STROKES) return;
+    const p = pageXY(e);
+    const s = { c: isHex(st.crayon) ? st.crayon : D.CRAYONS[6], p: [r1(p.x), r1(p.y)] };
+    const g = holder.querySelector(".cb-strokes");
+    if (!g) return;
+    g.insertAdjacentHTML("beforeend", strokePath(s));
+    pen = { s, el: g.lastElementChild, id: e.pointerId };
+    try { holder.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
+    e.preventDefault();
+  }
+  function penMove(e) {
+    if (!pen || e.pointerId !== pen.id) return;
+    const p = pageXY(e), a = pen.s.p, n = a.length;
+    if (n >= MAX_PTS * 2) return;
+    if (Math.hypot(p.x - a[n - 2], p.y - a[n - 1]) < 1.2) return;
+    a.push(r1(p.x), r1(p.y));
+    pen.el.setAttribute("d", strokeD(a));
+  }
+  function penUp(e) {
+    if (!pen || (e && e.pointerId !== pen.id)) return;
+    const s = pen.s;
+    pen = null;
+    st.strokes.push(s);
+    st.undo.push("s");
+    tone(SCALE[(st.strokes.length - 1) % SCALE.length], { duration: 0.12, type: "triangle", gain: 0.1 });
+    saveDraw();
+  }
+  function undoDraw() {
+    if (!st || !st.draw || !st.undo.length) return;
+    const u = st.undo.pop();
+    if (u === "s") st.strokes.pop(); else st.strokes = u.cleared;
+    holder.innerHTML = drawSvg(st.strokes, false);
+    fit();
+    say(D.SAY.undo);
+    saveDraw();
+  }
+  function clearDraw() {
+    if (!st || !st.draw || !st.strokes.length) return;
+    st.undo.push({ cleared: st.strokes });
+    st.strokes = [];
+    holder.innerHTML = drawSvg(st.strokes, false);
+    fit();
+    say(D.SAY.clear);
+    saveDraw();
+  }
+  const r1 = (v) => Math.round(Math.max(-10, Math.min(210, v)) * 10) / 10;
+
   // ---- The first time: a ghost finger shows pot, then shape ---------------------
   let ghost = null;
   function showGhost() {
@@ -778,6 +962,7 @@
   function leavePlay() {
     clearLater();
     hideGhost();
+    if (pen) penUp();
     // a replay cut short leaves the page half white: put his page back
     if (st && st.replaying) { st.replaying = false; play.classList.remove("color-play--replay"); draw(); }
   }
@@ -811,7 +996,7 @@
         if (syncSave()) st = null;
         if (p) startPage(p, {});
         else if (!st) startPage(save.last, {});
-        else if (!st.free) armHint(); // back on a half-painted page: the hint is armed again
+        else if (!st.free && !st.draw) armHint(); // back on a half-painted page: the hint is armed again
         // A page started while this screen was hidden was never sized (fit()
         // needs the field's real box), so size it now it is on screen.
         fit();
@@ -834,7 +1019,8 @@
 
   // ---- Test hooks (the __SEEK / __HOLE precedent) ----------------------------------
   global.__COLOR = {
-    state: () => (st && play && !play.hidden ? { page: st.page.id, sel: st.sel, done: [...st.done], free: st.free, crayon: st.crayon, replaying: !!st.replaying, fills: Object.assign({}, st.fills) } : null),
+    state: () => (st && play && !play.hidden ? (st.draw ? { page: "draw", draw: true, crayon: st.crayon, strokes: st.strokes.length, undo: st.undo.length }
+      : { page: st.page.id, sel: st.sel, done: [...st.done], free: st.free, crayon: st.crayon, replaying: !!st.replaying, fills: Object.assign({}, st.fills) }) : null),
     hint: () => hint(),
     hintMs: HINT_MS,
     save: () => JSON.parse(JSON.stringify(save)),
@@ -843,14 +1029,24 @@
     // where on the screen region i's number sits (to tap it like a finger)
     pointOf(i) {
       const svg = holder && holder.querySelector("svg");
-      if (!svg || !st) return null;
+      if (!svg || !st || !st.page) return null;
       const r = svg.getBoundingClientRect(), lab = st.g.labels[i];
       return { x: r.left + (lab.x / L.W) * r.width, y: r.top + (lab.y / L.H) * r.height };
     },
     // the numbered regions still to paint, in the order a child would
-    todo: () => (st ? L.numbered(st.page).filter((i) => !st.done.has(i)).map((i) => ({ i, n: st.page.regions[i].n })) : []),
+    todo: () => (st && st.page ? L.numbered(st.page).filter((i) => !st.done.has(i)).map((i) => ({ i, n: st.page.regions[i].n })) : []),
     timers: () => timers.size,
     ghost: () => !!(ghost && ghost.parentNode),
+    // draw a stroke through page points [[x, y], …] (as a finger would)
+    stroke(pts) {
+      if (!st || !st.draw || !pts.length) return false;
+      st.strokes.push({ c: st.crayon || D.CRAYONS[6], p: pts.flatMap((q) => [r1(q[0]), r1(q[1])]) });
+      st.undo.push("s");
+      holder.innerHTML = drawSvg(st.strokes, false);
+      fit();
+      saveDraw();
+      return true;
+    },
   };
 
   try { build(); } catch (e) { console.error("Color Book: build failed:", e); }

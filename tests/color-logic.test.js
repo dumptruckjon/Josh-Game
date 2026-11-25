@@ -35,12 +35,18 @@ test("every page's colors are numbered 1..k, every color is used, every number h
 });
 
 test("the ladder: three colors first, more as the book goes on, never fewer than the page before, eight at the end", () => {
-  const ks = PAGES.map((p) => p.colors.length);
+  // the first shelf is the ladder; every other shelf climbs on its own
+  const ks = PAGES.filter((p) => p.shelf === "numbers").map((p) => p.colors.length);
   assert.equal(ks[0], 3, "page 1 has three colors");
   for (let i = 1; i < ks.length; i++) assert.ok(ks[i] >= ks[i - 1], "page " + (i + 1) + " has no fewer colors than page " + i + " (" + ks.join(",") + ")");
   assert.ok(ks[ks.length - 1] >= 8, "the last page has eight colors");
   const n = (p) => L.numbered(p).length;
-  assert.ok(n(PAGES[0]) <= 10 && n(PAGES[PAGES.length - 1]) > n(PAGES[0]), "the first page has few shapes, the last more");
+  const ladder = PAGES.filter((p) => p.shelf === "numbers");
+  assert.ok(n(ladder[0]) <= 10 && n(ladder[ladder.length - 1]) > n(ladder[0]), "the first page has few shapes, the last more");
+  for (const sh of D.SHELVES) {
+    const k = PAGES.filter((p) => p.shelf === sh.id).map((p) => p.colors.length);
+    for (let i = 1; i < k.length; i++) assert.ok(k[i] >= k[i - 1], sh.id + ": no page has fewer colors than the one before it (" + k.join(",") + ")");
+  }
 });
 
 test("THE SIZE LAW: every numbered shape is wide enough to hold its number on a 320px phone", () => {
@@ -51,7 +57,7 @@ test("THE SIZE LAW: every numbered shape is wide enough to hold its number on a 
     if (!reg.n) return;
     checked++;
     const lab = GEO[k].labels[i];
-    assert.ok(lab.r >= L.needR(reg), `${p.id} shape #${i} (number ${reg.n}${reg.sum ? ", a sum" : ""}) is only ${lab.r.toFixed(1)} wide where its number goes; it needs ${L.needR(reg)}`);
+    assert.ok(lab.r >= L.needR(reg, p), `${p.id} shape #${i} (number ${reg.n}${reg.sum ? ", a sum" : reg.diff ? ", a take-away" : p.label ? ", " + p.label : ""}) is only ${lab.r.toFixed(1)} wide where its number goes; it needs ${L.needR(reg, p)}`);
   }));
   assert.ok(checked >= 120, "the law read every shape (" + checked + ")");
 });
@@ -64,12 +70,13 @@ test("every number sits INSIDE its own shape (what a tap there hits is that shap
   }));
 });
 
-test("color by MATH on the last three pages: a sum makes its number, only on a shape wide enough for it", () => {
-  const mathPages = PAGES.filter((p) => p.math);
-  assert.deepEqual(mathPages.map((p) => p.level), [PAGES.length - 2, PAGES.length - 1, PAGES.length], "the last three pages are the math pages");
+test("color by MATH on the last three pages of the ladder: a sum makes its number, only on a shape wide enough for it", () => {
+  const ladder = PAGES.filter((p) => p.shelf === "numbers");
+  const mathPages = ladder.filter((p) => p.math);
+  assert.deepEqual(mathPages.map((p) => p.id), ladder.slice(-3).map((p) => p.id), "the ladder's last three pages are the math pages");
   for (const p of PAGES) {
     const sums = p.regions.filter((r) => r.sum);
-    if (!p.math) { assert.equal(sums.length, 0, p.id + ": no sums before the math pages"); continue; }
+    if (!(p.math && p.shelf === "numbers")) { assert.equal(sums.length, 0, p.id + ": sums only on the ladder's math pages"); continue; }
     assert.ok(sums.length >= 2, p.id + ": a math page has at least two sums");
     for (const r of sums) {
       assert.ok(r.sum.every((v) => Number.isInteger(v) && v >= 1), p.id + ": a sum adds two whole numbers he knows");
@@ -177,19 +184,19 @@ test("pageSvg: one path per shape (in order), a number per unpainted numbered sh
     const k = PAGES.indexOf(p);
     const svg = L.pageSvg(p, { labels: GEO[k].labels });
     assert.equal((svg.match(/data-i="/g) || []).length, p.regions.length, p.id + ": every shape is drawn and can be tapped");
-    assert.equal((svg.match(/class="cb-label"/g) || []).length, L.numbered(p).length, p.id + ": every numbered shape shows its number");
+    assert.equal((svg.match(/class="cb-label[" ]/g) || []).length, L.numbered(p).length, p.id + ": every numbered shape shows its number");
     assert.ok(!/\sid="/.test(svg), p.id + ": no ids (two copies of a page on one screen must not collide)");
     assert.equal((svg.match(/<svg/g) || []).length, 1);
     assert.equal((svg.match(/<g/g) || []).length, (svg.match(/<\/g>/g) || []).length, p.id + ": groups balance");
     const fills = {}; L.numbered(p).forEach((i) => { fills[i] = "#123456"; });
     const painted = L.pageSvg(p, { fills, labels: GEO[k].labels });
-    assert.equal((painted.match(/class="cb-label"/g) || []).length, 0, p.id + ": a painted shape loses its number");
+    assert.equal((painted.match(/class="cb-label[" ]/g) || []).length, 0, p.id + ": a painted shape loses its number");
     const thumb = L.pageSvg(p, { fills, thumb: true });
     assert.ok(!/data-i=/.test(thumb), p.id + ": a thumbnail carries no tap hooks");
     // shading only ever references the shared, document-wide light
     const shaded = L.pageSvg(p, { fills, shade: true });
     for (const m of shaded.matchAll(/url\(#([^)]+)\)/g)) assert.equal(m[1], "jart-lit", p.id + ": the light is the one index.html declares");
-    assert.ok(/url\(#jart-lit\) none/.test(shaded), p.id + ": with a fallback if it is missing");
+    if (!p.mosaic) assert.ok(/url\(#jart-lit\) none/.test(shaded), p.id + ": with a fallback if it is missing");
   }
 });
 
@@ -276,7 +283,7 @@ test("his Chinese: a finished color is said in English, then in Chinese — each
   const TRUTH = {
     red: "红色", orange: "橙色", yellow: "黄色", green: "绿色", blue: "蓝色", purple: "紫色",
     pink: "粉色", brown: "棕色", black: "黑色", white: "白色", gray: "灰色", silver: "银色",
-    "sky blue": "天蓝色", "light blue": "浅蓝色", "dark blue": "深蓝色", "dark green": "深绿色",
+    "sky blue": "天蓝色", "light blue": "浅蓝色", "dark blue": "深蓝色", "dark green": "深绿色", "light green": "浅绿色",
   };
   assert.deepEqual(D.COLOR_ZH, TRUTH);
   // colors with no plain everyday Chinese word a four-year-old would hear stay English
@@ -287,4 +294,117 @@ test("his Chinese: a finished color is said in English, then in Chinese — each
   for (const zh of Object.values(D.COLOR_ZH)) assert.match(zh, /^\p{Script=Han}+$/u);
   const main = fs.readFileSync(path.join(__dirname, "..", "scripts", "color-main.js"), "utf8");
   assert.match(main, /lang: "zh-CN"/, "the Chinese is said in a Chinese voice");
+});
+
+// ---- The other shelves (the owner, 2026-11-25: "all six"): count the dots,
+// 一 二 三, take away, mystery pictures, big pictures, and draw your own.
+
+test("the book's shelves: every page on exactly one, in shelf order, at least three to a shelf", () => {
+  const ids = D.SHELVES.map((s) => s.id);
+  assert.deepEqual(ids, ["numbers", "dots", "zh", "minus", "mystery", "big"]);
+  for (const sh of D.SHELVES) {
+    assert.ok(sh.title && sh.icon && sh.say, sh.id + " is named");
+    assert.ok(PAGES.filter((p) => p.shelf === sh.id).length >= 3, sh.id + " holds at least three pages");
+  }
+  const order = PAGES.map((p) => ids.indexOf(p.shelf));
+  assert.ok(order.every((k) => k >= 0), "every page is on a shelf");
+  for (let i = 1; i < order.length; i++) assert.ok(order[i] >= order[i - 1], "the pages run shelf by shelf");
+  assert.ok(PAGES.length >= 27, "the book has its new pages (" + PAGES.length + ")");
+});
+
+test("🎲 count the dots: each shape shows a die's dots for its number — every dot inside its shape, none touching", () => {
+  assert.deepEqual(Object.keys(L.DIE).map(Number), [1, 2, 3, 4, 5, 6]);
+  for (const n of [1, 2, 3, 4, 5, 6]) assert.equal(L.DIE[n].length, n, "the die shows " + n + " dots for " + n);
+  const dots = PAGES.filter((p) => p.label === "dots");
+  assert.ok(dots.length >= 3);
+  for (const p of dots) {
+    const k = PAGES.indexOf(p), g = GEO[k];
+    assert.ok(p.colors.length <= 6, p.id + ": a die counts to six at most");
+    const svg = L.pageSvg(p, { labels: g.labels });
+    for (const i of L.numbered(p)) {
+      const reg = p.regions[i], ds = L.dotsAt(reg.n, g.labels[i]);
+      assert.equal(ds.length, reg.n, p.id + " #" + i + ": " + reg.n + " dots");
+      for (const [x, y, r] of ds) {
+        for (let a = 0; a < 8; a++) {
+          const t = (a * Math.PI) / 4;
+          assert.equal(L.ownerAt(g.r, x + Math.cos(t) * (r + 1.2), y + Math.sin(t) * (r + 1.2)), i, `${p.id} #${i}: a dot runs off its shape`);
+        }
+      }
+      for (let a = 0; a < ds.length; a++) for (let b = a + 1; b < ds.length; b++) {
+        const d = Math.hypot(ds[a][0] - ds[b][0], ds[a][1] - ds[b][1]);
+        assert.ok(d >= ds[a][2] * 2 + 1.5, `${p.id} #${i}: two dots touch (${d.toFixed(1)})`);
+      }
+      assert.ok(ds[0][2] * 2 >= 3.6, p.id + ": a dot is a dot, not a speck");
+    }
+    assert.equal((svg.match(/<circle /g) || []).length, L.numbered(p).reduce((t, i) => t + p.regions[i].n, 0), p.id + ": the page draws exactly the dots it should");
+    assert.ok(!/<text class="cb-label/.test(svg), p.id + ": no digits on a dots page");
+  }
+});
+
+test("🏮 一 二 三: a Chinese page writes every number in Chinese, in a Chinese face, restated here", () => {
+  assert.deepEqual(L.ZH_NUM, ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]);
+  const zh = PAGES.filter((p) => p.label === "zh");
+  assert.ok(zh.length >= 3);
+  for (const p of zh) {
+    assert.ok(p.colors.length <= 10);
+    const svg = L.pageSvg(p, { labels: GEO[PAGES.indexOf(p)].labels });
+    for (const i of L.numbered(p)) assert.equal(L.labelText(p.regions[i], p), L.ZH_NUM[p.regions[i].n]);
+    assert.equal((svg.match(/class="cb-label cb-label--zh" lang="zh-CN"/g) || []).length, L.numbered(p).length, p.id + ": every number is marked Chinese");
+    assert.ok(!/>\d+</.test(svg), p.id + ": no digit is written on a Chinese page");
+    if (p.cheerZh) assert.match(p.cheerZh, /^\p{Script=Han}+$/u, p.id + ": the Chinese cheer is Chinese only (an English voice never reads it)");
+    assert.ok(!/\p{Script=Han}/u.test(p.cheer + p.say), p.id + ": the English lines carry no Chinese");
+  }
+  const css = fs.readFileSync(path.join(__dirname, "..", "styles", "main.css"), "utf8");
+  assert.match(css, /\.cb-label--zh \{ font-family: "PingFang SC"/, "the numerals ask for a Simplified Chinese face by name, first");
+});
+
+test("➖ take away: every take-away makes its number, inside ten, written with a real minus sign", () => {
+  assert.equal(L.MINUS, "−");
+  const minus = PAGES.filter((p) => p.shelf === "minus");
+  assert.ok(minus.length >= 3);
+  for (const p of PAGES) {
+    const diffs = p.regions.filter((r) => r.diff);
+    if (p.shelf !== "minus") { assert.equal(diffs.length, 0, p.id + ": take-aways only on the take-away shelf"); continue; }
+    assert.ok(diffs.length >= 3, p.id + ": a take-away page has at least three take-aways");
+    for (const r of diffs) {
+      const [a, b] = r.diff;
+      assert.ok(Number.isInteger(a) && Number.isInteger(b) && b >= 1 && a <= 10 && a > b, p.id + ": " + a + "-" + b + " is a take-away inside ten");
+      assert.equal(a - b, r.n, p.id + ": " + a + "-" + b + " must leave " + r.n);
+      assert.equal(L.labelText(r, p), a + "−" + b);
+    }
+  }
+});
+
+test("❓ mystery pictures: a grid of squares; painted squares take their own color as an outline, so the finished picture is seamless", () => {
+  const ms = PAGES.filter((p) => p.mystery);
+  assert.ok(ms.length >= 3 && ms.every((p) => p.shelf === "mystery" && p.mosaic));
+  // the builder: a run along a row is one shape; a run under the same run joins it
+  const m = L.mosaic(["aab", "aab", "ccc"], { a: 1, b: 2, c: "#123456" });
+  assert.deepEqual(m.map((r) => r.n || r.fill), [1, 2, "#123456"], "three shapes, not nine squares");
+  assert.throws(() => L.mosaic(["ax"], { a: 1 }), /no key/);
+  for (const p of ms) {
+    const k = PAGES.indexOf(p), all = {};
+    for (const reg of p.regions) {
+      const xs = reg.pts.map((q) => q[0]), ys = reg.pts.map((q) => q[1]);
+      assert.equal(reg.pts.length, 4, p.id + ": every shape is a rectangle of squares");
+      for (const v of xs.concat(ys)) assert.ok(Math.abs(v / 20 - Math.round(v / 20)) < 1e-9, p.id + ": on the 10x10 grid");
+    }
+    L.numbered(p).forEach((i) => { all[i] = p.colors.find((c) => c.n === p.regions[i].n).hex; });
+    const done = L.pageSvg(p, { fills: all, shade: true });
+    assert.ok(!/stroke="#232634"/.test(done), p.id + ": a finished mystery picture has no grid lines");
+    assert.ok(!/jart-lit/.test(done), p.id + ": and is not shaded square by square");
+    const fresh = L.pageSvg(p, { labels: GEO[k].labels });
+    assert.equal((fresh.match(/stroke="#232634"/g) || []).length, p.regions.length, p.id + ": a fresh one shows the whole grid");
+    assert.ok(L.numbered(p).length >= 15, p.id + ": enough squares to be a mystery (" + L.numbered(p).length + ")");
+  }
+});
+
+test("🌟 big pictures: nine colors and at least twenty shapes each, more than any page of the ladder but its math pages", () => {
+  const big = PAGES.filter((p) => p.shelf === "big");
+  assert.ok(big.length >= 3);
+  const ladderMax = Math.max(...PAGES.filter((p) => p.shelf === "numbers").map((p) => p.colors.length));
+  for (const p of big) {
+    assert.ok(p.colors.length === 9 && p.colors.length > ladderMax, p.id + ": nine colors (the ladder tops out at " + ladderMax + ")");
+    assert.ok(L.numbered(p).length >= 20, p.id + ": at least twenty shapes (" + L.numbered(p).length + ")");
+  }
 });

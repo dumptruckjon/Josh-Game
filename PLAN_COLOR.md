@@ -197,3 +197,40 @@ Seek & Find has the same. Both stamp a reset `gen` (a time), so a second open
 tab takes the reset at its next write, or on the storage event, instead of
 folding its old ⭐ back in — Gobble Hole's §22 lesson, built in from the start.
 
+
+## 8. Six new ways to color (the owner, 2026-11-25: "items 1-6. All. Go")
+
+The book is now SHELVES (`ColorData.SHELVES`), each with a heading for the
+grown-up, and 27 pages:
+
+| Shelf | Pages | What is new |
+|---|---|---|
+| 🖍️ Color by number | the twelve | the ladder, unchanged |
+| 🎲 Count the dots | 🐞 Ladybug, 🐛 Caterpillar, 🌼 Flower Pot | a shape shows a die's DOTS; he counts them and finds the pot with that number |
+| 🏮 一 二 三 in Chinese | 🐼 Panda, 🏮 Lantern, 🛶 Dragon Boat | the numbers are written 一 二 三, in a Simplified Chinese face asked for by name; a pot and a wrong shape say the Chinese |
+| ➖ Take away | ⛄ Snowman, 🎈 Hot Air Balloon, ⛵ Sailboat | a shape shows a−b (a real minus sign), inside ten |
+| ❓ Mystery pictures | a cat, a duck, a car | a 10x10 grid of squares; the picture appears as he paints, and it is named only once it is done |
+| 🌟 Big pictures | 🚂 Train, 🐠 Under the Sea, 🦋 Butterfly Garden | nine colors and 21-22 shapes: the hardest pages |
+| ✏️ Draw your own | My Drawing | a blank page: a finger draws in any crayon; ↩️ takes back a stroke and 🧽 gives a clean page that ↩️ can bring back, so one tap never loses a drawing; kept in the save and shown in the book |
+
+**How it is built**: a page's `label` ("dots" or "zh") says how its numbers
+are written, and a region may carry `diff: [a, b]` as it carries `sum`. Every
+label kind has its own size floor (`needR`: a digit 7, a sum or take-away
+11.5, a Chinese numeral 8, dots 12), so the size law covers all of them. The
+dots sit in the widest circle the shape holds, by construction. A mystery page
+is built by `ColorLogic.mosaic` (a run along a row is one shape; a run under
+the same run joins it) and marked `mosaic`: a painted square is outlined in
+its own color, so the finished picture is seamless pixel art, and it is never
+shaded square by square.
+
+**Tests**: every new page goes through every law above (size, label inside
+its shape, distinct pots, the tap judge, a child's order finishes it, it
+comes alive, a sound); plus: the shelves run in order with three pages each;
+every dot inside its shape and none touching; every Chinese numeral restated
+and marked `lang="zh-CN"` with no digit on the page; every take-away makes its
+number inside ten; a mystery grid is rectangles on the 10x10 grid and a
+finished one has no grid line; the big pictures have nine colors and twenty
+shapes. In the browser: the book's shelves, each label kind said and drawn,
+a mystery named only when done, and the drawing page by real pointer drags
+(the opening tap draws nothing; undo, clean page, undo again; kept across a
+reload; cleared by the grown-ups reset).

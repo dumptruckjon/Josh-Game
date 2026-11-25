@@ -358,7 +358,361 @@
     };
   }
 
-  const PAGES = [sun(), fish(), iceCream(), rocket(), dino(), dumpTruck(), fireTruck(), castle(), pirateShip(), robot(), dragon(), monsterTruck()];
+  // ===== The other shelves (the owner, 2026-11-25: "all six") ==============
+  const D_ = (reg, a, b) => Object.assign(reg, { diff: [a, b] }); // a take-away label
+
+  // A circle cut in half down x = cx (a ladybug's wing case).
+  function halfCircle(cx, cy, r, side) {
+    const out = [[cx, cy - r]];
+    for (let k = 0; k <= 24; k++) { const t = -Math.PI / 2 + (side * Math.PI * k) / 24; out.push([cx + Math.cos(t) * r * side * side, cy + Math.sin(t) * r]); }
+    return out.map((q) => [cx + Math.abs(q[0] - cx) * side, q[1]]);
+  }
+
+  // ---- 🎲 Count the dots: each shape shows a die's dots; count them, find the pot
+  function ladybug() {
+    const regs = [N(rect(0, 0, 200, 200), 1)];
+    regs.push(N(ellipse(100, 140, 96, 54, -8), 2, "bug"));
+    regs.push(F(circle(100, 60, 22), INK, "bug"));
+    regs.push(...eye(91, 54, 5, "bug", 0), ...eye(109, 54, 5, "bug", 0));
+    regs.push(N(halfCircle(100, 112, 50, -1), 3, "bug"), N(halfCircle(100, 112, 50, 1), 3, "bug"));
+    for (const [x, y] of [[66, 96], [134, 96], [70, 140], [130, 140]]) regs.push(F(circle(x, y, 7), INK, "bug"));
+    return {
+      id: "ladybug", name: "Ladybug", say: "the ladybug", icon: "🐞", label: "dots",
+      colors: [{ n: 1, hex: "#a5d8ff", name: "sky blue" }, { n: 2, hex: "#69db7c", name: "green" }, { n: 3, hex: "#f03e3e", name: "red" }],
+      regions: regs,
+      ink: [I([[92, 42], [82, 22]], 2.4, "bug"), I([[108, 42], [118, 22]], 2.4, "bug"), I([[100, 64], [100, 160]], 2.4, "bug")],
+      alive: [{ part: "bug", anim: "wobble" }],
+      cheer: "The ladybug is ready to fly!",
+    };
+  }
+  function caterpillar() {
+    const regs = [N(rect(0, 0, 200, 200), 1)];
+    regs.push(N(circle(168, 34, 22), 3));
+    regs.push(cloud(56, 30, 0.85));
+    regs.push(N(path("M0 156 C40 146 80 160 120 150 C150 144 180 152 200 146 L200 200 L0 200 Z"), 2));
+    const xs = [30, 62, 94, 126];
+    xs.forEach((x, k) => regs.push(N(circle(x, 128, 22), k % 2 ? 4 : 3, "bug")));
+    regs.push(F(circle(160, 112, 26), "#9775fa", "bug"));
+    regs.push(...eye(152, 104, 6, "bug", 0.3), ...eye(170, 104, 6, "bug", 0.3));
+    return {
+      id: "caterpillar", name: "Caterpillar", say: "the caterpillar", icon: "🐛", label: "dots",
+      colors: [{ n: 1, hex: "#a5d8ff", name: "sky blue" }, { n: 2, hex: "#40c057", name: "green" }, { n: 3, hex: "#ffd43b", name: "yellow" }, { n: 4, hex: "#9775fa", name: "purple" }],
+      regions: regs,
+      ink: [I(arc(162, 118, 8, 30, 150), 2.2, "bug"), I([[150, 88], [142, 70]], 2.2, "bug"), I([[170, 88], [178, 70]], 2.2, "bug")],
+      alive: [{ part: "bug", anim: "swim" }],
+      cheer: "Wiggle, wiggle! The caterpillar is crawling!",
+    };
+  }
+  function flowerPot() {
+    const regs = [N(rect(0, 0, 200, 200), 1)];
+    regs.push(F(rect(96, 92, 8, 60, 3), "#2f9e44", "flower"));
+    regs.push(N(ellipse(70, 122, 28, 15, -25), 2, "flower"), N(ellipse(130, 122, 28, 15, 25), 2, "flower"));
+    for (let k = 0; k < 6; k++) {
+      const a = (k * 60 - 90) * Math.PI / 180;
+      regs.push(N(ellipse(100 + Math.cos(a) * 36, 64 + Math.sin(a) * 36, 22, 16, k * 60 - 90), 3, "flower"));
+    }
+    regs.push(N(circle(100, 64, 20), 4, "flower"));
+    regs.push(N(poly([[52, 142], [148, 142], [134, 198], [66, 198]]), 5));
+    return {
+      id: "flowerpot", name: "Flower Pot", say: "the flower pot", icon: "🌼", label: "dots",
+      colors: [{ n: 1, hex: "#a5d8ff", name: "sky blue" }, { n: 2, hex: "#69db7c", name: "green" }, { n: 3, hex: "#ff8fb1", name: "pink" }, { n: 4, hex: "#ffd43b", name: "yellow" }, { n: 5, hex: "#a9744f", name: "brown" }],
+      regions: regs,
+      ink: [],
+      alive: [{ part: "flower", anim: "wobble" }],
+      cheer: "Your flower is growing!",
+    };
+  }
+
+  // ---- 🏮 一 二 三: the numbers are written in Chinese
+  function panda() {
+    const regs = [N(rect(0, 0, 200, 200), 1)];
+    for (const x of [8, 172]) {
+      regs.push(N(rect(x, 0, 22, 200, 4), 2));
+      regs.push(N(ellipse(x + (x < 100 ? 30 : -8), 54, 22, 10, x < 100 ? -25 : 25), 2));
+    }
+    regs.push(N(circle(64, 50, 16), 3, "panda"), N(circle(136, 50, 16), 3, "panda"));
+    regs.push(N(ellipse(56, 150, 21, 31, 20), 3, "panda"), N(ellipse(144, 150, 21, 31, -20), 3, "panda"));
+    regs.push(F(ellipse(100, 154, 46, 40), WHITE, "panda"));
+    regs.push(N(ellipse(74, 186, 22, 13), 3, "panda"), N(ellipse(126, 186, 22, 13), 3, "panda"));
+    regs.push(F(circle(100, 84, 46), WHITE, "panda"));
+    regs.push(N(ellipse(80, 82, 13, 16, 20), 3, "panda"), N(ellipse(120, 82, 13, 16, -20), 3, "panda"));
+    regs.push(F(circle(82, 76, 4.5), WHITE, "panda"), F(circle(118, 76, 4.5), WHITE, "panda"));
+    regs.push(F(ellipse(100, 100, 7, 5), INK, "panda"));
+    return {
+      id: "panda", name: "Panda", say: "the panda", icon: "🐼", label: "zh",
+      colors: [{ n: 1, hex: "#d3f9d8", name: "light green" }, { n: 2, hex: "#40c057", name: "green" }, { n: 3, hex: "#343a40", name: "black" }],
+      regions: regs,
+      ink: [I(arc(100, 104, 9, 30, 150), 2.4, "panda")],
+      alive: [{ part: "panda", anim: "bob" }],
+      cheer: "The panda says hello!", cheerZh: "你好",
+    };
+  }
+  function lantern() {
+    const regs = [N(rect(0, 0, 200, 200), 1)];
+    regs.push(N(circle(34, 34, 20), 3));
+    [[160, 22], [184, 50], [70, 20], [24, 176], [176, 178]].forEach(([x, y]) => regs.push(F(star(x, y, 5, 2.2, 5), "#ffe066")));
+    regs.push(F(rect(98, 0, 4, 42, 1), "#ffd43b", "lantern"));
+    regs.push(N(rect(70, 28, 60, 22, 5), 3, "lantern"));
+    regs.push(N(ellipse(100, 100, 66, 52), 2, "lantern"));
+    regs.push(N(ellipse(100, 100, 24, 52), 4, "lantern"));
+    regs.push(N(rect(74, 146, 52, 18, 5), 3, "lantern"));
+    regs.push(F(rect(97, 164, 6, 30, 2), "#f03e3e", "lantern"));
+    return {
+      id: "lantern", name: "Lantern", say: "the lantern", icon: "🏮", label: "zh",
+      colors: [{ n: 1, hex: "#364fc7", name: "dark blue" }, { n: 2, hex: "#f03e3e", name: "red" }, { n: 3, hex: "#ffd43b", name: "yellow" }, { n: 4, hex: "#ff922b", name: "orange" }],
+      regions: regs,
+      ink: [I([[52, 64], [52, 136]], 1.6, "lantern"), I([[148, 64], [148, 136]], 1.6, "lantern")],
+      alive: [{ part: "lantern", anim: "rock", origin: [100, 0] }],
+      cheer: "The lantern is glowing!", cheerZh: "新年快乐",
+    };
+  }
+  function dragonBoat() {
+    const regs = [N(rect(0, 0, 200, 200), 1)];
+    regs.push(N(circle(170, 32, 18), 4));
+    regs.push(N(path("M0 110 L40 60 L76 104 L112 50 L160 104 L200 76 L200 130 L0 130 Z"), 5));
+    regs.push(N(rect(0, 128, 200, 72), 2));
+    for (const x of [52, 82, 112, 142]) regs.push(F(rect(x - 7, 100, 14, 22, 6), "#e8590c", "boat"), F(circle(x, 94, 7.5), "#ffd8a8", "boat"));
+    regs.push(N(path("M14 118 L186 118 C176 146 156 156 130 158 L70 158 C44 156 24 146 14 118 Z"), 3, "boat"));
+    regs.push(N(path("M160 120 C164 96 176 84 196 86 C200 98 194 108 184 112 L176 120 Z"), 4, "boat"));
+    regs.push(N(poly([[0, 78], [38, 118], [0, 118]]), 4, "boat"));
+    regs.push(...eye(184, 96, 4, "boat", 0.3));
+    regs.push(N(path("M0 172 C30 162 60 178 100 168 C140 158 170 176 200 166 L200 200 L0 200 Z"), 2));
+    return {
+      id: "dragonboat", name: "Dragon Boat", say: "the dragon boat", icon: "🛶", label: "zh",
+      colors: [{ n: 1, hex: "#a5d8ff", name: "sky blue" }, { n: 2, hex: "#1c7ed6", name: "blue" }, { n: 3, hex: "#f03e3e", name: "red" }, { n: 4, hex: "#ffd43b", name: "yellow" }, { n: 5, hex: "#40c057", name: "green" }],
+      regions: regs,
+      ink: [52, 82, 112, 142].map((x) => I([[x + 6, 108], [x - 16, 170]], 2.6, "boat", "#7a4b2a")),
+      alive: [{ part: "boat", anim: "rock", origin: [100, 150] }],
+      cheer: "Row, row! The dragon boat is racing!",
+    };
+  }
+
+  // ---- ➖ Take away: a shape shows a−b; color it with what is left
+  function snowman() {
+    const regs = [D_(N(rect(0, 0, 200, 200), 1), 3, 2)];
+    regs.push(D_(N(circle(162, 36, 22), 5), 7, 2));
+    [[30, 30], [70, 50], [120, 20], [24, 96], [186, 96]].forEach(([x, y]) => regs.push(F(star(x, y, 5, 2.2, 5), "#ffe066")));
+    regs.push(D_(N(path("M0 150 C40 138 80 148 120 140 C150 134 180 144 200 138 L200 200 L0 200 Z"), 2), 4, 2));
+    regs.push(F(circle(100, 150, 40), WHITE, "snowman"), F(circle(100, 92, 30), WHITE, "snowman"));
+    regs.push(N(rect(68, 112, 64, 16, 7), 4, "snowman"));
+    regs.push(N(rect(70, 66, 60, 18, 4), 3, "snowman"), D_(N(rect(80, 26, 40, 42, 4), 3, "snowman"), 5, 2));
+    regs.push(F(circle(90, 90, 3.5), INK, "snowman"), F(circle(110, 90, 3.5), INK, "snowman"));
+    regs.push(F(poly([[100, 96], [124, 100], [100, 102]]), "#ff922b", "snowman"));
+    for (const y of [140, 154, 168]) regs.push(F(circle(100, y, 3.5), INK, "snowman"));
+    return {
+      id: "snowman", name: "Snowman", say: "the snowman", icon: "⛄", math: true,
+      colors: [{ n: 1, hex: "#364fc7", name: "dark blue" }, { n: 2, hex: "#a5d8ff", name: "light blue" }, { n: 3, hex: "#343a40", name: "black" }, { n: 4, hex: "#f03e3e", name: "red" }, { n: 5, hex: "#ffd43b", name: "yellow" }],
+      regions: regs, ink: [],
+      alive: [{ part: "snowman", anim: "wobble" }],
+      cheer: "Brrr! The snowman says hello!",
+    };
+  }
+  function hotAirBalloon() {
+    const regs = [D_(N(rect(0, 0, 200, 200), 1), 2, 1)];
+    regs.push(cloud(40, 40, 0.9), cloud(166, 70, 0.75));
+    regs.push(D_(N(path("M0 168 C40 150 80 164 120 154 C150 146 180 158 200 150 L200 200 L0 200 Z"), 4), 6, 2));
+    regs.push(F(poly([[74, 128], [80, 128], [92, 152], [88, 152]]), "#7a4b2a", "balloon"), F(poly([[126, 128], [120, 128], [108, 152], [112, 152]]), "#7a4b2a", "balloon"));
+    regs.push(D_(N(path("M100 14 C150 14 164 54 156 82 C148 108 124 120 114 130 L86 130 C76 120 52 108 44 82 C36 54 50 14 100 14 Z"), 2, "balloon"), 4, 2));
+    regs.push(N(ellipse(100, 70, 30, 56), 3, "balloon"));
+    regs.push(D_(N(ellipse(100, 70, 13, 56), 6, "balloon"), 9, 3));
+    regs.push(D_(N(rect(82, 150, 36, 28, 5), 5, "balloon"), 6, 1));
+    return {
+      id: "balloon", name: "Hot Air Balloon", say: "the hot air balloon", icon: "🎈", math: true,
+      colors: [{ n: 1, hex: "#a5d8ff", name: "sky blue" }, { n: 2, hex: "#f03e3e", name: "red" }, { n: 3, hex: "#ffd43b", name: "yellow" }, { n: 4, hex: "#40c057", name: "green" }, { n: 5, hex: "#a9744f", name: "brown" }, { n: 6, hex: "#9775fa", name: "purple" }],
+      regions: regs, ink: [],
+      alive: [{ part: "balloon", anim: "bob" }],
+      cheer: "Up, up and away!",
+    };
+  }
+  function sailboat() {
+    const regs = [D_(N(rect(0, 0, 200, 200), 1), 4, 3)];
+    regs.push(D_(N(circle(36, 36, 22), 6), 8, 2));
+    regs.push(cloud(150, 30, 0.8));
+    regs.push(D_(N(rect(0, 134, 200, 66), 2), 5, 3));
+    regs.push(F(rect(97, 22, 6, 112, 2), "#7a4b2a", "boat"));
+    regs.push(D_(N(poly([[94, 26], [94, 118], [38, 118]]), 3, "boat"), 7, 4));
+    regs.push(D_(N(poly([[106, 34], [106, 118], [156, 118]]), 4, "boat"), 6, 2));
+    regs.push(D_(N(path("M28 122 L172 122 C164 140 150 150 134 152 L66 152 C50 150 36 140 28 122 Z"), 5, "boat"), 8, 3));
+    regs.push(N(path("M0 172 C30 162 60 178 100 168 C140 158 170 176 200 166 L200 200 L0 200 Z"), 2));
+    return {
+      id: "sailboat", name: "Sailboat", say: "the sailboat", icon: "⛵", math: true,
+      colors: [{ n: 1, hex: "#d0ebff", name: "light blue" }, { n: 2, hex: "#1c7ed6", name: "blue" }, { n: 3, hex: "#ffd43b", name: "yellow" }, { n: 4, hex: "#f03e3e", name: "red" }, { n: 5, hex: "#a9744f", name: "brown" }, { n: 6, hex: "#ff922b", name: "orange" }],
+      regions: regs, ink: [],
+      alive: [{ part: "boat", anim: "rock", origin: [100, 150] }],
+      cheer: "Ahoy! The sailboat is sailing!",
+    };
+  }
+
+  // ---- ❓ Mystery pictures: a grid of squares; the picture shows as he paints
+  // (the book hides its name and picture until it is done)
+  function mysteryCat() {
+    const regs = L.mosaic([
+      "bobbbbbbob",
+      "boobbbboob",
+      "bopoooopob",
+      "boooooooob",
+      "bokooookob",
+      "boooppooob",
+      "boooooooob",
+      "bboooooobb",
+      "gggggggggg",
+      "gggggggggg",
+    ], { b: 1, o: 2, p: 3, k: 4, g: 5 }, "pic");
+    return {
+      id: "mysterycat", name: "Kitty Cat", say: "the kitty cat", icon: "🐱", mystery: true, mosaic: true,
+      colors: [{ n: 1, hex: "#a5d8ff", name: "sky blue" }, { n: 2, hex: "#ff922b", name: "orange" }, { n: 3, hex: "#ff8fb1", name: "pink" }, { n: 4, hex: "#343a40", name: "black" }, { n: 5, hex: "#40c057", name: "green" }],
+      regions: regs, ink: [],
+      alive: [{ part: "pic", anim: "bob" }],
+      cheer: "It's a kitty cat! Meow!",
+    };
+  }
+  function mysteryDuck() {
+    const regs = L.mosaic([
+      "bbbbbbbbbb",
+      "bbbbyyybbb",
+      "bbbyykyobb",
+      "bbbyyyyoob",
+      "bbbbyybbbb",
+      "byyyyyyybb",
+      "yyyyyyyyyb",
+      "byyyyyyyyb",
+      "wwwwwwwwww",
+      "wwwwwwwwww",
+    ], { b: 1, y: 2, o: 3, k: 4, w: 5 }, "pic");
+    return {
+      id: "mysteryduck", name: "Little Duck", say: "the little duck", icon: "🦆", mystery: true, mosaic: true,
+      colors: [{ n: 1, hex: "#d0ebff", name: "light blue" }, { n: 2, hex: "#ffd43b", name: "yellow" }, { n: 3, hex: "#ff922b", name: "orange" }, { n: 4, hex: "#343a40", name: "black" }, { n: 5, hex: "#1c7ed6", name: "blue" }],
+      regions: regs, ink: [],
+      alive: [{ part: "pic", anim: "swim" }],
+      cheer: "It's a little duck! Quack, quack!",
+    };
+  }
+  function mysteryCar() {
+    const regs = L.mosaic([
+      "bbbbbbbbbb",
+      "bbbbbbbbbb",
+      "bbbrrrrrbb",
+      "bbrccrccrb",
+      "rrrrrrrrrr",
+      "rrrrrrrrry",
+      "bbkkbbkkbb",
+      "ggkkggkkgg",
+      "gggggggggg",
+      "gggggggggg",
+    ], { b: 1, r: 2, c: 3, k: 4, g: 5, y: 6 }, "pic");
+    return {
+      id: "mysterycar", name: "Red Car", say: "the red car", icon: "🚗", mystery: true, mosaic: true,
+      colors: [{ n: 1, hex: "#a5d8ff", name: "sky blue" }, { n: 2, hex: "#f03e3e", name: "red" }, { n: 3, hex: "#66d9e8", name: "light blue" }, { n: 4, hex: "#343a40", name: "black" }, { n: 5, hex: "#868e96", name: "gray" }, { n: 6, hex: "#ffd43b", name: "yellow" }],
+      regions: regs, ink: [],
+      alive: [{ part: "pic", anim: "rumble" }],
+      cheer: "It's a red car! Beep beep!",
+    };
+  }
+
+  // ---- 🌟 Big pictures: nine colors and many more shapes
+  function train() {
+    const regs = [N(rect(0, 0, 200, 200), 1)];
+    regs.push(N(circle(28, 28, 18), 8));
+    regs.push(cloud(110, 22, 0.75));
+    regs.push(N(path("M0 96 C30 60 60 60 90 84 C120 58 160 60 200 82 L200 160 L0 160 Z"), 2));
+    regs.push(N(rect(0, 154, 200, 20), 9));
+    regs.push(F(rect(0, 172, 200, 5, 1), "#5c5f66"));
+    regs.push(N(rect(0, 177, 200, 23), 2));
+    // smoke, the engine (boiler, cab, chimney), then two cars
+    regs.push(N(circle(160, 40, 13), 7, "train"), N(circle(178, 22, 11), 7, "train"));
+    regs.push(N(rect(146, 56, 18, 30, 3), 6, "train"));
+    regs.push(N(rect(122, 84, 72, 46, 8), 3, "train"));
+    regs.push(N(rect(102, 66, 38, 64, 6), 4, "train"));
+    regs.push(N(rect(110, 74, 22, 18, 4), 8, "train"));
+    regs.push(N(rect(40, 92, 56, 38, 6), 5, "train"));
+    regs.push(N(rect(48, 98, 18, 16, 3), 8, "train"), N(rect(70, 98, 18, 16, 3), 8, "train"));
+    regs.push(N(rect(4, 92, 32, 38, 6), 3, "train"));
+    regs.push(F(rect(36, 116, 6, 6, 2), "#495057", "train"), F(rect(96, 116, 6, 6, 2), "#495057", "train"));
+    for (const x of [20, 54, 84, 122, 150, 178]) regs.push(N(circle(x, 141, 13), 6, "train"));
+    return {
+      id: "train", name: "Train", say: "the train", icon: "🚂",
+      colors: [{ n: 1, hex: "#a5d8ff", name: "sky blue" }, { n: 2, hex: "#69db7c", name: "green" }, { n: 3, hex: "#f03e3e", name: "red" }, { n: 4, hex: "#1c7ed6", name: "blue" }, { n: 5, hex: "#ffd43b", name: "yellow" }, { n: 6, hex: "#343a40", name: "black" }, { n: 7, hex: "#adb5bd", name: "gray" }, { n: 8, hex: "#ff922b", name: "orange" }, { n: 9, hex: "#a9744f", name: "brown" }],
+      regions: regs, ink: [],
+      alive: [{ part: "train", anim: "rumble" }],
+      cheer: "Choo choo! All aboard!",
+    };
+  }
+  function sea() {
+    const regs = [N(rect(0, 0, 200, 200), 1)];
+    regs.push(N(path("M0 166 C40 156 80 170 120 160 C150 154 180 162 200 156 L200 200 L0 200 Z"), 2));
+    for (const [x, y, r] of [[28, 40, 9], [48, 16, 8], [150, 22, 9]]) regs.push(N(circle(x, y, r), 9));
+    // seaweed and coral at the back
+    regs.push(N(path("M14 170 C4 140 24 120 14 92 C30 112 30 140 34 170 Z"), 5, "sea"), N(path("M182 168 C172 140 194 118 184 90 C200 112 200 140 198 168 Z"), 5, "sea"));
+    regs.push(N(path("M44 170 L48 132 L38 112 L52 122 L58 100 L64 124 L78 112 L70 136 L74 170 Z"), 6, "sea"));
+    regs.push(N(path("M134 172 C126 160 140 150 152 156 C164 150 176 160 168 172 Z"), 7, "sea"));
+    // a little fish and a starfish
+    regs.push(N(poly([[50, 122], [74, 106], [74, 138]]), 7, "fish"), N(ellipse(36, 122, 20, 13), 7, "fish"));
+    regs.push(...eye(26, 119, 3.5, "fish", -0.3));
+    regs.push(N(star(170, 184, 17, 9, 5, -90), 4, "sea"));
+    for (const [x, y] of [[112, 26], [92, 132]]) regs.push(N(circle(x, y, 8), 9));
+    // a big fish with stripes
+    regs.push(N(poly([[150, 76], [184, 50], [180, 76], [184, 104]]), 3, "fish"));
+    regs.push(N(ellipse(110, 76, 46, 28), 3, "fish"));
+    regs.push(N(ellipse(98, 76, 10, 26), 4, "fish"), N(ellipse(124, 76, 9, 24), 4, "fish"));
+    regs.push(...eye(78, 70, 7, "fish", -0.3));
+    // a crab on the sand
+    regs.push(N(circle(78, 160, 10.5), 8, "crab"), N(circle(130, 160, 10.5), 8, "crab"));
+    regs.push(N(ellipse(104, 174, 22, 13), 8, "crab"));
+    regs.push(...eye(98, 160, 3.5, "crab", 0), ...eye(110, 160, 3.5, "crab", 0));
+    return {
+      id: "sea", name: "Under the Sea", say: "the sea", icon: "🐠",
+      colors: [{ n: 1, hex: "#4dabf7", name: "blue" }, { n: 2, hex: "#d4a373", name: "tan" }, { n: 3, hex: "#ff922b", name: "orange" }, { n: 4, hex: "#ffe066", name: "yellow" }, { n: 5, hex: "#2f9e44", name: "dark green" }, { n: 6, hex: "#f783ac", name: "pink" }, { n: 7, hex: "#9775fa", name: "purple" }, { n: 8, hex: "#e03131", name: "red" }, { n: 9, hex: "#d0ebff", name: "light blue" }],
+      regions: regs, ink: [],
+      alive: [{ part: "fish", anim: "swim" }, { part: "crab", anim: "rumble" }],
+      cheer: "Splash! The sea is full of friends!",
+    };
+  }
+  function garden() {
+    const regs = [N(rect(0, 0, 200, 200), 1)];
+    regs.push(N(circle(172, 30, 20), 5));
+    regs.push(cloud(44, 28, 0.8));
+    regs.push(N(path("M0 150 C40 140 80 152 120 144 C150 138 180 146 200 140 L200 200 L0 200 Z"), 2));
+    // two flowers
+    for (const [x, c] of [[34, 6], [168, 7]]) {
+      regs.push(F(rect(x - 2.5, 130, 5, 50, 2), "#2f9e44", "flowers"));
+      for (let k = 0; k < 5; k++) { const a = (k * 72 - 90) * Math.PI / 180; regs.push(N(circle(x + Math.cos(a) * 15, 120 + Math.sin(a) * 15, 11), c, "flowers")); }
+      regs.push(N(circle(x, 120, 9), 5, "flowers"));
+    }
+    // the butterfly: wings, their spots, then the body
+    regs.push(N(path("M98 76 C80 40 34 36 40 72 C44 96 76 98 98 90 Z"), 3, "wings"), N(path("M102 76 C120 40 166 36 160 72 C156 96 124 98 102 90 Z"), 3, "wings"));
+    regs.push(N(path("M98 94 C76 96 50 112 62 132 C74 146 92 124 98 104 Z"), 8, "wings"), N(path("M102 94 C124 96 150 112 138 132 C126 146 108 124 102 104 Z"), 8, "wings"));
+    regs.push(N(circle(66, 66, 11), 4, "wings"), N(circle(134, 66, 11), 4, "wings"));
+    regs.push(N(ellipse(100, 92, 9.5, 30), 9, "wings"));
+    regs.push(F(circle(100, 58, 8), INK, "wings"));
+    return {
+      id: "garden", name: "Butterfly Garden", say: "the butterfly garden", icon: "🦋",
+      colors: [{ n: 1, hex: "#d0ebff", name: "light blue" }, { n: 2, hex: "#69db7c", name: "green" }, { n: 3, hex: "#9775fa", name: "purple" }, { n: 4, hex: "#ffe066", name: "yellow" }, { n: 5, hex: "#ff922b", name: "orange" }, { n: 6, hex: "#f783ac", name: "pink" }, { n: 7, hex: "#e03131", name: "red" }, { n: 8, hex: "#1c7ed6", name: "blue" }, { n: 9, hex: "#5c3d2e", name: "brown" }],
+      regions: regs,
+      ink: [I([[96, 52], [86, 34]], 2, "wings"), I([[104, 52], [114, 34]], 2, "wings")],
+      alive: [{ part: "wings", anim: "flap", origin: [100, 90] }],
+      cheer: "The butterfly is flying in your garden!",
+    };
+  }
+
+  // The book's shelves, in order. A page sits on exactly one.
+  const SHELVES = [
+    { id: "numbers", icon: "🖍️", title: "Color by number", say: "Color by number" },
+    { id: "dots", icon: "🎲", title: "Count the dots", say: "Count the dots" },
+    { id: "zh", icon: "🏮", title: "一 二 三 in Chinese", say: "Numbers in Chinese" },
+    { id: "minus", icon: "➖", title: "Take away", say: "Take away" },
+    { id: "mystery", icon: "❓", title: "Mystery pictures", say: "Mystery pictures" },
+    { id: "big", icon: "🌟", title: "Big pictures", say: "Big pictures" },
+  ];
+  const BY_SHELF = {
+    numbers: [sun(), fish(), iceCream(), rocket(), dino(), dumpTruck(), fireTruck(), castle(), pirateShip(), robot(), dragon(), monsterTruck()],
+    dots: [ladybug(), caterpillar(), flowerPot()],
+    zh: [panda(), lantern(), dragonBoat()],
+    minus: [snowman(), hotAirBalloon(), sailboat()],
+    mystery: [mysteryCat(), mysteryDuck(), mysteryCar()],
+    big: [train(), sea(), garden()],
+  };
+  const PAGES = [];
+  for (const sh of SHELVES) for (const p of BY_SHELF[sh.id]) { p.shelf = sh.id; PAGES.push(p); }
   PAGES.forEach((p, i) => { p.level = i + 1; });
 
   // What each page SOUNDS like when it comes alive (color-main.js plays these
@@ -366,6 +720,9 @@
   const SOUNDS = {
     sun: "chime", fish: "bloop", icecream: "yum", rocket: "whoosh", dino: "roar", dumptruck: "honk",
     firetruck: "siren", castle: "fanfare", pirate: "horn", robot: "beep", dragon: "roar", monster: "vroom",
+    ladybug: "chime", caterpillar: "bloop", flowerpot: "chime", panda: "yum", lantern: "chime", dragonboat: "drum",
+    snowman: "chime", balloon: "whoosh", sailboat: "horn", mysterycat: "meow", mysteryduck: "quack", mysterycar: "honk",
+    train: "choo", sea: "bloop", garden: "chime",
   };
   PAGES.forEach((p) => { p.sound = SOUNDS[p.id] || "chime"; });
 
@@ -375,7 +732,7 @@
   const COLOR_ZH = {
     red: "红色", orange: "橙色", yellow: "黄色", green: "绿色", blue: "蓝色", purple: "紫色",
     pink: "粉色", brown: "棕色", black: "黑色", white: "白色", gray: "灰色", silver: "银色",
-    "sky blue": "天蓝色", "light blue": "浅蓝色", "dark blue": "深蓝色", "dark green": "深绿色",
+    "sky blue": "天蓝色", "light blue": "浅蓝色", "dark blue": "深蓝色", "dark green": "深绿色", "light green": "浅绿色",
   };
 
   // Free paint: the crayon box that opens when a page is done.
@@ -390,12 +747,20 @@
   const CRAYONS = ["#f03e3e", "#ff922b", "#ffd43b", "#82c91e", "#37b24d", "#22b8cf", "#1c7ed6", "#7950f2", "#e64980", "#a9744f", "#343a40", "#f8f9fa"];
 
   const SAY = {
-    open: (p) => "Let's color " + p.say + "!",
-    how: "Pick a color, then tap its number!",
+    open: (p) => "Let's color " + (p.mystery ? "the mystery picture" : p.say) + "!",
+    how: (p) => (p.label === "dots" ? "Count the dots, then tap the pot with that number!"
+      : p.label === "zh" ? "The numbers are in Chinese! Pick a color, then find its number!"
+      : p.shelf === "minus" ? "Take away, then color it with what is left!"
+      : "Pick a color, then tap its number!"),
     pick: (c) => "Number " + c.n + ". " + c.name + "!",
     colorDone: (c) => "All the " + c.name + " is done!",
     wrong: (n) => "That one is number " + n + "!",
+    wrongDots: (n) => "That one has " + n + (n === 1 ? " dot!" : " dots!"),
     wrongSum: (a, b, n) => a + " plus " + b + " makes " + n + "!",
+    wrongDiff: (a, b, n) => a + " take away " + b + " is " + n + "!",
+    draw: "Draw anything you like! Pick a crayon.",
+    undo: "Oops, undo!",
+    clear: "A clean page!",
     done: (p) => "You colored " + p.say + "!",
     paint: "Now paint it any way you like!",
     again: "Let's color it again!",
@@ -403,7 +768,7 @@
     magic: "Magic crayons! Tap a shape to make it sparkle!",
   };
 
-  const data = { PAGES, CRAYONS, MAGIC, COLOR_ZH, SAY };
+  const data = { PAGES, SHELVES, CRAYONS, MAGIC, COLOR_ZH, SAY };
   if (typeof module !== "undefined" && module.exports) module.exports = data;
   else global.ColorData = data;
 })(typeof window !== "undefined" ? window : globalThis);
