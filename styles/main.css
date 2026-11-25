@@ -5485,12 +5485,12 @@ body.in-game .screen.color-play { flex: 1 1 auto; display: flex; flex-direction:
     column-gap: 16px;
   }
   .color-play .color-bar { grid-column: 1 / -1; }
-  .color-play .color-pots, .color-play .color-box { margin-top: 0; align-content: start; overflow-y: auto; overscroll-behavior: contain; max-height: none; min-height: 0; }
+  .color-play .color-pots, .color-play .color-box { margin-top: 0; align-content: start; overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
   .color-play .color-pots, .color-play .color-crayons { grid-template-columns: repeat(4, minmax(0, 1fr)); min-height: 0; }
   /* The screen has no height of its own here, so the 1fr row grows to the
      crayons (12 of them, three rows, then 🔁 ▶) and pushed 🔁 ▶ off a phone on
      its side. The box gets the screen's height less the bar, and scrolls. */
-  .color-play .color-box { max-height: calc(100vh - 124px); max-height: calc(100dvh - 124px); }
+  .color-play .color-box, .color-play .color-pots { max-height: calc(100vh - 124px); max-height: calc(100dvh - 124px); }
 }
 
 /* A phone in portrait: sixteen crayons (four magic, twelve colors) in a grid

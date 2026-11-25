@@ -118,6 +118,8 @@ test("a whole page painted by real taps: paint spreads, pots tick off and move o
     assert.ok(t, "the chosen pot always has a shape left (it moves on by itself): pot " + s.sel);
     pots.add(s.sel);
     await tapShape(t.i);
+    // the paint spreads over ~320ms (a timer finishes it on a slow machine): wait for it
+    await page.waitForFunction((k) => document.querySelector('.color-holder path[data-i="' + k + '"]').getAttribute("fill") !== "#ffffff", t.i, { timeout: 4000 }).catch(() => {});
     assert.notEqual(await fillOf(t.i), "#ffffff", "a tap on a number paints its shape");
     assert.equal(await page.locator('.color-holder text[data-for="' + t.i + '"]').count(), 0, "and its number goes");
     if (guard === 0) assert.ok(!(await page.evaluate(() => window.__COLOR.ghost())), "the ghost finger goes once he paints");
