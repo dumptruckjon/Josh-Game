@@ -1,6 +1,6 @@
 # ✨ New Worlds — eight small worlds on trial
 
-**Status: BUILDING** — the shell, 🚧 Dig Site, 🍳 Little Kitchen and 🚂 Train Yard are built; the other five
+**Status: BUILDING** — the shell, 🚧 Dig Site, 🍳 Little Kitchen, 🚂 Train Yard and 📮 Delivery Day are built; the other four
 follow one at a time (§3). Each starts SMALL (three or four levels) so the
 owner can trial it with Josh; a world he likes grows later.
 
@@ -44,7 +44,7 @@ One owner of everything a world must never re-invent:
 | 1 | 🚧 Dig Site | Fill the Hole · Clear the Road · Crane Tower · Mix the Cement — BUILT |
 | 2 | 🍳 Little Kitchen | Fruit Salad · Pancakes · Pizza · Grandma's Dumplings — BUILT |
 | 3 | 🚂 Train Yard | First Track · Round the Bend · Zig Zag · Animal Train — BUILT |
-| 4 | 📮 Delivery Day | parcels to houses by picture, letter, word, number |
+| 4 | 📮 Delivery Day | Pets · Letters · Words · Numbers — BUILT |
 | 5 | 🌱 Josh's Garden | ⭐ earned anywhere become seeds to plant and grow |
 | 6 | 🧩 Shape Builder | fill a picture's outline with shapes |
 | 7 | 🎸 Band Room | an animal band plays the song he lays out |
@@ -102,3 +102,28 @@ A level is DATA (the path's cells); each tile's kind and right turns are
 DERIVED from its neighbours, and `TrainLogic.check` proves in node that every
 level can be solved. Every tile starts turned wrong (`data-fits`), so there is
 always a puzzle.
+
+### 📮 Delivery Day (scripts/town-mail.js)
+
+A mail truck, a street of six houses and four parcels. The parcel shows who it
+is for and each house wears its address; the street climbs the reading ladder:
+
+- **Pets:** the same animal on the parcel and on the house (match).
+- **Letters:** a letter on each (no I/L, O/Q or U/V, which look alike on iOS).
+- **Words:** a PICTURE on the parcel, WORDS on the houses — he reads them
+  (cat / bat / hat share a rime, so the word must be read, not guessed).
+- **Numbers:** dots on the parcel, set as a DICE face so he can see how many
+  as well as count them; numerals on the houses.
+
+A wrong house wiggles and says what it is ("That house says dog"), which
+teaches; the right one takes its parcel and someone waves thank you, and the
+pile in the truck empties to 📭. `MailLogic.street` deals six different
+addresses and four parcels among them, proven in node over 1,200 streets to
+give every parcel exactly one house.
+
+Found on the way: the parcel count in the truck was one short after the first
+delivery (it updated before the count moved on), and the first test of "a
+word's parcel shows its own picture" played two seeds, which never dealt "cat"
+— a cat parcel drawn as a dog passed. It now deals until every word has been on
+a parcel.
+

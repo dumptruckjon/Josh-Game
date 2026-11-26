@@ -383,3 +383,82 @@ test("🚂 Train Yard: every level is SOLVABLE (proven in node), a track turns i
   }
   assert.deepEqual(pageErrors, []);
 });
+
+test("📮 Delivery Day: every parcel's house is the ONE that matches it (pet, letter, the WORD for a picture, the NUMBER of dots), a wrong house says what it is, and the truck empties", async () => {
+  const ML = require("../scripts/town-mail.js");
+  // node: a street never has two houses alike, and every parcel has its house
+  let x = 1;
+  const rng = () => { x = (x * 16807) % 2147483647; return x / 2147483647; };
+  for (const kind of Object.keys(ML.POOL)) {
+    for (let i = 0; i < 300; i++) {
+      const st = ML.street(kind, rng);
+      assert.equal(new Set(st.addr).size, ML.HOUSES, kind + ": six different houses");
+      assert.equal(new Set(st.parcels).size, ML.PARCELS, kind + ": four different parcels");
+      assert.ok(st.parcels.every((p) => st.addr.includes(p)), kind + ": every parcel has its house on the street");
+    }
+  }
+  // a word's picture is never the parcel itself, and is a word he can read
+  for (const [pic, w] of ML.WORDS) {
+    assert.notEqual(pic, "📦", w + ": its picture must not be the parcel");
+    assert.match(w, /^[a-z]{3,4}$/, w + ": three or four letters");
+  }
+  await spy();
+  const KIND = { pets: "pet", letters: "letter", words: "word", numbers: "number" };
+  for (const id of Object.keys(KIND)) {
+    for (const seed of [3, 8]) {
+      await page.evaluate(([l, sd]) => window.__TOWN.start("mail", l, { seed: sd }), [id, seed]);
+      await page.waitForFunction((l) => { const s = window.__TOWN.state(); return s && s.level === l && !s.done; }, id);
+      for (let k = 0; k < 4; k++) {
+        const r = await page.evaluate(() => {
+          const tag = document.querySelector("#screen-town-play .mail-parcel__tag");
+          const pic = tag.querySelector(".mail-pic"), letter = tag.querySelector(".mail-letter"), dots = tag.querySelectorAll(".mail-dots i");
+          const right = document.querySelector("#screen-town-play .mail-house[data-correct]");
+          const sign = (h) => h.querySelector(".mail-house__sign").textContent.trim();
+          return { pic: pic && pic.textContent, letter: letter && letter.textContent, dots: dots.length, right: sign(right),
+            rights: document.querySelectorAll("#screen-town-play .mail-house[data-correct]").length,
+            pile: document.querySelector("#screen-town-play .mail-pile").textContent.length / 2 };
+        });
+        assert.equal(r.rights, 1, `${id}@${seed}: exactly one house is right`);
+        assert.equal(r.pile, 3 - k, `${id}@${seed}: the truck holds ${3 - k} more after this one`);
+        if (id === "pets") assert.equal(r.right, r.pic, "the pet on the parcel is the pet on the house");
+        if (id === "letters") assert.equal(r.right, r.letter, "the letter on the parcel is the letter on the house");
+        if (id === "words") assert.equal(r.right, ML.WORDS.find((w) => w[0] === r.pic)[1], "the house says the word for the parcel's picture");
+        if (id === "numbers") assert.equal(+r.right, r.dots, "the house's number is how many dots the parcel has");
+        if (k === 0) {
+          // a wrong house first: it wiggles and SAYS what it is
+          const w = await page.evaluate(() => {
+            window.__said.length = 0;
+            const h = [...document.querySelectorAll("#screen-town-play .mail-house")].find((x) => !x.dataset.correct);
+            h.click();
+            return { said: window.__said.join(" | "), bump: h.classList.contains("bump"), sign: h.querySelector(".mail-house__sign").textContent.trim() };
+          });
+          assert.ok(w.bump, `${id}: a wrong house wiggles`);
+          if (id === "letters" || id === "words") assert.ok(w.said.includes("That house says " + w.sign), `${id}: a wrong house says what it says: ` + w.said);
+        }
+        await page.evaluate(() => document.querySelector("#screen-town-play .mail-house[data-correct]").click());
+        await page.waitForTimeout(120);
+      }
+      await page.waitForFunction(() => document.querySelector("#screen-town-play").dataset.done === "1", null, { timeout: 4000 });
+      const end = await page.evaluate(() => ({ got: document.querySelectorAll("#screen-town-play .mail-house--got").length, box: document.querySelector("#screen-town-play .mail-parcel").textContent.trim() }));
+      assert.equal(end.got, 4, `${id}: four houses have their parcels`);
+      assert.equal(end.box, "📭", `${id}: the truck is empty at the end`);
+    }
+  }
+  // Two seeds deal only some of the words, so a word drawn with the WRONG picture
+  // would hide in the rest. Deal the first parcel on seed after seed until every
+  // word has been on a parcel, and check each one's picture against its house.
+  const seen = new Map();
+  for (let sd = 1; sd <= 80 && seen.size < ML.WORDS.length; sd++) {
+    await page.evaluate((x) => window.__TOWN.start("mail", "words", { seed: x }), sd);
+    await page.waitForFunction(() => { const s = window.__TOWN.state(); return s && s.level === "words" && !s.done; });
+    const r = await page.evaluate(() => {
+      const pic = document.querySelector("#screen-town-play .mail-parcel__tag .mail-pic");
+      const right = document.querySelector("#screen-town-play .mail-house[data-correct]");
+      return { pic: pic && pic.textContent, word: right && right.dataset.addr };
+    });
+    if (r.word) seen.set(r.word, r.pic);
+  }
+  assert.equal(seen.size, ML.WORDS.length, "every word must be dealt on a parcel at least once (saw " + [...seen.keys()].join(",") + ")");
+  for (const [w, shown] of seen) assert.equal(shown, ML.WORDS.find((x) => x[1] === w)[0], `the parcel for "${w}" must show ${w}'s own picture, not ${shown}`);
+  assert.deepEqual(pageErrors, []);
+});

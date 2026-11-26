@@ -5778,3 +5778,38 @@ body.in-game .screen.town-play { flex: 1 1 auto; display: flex; flex-direction: 
 @media (prefers-reduced-motion: reduce) {
   .trn-tile__in { transition: none; }
 }
+
+/* ---------- 📮 Delivery Day (town-mail.js) ---------- */
+.mail-scene { display: grid; grid-template-columns: minmax(0, 100%); gap: 16px; }
+.mail-head { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: center; }
+.mail-truck { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 8px; }
+.mail-truck__van { font-size: 3.4rem; line-height: 1; }
+.mail-parcel { display: grid; grid-template-columns: auto auto; align-items: center; justify-content: center; column-gap: 6px; min-height: 84px; padding: 6px 10px; border-radius: 18px; background: #ffffff; box-shadow: 0 0 0 4px #b26a00, 0 6px 14px rgba(0, 0, 0, 0.14); }
+.mail-parcel__box { font-size: 2.4rem; line-height: 1; }
+.mail-pile { font-size: 1.8rem; line-height: 1.1; text-align: center; overflow-wrap: anywhere; }
+.mail-fly { position: absolute; left: 0; top: 0; font-size: 2.4rem; line-height: 1; z-index: 5; }
+.mail-street { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.mail-house {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  justify-items: center;
+  min-height: clamp(110px, 16vh, 160px);
+  padding: 0 0 6px;
+  border: none;
+  border-radius: 8px 8px 16px 16px;
+  background: var(--house, #fff0b3);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14);
+  color: #2b2b3a;
+}
+.mail-house__roof { width: 100%; height: 22px; border-radius: 8px 8px 0 0; background: #c0392b; }
+.mail-house__sign { display: grid; place-items: center; }
+.mail-house__door { width: 26px; min-height: 30px; border-radius: 6px 6px 0 0; background: #8b5a2b; font-size: 1.6rem; line-height: 1.2; }
+.mail-house--got .mail-house__door { width: auto; background: none; }
+.mail-house--got { box-shadow: 0 0 0 4px #1f6b34, 0 6px 14px rgba(0, 0, 0, 0.14); }
+.mail-pic { font-size: 2.8rem; line-height: 1; }
+.mail-letter { font-size: 2.8rem; font-weight: 900; line-height: 1; }
+.mail-word { font-size: 2rem; font-weight: 900; line-height: 1; letter-spacing: 0.04em; }
+.mail-num { font-size: 2.8rem; font-weight: 900; line-height: 1; }
+.mail-dots { display: grid; grid-template-columns: repeat(3, 14px); grid-template-rows: repeat(3, 14px); gap: 5px; }
+.mail-dots i { display: block; width: 14px; height: 14px; border-radius: 50%; background: #2b2b3a; }
