@@ -5825,6 +5825,8 @@ body.in-game .screen.town-play { flex: 1 1 auto; display: flex; flex-direction: 
 .gar-bed--now { box-shadow: 0 0 0 4px #ffd24d, inset 0 -8px 0 rgba(0, 0, 0, 0.2); }
 .gar-bed--bloom { background: #6fb85a; box-shadow: 0 0 0 4px #1f6b34, inset 0 -8px 0 rgba(0, 0, 0, 0.2); }
 .gar-tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+/* four tools in a row are 60px wide on a 320 phone: two by two there */
+@media (max-width: 359px) { .gar-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .gar-tool, .gar-top, .gar-apple, .gar-flower { position: relative; min-height: clamp(84px, 12vh, 120px); border: none; border-radius: 20px; background: #fffdf6; box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14); font-size: clamp(2.4rem, 10vw, 3.2rem); line-height: 1; }
 .gar-sign { justify-self: center; padding: 8px 20px; border-radius: 14px; background: #ffffff; box-shadow: 0 0 0 4px #8b5a2b; font-size: 2rem; font-weight: 900; color: #2b2b3a; }
 .gar-patch, .gar-tree, .gar-flowers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
@@ -5833,6 +5835,7 @@ body.in-game .screen.town-play { flex: 1 1 auto; display: flex; flex-direction: 
 .gar-top--pulled { background: #6e4a26; }
 .gar-tree { padding: 14px; border-radius: 50% 50% 24px 24px / 40% 40% 24px 24px; background: radial-gradient(circle at 50% 40%, #7ccf6b, #3f9b43); }
 .gar-apple { background: rgba(255, 255, 255, 0.55); }
+.gar-apple--green { position: relative; }
 .gar-apple--green::after { content: "🍃"; position: absolute; right: 8px; top: 4px; font-size: 1.2rem; }
 .gar-apple--picked { visibility: hidden; }
 .gar-basket { display: grid; justify-items: center; font-size: 3rem; line-height: 1; }
