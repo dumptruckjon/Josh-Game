@@ -5708,7 +5708,7 @@ body.in-game .screen.town-play { flex: 1 1 auto; display: flex; flex-direction: 
 .kit-step__pic { font-size: 2rem; line-height: 1.1; }
 .kit-step__n { font-size: 1.15rem; font-weight: 900; color: #2b2b3a; }
 .kit-step__tick { display: none; position: absolute; right: 2px; top: 0; font-size: 1.1rem; font-weight: 900; color: #1f6b34; }
-.kit-step--now { box-shadow: 0 0 0 4px #ff7a00; }
+.kit-step--now { box-shadow: 0 0 0 4px #b85500; } /* dark orange: 3:1 against the card, so the step he is on is SEEN */
 .kit-step--done { opacity: 0.55; }
 .kit-step--done .kit-step__tick { display: block; }
 .kit-bench { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: center; }
@@ -5725,14 +5725,18 @@ body.in-game .screen.town-play { flex: 1 1 auto; display: flex; flex-direction: 
 }
 .kit-pot--dough { border-radius: 50%; background: radial-gradient(circle, #f6deae 60%, #e2b66e 100%); }
 .kit-pot--board { border-radius: 22px; background: repeating-linear-gradient(90deg, #d9a86a 0 18px, #cf9c5d 18px 36px); }
-.kit-pot--mixed { background: linear-gradient(180deg, #fff4c8, #f5d77a); }
+.kit-pot--mixed { background: linear-gradient(180deg, #fff4c8, #f5d77a); box-shadow: inset 0 16px 0 #e8c34a, inset 0 -8px 0 rgba(0, 0, 0, 0.08), 0 8px 18px rgba(0, 0, 0, 0.12); } /* the batter: a top surface of its own, not only a new hue */
 .kit-pot--sauce { background: radial-gradient(circle, #e5533c 55%, #f6deae 58%, #e2b66e 100%); }
-.kit-pot--baked { background: radial-gradient(circle, #d9783c 55%, #c98a3a 60%, #a8692a 100%); }
-.kit-pot--steam { box-shadow: 0 0 0 6px #cfe7ff, 0 8px 18px rgba(0, 0, 0, 0.12); }
+.kit-pot--baked { background: radial-gradient(circle, #c8341e 55%, #b06a24 59%, #8a4e1a 100%); box-shadow: 0 0 0 5px #ffb347, 0 8px 18px rgba(0, 0, 0, 0.12); }
+.kit-pot--pan { border-radius: 50%; background: radial-gradient(circle, #5a5f6b 62%, #2f323a 64%, #2f323a 100%); }
+.kit-pot--steam { box-shadow: 0 0 0 3px #2b6cb0, 0 0 0 8px #cfe7ff, 0 8px 18px rgba(0, 0, 0, 0.12); } /* two-tone: one band reads on any surface */
 .kit-pot__in { font-size: 2rem; line-height: 1.2; text-align: center; overflow-wrap: anywhere; }
 .kit-pot__stack { font-size: 3rem; line-height: 1; text-align: center; overflow-wrap: anywhere; }
-.kit-eater { display: grid; justify-items: center; gap: 4px; padding: 10px 4px; border-radius: 18px; background: #fffdf6; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); }
-.kit-eater__face { font-size: 3.2rem; line-height: 1; }
+.kit-eater { position: relative; display: grid; justify-items: center; gap: 4px; padding: 10px 4px; border-radius: 18px; background: #fffdf6; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); }
+.kit-eater__face { display: block; width: clamp(64px, 11vh, 110px); font-size: 3.2rem; line-height: 1; text-align: center; }
+.kit-eater__face svg { display: block; width: 100%; height: auto; }
+.kit-eater__yum { display: none; position: absolute; top: 4px; right: 4px; font-size: 1.8rem; line-height: 1; }
+.kit-eater--happy .kit-eater__yum { display: block; }
 .kit-eater__plate { font-size: 2.4rem; line-height: 1; }
 .kit-eater--happy { box-shadow: 0 0 0 4px #1f6b34, 0 6px 16px rgba(0, 0, 0, 0.12); }
 .kit-counter { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }

@@ -33,7 +33,8 @@ async function spy() {
     const A = window.JoshAudio;
     if (A.__spied) return;
     const say = A.say;
-    A.say = function (t, o) { window.__said.push(String(t)); return say.call(this, t, o); };
+    window.__zh = [];
+    A.say = function (t, o) { window.__said.push(String(t)); if (o && o.lang === "zh-CN") window.__zh.push(String(t)); return say.call(this, t, o); };
     A.__spied = true;
   });
 }
@@ -266,5 +267,67 @@ test("🚧 Dig Site: the roller goes 1 2 3 4, a tower matches its plan, and the 
   }
   assert.equal(sand, want, "exactly the card's sand");
   await playOut("dig/cement");
+  assert.deepEqual(pageErrors, []);
+});
+
+test("🍳 Little Kitchen: every recipe is cooked exactly as its CARD says, served to its friend, and Grandma's dumplings count in Chinese", async () => {
+  await spy();
+  const recipes = (await worlds()).find((w) => w.id === "kitchen").levels;
+  assert.ok(recipes.length >= 4, "four recipes to start");
+  for (const id of recipes) {
+    for (const seed of [2, 11]) {
+      await page.evaluate(([l, sd]) => window.__TOWN.start("kitchen", l, { seed: sd }), [id, seed]);
+      await page.waitForFunction((l) => { const s = window.__TOWN.state(); return s && s.level === l && !s.done; }, id);
+      await page.evaluate(() => { window.__said.length = 0; window.__zh.length = 0; });
+      // the card: a picture and a count per step, read off the screen
+      const card = await page.evaluate(() => [...document.querySelectorAll("#screen-town-play .kit-step")].map((c) => {
+        const n = c.querySelector(".kit-step__n");
+        return { pic: c.querySelector(".kit-step__pic").textContent, n: n ? +n.textContent.replace(/\D/g, "") : 1 };
+      }));
+      // play by the contract, recording which tool each tap was
+      const taps = [];
+      for (let i = 0; i < 40 && !(await done()); i++) {
+        const t = await page.evaluate(() => {
+          const e = document.querySelector("#screen-town-play [data-correct]");
+          if (!e) return null;
+          e.click();
+          return e.textContent.trim();
+        });
+        if (t) taps.push(t);
+        await page.waitForTimeout(t ? 30 : 120);
+      }
+      assert.ok(await done(), `${id}@${seed}: cooked to the end`);
+      const runs = [];
+      for (const t of taps) { if (runs.length && runs[runs.length - 1].pic === t) runs[runs.length - 1].n += 1; else runs.push({ pic: t, n: 1 }); }
+      assert.deepEqual(runs, card, `${id}@${seed}: the taps follow the card, step by step and count by count`);
+      const r = await page.evaluate(() => ({
+        happy: document.querySelector("#screen-town-play .kit-eater").classList.contains("kit-eater--happy"),
+        yum: getComputedStyle(document.querySelector("#screen-town-play .kit-eater__yum")).display !== "none",
+        plate: document.querySelector("#screen-town-play .kit-eater__plate").textContent,
+        dish: document.querySelector("#screen-town-play .town-prompt").textContent.trim().split(/\s+/).pop(),
+        face: !!document.querySelector("#screen-town-play .kit-eater__face svg"),
+        ticks: document.querySelectorAll("#screen-town-play .kit-step--done").length,
+      }));
+      assert.ok(r.happy && r.yum, `${id}: the friend is served and says yum`);
+      assert.equal(r.plate, r.dish, `${id}: the dish on the plate is the dish the recipe makes`);
+      assert.equal(r.ticks, card.length, `${id}: every step on the card is ticked`);
+      const said = await page.evaluate(() => window.__said.slice());
+      const zh = await page.evaluate(() => window.__zh.slice());
+      if (id === "dumplings") {
+        const n = card[1].n;
+        assert.deepEqual(zh.slice(0, n), ["一", "二", "三", "四", "五", "六"].slice(0, n), "the dumplings are counted in Chinese");
+        assert.ok(zh.includes("好吃！"), "Grandma says hao chi in a Chinese voice");
+        assert.ok(said.some((x) => /Grandma says hao chi/.test(x)), "and what it means, in English");
+      } else {
+        assert.ok(r.face, `${id}: the friend is drawn as the app draws them (JoshArt.friend), not an emoji`);
+        assert.equal(zh.length, 0, `${id}: no Chinese in an English recipe`);
+        assert.ok(said.some((x) => /says yum/.test(x)), `${id}: the friend says yum`);
+      }
+      // every counted step is counted aloud (one! two! …), in order
+      const counts = said.filter((x) => /^(One|Two|Three|Four|Five|Six)!$/.test(x));
+      const want = card.filter((c) => c.n > 1 && !(id === "dumplings" && c.pic === "🥬")).flatMap((c) => ["One!", "Two!", "Three!", "Four!", "Five!", "Six!"].slice(0, c.n));
+      assert.deepEqual(counts, want, `${id}@${seed}: every count is said aloud`);
+    }
+  }
   assert.deepEqual(pageErrors, []);
 });

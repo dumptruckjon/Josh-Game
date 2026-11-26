@@ -1,6 +1,6 @@
 # ✨ New Worlds — eight small worlds on trial
 
-**Status: BUILDING** — the shell and 🚧 Dig Site are built; the other seven
+**Status: BUILDING** — the shell, 🚧 Dig Site and 🍳 Little Kitchen are built; the other six
 follow one at a time (§3). Each starts SMALL (three or four levels) so the
 owner can trial it with Josh; a world he likes grows later.
 
@@ -42,7 +42,7 @@ One owner of everything a world must never re-invent:
 | # | World | First levels |
 |---|---|---|
 | 1 | 🚧 Dig Site | Fill the Hole · Clear the Road · Crane Tower · Mix the Cement — BUILT |
-| 2 | 🍳 Little Kitchen | picture recipes, Grandma's dumplings in Chinese |
+| 2 | 🍳 Little Kitchen | Fruit Salad · Pancakes · Pizza · Grandma's Dumplings — BUILT |
 | 3 | 🚂 Train Yard | turn track tiles to join the line; cargo by number |
 | 4 | 📮 Delivery Day | parcels to houses by picture, letter, word, number |
 | 5 | 🌱 Josh's Garden | ⭐ earned anywhere become seeds to plant and grow |
@@ -62,3 +62,23 @@ Each job ends with the thing he built being USED:
   also wears its own shape, so it reads in any colour vision. A flag goes on top.
 - **Mix the Cement:** add the sand and water the card shows (2-4 sand and 1-2
   water, seeded), mix, and pour a path. Footprints walk it.
+
+### 🍳 Little Kitchen (scripts/town-kitchen.js)
+
+He cooks from a PICTURE recipe card: each step is a picture and a count
+(🍓 ×3), the step he is on has a ring, and a finished step is ticked. He taps
+the right thing on the counter that many times, counted aloud, and the bowl
+changes with every tap (fruit in the bowl, the batter turns yellow, the pan
+fills with pancakes, the pizza gets its toppings). The dish goes to a friend
+(River, Raegar, Viraj, drawn as the rest of the app draws them), who says yum.
+
+- **Fruit Salad** for River: strawberries, bananas, grapes, a stir.
+- **Pancakes** for Raegar: eggs, milk, flour, a stir, cook in the pan.
+- **Pizza** for Viraj: sauce, cheese, mushrooms, olives, the oven.
+- **Grandma's Dumplings:** skins, then each dumpling filled is counted in
+  CHINESE (一 二 三 …), into the pot, and Grandma says 好吃 (and what it means).
+
+The counts are seeded per play (strawberries 2-4, dumplings 3-5), so a level
+replays differently. A wrong thing on the counter wiggles and says what the card
+asks for next. Counting, following a sequence, and the practical-life feel of
+cooking, which is his Montessori school's.
