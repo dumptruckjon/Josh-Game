@@ -1,6 +1,6 @@
 # ✨ New Worlds — eight small worlds on trial
 
-**Status: BUILDING** — the shell, 🚧 Dig Site, 🍳 Little Kitchen, 🚂 Train Yard and 📮 Delivery Day are built; the other four
+**Status: BUILDING** — the shell, 🚧 Dig Site, 🍳 Little Kitchen, 🚂 Train Yard, 📮 Delivery Day and 🌱 Josh's Garden are built; the other three
 follow one at a time (§3). Each starts SMALL (three or four levels) so the
 owner can trial it with Josh; a world he likes grows later.
 
@@ -45,7 +45,7 @@ One owner of everything a world must never re-invent:
 | 2 | 🍳 Little Kitchen | Fruit Salad · Pancakes · Pizza · Grandma's Dumplings — BUILT |
 | 3 | 🚂 Train Yard | First Track · Round the Bend · Zig Zag · Animal Train — BUILT |
 | 4 | 📮 Delivery Day | Pets · Letters · Words · Numbers — BUILT |
-| 5 | 🌱 Josh's Garden | ⭐ earned anywhere become seeds to plant and grow |
+| 5 | 🌱 Josh's Garden | Plant Flowers · Pull Carrots · Pick Apples · Butterflies — BUILT |
 | 6 | 🧩 Shape Builder | fill a picture's outline with shapes |
 | 7 | 🎸 Band Room | an animal band plays the song he lays out |
 | 8 | ⚙️ Marble Run | pick the piece for each gap; the marble rolls |
@@ -126,4 +126,25 @@ delivery (it updated before the count moved on), and the first test of "a
 word's parcel shows its own picture" played two seeds, which never dealt "cat"
 — a cat parcel drawn as a dog passed. It now deals until every word has been on
 a parcel.
+
+### 🌱 Josh's Garden (scripts/town-garden.js)
+
+A garden that GROWS with everything he does: its home shows one flower for
+every game of his he has beaten and every New Worlds level he has finished,
+read through their owners (`JoshProgress`, filtered to his registered games —
+never 华丽's and never a stale id — and the shell's new `Town.starCount()`).
+The shell gained `banner` for this: a world may show something above its level
+doors, rebuilt on every visit.
+
+- **Plant Flowers:** dig, drop a seed, two splashes of water (counted), the
+  sun — in that order (a tool out of turn wiggles and says what comes first);
+  three beds bloom.
+- **Pull Carrots:** pull exactly as many as the sign says (three to five).
+- **Pick Apples:** only the red ones. A green apple wears a leaf a red one
+  does not, so the two differ by more than colour.
+- **Butterflies:** each butterfly lands on the flower of its own colour; the
+  colours are also different flowers, and the butterfly carries its flower.
+
+Nine mutations, each red. On the way the empty and dug beds changed from 🟩/🟫
+boxes (a brown box on brown soil drew nothing) to plain soil and a 🕳️.
 

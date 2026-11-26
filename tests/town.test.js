@@ -462,3 +462,103 @@ test("📮 Delivery Day: every parcel's house is the ONE that matches it (pet, l
   for (const [w, shown] of seen) assert.equal(shown, ML.WORDS.find((x) => x[1] === w)[0], `the parcel for "${w}" must show ${w}'s own picture, not ${shown}`);
   assert.deepEqual(pageErrors, []);
 });
+
+test("🌱 Josh's Garden: the garden GROWS with everything he finishes, a flower takes dig, seed, two waters and the sun in order, the carrots match the sign, only red apples are picked, and each butterfly finds its own flower", async () => {
+  await spy();
+  // The garden counts what he has finished anywhere: Josh's games (never
+  // 华丽's) and the New Worlds levels, read through their owners.
+  await page.evaluate(() => {
+    window.__TOWN.reset();
+    for (const k of Object.keys(localStorage)) if (k.indexOf("josh-won-") === 0) localStorage.removeItem(k);
+    window.JoshProgress.markWon("count-feed");
+    window.JoshProgress.markWon("number-builder");
+    window.JoshProgress.markWon("hl-tile-pair"); // her world: never a flower in his garden
+    window.JoshProgress.markWon("zz-a-game-that-is-gone"); // a stale id: not a game of his
+  });
+  const garden = async () => {
+    await go("#town-garden", "#screen-town-garden");
+    return page.evaluate(() => {
+      const p = document.querySelector("#screen-town-garden .town-banner .gar-plot");
+      return p && { label: p.getAttribute("aria-label"), flowers: [...p.textContent].filter((c) => /\p{Extended_Pictographic}/u.test(c) && c !== "🌱").length };
+    });
+  };
+  let g = await garden();
+  assert.ok(g, "the garden's home shows his garden above the jobs");
+  assert.equal(g.label, "Josh's garden has 2 flowers", "two of his games beaten (her world's, and a stale id, never count)");
+  assert.equal(g.flowers, 2, "and it draws two flowers");
+
+  // 1. Plant Flowers: the tools work only in their order, water is counted.
+  await page.evaluate(() => window.__TOWN.start("garden", "plant", { seed: 5 }));
+  await page.waitForFunction(() => { const s = window.__TOWN.state(); return s && s.level === "plant" && !s.done; });
+  const tool = (label) => page.evaluate((l) => { const b = document.querySelector('#screen-town-play .gar-tool[aria-label="' + l + '"]'); window.__said.length = 0; b.classList.remove("bump"); b.click(); return { said: window.__said.slice(), bump: b.classList.contains("bump"), right: !!b.dataset.correct }; }, label);
+  const out = await tool("Water");
+  assert.ok(out.bump && out.said.join(" ").includes("Not yet!"), "watering before digging wiggles and says what comes first: " + out.said);
+  for (const [step, said] of [["Dig", null], ["Seed", null], ["Water", "One!"], ["Water", "Two!"]]) {
+    await page.waitForTimeout(150);
+    const r = await tool(step);
+    assert.ok(!r.bump, step + " is the right tool now");
+    if (said) assert.ok(r.said.includes(said), step + " is counted: " + r.said);
+  }
+  await page.waitForTimeout(150);
+  assert.ok(!(await tool("Sun")).bump, "then the sun");
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => document.querySelectorAll("#screen-town-play .gar-bed--bloom").length), 1, "the sun makes the first bed bloom");
+  await playOut("garden/plant");
+  assert.equal(await page.evaluate(() => document.querySelectorAll("#screen-town-play .gar-bed--bloom").length), 3, "three flowers bloom");
+
+  // 2. Pull Carrots: exactly as many as the sign says.
+  for (const seed of [1, 2, 3, 4]) {
+    await page.evaluate((s) => window.__TOWN.start("garden", "carrots", { seed: s }), seed);
+    await page.waitForFunction(() => { const s = window.__TOWN.state(); return s && s.level === "carrots" && !s.done; });
+    const want = +(await page.evaluate(() => document.querySelector("#screen-town-play .gar-sign b").textContent));
+    assert.ok(want >= 3 && want <= 5, "the sign asks for three to five carrots");
+    await playOut("garden/carrots");
+    const got = await page.evaluate(() => [...document.querySelector("#screen-town-play .gar-basket__in").textContent].filter((c) => c === "🥕").length);
+    assert.equal(got, want, `the basket holds exactly the ${want} carrots the sign asked for`);
+  }
+
+  // 3. Pick Apples: a green apple wiggles and stays; every red one is picked.
+  for (const seed of [1, 2, 3]) {
+    await page.evaluate((s) => window.__TOWN.start("garden", "apples", { seed: s }), seed);
+    await page.waitForFunction(() => { const s = window.__TOWN.state(); return s && s.level === "apples" && !s.done; });
+    const a = await page.evaluate(() => {
+      const all = [...document.querySelectorAll("#screen-town-play .gar-apple")];
+      const green = all.find((b) => b.dataset.kind === "green");
+      window.__said.length = 0;
+      green.click();
+      return { red: all.filter((b) => b.dataset.kind === "red").length, greenFlag: all.some((b) => b.dataset.kind === "green" && b.dataset.correct), bump: green.classList.contains("bump"), said: window.__said.join(" "), stays: !green.disabled,
+        leaf: getComputedStyle(green, "::after").content, redLeaf: getComputedStyle(all.find((b) => b.dataset.kind === "red"), "::after").content };
+    });
+    assert.ok(!a.greenFlag, "a green apple is never the thing to tap");
+    assert.ok(a.bump && a.stays && /green/.test(a.said), "a green apple wiggles, stays on the tree and says it is green: " + a.said);
+    assert.ok(a.leaf.includes("🍃") && !a.redLeaf.includes("🍃"), "a green apple wears a leaf a red one does not, so the two differ by more than colour");
+    await playOut("garden/apples");
+    const got = await page.evaluate(() => [...document.querySelector("#screen-town-play .gar-basket__in").textContent].filter((c) => c === "🍎").length);
+    assert.equal(got, a.red, "the basket holds every red apple and no green one");
+  }
+
+  // 4. Butterflies: each lands on the flower of its OWN colour.
+  for (const seed of [1, 2]) {
+    await page.evaluate((s) => window.__TOWN.start("garden", "butterflies", { seed: s }), seed);
+    await page.waitForFunction(() => { const s = window.__TOWN.state(); return s && s.level === "butterflies" && !s.done; });
+    for (let k = 0; k < 3; k++) {
+      const r = await page.evaluate(() => {
+        const fly = document.querySelector("#screen-town-play .gar-fly");
+        const right = document.querySelector("#screen-town-play .gar-flower[data-correct]");
+        const color = (x) => getComputedStyle(x).getPropertyValue(x === fly ? "--fly" : "--flower").trim();
+        return { fly: fly.getAttribute("aria-label"), dot: fly.querySelector(".gar-fly__dot").textContent, right: right.getAttribute("aria-label"), pic: right.querySelector("span").textContent, same: color(fly) === color(right) };
+      });
+      assert.equal(r.fly.replace("butterfly", "flower"), r.right, "the butterfly's colour is its flower's colour");
+      assert.ok(r.same && r.dot === r.pic, "and they wear the same colour AND the same flower picture");
+      await page.evaluate(() => document.querySelector("#screen-town-play .gar-flower[data-correct]").click());
+      await page.waitForTimeout(150);
+    }
+    await page.waitForFunction(() => document.querySelector("#screen-town-play").dataset.done === "1", null, { timeout: 4000 });
+  }
+
+  // The garden grew: each job finished is one more flower.
+  g = await garden();
+  assert.equal(g.label, "Josh's garden has 6 flowers", "two games and four garden jobs");
+  assert.equal(g.flowers, 6);
+  assert.deepEqual(pageErrors, []);
+});

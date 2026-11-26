@@ -5813,3 +5813,31 @@ body.in-game .screen.town-play { flex: 1 1 auto; display: flex; flex-direction: 
 .mail-num { font-size: 2.8rem; font-weight: 900; line-height: 1; }
 .mail-dots { display: grid; grid-template-columns: repeat(3, 14px); grid-template-rows: repeat(3, 14px); gap: 5px; }
 .mail-dots i { display: block; width: 14px; height: 14px; border-radius: 50%; background: #2b2b3a; }
+
+/* ---------- 🌱 Josh's Garden (town-garden.js) ---------- */
+.town-banner { margin: 0 0 16px; }
+.gar-plot { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 2px; min-height: 52px; padding: 10px; border-radius: 18px; background: linear-gradient(180deg, #a5d98a, #6fb85a); font-size: 1.5rem; line-height: 1.25; text-align: center; }
+.gar-plot__empty { grid-column: 1 / -1; font-size: 2rem; }
+.gar-plot__more { grid-column: 1 / -1; font-size: 1.1rem; font-weight: 900; color: #1d3d12; }
+.gar-scene { display: grid; grid-template-columns: minmax(0, 100%); gap: 16px; }
+.gar-beds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.gar-bed { min-height: clamp(100px, 16vh, 150px); border: none; border-radius: 18px; background: #8b5a2b; box-shadow: inset 0 -8px 0 rgba(0, 0, 0, 0.2); font-size: 3rem; line-height: 1; }
+.gar-bed--now { box-shadow: 0 0 0 4px #ffd24d, inset 0 -8px 0 rgba(0, 0, 0, 0.2); }
+.gar-bed--bloom { background: #6fb85a; box-shadow: 0 0 0 4px #1f6b34, inset 0 -8px 0 rgba(0, 0, 0, 0.2); }
+.gar-tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.gar-tool, .gar-top, .gar-apple, .gar-flower { position: relative; min-height: clamp(84px, 12vh, 120px); border: none; border-radius: 20px; background: #fffdf6; box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14); font-size: clamp(2.4rem, 10vw, 3.2rem); line-height: 1; }
+.gar-sign { justify-self: center; padding: 8px 20px; border-radius: 14px; background: #ffffff; box-shadow: 0 0 0 4px #8b5a2b; font-size: 2rem; font-weight: 900; color: #2b2b3a; }
+.gar-patch, .gar-tree, .gar-flowers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.gar-patch { padding: 12px; border-radius: 20px; background: #8b5a2b; }
+.gar-top { background: #a5d98a; }
+.gar-top--pulled { background: #6e4a26; }
+.gar-tree { padding: 14px; border-radius: 50% 50% 24px 24px / 40% 40% 24px 24px; background: radial-gradient(circle at 50% 40%, #7ccf6b, #3f9b43); }
+.gar-apple { background: rgba(255, 255, 255, 0.55); }
+.gar-apple--green::after { content: "🍃"; position: absolute; right: 8px; top: 4px; font-size: 1.2rem; }
+.gar-apple--picked { visibility: hidden; }
+.gar-basket { display: grid; justify-items: center; font-size: 3rem; line-height: 1; }
+.gar-basket__in { font-size: 1.8rem; min-height: 1.8rem; }
+.gar-sky { position: relative; min-height: 96px; display: grid; place-items: center; }
+.gar-fly { position: relative; display: grid; grid-template-columns: auto auto; align-items: center; column-gap: 4px; padding: 8px 14px; border-radius: 999px; background: #ffffff; box-shadow: 0 0 0 4px var(--fly, #ffb703); font-size: 2.6rem; line-height: 1; }
+.gar-flower { box-shadow: 0 0 0 4px var(--flower, #ffb703), 0 6px 14px rgba(0, 0, 0, 0.14); }
+.gar-flower--visited { background: #e6f8e0; box-shadow: 0 0 0 4px var(--flower, #ffb703), 0 0 0 9px #1f6b34, 0 6px 14px rgba(0, 0, 0, 0.14); }
