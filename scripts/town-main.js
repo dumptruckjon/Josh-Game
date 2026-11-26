@@ -197,6 +197,13 @@
   function paintWorld(w) {
     const g = homes[w.id].querySelector(".town-levels");
     g.innerHTML = "";
+    // A world may show something above its doors (the garden shows his
+    // garden). It is built from what the world reads, so it is fresh each visit.
+    let top = homes[w.id].querySelector(".town-banner");
+    if (typeof w.banner === "function") {
+      if (!top) { top = doc.createElement("div"); top.className = "town-banner"; g.parentNode.insertBefore(top, g); }
+      try { top.innerHTML = w.banner(); } catch (e) { top.innerHTML = ""; }
+    } else if (top) top.remove();
     const next = w.levels.find((l) => !starsOf(w, l));
     w.levels.forEach((l, i) => {
       const n = starsOf(w, l);
@@ -357,6 +364,8 @@
     global.scrollTo(0, 0);
   }
   const Town = {
+    // How many New Worlds levels he has finished (each level counts once).
+    starCount() { const st = S().stars; return Object.keys(st).filter((k) => st[k] > 0).length; },
     register(def) {
       if (!def || !def.id || worldOf(def.id) || built) return;
       WORLDS.push(def);
