@@ -54,6 +54,8 @@ const CORE = [
   "./scripts/color-logic.js",
   "./scripts/color-data.js",
   "./scripts/color-main.js",
+  "./scripts/town-main.js",
+  "./scripts/town-dig.js",
   "./styles/td.css",
   "./scripts/main.js",
   "./scripts/hanzi-strokes.js",

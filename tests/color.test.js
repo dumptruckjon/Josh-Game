@@ -69,7 +69,7 @@ test("the front door's SEVENTH door opens the Color Book: a page per picture, wh
   await page.evaluate(() => { window.__COLOR.reset(); location.hash = ""; });
   await page.locator("#screen-start").waitFor({ state: "visible" });
   const order = await page.evaluate(() => [...document.querySelectorAll(".start-tile")].map((t) => t.id));
-  assert.equal(order[order.length - 1], "start-color", "Color Book is the last door");
+  assert.equal(order[order.length - 2], "start-color", "Color Book is the door before New Worlds");
   assert.equal(await page.locator("#start-color .start-tile__art svg").count(), 1, "the door wears a colored-in page");
   await page.waitForTimeout(400);
   await page.locator("#start-color").click();

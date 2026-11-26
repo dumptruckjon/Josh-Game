@@ -169,7 +169,7 @@ test("the viewport meta opts into safe areas", async () => {
   assert.match(content, /viewport-fit=cover/);
 });
 
-test("the front door: six giant world tiles, all ABOVE THE FOLD, marks equally weighted", async () => {
+test("the front door: eight giant world tiles, all ABOVE THE FOLD, marks equally weighted", async () => {
   // This test ran at a fixed 780px height, which is exactly why it never saw
   // the defect: measured on the shipped build, the THIRD door was 152px below
   // the fold at 320x568, 42px at 360x640, 15px at 375x667 and 63px in
@@ -191,7 +191,7 @@ test("the front door: six giant world tiles, all ABOVE THE FOLD, marks equally w
     await showScreen(page, "#start", "#screen-start");
     // 🕳️ Gobble Hole joined as the fourth door (2026-09): four tiles, not
     // three, must now fit above the fold at every size in this list.
-    assert.equal(await page.locator(".start-tile").count(), 7, "seven world tiles (🎨 Color Book is the wide door across the bottom)");
+    assert.equal(await page.locator(".start-tile").count(), 8, "eight world tiles (🎨 Color Book and ✨ New Worlds share a short fourth row)");
     await noOverflow(page, `start@${w}x${h}`);
     await auditActiveScreen(page, `start@${w}x${h}`);
     const m = await page.evaluate(() => {
@@ -204,7 +204,11 @@ test("the front door: six giant world tiles, all ABOVE THE FOLD, marks equally w
         // A door whose picture sits BESIDE its name (the wide 🎨 door in
         // portrait) is a different shape, so it is not compared with the
         // stacked doors; its name must be centred in it instead.
-        offsets: ts.filter((t) => {
+        // The two short doors of the fourth row are a different shape too: they
+        // are compared with each other, not with the tall doors.
+        short: ts.filter((t) => t.classList.contains("start-tile--short") && getComputedStyle(t).minHeight !== getComputedStyle(ts[0]).minHeight)
+          .map((t) => Math.round(t.querySelector(".start-tile__label").getBoundingClientRect().top - t.getBoundingClientRect().top)),
+        offsets: ts.filter((t) => !(t.classList.contains("start-tile--short") && getComputedStyle(t).minHeight !== getComputedStyle(ts[0]).minHeight)).filter((t) => {
           const a = t.querySelector(".start-tile__art"), l = t.querySelector(".start-tile__label");
           return !a || l.getBoundingClientRect().top >= a.getBoundingClientRect().bottom - 2;
         }).map((t) => Math.round(t.querySelector(".start-tile__label").getBoundingClientRect().top - t.getBoundingClientRect().top)),
@@ -238,13 +242,49 @@ test("the front door: six giant world tiles, all ABOVE THE FOLD, marks equally w
       };
     });
     assert.ok(m.last <= m.vh,
-      `all seven doors must be reachable without scrolling at ${w}x${h} — the last one ends ${Math.round(m.last - m.vh)}px past the fold`);
+      `all eight doors must be reachable without scrolling at ${w}x${h} — the last one ends ${Math.round(m.last - m.vh)}px past the fold`);
     assert.ok(m.room.px >= 3,
       `every door's name must fit on one line with room at ${w}x${h} — "${m.room.name}" has ${m.room.px}px to spare`);
     assert.ok(Math.max(...m.offsets) - Math.min(...m.offsets) <= 4,
       `the doors must carry equally-weighted marks at ${w}x${h} — label offsets ${m.offsets.join("/")}`);
     assert.ok(m.offsets.length >= 6, `at least six stacked doors to compare at ${w}x${h} (saw ${m.offsets.length})`);
+    if (m.short.length) assert.ok(Math.max(...m.short) - Math.min(...m.short) <= 2, `the two short doors carry their names at one height at ${w}x${h} — ${m.short.join("/")}`);
     for (const d of m.beside) assert.ok(d <= 6, `a door with its name beside its picture must centre the name at ${w}x${h} (off by ${d}px)`);
+  }
+});
+
+test("✨ New Worlds fits every screen: the hub, every world's levels, and every level start to party — big taps, 16px apart, no sideways scroll", async () => {
+  try {
+    for (const [w, h] of [[320, 568], [390, 844], [834, 1112], [844, 390], [667, 375]]) {
+      await page.setViewportSize({ width: w, height: h });
+      await page.evaluate(() => window.__TOWN && window.__TOWN.reset());
+      await showScreen(page, "#town-home", "#screen-town-home");
+      await noOverflow(page, `new worlds@${w}x${h}`);
+      await auditActiveScreen(page, `new worlds@${w}x${h}`);
+      for (const wd of await page.evaluate(() => window.__TOWN.worlds())) {
+        await showScreen(page, "#town-" + wd.id, "#screen-town-" + wd.id);
+        await noOverflow(page, `${wd.id}@${w}x${h}`);
+        await auditActiveScreen(page, `${wd.id}@${w}x${h}`);
+        for (const l of wd.levels) {
+          await page.evaluate(([a, b]) => window.__TOWN.start(a, b, { seed: 3 }), [wd.id, l]);
+          await page.waitForTimeout(250);
+          await noOverflow(page, `${wd.id}/${l}@${w}x${h}`);
+          await auditActiveScreen(page, `${wd.id}/${l}@${w}x${h}`);
+          for (let i = 0; i < 40; i++) {
+            const more = await page.evaluate(() => { if (document.querySelector("#screen-town-play").dataset.done === "1") return false; const e = document.querySelector("#screen-town-play [data-correct]"); if (e) e.click(); return true; });
+            if (!more) break;
+            await page.waitForTimeout(700);
+          }
+          await page.waitForTimeout(1200);
+          await noOverflow(page, `${wd.id}/${l} party@${w}x${h}`);
+          await auditActiveScreen(page, `${wd.id}/${l} party@${w}x${h}`);
+          const party = await page.evaluate(() => { const r = document.querySelector("#screen-town-play .town-next").getBoundingClientRect(); return { b: r.bottom, vh: innerHeight }; });
+          assert.ok(party.b <= party.vh + 1, `${wd.id}/${l}@${w}x${h}: the party's ▶ is on screen (ends ${Math.round(party.b)} of ${party.vh})`);
+        }
+      }
+    }
+  } finally {
+    await page.setViewportSize({ width: 390, height: 844 });
   }
 });
 
@@ -2705,7 +2745,7 @@ test("📱 Josh's iPhone 17 Pro: every one of his games fits the screen, under t
 // Inside an inner scroller a control below the scroller's edge is not "off the
 // screen", it is the next thing to scroll to — so the scroller is scrolled to
 // its end and its LAST control must come to rest above the home bar.
-test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, Gobble, Game Night, Seek & Find, Word Cards", async () => {
+test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, Gobble, Game Night, Seek & Find, New Worlds, Word Cards", async () => {
   const { ctx, p } = await ip17Page();
   const errs = []; p.on("pageerror", (e) => errs.push(e.message));
   const check = (label) => p.evaluate(([T, B, Hh, label]) => {
@@ -2736,7 +2776,7 @@ test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, G
     if (ovf > 1) out.push("scrolls sideways " + ovf + "px");
     return out.length ? label + ": " + out.slice(0, 3).join("; ") : "";
   }, [IP17.top, IP17.bottom, IP17.h, label]);
-  const bad = [], seen = { nav: 0, hole: 0, board: 0, mid: 0, seek: 0, color: 0, wc: 0, pages: 0 };
+  const bad = [], seen = { nav: 0, hole: 0, board: 0, mid: 0, seek: 0, color: 0, town: 0, wc: 0, pages: 0 };
   const note = (r) => { if (r) bad.push(r); };
   try {
     await p.goto(baseURL, { waitUntil: "load" });
@@ -2800,6 +2840,26 @@ test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, G
     await p.reload({ waitUntil: "load" });
     await p.evaluate(() => { location.hash = "#color-play"; window.__COLOR.start("sun", {}); });
     await p.waitForTimeout(200); seen.color++; note(await check("color free paint"));
+    // 3d. ✨ New Worlds: the hub, every world's levels, and every level at
+    // its start, two steps in, and at its party (derived from the registry)
+    await p.evaluate(() => window.__TOWN.reset());
+    await p.evaluate(() => { location.hash = "#town-home"; });
+    await p.waitForTimeout(120); seen.town++; note(await check("new worlds"));
+    for (const w of await p.evaluate(() => window.__TOWN.worlds())) {
+      await p.evaluate((h) => { location.hash = h; }, "#town-" + w.id);
+      await p.waitForTimeout(120); seen.town++; note(await check("new worlds " + w.id));
+      for (const l of w.levels) {
+        await p.evaluate(([a, b]) => window.__TOWN.start(a, b, { seed: 3 }), [w.id, l]);
+        await p.waitForTimeout(200); seen.town++; note(await check(w.id + "/" + l));
+        for (let i = 0; i < 40; i++) {
+          const more = await p.evaluate(() => { if (document.querySelector("#screen-town-play").dataset.done === "1") return false; const e = document.querySelector("#screen-town-play [data-correct]"); if (e) e.click(); return true; });
+          if (!more) break;
+          await p.waitForTimeout(i === 1 ? 900 : 700);
+          if (i === 1) { seen.town++; note(await check(w.id + "/" + l + " two steps in")); }
+        }
+        await p.waitForTimeout(1200); seen.town++; note(await check(w.id + "/" + l + " party"));
+      }
+    }
     // 4. Word Cards: the menu, every button on it, and every page of every book
     const wc = async () => { await p.goto(baseURL + "wordcards.html", { waitUntil: "load" }); await p.waitForTimeout(80); };
     await wc(); note(await check("word cards menu"));
@@ -2824,7 +2884,7 @@ test("📱 iPhone 17 Pro: the screens that are not games fit too — launcher, G
       }
     }
     // a walk that silently skipped a section would pass on nothing
-    assert.ok(seen.nav >= 25 && seen.hole >= 70 && seen.board >= 40 && seen.mid >= 10 && seen.seek >= 7 && seen.color >= 29 && seen.wc >= 40 && seen.pages >= 140,
+    assert.ok(seen.nav >= 25 && seen.hole >= 70 && seen.board >= 40 && seen.mid >= 10 && seen.seek >= 7 && seen.color >= 29 && seen.town >= 14 && seen.wc >= 40 && seen.pages >= 140,
       `fixture: too little was measured ${JSON.stringify(seen)}`);
     assert.deepEqual(bad, [], `on an iPhone 17 Pro:\n${bad.join("\n")}`);
     assert.deepEqual(errs, [], "no page errors");

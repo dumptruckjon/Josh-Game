@@ -130,9 +130,15 @@
         <!-- 🎨 Color Book: a coloring book he paints by number (PLAN_COLOR.md).
              The wide door across the bottom; color-main.js swaps the emoji for
              a finished page. -->
-        <button id="start-color" class="start-tile start-tile--color tap" type="button" role="listitem" aria-label="Color Book">
+        <button id="start-color" class="start-tile start-tile--color start-tile--short tap" type="button" role="listitem" aria-label="Color Book">
           <span class="start-tile__art art-fill" aria-hidden="true">🎨</span>
           <span class="start-tile__label">Color Book</span>
+        </button>
+        <!-- ✨ New Worlds: the hub of small worlds on trial (PLAN_TOWN.md). Its
+             picture is the worlds inside it; town-main.js fills it in. -->
+        <button id="start-town" class="start-tile start-tile--town start-tile--short tap" type="button" role="listitem" aria-label="New Worlds">
+          <span class="start-tile__art art-fill" aria-hidden="true">✨</span>
+          <span class="start-tile__label">New Worlds</span>
         </button>
       </div>
     </section>
@@ -197,6 +203,8 @@
   <script src="scripts/color-logic.js?v=__BUILD__" defer></script>
   <script src="scripts/color-data.js?v=__BUILD__" defer></script>
   <script src="scripts/color-main.js?v=__BUILD__" defer></script>
+  <script src="scripts/town-main.js?v=__BUILD__" defer></script>
+  <script src="scripts/town-dig.js?v=__BUILD__" defer></script>
   <script src="scripts/main.js?v=__BUILD__" defer></script>
 </body>
 </html>

@@ -266,14 +266,17 @@ body {
 .start-tile--board .start-tile__label { color: #7a2e10; }
 .start-tile--seek { background: linear-gradient(135deg, #e3fbe6, #b9ecc4); }
 .start-tile--seek .start-tile__label { color: #1d5e33; }
-/* 🎨 Color Book (PLAN_COLOR.md), the seventh door: in portrait it is the wide
-   door across the bottom (two columns of seven leave one alone), its picture
-   beside its name, so the fourth row costs less height than a full row would. */
+/* 🎨 Color Book (PLAN_COLOR.md), the seventh door, and ✨ New Worlds
+   (PLAN_TOWN.md), the eighth: in portrait they share a SHORT fourth row (the
+   wide 84px door Color Book alone used to be, split in two), so eight doors
+   take the height seven did. */
 .start-tile--color { background: linear-gradient(135deg, #fff3c4, #ffc9de); }
 .start-tile--color .start-tile__label { color: #8a1d4b; }
+.start-tile--town { background: linear-gradient(135deg, #e6f7ff, #ffe6f2); }
+.start-tile--town .start-tile__label { color: #5a2a82; }
 @media (orientation: portrait) {
-  .start-tile--color { grid-column: 1 / -1; grid-template-columns: auto auto; justify-content: center; align-items: center; column-gap: 16px; min-height: 84px; padding-top: 6px; padding-bottom: 6px; }
-  .start-tile--color .start-tile__art { width: 72px; height: 72px; font-size: 3.2rem; }
+  .start-tile.start-tile--short { display: grid; min-height: 84px; padding-top: 6px; padding-bottom: 6px; gap: 2px; }
+  .start-tile--short .start-tile__art { width: 52px; height: 52px; font-size: 2.4rem; }
 }
 .start-tile__art img { width: 100%; height: 100%; display: block; }
 
@@ -2866,11 +2869,11 @@ body.hl-mode .brand { color: #ffe9b0; }
    810x1080). After the tablet block so it wins there. */
 @media (min-width: 600px) and (orientation: portrait) {
   .start-tile { min-height: 236px; }
-  .start-tile--color { min-height: 112px; padding-top: 8px; padding-bottom: 8px; }
-  .start-tile--color .start-tile__art { width: 96px; height: 96px; font-size: 4.2rem; }
+  .start-tile.start-tile--short { display: grid; min-height: 112px; padding-top: 8px; padding-bottom: 8px; gap: 2px; }
+  .start-tile--short .start-tile__art { width: 64px; height: 64px; font-size: 2.8rem; }
 }
 @media (min-width: 600px) and (orientation: landscape) {
-  .start-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .start-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 /* ---------- Short screens: every door above the fold ----------
@@ -2891,13 +2894,13 @@ body.hl-mode .brand { color: #ffe9b0; }
   .start-tile { min-height: 88px; padding: 6px 12px; }
   .start-tile__icon, .start-tile__art { width: 52px; height: 52px; font-size: 2.4rem; }
 }
-/* Seven doors in ONE row (landscape): each door is (100vw - 128px) / 7 wide, so
+/* Eight doors in TWO rows of four (landscape): each door is (100vw - 96px) / 4 wide, so
    the label follows THAT width — a phone on its side leaves a door only ~75px
    of room, where a flat 1rem "Josh's Games" ran far past its edge. After the
    short-screen block on purpose, so it wins on a short landscape screen too. */
 @media (min-width: 600px) and (orientation: landscape) {
   .start-tile { padding-left: 4px; padding-right: 4px; }
-  .start-tile__label { font-size: clamp(0.53rem, calc((100vw - 128px) * 0.0134), 1.3rem); }
+  .start-tile__label { font-size: clamp(0.8rem, calc((100vw - 96px) * 0.026), 1.3rem); }
 }
 
 /* ---------- 🕳️ Gobble Hole (PLAN_GOBBLE.md) ----------
@@ -5548,4 +5551,198 @@ body.in-game .screen.color-play { flex: 1 1 auto; display: flex; flex-direction:
   .cb-find, .cb-burst span { animation: none; }
   /* the find-it ring still shows, just still */
   .cb-burst { display: none; }
+}
+
+/* ---------- ✨ New Worlds (PLAN_TOWN.md) ----------
+   The hub of small worlds on trial, and the shell they all play in
+   (town-main.js). Kid laws fully on: every control 75px+ and 16px apart (grid
+   gap only: flex gap is dropped on iOS 14.2), no sideways scroll, a static
+   page background. */
+body.town-mode { background: linear-gradient(165deg, #e8f6ff 0%, #fffaf0 55%, #fff0f6 100%); background-attachment: fixed; }
+.town-mark { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); font-size: 0.45em; line-height: 1.15; text-align: center; }
+/* one or two worlds so far: their pictures full size, side by side */
+.town-mark--n1 .town-mark { grid-template-columns: minmax(0, 1fr); font-size: 1em; }
+.town-mark--n2 .town-mark { font-size: 0.55em; }
+.town-bar { margin-bottom: 16px; }
+.town-doors, .town-levels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.town-door {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 100%);
+  justify-items: center;
+  align-content: center;
+  gap: 4px;
+  min-height: 150px;
+  padding: 12px 8px;
+  border: none;
+  border-radius: 24px;
+  background: linear-gradient(160deg, #ffffff, var(--town-color, #fff3c4));
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  color: #2b2b3a;
+}
+.town-door:active { transform: scale(0.97); }
+.town-door__pic { font-size: 3.4rem; line-height: 1.1; }
+.town-door__name { font-size: 1.1rem; font-weight: 900; text-align: center; }
+.town-door__sub { font-size: 1rem; font-weight: 800; color: #3d3d4a; }
+.town-door--done { box-shadow: 0 0 0 4px #b26a00, 0 8px 20px rgba(0, 0, 0, 0.12); }
+.town-door--next { box-shadow: 0 0 0 4px #5b2a86, 0 8px 20px rgba(0, 0, 0, 0.12); animation: townNext 1.8s ease-in-out infinite; }
+@keyframes townNext { 0%, 100% { box-shadow: 0 0 0 4px #5b2a86, 0 8px 20px rgba(0, 0, 0, 0.12); } 50% { box-shadow: 0 0 0 8px #5b2a86, 0 8px 20px rgba(0, 0, 0, 0.12); } }
+.town-reset { display: block; margin: 24px auto 8px; }
+@media (min-width: 600px) {
+  .town-doors, .town-levels { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+/* A level: the bar, the prompt strip, the stage (the world draws here), the
+   party row. The stage fills what is left and centres the play. */
+body.in-game .screen.town-play { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.town-prompt { min-height: 48px; margin: 0 0 12px; text-align: center; font-size: clamp(2rem, 9vw, 2.6rem); line-height: 1.3; }
+.town-stage { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 100%); align-content: safe center; }
+.town-party { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: center; margin: 16px 0 8px; scroll-margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); }
+.town-party__star { font-size: 3rem; line-height: 1; }
+.town-party .btn-big { min-width: 0; padding: 0 12px; }
+/* the hint: what to tap next breathes a ring (never a scale: a ring paints
+   outside layout, so the 16px between taps is never eaten) */
+.town-hint { animation: townHint 1.2s ease-in-out infinite; }
+@keyframes townHint { 0%, 100% { box-shadow: 0 0 0 4px #ff7a00, 0 8px 20px rgba(0, 0, 0, 0.12); } 50% { box-shadow: 0 0 0 10px #ff7a00, 0 8px 20px rgba(0, 0, 0, 0.12); } }
+
+/* ---------- 🚧 Dig Site (town-dig.js) ---------- */
+.town-play--dig { --dig-card: #fffdf6; }
+.dig-scene { display: grid; grid-template-columns: minmax(0, 100%); gap: 16px; }
+.dig-wrap { position: relative; z-index: 1; }
+.dig-truck, .dig-machine, .dig-hooked { position: relative; z-index: 3; }
+.dig-thing {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: clamp(110px, 19vh, 190px);
+  padding: 6px;
+  border: none;
+  border-radius: 22px;
+  background: var(--dig-card);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
+}
+.dig-art { display: block; width: 100%; max-width: clamp(120px, 36vw, 190px); }
+.dig-art svg, .dig-crane svg, .dig-recipe__bag svg { display: block; width: 100%; height: auto; }
+.dig-art--emoji { font-size: 4rem; line-height: 1; text-align: center; }
+.dig-dirt { position: absolute; left: 4px; right: 4px; bottom: 4px; width: calc(100% - 8px); height: 28px; z-index: -1; }
+.dig-thing .dig-dirt { z-index: 0; }
+.dig-thing .dig-art { position: relative; z-index: 1; }
+/* 1. Fill the Hole */
+.dig-scene--hole { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dig-hole {
+  position: relative;
+  grid-column: 1 / -1;
+  min-height: clamp(150px, 24vh, 250px);
+  border-radius: 50% / 42%;
+  background: radial-gradient(ellipse at 50% 40%, #3a2412 0%, #5a3a1c 60%, #7a5230 100%);
+  box-shadow: inset 0 10px 24px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.dig-hole__dirt { position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--fill, 0) * 100%); background: #8b5a2b; transition: height 400ms ease-out; }
+.dig-hole__garden { position: absolute; left: 0; right: 0; top: 30%; text-align: center; font-size: 3rem; }
+.dig-hole--garden { background: linear-gradient(180deg, #8fdc7a, #4caf50); box-shadow: none; }
+.dig-hole--garden .dig-hole__dirt { display: none; }
+.dig-pips { grid-column: 1 / -1; justify-self: center; display: grid; grid-template-columns: repeat(3, 34px); gap: 12px; }
+.dig-pip { width: 34px; height: 34px; border-radius: 50%; border: 4px solid #8b5a2b; background: #ffffff; }
+.dig-pip--full { background: #8b5a2b; }
+/* 2. Clear the Road */
+.dig-roadtop { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: end; }
+.dig-side { min-height: 80px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-content: end; font-size: 2rem; }
+.dig-road { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.dig-seg {
+  position: relative;
+  min-height: clamp(96px, 15vh, 150px);
+  border: none;
+  border-radius: 18px;
+  background: #9b9b8f;
+  box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.18);
+  color: #ffffff;
+}
+.dig-seg__rock { font-size: 3rem; line-height: 1; }
+.dig-seg--clear .dig-seg__rock { visibility: hidden; }
+.dig-seg__num { display: none; position: absolute; left: 10px; top: 6px; font-size: 1.6rem; font-weight: 900; color: #1d1d2b; background: #ffe38a; border-radius: 50%; width: 40px; height: 40px; line-height: 40px; text-align: center; }
+.dig-road--numbers .dig-seg__num { display: block; }
+.dig-seg--smooth { position: relative; background: #3d3d4a; box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.3); }
+.dig-seg--smooth::after { content: ""; position: absolute; left: 18%; right: 18%; top: 50%; height: 6px; margin-top: -3px; background: repeating-linear-gradient(90deg, #ffffff 0 16px, transparent 16px 28px); }
+.dig-car { position: absolute; left: 0; top: 18%; font-size: 2.4rem; z-index: 4; animation: digCar 2.4s ease-in-out forwards; }
+.dig-car--2 { top: 62%; animation-delay: 300ms; }
+@keyframes digCar { from { left: 0; } to { left: calc(100% - 48px); } }
+/* 3. Crane Tower */
+.dig-towertop { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; align-items: end; }
+.dig-plan { display: grid; grid-template-columns: minmax(0, 100%); gap: 6px; padding: 10px; border-radius: 18px; background: #ffffff; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); }
+.dig-plan__row { display: grid; place-items: center; min-height: 34px; border-radius: 8px; }
+.dig-plan__row--done { box-shadow: 0 0 0 3px #2b2b3a; }
+.dig-block__mark { font-size: 2rem; line-height: 1; color: #141420; }
+.dig-plan__row .dig-block__mark { font-size: 1.3rem; }
+.dig-site { position: relative; min-height: clamp(220px, 34vh, 330px); display: grid; grid-template-columns: minmax(0, 100%); align-content: end; justify-items: center; }
+.dig-crane { position: absolute; left: 0; top: 0; width: 70%; opacity: 0.9; }
+.dig-tower { position: relative; display: grid; grid-template-columns: clamp(72px, 22vw, 110px); gap: 2px; justify-items: center; align-content: end; min-height: 40px; }
+.dig-tower__block { display: grid; place-items: center; width: 100%; height: clamp(40px, 6.5vh, 60px); border-radius: 6px; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.2); }
+.dig-tower__block .dig-block__mark { font-size: 1.3rem; }
+.dig-flag { font-size: 2.4rem; line-height: 1; }
+.dig-ground { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.dig-block { min-height: clamp(88px, 12vh, 120px); background-image: none; box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.2), 0 6px 14px rgba(0, 0, 0, 0.14); }
+.dig-used { visibility: hidden; }
+.dig-hooked::before { content: ""; position: absolute; left: 50%; bottom: 100%; width: 4px; height: 60px; margin-left: -2px; background: #2b2b3a; }
+/* 4. Mix the Cement */
+.dig-recipe { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 10px 14px; border-radius: 18px; background: #ffffff; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); font-size: 1.8rem; font-weight: 900; color: #2b2b3a; }
+.dig-recipe__row { display: grid; grid-template-columns: 52px auto auto; align-items: center; justify-content: center; column-gap: 6px; }
+.dig-recipe__bag { display: block; width: 52px; }
+.dig-recipe__icon { font-size: 2.4rem; line-height: 1; }
+.dig-mixrow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.dig-mold { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; min-height: clamp(96px, 15vh, 150px); padding: 10px; border: 4px dashed #8a6a3c; border-radius: 18px; background: #e9d9b8; }
+.dig-mold__sq { border-radius: 6px; background: rgba(255, 255, 255, 0.4); transition: background 200ms ease-out; }
+.dig-mold__sq--full { background: #9aa0a8; box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.22); }
+.dig-feet { position: absolute; left: 50%; top: 50%; margin: -24px 0 0 -24px; font-size: 2.6rem; line-height: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .town-door--next, .town-hint, .dig-car { animation: none; }
+  .town-hint { box-shadow: 0 0 0 6px #ff7a00, 0 8px 20px rgba(0, 0, 0, 0.12); }
+  .dig-car { left: calc(100% - 48px); }
+  .dig-hole__dirt, .dig-mold__sq { transition: none; }
+}
+
+/* ---------- 🍳 Little Kitchen (town-kitchen.js) ---------- */
+.kit-scene { display: grid; grid-template-columns: minmax(0, 100%); gap: 16px; }
+.kit-card { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; padding: 10px; border-radius: 18px; background: #ffffff; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); }
+.kit-step { position: relative; display: grid; justify-items: center; align-content: center; min-height: 64px; border-radius: 12px; background: #fff6ec; }
+.kit-step__pic { font-size: 2rem; line-height: 1.1; }
+.kit-step__n { font-size: 1.15rem; font-weight: 900; color: #2b2b3a; }
+.kit-step__tick { display: none; position: absolute; right: 2px; top: 0; font-size: 1.1rem; font-weight: 900; color: #1f6b34; }
+.kit-step--now { box-shadow: 0 0 0 4px #ff7a00; }
+.kit-step--done { opacity: 0.55; }
+.kit-step--done .kit-step__tick { display: block; }
+.kit-bench { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: center; }
+.kit-pot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  min-height: clamp(150px, 24vh, 240px);
+  padding: 12px;
+  border-radius: 0 0 50% 50% / 0 0 40% 40%;
+  background: linear-gradient(180deg, #e6f4ff, #b9dcf5);
+  box-shadow: inset 0 -8px 0 rgba(0, 0, 0, 0.08), 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+.kit-pot--dough { border-radius: 50%; background: radial-gradient(circle, #f6deae 60%, #e2b66e 100%); }
+.kit-pot--board { border-radius: 22px; background: repeating-linear-gradient(90deg, #d9a86a 0 18px, #cf9c5d 18px 36px); }
+.kit-pot--mixed { background: linear-gradient(180deg, #fff4c8, #f5d77a); }
+.kit-pot--sauce { background: radial-gradient(circle, #e5533c 55%, #f6deae 58%, #e2b66e 100%); }
+.kit-pot--baked { background: radial-gradient(circle, #d9783c 55%, #c98a3a 60%, #a8692a 100%); }
+.kit-pot--steam { box-shadow: 0 0 0 6px #cfe7ff, 0 8px 18px rgba(0, 0, 0, 0.12); }
+.kit-pot__in { font-size: 2rem; line-height: 1.2; text-align: center; overflow-wrap: anywhere; }
+.kit-pot__stack { font-size: 3rem; line-height: 1; text-align: center; overflow-wrap: anywhere; }
+.kit-eater { display: grid; justify-items: center; gap: 4px; padding: 10px 4px; border-radius: 18px; background: #fffdf6; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12); }
+.kit-eater__face { font-size: 3.2rem; line-height: 1; }
+.kit-eater__plate { font-size: 2.4rem; line-height: 1; }
+.kit-eater--happy { box-shadow: 0 0 0 4px #1f6b34, 0 6px 16px rgba(0, 0, 0, 0.12); }
+.kit-counter { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.kit-counter--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.kit-tool {
+  min-height: clamp(84px, 12vh, 120px);
+  border: none;
+  border-radius: 22px;
+  background: #fffdf6;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
+  font-size: clamp(2.6rem, 11vw, 3.4rem);
+  line-height: 1;
 }

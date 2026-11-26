@@ -3484,6 +3484,19 @@ test("CONTRAST: every ACTIVE text run in Josh's and 华丽's worlds clears AA", 
     await look("#seek-home", "#screen-seek-home", "seek home");
     await pg.evaluate(() => { location.hash = "#seek-play"; window.__SEEK.start("park", {}); const it = window.__SEEK.items(); const i = it.findIndex((x) => x.role === "find"); window.__SEEK.markForTest(i); });
     await look("#seek-play", "#screen-seek-play", "seek play");
+    // ✨ New Worlds: the hub, every world's levels, and every level at its
+    // start (derived from the registry, so a new world is audited the day it lands)
+    await pg.evaluate(() => window.__TOWN.reset());
+    await look("#town-home", "#screen-town-home", "new worlds");
+    for (const w of await pg.evaluate(() => window.__TOWN.worlds())) {
+      await look("#town-" + w.id, "#screen-town-" + w.id, "new worlds " + w.id);
+      for (const l of w.levels) {
+        await pg.evaluate(([a, b]) => window.__TOWN.start(a, b, { seed: 3 }), [w.id, l]);
+        await pg.waitForTimeout(150);
+        const o = await pg.evaluate(AUDIT, w.id + "/" + l);
+        surfaces += 1; runs += o.runs; judged += o.judged; fails.push(...o.fails);
+      }
+    }
     assert.ok(await pg.evaluate(() => /⭐ 1/.test(document.querySelector(".bn-pad--1 .bn-pad__stars").textContent)), "fixture: the waiting pad shows its ⭐ count");
     await pg.evaluate(() => window.__BOARD.start("rainbow", "mom", false, 3, 0));
     await look("#board-play", "#screen-board-play", "game night rainbow");

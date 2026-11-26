@@ -153,6 +153,7 @@
     wire("start-board", "#board-home");
     wire("start-seek", "#seek-home");
     wire("start-color", "#color-home");
+    wire("start-town", "#town-home");
     wire("home-door", ""); // 🚪 on Josh's home returns to the front door
   }
 
@@ -189,7 +190,7 @@
   })();
   let awayAt = 0, newerBuild = false;
   function updateSafeHere() {
-    return !location.hash || /^#(home|cat-|stickers|today|progress|hole-home|hole-land-|board-home|seek-home|seek-album|color-home|hl-home|td-home)/.test(location.hash);
+    return !location.hash || /^#(home|cat-|stickers|today|progress|hole-home|hole-land-|board-home|seek-home|seek-album|color-home|town-(?!play)|hl-home|td-home)/.test(location.hash);
   }
   function reloadIfNewer() {
     if (newerBuild && !document.hidden && updateSafeHere()) location.reload();
@@ -900,6 +901,11 @@
       try { if (window.SeekFind && window.SeekFind.onLeave) window.SeekFind.onLeave(); } catch (e) { /* ignore */ }
     }
 
+    // …and ✨ New Worlds: leaving a level starts it over next time.
+    if (id.indexOf("town-") !== 0) {
+      try { if (window.Town && window.Town.onLeave) window.Town.onLeave(); } catch (e) { /* ignore */ }
+    }
+
     // …and 🎨 Color Book: leaving keeps its half-painted page in the save.
     if (!COLOR_WORLD.test(id)) {
       try { if (window.ColorBook && window.ColorBook.onLeave) window.ColorBook.onLeave(); } catch (e) { /* ignore */ }
@@ -965,6 +971,17 @@
       try {
         if (window.ColorBook && window.ColorBook.route && window.ColorBook.route(id)) return;
       } catch (e) { /* a Color Book failure must never break Josh's site */ }
+      location.hash = "";
+      return;
+    }
+
+    // ✨ New Worlds (small worlds on trial, PLAN_TOWN.md): Town.route handles
+    // every known town-* hash; an unknown one falls through to the front door.
+    // Isolated: its failure can never break Josh's site.
+    if (id.indexOf("town-") === 0) {
+      try {
+        if (window.Town && window.Town.route && window.Town.route(id)) return;
+      } catch (e) { /* a New Worlds failure must never break Josh's site */ }
       location.hash = "";
       return;
     }

@@ -69,7 +69,7 @@ async function startGame(box, friend, cpu, seed, first) {
 test("the front door's Game Night door opens it, and 🚪 comes back", async () => {
   await page.evaluate(() => { location.hash = ""; });
   await page.locator("#screen-start").waitFor({ state: "visible" });
-  assert.equal(await page.locator(".start-tile").count(), 7, "seven world doors (🔍 Seek & Find and 🎨 Color Book joined after Game Night)");
+  assert.equal(await page.locator(".start-tile").count(), 8, "eight world doors (🔍 Seek & Find, 🎨 Color Book and ✨ New Worlds joined after Game Night)");
   const order = await page.evaluate(() => [...document.querySelectorAll(".start-tile")].map((t) => t.id));
   assert.equal(order.indexOf("start-board"), order.indexOf("start-hole") + 1, "Game Night comes right after Gobble Hole");
   const box = await page.locator("#start-board").boundingBox();

@@ -167,7 +167,13 @@ test("a whole page painted in a child's order finishes, and the pots move on by 
 
 test("what comes alive is on the page, and every animation it asks for exists (with a reduced-motion stop)", () => {
   const css = fs.readFileSync(path.join(__dirname, "..", "styles", "main.css"), "utf8");
-  const reduced = css.slice(css.lastIndexOf("@media (prefers-reduced-motion: reduce)"));
+  // EVERY reduced-motion block's contents (it read only the last one, which
+  // stopped being the Color Book's the day another world's block followed it)
+  let reduced = "";
+  for (let i = css.indexOf("@media (prefers-reduced-motion: reduce)"); i >= 0; i = css.indexOf("@media (prefers-reduced-motion: reduce)", i + 1)) {
+    let d = 0, j = css.indexOf("{", i);
+    for (let k = j; k < css.length; k++) { if (css[k] === "{") d++; else if (css[k] === "}" && --d === 0) { reduced += css.slice(j, k + 1); break; } }
+  }
   for (const p of PAGES) {
     assert.ok(p.alive && p.alive.length, p.id + " comes alive");
     for (const a of p.alive) {
