@@ -121,7 +121,8 @@ test("no failure: a wrong tap wiggles and SAYS what to do; the level carries on"
       await page.waitForTimeout(100);
       const r = await page.evaluate(() => {
         window.__said.length = 0;
-        const all = [...document.querySelectorAll("#screen-town-play .town-stage button")].filter((b) => b.getClientRects().length && !b.disabled);
+        // a data-free control (a track tile) is a move in any order, never wrong
+        const all = [...document.querySelectorAll("#screen-town-play .town-stage button")].filter((b) => b.getClientRects().length && !b.disabled && !b.dataset.free);
         const wrong = all.find((b) => !b.dataset.correct);
         if (!wrong) return { none: true };
         wrong.click();
@@ -327,6 +328,57 @@ test("🍳 Little Kitchen: every recipe is cooked exactly as its CARD says, serv
       const counts = said.filter((x) => /^(One|Two|Three|Four|Five|Six)!$/.test(x));
       const want = card.filter((c) => c.n > 1 && !(id === "dumplings" && c.pic === "🥬")).flatMap((c) => ["One!", "Two!", "Three!", "Four!", "Five!", "Six!"].slice(0, c.n));
       assert.deepEqual(counts, want, `${id}@${seed}: every count is said aloud`);
+    }
+  }
+  assert.deepEqual(pageErrors, []);
+});
+
+test("🚂 Train Yard: every level is SOLVABLE (proven in node), a track turns in any order, the lit line follows the joins, and the train arrives AT the end", async () => {
+  // node: the level data cannot ask for a track that cannot join
+  const TL = require("../scripts/town-train.js");
+  for (const lv of TL.LEVELS) {
+    assert.equal(TL.check(lv), "", lv.id + ": " + TL.check(lv));
+    for (const pair of TL.needs(lv)) assert.ok(TL.goodTurns(pair).length >= 1 && TL.goodTurns(pair).length <= 2, lv.id + ": every tile has a turn that fits");
+  }
+  assert.ok(TL.check({ rows: 2, cols: 2, path: [[0, 0], [1, 1]] }), "a diagonal step is refused");
+  assert.ok(TL.check({ rows: 2, cols: 2, path: [[0, 0], [0, 1]] }), "a path that never reaches the end is refused");
+  await spy();
+  for (const id of TL.LEVELS.map((l) => l.id)) {
+    for (const seed of [4, 9]) {
+      await page.evaluate(([l, sd]) => window.__TOWN.start("train", l, { seed: sd }), [id, seed]);
+      await page.waitForFunction((l) => { const s = window.__TOWN.state(); return s && s.level === l && !s.done; }, id);
+      // no track starts joined: there is always a puzzle
+      const fit0 = await page.evaluate(() => [...document.querySelectorAll("#screen-town-play .trn-tile")].map((t) => t.dataset.fits));
+      assert.ok(fit0.length >= 3 && fit0.every((f) => f === "0"), `${id}@${seed}: every track starts turned wrong (${fit0.join("")}), so there is always a puzzle`);
+      const cargo = await page.locator("#screen-town-play .trn-pen").count();
+      if (cargo) {
+        const n = await page.evaluate(() => document.querySelectorAll("#screen-town-play .trn-car").length);
+        await page.evaluate(() => { window.__said.length = 0; });
+        // a track tapped before the animals are on says so, and turns nothing
+        const before = await page.evaluate(() => document.querySelector("#screen-town-play .trn-tile .trn-tile__in").style.transform);
+        await page.evaluate(() => document.querySelector("#screen-town-play .trn-tile").click());
+        assert.equal(await page.evaluate(() => document.querySelector("#screen-town-play .trn-tile .trn-tile__in").style.transform), before, `${id}: the track waits for the animals`);
+        for (let i = 0; i < n; i++) { await page.evaluate(() => document.querySelector("#screen-town-play .trn-pen").click()); await page.waitForTimeout(400); }
+        const said = await page.evaluate(() => window.__said.slice());
+        assert.deepEqual(said.filter((x) => /^(One|Two|Three|Four|Five)!$/.test(x)), ["One!", "Two!", "Three!", "Four!", "Five!"].slice(0, n), `${id}: every animal counted onto the train`);
+        assert.equal(await page.evaluate(() => [...document.querySelectorAll("#screen-town-play .trn-car")].filter((c) => c.textContent !== "🚃").length), n, `${id}: every car holds an animal`);
+      }
+      // turn the LAST track first (out of order): a move, never a wiggle, and the lit line does not jump past an unjoined track
+      const last = await page.evaluate(() => { const t = [...document.querySelectorAll("#screen-town-play .trn-tile")]; const b = t[t.length - 1]; b.click(); return { bump: b.classList.contains("bump"), lit: document.querySelectorAll("#screen-town-play .trn-tile--lit").length, total: t.length }; });
+      assert.ok(!last.bump, `${id}: turning a track out of order is a move, not a wrong tap`);
+      // no track starts joined, so the lit line (counted from the station) is still empty
+      assert.equal(last.lit, 0, `${id}@${seed}: the line is lit only from the station on, never past a track that does not join`);
+      await playOut("train/" + id);
+      const r = await page.evaluate(() => {
+        const tr = document.querySelector("#screen-town-play .trn-train").getBoundingClientRect();
+        const to = document.querySelector("#screen-town-play .trn-end--to span").getBoundingClientRect();
+        const cx = tr.left + tr.width / 2, cy = tr.top + tr.height / 2;
+        return { lit: document.querySelectorAll("#screen-town-play .trn-tile--lit").length, total: document.querySelectorAll("#screen-town-play .trn-tile").length,
+          at: cx >= to.left && cx <= to.right && cy >= to.top - 8 && cy <= to.bottom + 8, end: document.querySelector("#screen-town-play .trn-end--to").classList.contains("trn-end--lit") };
+      });
+      assert.equal(r.lit, r.total, `${id}@${seed}: the whole line is lit`);
+      assert.ok(r.end, `${id}: the end lights up`);
+      assert.ok(r.at, `${id}@${seed}: the train stops ON the end, not beside it`);
     }
   }
   assert.deepEqual(pageErrors, []);

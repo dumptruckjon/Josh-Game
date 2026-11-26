@@ -5750,3 +5750,31 @@ body.in-game .screen.town-play { flex: 1 1 auto; display: flex; flex-direction: 
   font-size: clamp(2.6rem, 11vw, 3.4rem);
   line-height: 1;
 }
+
+/* ---------- 🚂 Train Yard (town-train.js) ---------- */
+.trn-scene { display: grid; grid-template-columns: minmax(0, 100%); gap: 10px; }
+.trn-end { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); column-gap: 16px; font-size: 2.6rem; line-height: 1; text-align: center; }
+.trn-end span { border-radius: 16px; padding: 4px 0; }
+.trn-end--to.trn-end--lit span { box-shadow: 0 0 0 4px #1f6b34; background: #e6f8e0; }
+.trn-gridwrap { position: relative; }
+.trn-grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 16px; }
+.trn-cell { min-height: clamp(80px, 12vh, 118px); border-radius: 16px; }
+.trn-cell--scene { display: grid; place-items: center; background: #c9ecb6; font-size: 2.2rem; }
+.trn-tile { --grass: #8fd16f; position: relative; padding: 0; border: none; overflow: hidden; background: var(--grass); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14); }
+.trn-tile__in { display: block; width: 100%; height: 100%; transition: transform 220ms ease-out; }
+.trn-tile svg { display: block; width: 100%; height: 100%; }
+.trn-ties { stroke: #b9b2a6; }
+.trn-rail { stroke: #7d7d88; }
+.trn-gap { stroke: var(--grass); }
+.trn-tile--lit { --grass: #ffe38a; box-shadow: 0 0 0 4px #b26a00, 0 6px 14px rgba(0, 0, 0, 0.14); }
+.trn-tile--lit .trn-ties { stroke: #8b5a2b; }
+.trn-tile--lit .trn-rail { stroke: #2b2b3a; }
+.trn-train { position: absolute; left: 0; top: -56px; font-size: 2.6rem; line-height: 1; z-index: 5; visibility: hidden; }
+.trn-train--on { visibility: visible; }
+.trn-cargo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: center; }
+.trn-pen { min-height: 90px; border: none; border-radius: 18px; background: #e6f8e0; box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14); font-size: 2rem; line-height: 1.2; overflow-wrap: anywhere; }
+.trn-cars { font-size: 1.9rem; line-height: 1.2; text-align: center; overflow-wrap: anywhere; }
+
+@media (prefers-reduced-motion: reduce) {
+  .trn-tile__in { transition: none; }
+}

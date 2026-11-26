@@ -16,7 +16,9 @@
 // and it is the ONE writer); the screen's data-done is "1" once the level is
 // finished. Kid laws, all on: no failure (a wrong tap wiggles and says what to
 // do), no timer, big taps, sound off by default and playable muted (the
-// prompt strip and the hint ring carry the play).
+// prompt strip and the hint ring carry the play). A control a world marks
+// data-free (a track tile that turns, a square of a song) is a MOVE in any
+// order, never a wrong tap: data-correct only marks the suggested one.
 
 (function (global) {
   "use strict";

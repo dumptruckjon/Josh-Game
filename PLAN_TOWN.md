@@ -1,6 +1,6 @@
 # ✨ New Worlds — eight small worlds on trial
 
-**Status: BUILDING** — the shell, 🚧 Dig Site and 🍳 Little Kitchen are built; the other six
+**Status: BUILDING** — the shell, 🚧 Dig Site, 🍳 Little Kitchen and 🚂 Train Yard are built; the other five
 follow one at a time (§3). Each starts SMALL (three or four levels) so the
 owner can trial it with Josh; a world he likes grows later.
 
@@ -43,7 +43,7 @@ One owner of everything a world must never re-invent:
 |---|---|---|
 | 1 | 🚧 Dig Site | Fill the Hole · Clear the Road · Crane Tower · Mix the Cement — BUILT |
 | 2 | 🍳 Little Kitchen | Fruit Salad · Pancakes · Pizza · Grandma's Dumplings — BUILT |
-| 3 | 🚂 Train Yard | turn track tiles to join the line; cargo by number |
+| 3 | 🚂 Train Yard | First Track · Round the Bend · Zig Zag · Animal Train — BUILT |
 | 4 | 📮 Delivery Day | parcels to houses by picture, letter, word, number |
 | 5 | 🌱 Josh's Garden | ⭐ earned anywhere become seeds to plant and grow |
 | 6 | 🧩 Shape Builder | fill a picture's outline with shapes |
@@ -82,3 +82,23 @@ The counts are seeded per play (strawberries 2-4, dumplings 3-5), so a level
 replays differently. A wrong thing on the counter wiggles and says what the card
 asks for next. Counting, following a sequence, and the practical-life feel of
 cooking, which is his Montessori school's.
+
+### 🚂 Train Yard (scripts/town-train.js)
+
+A track puzzle: the station is at the top, the end (a house, a castle, the
+fair, the farm) at the bottom, and between them a grid of track tiles, each
+turned the wrong way. A tap turns a tile a quarter; the track lights up from the
+station as far as it joins, so he SEES how far it reaches, and when it reaches
+the end the train chugs the whole way and stops on it. Any tile may be turned in
+any order (`data-free`: a move, never a wrong tap); the hint ring only suggests
+the first one that does not join yet.
+
+- **First Track:** three straight tiles, one tap each.
+- **Round the Bend / Zig Zag:** curves, five and six tiles.
+- **Animal Train:** load two to four cows first, counted, then turn the track
+  to the farm. A track tapped before they are on says so.
+
+A level is DATA (the path's cells); each tile's kind and right turns are
+DERIVED from its neighbours, and `TrainLogic.check` proves in node that every
+level can be solved. Every tile starts turned wrong (`data-fits`), so there is
+always a puzzle.
