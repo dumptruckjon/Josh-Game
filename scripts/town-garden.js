@@ -110,7 +110,7 @@
     plots.forEach((x) => x.b.addEventListener("click", () => {
       if (p >= n) return;
       if (x !== cur()) { api.bump(x.b, x.stage >= 4 ? "That one has bloomed!" : "This bed first!"); return; }
-      api.bump(tool[phase], say[phase]);
+      api.bump(x.b, say[phase]); // the bed he touched answers, and says which tool comes next
     }));
   }
 
