@@ -5844,3 +5844,24 @@ body.in-game .screen.town-play { flex: 1 1 auto; display: flex; flex-direction: 
 .gar-fly { position: relative; display: grid; grid-template-columns: auto auto; align-items: center; column-gap: 4px; padding: 8px 14px; border-radius: 999px; background: #ffffff; box-shadow: 0 0 0 4px var(--fly, #ffb703); font-size: 2.6rem; line-height: 1; }
 .gar-flower { box-shadow: 0 0 0 4px var(--flower, #ffb703), 0 6px 14px rgba(0, 0, 0, 0.14); }
 .gar-flower--visited { background: #e6f8e0; box-shadow: 0 0 0 4px var(--flower, #ffb703), 0 0 0 9px #1f6b34, 0 6px 14px rgba(0, 0, 0, 0.14); }
+
+/* ---------- 🧩 Shape Builder (town-shapes.js) ---------- */
+.shp-scene { display: grid; grid-template-columns: minmax(0, 100%); gap: 16px; }
+.shp-board { justify-self: center; width: min(100%, 360px); min-height: 220px; border-radius: 22px; background: #ffffff; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12); }
+.shp-board svg { display: block; width: 100%; height: auto; }
+.shp-now { animation: shpNow 1.2s ease-in-out infinite; }
+@keyframes shpNow { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+.shp-tray { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.shp-piece { min-height: clamp(90px, 13vh, 130px); padding: 8px; border: none; border-radius: 20px; background: #fffdf6; box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14); }
+.shp-piece svg { display: block; width: 100%; max-width: 96px; height: auto; margin: 0 auto; }
+.shp-piece--away { visibility: hidden; }
+.shp-alive--launch { animation: shpLaunch 1.4s ease-in forwards; }
+@keyframes shpLaunch { to { transform: translateY(-40px); } }
+.shp-alive--drive { animation: shpDrive 1.4s ease-in-out forwards; }
+@keyframes shpDrive { 50% { transform: translateX(24px); } 100% { transform: translateX(0); } }
+.shp-alive--lights { box-shadow: 0 0 0 4px #8a4f00, 0 0 0 9px #ffd24d, 0 0 40px rgba(255, 210, 77, 0.8); }
+.shp-alive--wave { animation: shpWave 0.5s ease-in-out 3; }
+@keyframes shpWave { 50% { transform: rotate(-3deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .shp-now, .shp-alive--launch, .shp-alive--drive, .shp-alive--wave { animation: none; }
+}

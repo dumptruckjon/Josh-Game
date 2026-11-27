@@ -1,6 +1,6 @@
 # ✨ New Worlds — eight small worlds on trial
 
-**Status: BUILDING** — the shell, 🚧 Dig Site, 🍳 Little Kitchen, 🚂 Train Yard, 📮 Delivery Day and 🌱 Josh's Garden are built; the other three
+**Status: BUILDING** — the shell, 🚧 Dig Site, 🍳 Little Kitchen, 🚂 Train Yard, 📮 Delivery Day, 🌱 Josh's Garden and 🧩 Shape Builder are built; the other two
 follow one at a time (§3). Each starts SMALL (three or four levels) so the
 owner can trial it with Josh; a world he likes grows later.
 
@@ -46,7 +46,7 @@ One owner of everything a world must never re-invent:
 | 3 | 🚂 Train Yard | First Track · Round the Bend · Zig Zag · Animal Train — BUILT |
 | 4 | 📮 Delivery Day | Pets · Letters · Words · Numbers — BUILT |
 | 5 | 🌱 Josh's Garden | Plant Flowers · Pull Carrots · Pick Apples · Butterflies — BUILT |
-| 6 | 🧩 Shape Builder | fill a picture's outline with shapes |
+| 6 | 🧩 Shape Builder | House · Car · Rocket · Robot — BUILT |
 | 7 | 🎸 Band Room | an animal band plays the song he lays out |
 | 8 | ⚙️ Marble Run | pick the piece for each gap; the marble rolls |
 
@@ -147,4 +147,23 @@ doors, rebuilt on every visit.
 
 Nine mutations, each red. On the way the empty and dug beds changed from 🟩/🟫
 boxes (a brown box on brown soil drew nothing) to plain soil and a 🕳️.
+
+### 🧩 Shape Builder (scripts/town-shapes.js)
+
+A picture's outline waits in dashed lines; one part glows, and he picks the
+shape that fits it from three in the tray (circle, square, triangle,
+rectangle). The piece places itself — no dragging, no turning — and when the
+picture is whole it comes alive: the house lights up, the car drives, the
+rocket blasts off, the robot waves. Every tray piece wears the part's own
+colour, so only the SHAPE tells them apart, and a rectangle piece stands the
+way its slot does (a door is tall, a car body is wide), so "which fits" never
+needs a turn in his head.
+
+A picture is DATA (its parts, each a kind of shape in a box on a 200-unit
+page). `ShapeLogic.tray` always holds the right kind once and two OTHER kinds.
+A law holds every part to LOOK like what it is called — a square or circle
+even, a rectangle at least 1.4 times longer one way — because the first robot
+body was a "rectangle" 80 by 76, which reads as a square, and the square in the
+tray would then have been a right answer marked wrong. Seven mutations, each
+red.
 

@@ -562,3 +562,72 @@ test("🌱 Josh's Garden: the garden GROWS with everything he finishes, a flower
   assert.equal(g.flowers, 6);
   assert.deepEqual(pageErrors, []);
 });
+
+test("🧩 Shape Builder: every picture is built from its OWN parts in order, the tray always holds exactly ONE piece that fits (proven in node), a wrong piece names itself, and the finished picture comes alive", async () => {
+  const SL = require("../scripts/town-shapes.js");
+  // node: every tray holds the right kind once and two OTHER kinds
+  let x = 9;
+  const rng = () => { x = (x * 16807) % 2147483647; return x / 2147483647; };
+  for (const pic of SL.PICS) {
+    assert.ok(pic.parts.length >= 3, pic.id + ": a picture has three or more parts");
+    for (const p of pic.parts) {
+      assert.ok(SL.KINDS.includes(p.k), pic.id + ": every part is a shape he knows");
+      assert.ok(p.x >= 0 && p.y >= 0 && p.x + p.w <= 200 && p.y + p.h <= 200, pic.id + ": every part sits on the page");
+      // A part LOOKS like what it is called: a square or circle is even, a
+      // rectangle is clearly long — or the square in the tray would also fit.
+      const long = Math.max(p.w, p.h) / Math.min(p.w, p.h);
+      if (p.k === "rectangle") assert.ok(long >= 1.4, `${pic.id}: a rectangle ${p.w}x${p.h} must be clearly longer one way (it reads as a square)`);
+      else if (p.k !== "triangle") assert.ok(long <= 1.15, `${pic.id}: a ${p.k} ${p.w}x${p.h} must be even`);
+      for (let i = 0; i < 50; i++) {
+        const t = SL.tray(p.k, rng);
+        assert.equal(t.length, 3, "three pieces in the tray");
+        assert.equal(new Set(t).size, 3, "three DIFFERENT shapes");
+        assert.equal(t.filter((k) => k === p.k).length, 1, "exactly one piece fits");
+      }
+    }
+  }
+  await spy();
+  const TAG = { circle: "ellipse", triangle: "polygon", square: "rect", rectangle: "rect" };
+  for (const pic of SL.PICS) {
+    await page.evaluate((id) => window.__TOWN.start("shapes", id, { seed: 4 }), pic.id);
+    await page.waitForFunction((id) => { const s = window.__TOWN.state(); return s && s.level === id && !s.done; }, pic.id);
+    for (let k = 0; k < pic.parts.length; k++) {
+      const r = await page.evaluate(() => {
+        const now = document.querySelector("#screen-town-play .shp-board .shp-now");
+        const right = [...document.querySelectorAll("#screen-town-play .shp-piece[data-correct]")];
+        const shapeOf = (b) => b.querySelector("svg > *");
+        const s = right[0] && shapeOf(right[0]);
+        const box = (e) => { const r = e.getBBox(); return r.height > r.width * 1.15 ? "tall" : r.width > r.height * 1.15 ? "wide" : "even"; };
+        return { now: now && now.tagName, nowBox: now && box(now), rights: right.length, kind: right[0] && right[0].dataset.kind, tag: s && s.tagName, pieceBox: s && box(s),
+          pieces: [...document.querySelectorAll("#screen-town-play .shp-piece")].map((b) => b.dataset.kind) };
+      });
+      const want = pic.parts[k];
+      assert.equal(r.rights, 1, `${pic.id} step ${k}: exactly one piece is right`);
+      assert.equal(r.kind, want.k, `${pic.id} step ${k}: the right piece is the part that glows`);
+      assert.equal(r.now, TAG[want.k], `${pic.id} step ${k}: the glowing slot is drawn as that shape`);
+      assert.equal(r.tag, TAG[want.k], `${pic.id} step ${k}: and the piece is drawn as that shape too`);
+      if (want.k === "rectangle") assert.equal(r.pieceBox, r.nowBox, `${pic.id} step ${k}: a rectangle piece stands the way its slot does`);
+      assert.equal(new Set(r.pieces).size, 3, `${pic.id} step ${k}: three different pieces`);
+      if (k === 0) {
+        const w = await page.evaluate(() => {
+          window.__said.length = 0;
+          const b = document.querySelector("#screen-town-play .shp-piece:not([data-correct])");
+          b.click();
+          return { kind: b.dataset.kind, said: window.__said.join(" "), bump: b.classList.contains("bump") };
+        });
+        assert.ok(w.bump && w.said.includes("That's a " + w.kind), `${pic.id}: a wrong piece wiggles and names itself: ` + w.said);
+      }
+      await page.evaluate(() => document.querySelector("#screen-town-play .shp-piece[data-correct]").click());
+      await page.waitForTimeout(150);
+    }
+    await page.waitForFunction(() => document.querySelector("#screen-town-play").dataset.done === "1", null, { timeout: 4000 });
+    const end = await page.evaluate(() => {
+      const b = document.querySelector("#screen-town-play .shp-board");
+      return { cls: b.className, dashed: b.querySelectorAll("[stroke-dasharray]").length, parts: b.querySelectorAll("svg > *").length };
+    });
+    assert.equal(end.dashed, 0, pic.id + ": every part is filled in");
+    assert.equal(end.parts, pic.parts.length, pic.id + ": the picture is exactly its parts");
+    assert.ok(end.cls.includes("shp-alive--" + pic.alive), pic.id + ": the finished picture comes alive");
+  }
+  assert.deepEqual(pageErrors, []);
+});
